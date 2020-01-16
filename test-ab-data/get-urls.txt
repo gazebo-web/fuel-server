@@ -1,0 +1,12 @@
+$AB_SERVER/1.0/models
+$AB_SERVER/1.0/models?q=task&order=asc&page=1&per_page=10
+$AB_SERVER/1.0/test-username/models?q=task&order=asc&page=1&per_page=10
+$AB_SERVER/1.0/models/45bb9cb9-e83c-4415-b5e7-d464c76d6521
+$AB_SERVER/1.0/test-username/models
+$AB_SERVER/1.0/test-username/models/testModel
+$AB_SERVER/1.0/models/45bb9cb9-e83c-4415-b5e7-d464c76d6521/files
+$AB_SERVER/1.0/models/45bb9cb9-e83c-4415-b5e7-d464c76d6521/files/tmp.png
+$AB_SERVER/1.0/login
+$AB_SERVER/1.0/users
+$AB_SERVER/1.0/users/test-username
+$AB_SERVER/1.0/licenses

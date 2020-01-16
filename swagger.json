@@ -1,0 +1,1198 @@
+{
+  "schemes": [
+    "https"
+  ],
+  "swagger": "2.0",
+  "info": {
+    "description": "This package provides a REST API to the Ignition Fuel server.",
+    "title": "Ignition Fuel Server RESET API",
+    "contact": {
+      "email": "info@openrobotics.org"
+    },
+    "license": {
+      "name": "Apache 2.0"
+    },
+    "version": "0.1.0"
+  },
+  "host": "staging-api.ignitionfuel.org",
+  "basePath": "/1.0",
+  "paths": {
+    "/licenses": {
+      "get": {
+        "description": "Get the list of licenses. Licenses will be returned paginated,\nwith pages of 20 items by default. The user can request a\ndifferent page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page',\nwith a maximum of 100 items per page.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "licenses"
+        ],
+        "summary": "List licenses",
+        "operationId": "listLicenses",
+        "parameters": [
+          {
+            "minimum": 1,
+            "type": "integer",
+            "format": "int64",
+            "default": 1,
+            "x-go-name": "Page",
+            "description": "The page to return",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int64",
+            "default": 20,
+            "x-go-name": "PageSize",
+            "description": "Size of the pages",
+            "name": "per_page",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Licenses",
+            "schema": {
+              "$ref": "#/definitions/Licenses"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/login": {
+      "get": {
+        "description": "Returns information about the user associated with the given JWT.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "users"
+        ],
+        "summary": "Login user",
+        "operationId": "loginUser",
+        "responses": {
+          "200": {
+            "description": "UserResponse",
+            "schema": {
+              "$ref": "#/definitions/UserResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/models": {
+      "get": {
+        "description": "Get a list of models. Models will be returned paginated,\nwith pages of 20 models by default. The user can request a\ndifferent page with query parameter 'page', and the page size\ncan be defined with query parameter 'per_page'.\nThe route supports the 'order' parameter, with values 'asc' and\n'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on models\nname, description and tags.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Get list of models.",
+        "operationId": "listModels",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "SearchQuery",
+            "description": "Search query",
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "enum": [
+              "asc",
+              " desc"
+            ],
+            "type": "string",
+            "default": "desc",
+            "x-go-name": "Order",
+            "name": "order",
+            "in": "query"
+          },
+          {
+            "minimum": 1,
+            "type": "integer",
+            "format": "int64",
+            "default": 1,
+            "x-go-name": "Page",
+            "description": "The page to return",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int64",
+            "default": 20,
+            "x-go-name": "PageSize",
+            "description": "Size of the pages",
+            "name": "per_page",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/jsonModels"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a new model. The request body should contain the\nfollowing fields: 'modelName', 'urlName', 'description',\n'license' (number), 'permission' (number). All values as strings.\n'tags': a string containing a comma separated list of tags.\nThe model owner will be retrieved from the passed JWT.\n'file': multiple files in the multipart form.",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Create model",
+        "operationId": "createModel",
+        "parameters": [
+          {
+            "x-go-name": "Model",
+            "description": "Model data",
+            "name": "model",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateModel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "dbModel",
+            "schema": {
+              "$ref": "#/definitions/dbModel"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/models/{uuid}": {
+      "get": {
+        "description": "Return a model given its UUID.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf",
+          "application/zip"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Get a single model",
+        "operationId": "singleModel",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model",
+            "schema": {
+              "$ref": "#/definitions/Model"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes a model given its UUID.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Delete a model",
+        "operationId": "deleteModel",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "path",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/models/{uuid}/files": {
+      "get": {
+        "description": "Return the files information of a given model.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Model's file tree.",
+        "operationId": "modelFileTree",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ModelFileTree",
+            "schema": {
+              "$ref": "#/definitions/ModelFileTree"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/models/{uuid}/files/{path}": {
+      "get": {
+        "produces": [
+          "application/octet-stream"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Download an individual file from a model.",
+        "operationId": "downloadModelFile",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Path",
+            "description": "File path within model",
+            "name": "path",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/fileResponse"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "description": "Get the list of users. Users will be returned paginated,\nwith pages of 20 users by default. The user can request a\ndifferent page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page',\nwith a maximum of 100 items per page.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "users"
+        ],
+        "summary": "List users",
+        "operationId": "listUsers",
+        "parameters": [
+          {
+            "minimum": 1,
+            "type": "integer",
+            "format": "int64",
+            "default": 1,
+            "x-go-name": "Page",
+            "description": "The page to return",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int64",
+            "default": 20,
+            "x-go-name": "PageSize",
+            "description": "Size of the pages",
+            "name": "per_page",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UserResponses",
+            "schema": {
+              "$ref": "#/definitions/UserResponses"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a new user. Note: the user identity will be retrieved from the passed JWT.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "users"
+        ],
+        "summary": "Create user",
+        "operationId": "createUser",
+        "parameters": [
+          {
+            "x-go-name": "User",
+            "description": "The user data",
+            "name": "user",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/createUserPayload"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UserResponse",
+            "schema": {
+              "$ref": "#/definitions/UserResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/users/{username}": {
+      "get": {
+        "description": "Return a user given its username and a valid JWT.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "users"
+        ],
+        "summary": "Get a user",
+        "operationId": "singleUser",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Username",
+            "name": "username",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UserResponse",
+            "schema": {
+              "$ref": "#/definitions/UserResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes a user given its username and a valid JWT.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete a user",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Username",
+            "name": "username",
+            "in": "path",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/{username}/models": {
+      "get": {
+        "description": "Get a list of models for the specified owner.\nModels will be returned paginated,\nwith pages of 20 models by default. The user can request a\ndifferent page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page',\nwith a maximum of 100 items per page.\nThe route supports the 'order' parameter, with values 'asc' and\n'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on models\nname, description and tags.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Get owner's models",
+        "operationId": "listOwnerModels",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Username",
+            "name": "username",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "SearchQuery",
+            "description": "Search query",
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "enum": [
+              "asc",
+              " desc"
+            ],
+            "type": "string",
+            "default": "desc",
+            "x-go-name": "Order",
+            "name": "order",
+            "in": "query"
+          },
+          {
+            "minimum": 1,
+            "type": "integer",
+            "format": "int64",
+            "default": 1,
+            "x-go-name": "Page",
+            "description": "The page to return",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int64",
+            "default": 20,
+            "x-go-name": "PageSize",
+            "description": "Size of the pages",
+            "name": "per_page",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/jsonModels"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/models/{model}": {
+      "get": {
+        "description": "Return a model given its owner and name.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf",
+          "application/zip"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Get a single model from an owner",
+        "operationId": "singleOwnerModel",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Username",
+            "name": "username",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "Model",
+            "description": "Model name",
+            "name": "model",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model",
+            "schema": {
+              "$ref": "#/definitions/Model"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "CreateModel": {
+      "description": "CreateModel encapsulates data required to create a model",
+      "type": "object",
+      "required": [
+        "modelName",
+        "license",
+        "file"
+      ],
+      "properties": {
+        "description": {
+          "description": "Optional description",
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "file": {
+          "description": "One or more files",
+          "type": "string",
+          "x-go-name": "File"
+        },
+        "license": {
+          "description": "License ID",
+          "type": "integer",
+          "format": "int64",
+          "minimum": 1,
+          "x-go-name": "License"
+        },
+        "modelName": {
+          "description": "The name of the Model",
+          "type": "string",
+          "x-go-name": "ModelName"
+        },
+        "permission": {
+          "description": "The associated permissions. 0 for public, 1 for private models.",
+          "type": "integer",
+          "format": "int64",
+          "enum": [
+            "0",
+            " 1"
+          ],
+          "x-go-name": "Permission"
+        },
+        "tags": {
+          "description": "A comma separated list of tags",
+          "type": "string",
+          "x-go-name": "Tags"
+        },
+        "urlName": {
+          "description": "Url name",
+          "type": "string",
+          "x-go-name": "URLName"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "ErrMsg": {
+      "description": "ErrMsg is serialized as JSON, and returned if the request does not succeed\nTODO: consider making ErrMsg an 'error'",
+      "type": "object",
+      "properties": {
+        "errcode": {
+          "description": "Internal error code.",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "ErrCode"
+        },
+        "errid": {
+          "description": "Generated ID for easy tracking in server logs",
+          "type": "string",
+          "x-go-name": "ErrID"
+        },
+        "extra": {
+          "description": "Extra information/arguments associated to Error message.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Extra"
+        },
+        "msg": {
+          "description": "Error message.",
+          "type": "string",
+          "x-go-name": "Msg"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-go"
+    },
+    "File": {
+      "type": "object",
+      "title": "File represents an open file descriptor.",
+      "x-go-package": "os"
+    },
+    "License": {
+      "description": "License is a license name and ID",
+      "type": "object",
+      "properties": {
+        "CreatedAt": {},
+        "DeletedAt": {},
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {},
+        "image_url": {
+          "type": "string",
+          "x-go-name": "ImageURL"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "ContentURL"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "Licenses": {
+      "description": "Licenses is an slice of License",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/License"
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "Model": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "x-go-name": "CreatedAt"
+        },
+        "deletedAt": {
+          "type": "string",
+          "x-go-name": "DeletedAt"
+        },
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "downloads": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Downloads"
+        },
+        "filesize": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Filesize"
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "Id"
+        },
+        "license_id": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "LicenseId"
+        },
+        "license_image": {
+          "type": "string",
+          "x-go-name": "LicenseImage"
+        },
+        "license_name": {
+          "type": "string",
+          "x-go-name": "LicenseName"
+        },
+        "license_url": {
+          "type": "string",
+          "x-go-name": "LicenseUrl"
+        },
+        "likes": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Likes"
+        },
+        "modify_date": {
+          "type": "string",
+          "x-go-name": "ModifyDate"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "owner": {
+          "type": "string",
+          "x-go-name": "Owner"
+        },
+        "permission": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Permission"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Tags"
+        },
+        "thumbnail_url": {
+          "type": "string",
+          "x-go-name": "ThumbnailUrl"
+        },
+        "updatedAt": {
+          "type": "string",
+          "x-go-name": "UpdatedAt"
+        },
+        "upload_date": {
+          "type": "string",
+          "x-go-name": "UploadDate"
+        },
+        "url_name": {
+          "type": "string",
+          "x-go-name": "UrlName"
+        },
+        "uuid": {
+          "type": "string",
+          "x-go-name": "Uuid"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/proto"
+    },
+    "ModelFileTree": {
+      "type": "object",
+      "properties": {
+        "file_tree": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ModelFileTree_FileNode"
+          },
+          "x-go-name": "FileTree"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "uuid": {
+          "type": "string",
+          "x-go-name": "Uuid"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/proto"
+    },
+    "ModelFileTree_FileNode": {
+      "type": "object",
+      "properties": {
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ModelFileTree_FileNode"
+          },
+          "x-go-name": "Children"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "path": {
+          "type": "string",
+          "x-go-name": "Path"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/proto"
+    },
+    "Models": {
+      "description": "Models is an array of Model",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/dbModel"
+      },
+      "properties": {
+        "models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Model"
+          },
+          "x-go-name": "Models"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "Tag": {
+      "description": "Tag is a string that can be used to mark other resources, such as models\nand worlds",
+      "type": "object",
+      "properties": {
+        "CreatedAt": {},
+        "DeletedAt": {},
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {},
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "Tags": {
+      "description": "Tags is an array of Tag",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Tag"
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "Team": {
+      "description": "Team is a group of users",
+      "type": "object",
+      "properties": {
+        "CreatedAt": {},
+        "DeletedAt": {},
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {},
+        "description": {
+          "description": "Description of the team",
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "teamname": {
+          "description": "Name of the team",
+          "type": "string",
+          "x-go-name": "Teamname"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "Teams": {
+      "description": "Teams is an array of Team",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Team"
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "User": {
+      "description": "User information",
+      "type": "object",
+      "properties": {
+        "CreatedAt": {},
+        "DeletedAt": {},
+        "DownloadedModels": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "DownloadedWorlds": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "LikedModels": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "LikedWorlds": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "ModelCount": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {},
+        "WorldCount": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "email": {
+          "type": "string",
+          "x-go-name": "Email"
+        },
+        "identity": {
+          "type": "string",
+          "x-go-name": "Identity"
+        },
+        "name": {
+          "description": "Person name",
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "org": {
+          "type": "string",
+          "x-go-name": "Organization"
+        },
+        "username": {
+          "description": "Username is unique in the Fuel community",
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "UserResponse": {
+      "type": "object",
+      "title": "UserResponse stores user information used in REST responses.",
+      "properties": {
+        "email": {
+          "type": "string",
+          "x-go-name": "Email"
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "ID"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "org": {
+          "type": "string",
+          "x-go-name": "Organization"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "UserResponses": {
+      "description": "UserResponses is a slice of UserResponse",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/UserResponse"
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "Users": {
+      "description": "Users is an slice of User",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/User"
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    },
+    "createUserPayload": {
+      "description": "TODO: use this struct to parse and validate input parameters hadler_users.go",
+      "type": "object",
+      "title": "CreateUser is used to represent user input in swagger documentation.",
+      "required": [
+        "username",
+        "email"
+      ],
+      "properties": {
+        "email": {
+          "description": "email",
+          "type": "string",
+          "x-go-name": "Email"
+        },
+        "name": {
+          "description": "Name",
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "org": {
+          "description": "Organization",
+          "type": "string",
+          "x-go-name": "Organization"
+        },
+        "username": {
+          "description": "Username",
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver"
+    },
+    "dbModel": {
+      "description": "A model contains information about a single simulation object, such\nas a robot, table, or structure.",
+      "type": "object",
+      "title": "Model represents information about a simulation model",
+      "properties": {
+        "CreatedAt": {},
+        "DeletedAt": {
+          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index to help disambiguate\nwhen soft deleted rows are involved."
+        },
+        "ID": {
+          "description": "Override default GORM Model fields",
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {},
+        "description": {
+          "description": "A description of the model (max 65,535 chars)\nInteresting post about TEXT vs VARCHAR(30000) performance:\nhttps://nicj.net/mysql-text-vs-varchar-performance/",
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "downloads": {
+          "description": "Number of downloads",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Downloads"
+        },
+        "filesize": {
+          "description": "Bytes of the model, when downloaded as a zip",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Filesize"
+        },
+        "lic_id": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "LicenseID"
+        },
+        "license": {
+          "$ref": "#/definitions/License"
+        },
+        "likes": {
+          "description": "Number of likes",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Likes"
+        },
+        "modify_date": {
+          "description": "Date and time the model was modified",
+          "x-go-name": "ModifyDate"
+        },
+        "name": {
+          "description": "The name of the model",
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "owner": {
+          "description": "The user who created this model",
+          "type": "string",
+          "x-go-name": "Owner"
+        },
+        "permission": {
+          "description": "Permission - 0: public, 1: owner, (future: team, others)",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Permission"
+        },
+        "tags": {
+          "$ref": "#/definitions/Tags"
+        },
+        "upload_date": {
+          "description": "Date and time the model was first uploaded",
+          "x-go-name": "UploadDate"
+        },
+        "url_name": {
+          "description": "Optional user friendly name to use in URLs",
+          "type": "string",
+          "x-go-name": "URLName"
+        },
+        "uuid": {
+          "description": "Unique identifier for the the model",
+          "type": "string",
+          "x-go-name": "UUID"
+        }
+      },
+      "x-go-name": "Model",
+      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+    }
+  },
+  "responses": {
+    "fileResponse": {
+      "description": "File response",
+      "schema": {
+        "$ref": "#/definitions/File"
+      }
+    },
+    "fuelError": {
+      "description": "Ign Fuel error serialized as JSON",
+      "schema": {
+        "$ref": "#/definitions/ErrMsg"
+      }
+    },
+    "jsonModels": {
+      "description": "Array of Models",
+      "schema": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/Model"
+        }
+      }
+    }
+  }
+}

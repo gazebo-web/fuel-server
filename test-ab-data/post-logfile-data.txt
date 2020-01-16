@@ -1,0 +1,34 @@
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="owner"
+
+pato org with spaces
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="description"
+
+testDesc
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="private"
+
+1
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="file"; filename="model.config"
+Content-Type: application/octet-stream
+
+<?xml version="1.0"?>
+
+<model>
+  <name>Apartment</name>
+  <version>1.0</version>
+  <sdf version="1.6">model.sdf</sdf>
+
+  <author>
+    <name>Nate Koenig</name>
+    <email>nate@osrfoundation.org</email>
+  </author>
+
+  <description>
+    An apartment building.
+  </description>
+</model>
+
+-----------------------------103633748619302808251276201494--
