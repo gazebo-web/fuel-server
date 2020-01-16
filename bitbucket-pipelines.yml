@@ -1,0 +1,140 @@
+image: golang:1.9.4
+
+pipelines:
+  default:
+    - step:
+        script:
+          - source bitbucket-pipelines-go.sh
+          - cd ${IMPORT_PATH}
+          - export DEP_RELEASE_TAG=v0.4.1
+          - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+          - curl -L https://git.io/vp6lP | sh
+          - go version
+          - dep ensure -vendor-only
+          - dep status
+          - lint=$(./bin/gometalinter ./... | grep -v .pb.go) && if [[ ! -z $lint ]]; then echo "Invalid gometalinter at $lint" && exit 1; fi
+          - fmt=$(gofmt -s -l . | grep -v vendor/ | grep -v ".pb.go") && if [[ ! -z $fmt ]]; then echo "Invalid gofmt at $fmt" && exit 1; fi
+          - go build
+          - git config --global user.name "ign-fuelserver"
+          - git config --global user.email "ign-fuelserver@test.org"
+          - go test -v -covermode=atomic -coverprofile=coverage.tx
+          - go tool cover -func=coverage.tx
+          - bash <(curl -s https://codecov.io/bash)
+        services:
+          - database
+  branches:
+    # Default deploys to the integration server.
+    default:
+      - step:
+          script:
+            - source bitbucket-pipelines-go.sh
+            - cd ${IMPORT_PATH}
+            - export DEP_RELEASE_TAG=v0.4.1
+            - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            - curl -L https://git.io/vp6lP | sh
+            - go version
+            - dep ensure -vendor-only
+            - dep status
+            - lint=$(./bin/gometalinter ./... | grep -v .pb.go) && if [[ ! -z $lint ]]; then echo "Invalid gometalinter at $lint" && exit 1; fi
+            - go build
+            - git config --global user.name "ign-fuelserver"
+            - git config --global user.email "ign-fuelserver@test.org"
+            - go test -covermode=atomic -coverprofile=coverage.tx
+            - go tool cover -func=coverage.tx
+            - bash <(curl -s https://codecov.io/bash)
+            - apt-get update
+            - apt-get install -y zip python3 python-pip
+            - pip install boto3==1.3.0
+            - zip -r /tmp/artifact.zip * .ebextensions -x bin/\* -x vendor/\*
+            - export APPLICATION_ENVIRONMENT="web-fuel-integration"
+            - python beanstalk_deploy.py
+          services:
+            - database
+    # Copied from default branch to have a manual alternative
+    staging:
+      - step:
+          script:
+            - source bitbucket-pipelines-go.sh
+            - cd ${IMPORT_PATH}
+            - export DEP_RELEASE_TAG=v0.4.1
+            - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            - curl -L https://git.io/vp6lP | sh
+            - go version
+            - dep ensure -vendor-only
+            - dep status
+            - lint=$(./bin/gometalinter ./... | grep -v .pb.go) && if [[ ! -z $lint ]]; then echo "Invalid gometalinter at $lint" && exit 1; fi
+            - go build
+            - git config --global user.name "ign-fuelserver"
+            - git config --global user.email "ign-fuelserver@test.org"
+            - go test -covermode=atomic -coverprofile=coverage.tx
+            - go tool cover -func=coverage.tx
+            - bash <(curl -s https://codecov.io/bash)
+            - apt-get update
+            - apt-get install -y zip python3 python-pip
+            - pip install boto3==1.3.0
+            - zip -r /tmp/artifact.zip * .ebextensions -x bin/\* -x vendor/\*
+            - export APPLICATION_ENVIRONMENT="web-fuel-staging"
+            - python beanstalk_deploy.py
+          services:
+            - database
+    production:
+      - step:
+          script:
+            - source bitbucket-pipelines-go.sh
+            - cd ${IMPORT_PATH}
+            - export DEP_RELEASE_TAG=v0.4.1
+            - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            - curl -L https://git.io/vp6lP | sh
+            - go version
+            - dep ensure -vendor-only
+            - dep status
+            - lint=$(./bin/gometalinter ./... | grep -v .pb.go) && if [[ ! -z $lint ]]; then echo "Invalid gometalinter at $lint" && exit 1; fi
+            - go build
+            - git config --global user.name "ign-fuelserver"
+            - git config --global user.email "ign-fuelserver@test.org"
+            - go test -covermode=atomic -coverprofile=coverage.tx
+            - go tool cover -func=coverage.tx
+            - bash <(curl -s https://codecov.io/bash)
+            - apt-get update
+            - apt-get install -y zip python3 python-pip
+            - pip install boto3==1.3.0
+            - zip -r /tmp/artifact.zip * .ebextensions -x bin/\* -x vendor/\*
+            - export APPLICATION_ENVIRONMENT="web-fuel-production"
+            - python beanstalk_deploy.py
+          services:
+            - database
+    integration:
+      - step:
+          script:
+            - source bitbucket-pipelines-go.sh
+            - cd ${IMPORT_PATH}
+            - export DEP_RELEASE_TAG=v0.4.1
+            - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            - curl -L https://git.io/vp6lP | sh
+            - go version
+            - dep ensure -vendor-only
+            - dep status
+            - lint=$(./bin/gometalinter ./... | grep -v .pb.go) && if [[ ! -z $lint ]]; then echo "Invalid gometalinter at $lint" && exit 1; fi
+            - go build
+            - git config --global user.name "ign-fuelserver"
+            - git config --global user.email "ign-fuelserver@test.org"
+            - go test -covermode=atomic -coverprofile=coverage.tx
+            - go tool cover -func=coverage.tx
+            - apt-get update
+            - apt-get install -y zip python3 python-pip
+            - pip install boto3==1.3.0
+            - zip -r /tmp/artifact.zip * .ebextensions -x bin/\* -x vendor/\*
+            - export APPLICATION_ENVIRONMENT="web-fuel-integration"
+            - python beanstalk_deploy.py
+          services:
+            - database
+definitions:
+  services:
+    database:
+      # MySQL image on docker hub changes "latest" tag from 5.7 to 8 recently (2018/04/20), which has lots of breaking
+      # changes. Using "mysql:5.7" instead of "mysql" should solve your problem.
+      # See: https://stackoverflow.com/questions/49974372/go-mysql-authentication-plugin-not-supported-while-connecting-from-go-app-conta
+      image: mysql:5.7
+      environment:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: fuel_test
