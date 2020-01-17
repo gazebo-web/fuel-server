@@ -1,7 +1,7 @@
 image: golang:1.13.5
 
 variables:
-  PKG_NAME: gitlab.com/ignitionrobotics/web/ign-go.git
+  PKG_NAME: gitlab.com/ignitionrobotics/web/fuelserver.git
   MYSQL_DATABASE: "root"
   MYSQL_ROOT_PASSWORD: "root"
 
