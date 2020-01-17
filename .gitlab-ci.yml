@@ -88,7 +88,8 @@ deploy_integration:
   environment:
     name: integration
     url: https://web-fuel-integration.us-east-1.elasticbeanstalk.com/1.0
-  only:
+  except:
+    - master
     - develop
   when: manual
 

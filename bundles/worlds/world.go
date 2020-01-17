@@ -130,7 +130,7 @@ func QueryForWorlds(q *gorm.DB) *gorm.DB {
 	return q.Model(&World{}).Order("id").Preload("Tags").Preload("License")
 }
 
-// GetModelByName queries a World by name and owner.
+// GetWorldByName queries a World by name and owner.
 func GetWorldByName(tx *gorm.DB, name string, owner string) (*World, error) {
 	var w World
 	if err := QueryForWorlds(tx).Where("owner = ? AND name = ?", owner, name).First(&w).Error; err != nil {
