@@ -1,0 +1,115 @@
+image: golang:1.13.5
+
+variables:
+  PKG_NAME: gitlab.com/ignitionrobotics/web/ign-go.git
+  MYSQL_DATABASE: "root"
+  MYSQL_ROOT_PASSWORD: "root"
+
+before_script:
+  - go version
+  - mkdir -p -v $GOPATH/src/$PKG_NAME
+  - mv -f * $GOPATH/src/$PKG_NAME
+  - cd $GOPATH/src/$PKG_NAME
+  - go get
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - /go/pkg/*
+
+stages:
+  - formatting
+  - linting
+  - testing
+  - building
+  - packaging
+  - deploying
+
+format:
+  stage: formatting
+  script:
+    - go fmt $(go list ./... | grep -v /vendor/)
+
+lint:
+  stage: linting
+  before_script:
+    - mkdir -p $GOPATH/src/golang.org/x
+    - git clone https://github.com/golang/lint.git $GOPATH/src/golang.org/x/lint
+    - go get -u golang.org/x/lint/golint
+  script:
+    - golint -set_exit_status $(go list ./... | grep -v /vendor/)
+
+
+vet:
+  stage: testing
+  script:
+    - go vet $(go list ./... | grep -v /vendor/)
+  services:
+    - mysql:5.7
+
+test:
+  stage: testing
+  script:
+    - go test $(go list ./... | grep -v /vendor/)
+  services:
+    - mysql:5.7
+
+race:
+  stage: testing
+  script:
+    - go test -race $(go list ./... | grep -v /vendor/)
+  services:
+    - mysql:5.7
+
+coverage:
+  stage: testing
+  script:
+    - go test -covermode=atomic -coverprofile=coverage.tx
+    - go tool cover -func=coverage.tx
+    - bash <(curl -s https://codecov.io/bash)
+  services:
+    - mysql:5.7
+
+build:
+  stage: building
+  script:
+    - go build
+
+package:
+  stage: packaging
+  script:
+    - echo "Packaging"
+
+
+deploy_integration:
+  stage: deploying
+  script:
+    - echo "Deploying to integration"
+  environment:
+    name: integration
+    url: https://web-fuel-integration.us-east-1.elasticbeanstalk.com/1.0
+  only:
+    - develop
+  when: manual
+
+deploy_staging:
+  stage: deploying
+  script:
+    - echo "Deploying to staging"
+  environment:
+    name: staging
+    url: https://web-fuel-staging.us-east-1.elasticbeanstalk.com/1.0
+  only:
+    - develop
+  when: manual
+
+deploy_production:
+  stage: deploying
+  script:
+    - echo "Deploying to production"
+  environment:
+    name: production
+    url: https://web-fuel-production.us-east-1.elasticbeanstalk.com/1.0
+  only:
+    - master
+  when: manual
