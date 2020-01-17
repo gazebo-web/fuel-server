@@ -81,7 +81,7 @@ package:
     - echo "Packaging"
 
 
-deploy_integration:
+integration:
   stage: deploying
   script:
     - echo "Deploying to integration"
@@ -93,7 +93,7 @@ deploy_integration:
     - develop
   when: manual
 
-deploy_staging:
+staging:
   stage: deploying
   script:
     - echo "Deploying to staging"
@@ -104,7 +104,7 @@ deploy_staging:
     - develop
   when: manual
 
-deploy_production:
+production:
   stage: deploying
   script:
     - echo "Deploying to production"
