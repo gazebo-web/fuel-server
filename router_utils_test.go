@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/users"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/cmd/token-generator/generator"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/globals"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/proto"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/vcs"
-	"bitbucket.org/ignitionrobotics/ign-go"
-	"bitbucket.org/ignitionrobotics/ign-go/testhelpers"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/fuelserver/cmd/token-generator/generator"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
+	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
+	"gitlab.com/ignitionrobotics/web/ign-go"
+	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"bytes"
 	"context"
 	"encoding/json"

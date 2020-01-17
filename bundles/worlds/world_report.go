@@ -1,6 +1,6 @@
 package worlds
 
-import "bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/generics"
+import "gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 
 // WorldReport contains information about a world's user report.
 type WorldReport struct {

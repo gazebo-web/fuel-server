@@ -12,12 +12,12 @@ import (
 	"strconv"
 	"testing"
 
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/models"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/worlds"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/globals"
-	fuel "bitbucket.org/ignitionrobotics/ign-fuelserver/proto"
-	"bitbucket.org/ignitionrobotics/ign-go"
-	igntest "bitbucket.org/ignitionrobotics/ign-go/testhelpers"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	fuel "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+	"gitlab.com/ignitionrobotics/web/ign-go"
+	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

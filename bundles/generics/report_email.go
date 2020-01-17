@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/globals"
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // SendReportEmail sends an alert to admins about a resource report

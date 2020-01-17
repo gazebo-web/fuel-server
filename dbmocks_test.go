@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"database/sql"
 	"database/sql/driver"
 	mocket "github.com/Selvatico/go-mocket"

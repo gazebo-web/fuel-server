@@ -5,7 +5,7 @@ package main
 
 // Import this file's dependencies
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/cmd/token-generator/generator"
+	"gitlab.com/ignitionrobotics/web/fuelserver/cmd/token-generator/generator"
 	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"log"

@@ -1,7 +1,7 @@
 package models
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/generics"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 )
 
 // ModelReport contains information about a model's user report
