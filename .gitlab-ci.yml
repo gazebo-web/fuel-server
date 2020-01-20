@@ -39,13 +39,14 @@ lint:
   script:
     - golint -set_exit_status $(go list ./... | grep -v /vendor/)
 
-
 vet:
   stage: testing
   script:
     - go vet $(go list ./... | grep -v /vendor/)
   services:
     - mysql:5.7
+  environment:
+    name: testing
 
 test:
   stage: testing
@@ -53,6 +54,8 @@ test:
     - go test $(go list ./... | grep -v /vendor/)
   services:
     - mysql:5.7
+  environment:
+    name: testing
 
 race:
   stage: testing
@@ -60,6 +63,8 @@ race:
     - go test -race $(go list ./... | grep -v /vendor/)
   services:
     - mysql:5.7
+  environment:
+    name: testing
 
 coverage:
   stage: testing
@@ -69,6 +74,8 @@ coverage:
     - bash <(curl -s https://codecov.io/bash)
   services:
     - mysql:5.7
+  environment:
+    name: testing
 
 build:
   stage: building
