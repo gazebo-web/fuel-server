@@ -51,6 +51,7 @@ vet:
 test:
   stage: testing
   script:
+    - export
     - go test $(go list ./... | grep -v /vendor/)
   services:
     - mysql:5.7
