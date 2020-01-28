@@ -12,7 +12,8 @@ before_script:
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - /usr/local/go/pkg
+    - $GOROOT/pkg/mod
+    - $GOPATH/pkg/mod
 
 stages:
   - formatting
