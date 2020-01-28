@@ -1,21 +1,18 @@
 image: golang:1.11.5
 
 variables:
-  PKG_NAME: gitlab.com/ignitionrobotics/web/fuelserver.git
+  PKG_NAME: gitlab.com/ignitionrobotics/web/fuelserver
   MYSQL_DATABASE: "fuel_test"
   MYSQL_ROOT_PASSWORD: "root"
 
 before_script:
   - go version
-  - mkdir -p -v $GOPATH/src/$PKG_NAME
-  - mv -f * $GOPATH/src/$PKG_NAME
-  - cd $GOPATH/src/$PKG_NAME
   - go get
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - /go/pkg/*
+    - /usr/local/go/pkg
 
 stages:
   - formatting
