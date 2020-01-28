@@ -400,7 +400,7 @@ func LogFileScoresToCompetitionScore(db *gorm.DB, circuit string) {
 		}
 		score := float64(*log.Score)
 		tx.Model(&subt.CompetitionScore{}).Create(&subt.CompetitionScore{
-			GroupId:     log.UUID,
+			GroupID:     log.UUID,
 			Competition: log.Competition,
 			Circuit:     &circuit,
 			Owner:       log.Owner,
