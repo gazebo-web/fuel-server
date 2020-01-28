@@ -12,8 +12,8 @@ before_script:
   - cd $GOPATH/src/$PKG_NAME
   - export DEP_RELEASE_TAG=v0.4.1
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-  - $GOPATH/bin/dep status
   - $GOPATH/bin/dep ensure -vendor-only
+  - $GOPATH/bin/dep status
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
