@@ -4,7 +4,6 @@ import (
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"encoding/json"
 	"fmt"
 	"github.com/go-playground/form"
