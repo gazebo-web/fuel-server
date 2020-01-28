@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// Metadatum contains a key-value pair for a model.
+// ModelMetadatum contains a key-value pair for a model.
 //
 // swagger:model dbModel
 type ModelMetadatum struct {
@@ -25,7 +25,7 @@ func (mm ModelMetadatum) IsEmpty() bool {
 	return (mm.Key == nil || len(*mm.Key) == 0) && (mm.Value == nil || len(*mm.Value) == 0)
 }
 
-// Metadata is an array of Metadatum
+// ModelMetadata is an array of Metadatum
 //
 // swagger:model
 type ModelMetadata []ModelMetadatum
