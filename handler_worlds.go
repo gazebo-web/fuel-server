@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/generics"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/users"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/worlds"
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 )

@@ -1,7 +1,7 @@
 package models
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"github.com/jinzhu/gorm"
 	"strings"
 )

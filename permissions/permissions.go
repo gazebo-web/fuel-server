@@ -1,7 +1,7 @@
 package permissions
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"fmt"
 	"github.com/casbin/casbin"
 	"github.com/casbin/gorm-adapter"

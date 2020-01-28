@@ -31,12 +31,12 @@ package main
 
 // Import this file's dependencies
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/subt"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/globals"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/migrate"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/permissions"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/vcs"
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/subt"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/fuelserver/migrate"
+	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"context"
 	"flag"
 	"github.com/go-playground/form"

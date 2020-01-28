@@ -1,13 +1,13 @@
 package collections
 
 import (
-	res "bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/common_resources"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/models"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/users"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/worlds"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/globals"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/permissions"
-	"bitbucket.org/ignitionrobotics/ign-go"
+	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"context"
 	"fmt"
 	"github.com/jinzhu/gorm"

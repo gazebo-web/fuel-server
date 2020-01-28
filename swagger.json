@@ -660,7 +660,7 @@
           "x-go-name": "URLName"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "ErrMsg": {
       "description": "ErrMsg is serialized as JSON, and returned if the request does not succeed\nTODO: consider making ErrMsg an 'error'",
@@ -691,7 +691,7 @@
           "x-go-name": "Msg"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-go"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/ign-go"
     },
     "File": {
       "type": "object",
@@ -722,7 +722,7 @@
           "x-go-name": "ContentURL"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "Licenses": {
       "description": "Licenses is an slice of License",
@@ -730,7 +730,7 @@
       "items": {
         "$ref": "#/definitions/License"
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "Model": {
       "type": "object",
@@ -829,7 +829,7 @@
           "x-go-name": "Uuid"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/proto"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
     },
     "ModelFileTree": {
       "type": "object",
@@ -850,7 +850,7 @@
           "x-go-name": "Uuid"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/proto"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
     },
     "ModelFileTree_FileNode": {
       "type": "object",
@@ -871,7 +871,7 @@
           "x-go-name": "Path"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/proto"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
     },
     "Models": {
       "description": "Models is an array of Model",
@@ -888,7 +888,7 @@
           "x-go-name": "Models"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "Tag": {
       "description": "Tag is a string that can be used to mark other resources, such as models\nand worlds",
@@ -906,7 +906,7 @@
           "x-go-name": "Name"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "Tags": {
       "description": "Tags is an array of Tag",
@@ -914,7 +914,7 @@
       "items": {
         "$ref": "#/definitions/Tag"
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "Team": {
       "description": "Team is a group of users",
@@ -938,7 +938,7 @@
           "x-go-name": "Teamname"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "Teams": {
       "description": "Teams is an array of Team",
@@ -946,7 +946,7 @@
       "items": {
         "$ref": "#/definitions/Team"
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "User": {
       "description": "User information",
@@ -1006,7 +1006,7 @@
           "x-go-name": "Username"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "UserResponse": {
       "type": "object",
@@ -1034,7 +1034,7 @@
           "x-go-name": "Username"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "UserResponses": {
       "description": "UserResponses is a slice of UserResponse",
@@ -1042,7 +1042,7 @@
       "items": {
         "$ref": "#/definitions/UserResponse"
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "Users": {
       "description": "Users is an slice of User",
@@ -1050,7 +1050,7 @@
       "items": {
         "$ref": "#/definitions/User"
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "createUserPayload": {
       "description": "TODO: use this struct to parse and validate input parameters hadler_users.go",
@@ -1082,7 +1082,7 @@
           "x-go-name": "Username"
         }
       },
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
     },
     "dbModel": {
       "description": "A model contains information about a single simulation object, such\nas a robot, table, or structure.",
@@ -1169,7 +1169,7 @@
         }
       },
       "x-go-name": "Model",
-      "x-go-package": "bitbucket.org/ignitionrobotics/ign-fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     }
   },
   "responses": {

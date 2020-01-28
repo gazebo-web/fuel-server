@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/globals"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/permissions"
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

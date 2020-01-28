@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/license"
-	"bitbucket.org/ignitionrobotics/ign-go"
-	"bitbucket.org/ignitionrobotics/ign-go/testhelpers"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
+	"gitlab.com/ignitionrobotics/web/ign-go"
+	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"net/http"

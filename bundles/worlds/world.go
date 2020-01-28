@@ -1,9 +1,9 @@
 package worlds
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/license"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/models"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"github.com/jinzhu/gorm"
 	"time"
 )
