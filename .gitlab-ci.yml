@@ -1,4 +1,4 @@
-image: golang:1.13.5
+image: golang:1.9.4
 
 variables:
   PKG_NAME: gitlab.com/ignitionrobotics/web/fuelserver.git
@@ -10,12 +10,16 @@ before_script:
   - mkdir -p -v $GOPATH/src/$PKG_NAME
   - mv -f * $GOPATH/src/$PKG_NAME
   - cd $GOPATH/src/$PKG_NAME
-  - go get
+  - export DEP_RELEASE_TAG=v0.4.1
+  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+  - $GOPATH/bin/dep status
+  - $GOPATH/bin/dep ensure -vendor-only
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - /go/pkg/*
+    - /go/src/$PKG_NAME/vendor
+    - /go/bin
 
 stages:
   - formatting
