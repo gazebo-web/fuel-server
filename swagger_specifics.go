@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/models"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/proto"
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"os"
 )
 

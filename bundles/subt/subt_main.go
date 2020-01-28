@@ -1,8 +1,8 @@
 package subt
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/users"
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"context"
 	"github.com/jinzhu/gorm"
 	"log"

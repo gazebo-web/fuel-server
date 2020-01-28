@@ -4,9 +4,9 @@ import (
 	"path"
 	"time"
 
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/license"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/users"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"github.com/jinzhu/gorm"
 )
 

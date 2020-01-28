@@ -1,9 +1,9 @@
 package globals
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/permissions"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/vcs"
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"context"
 	"github.com/go-playground/form"
 	"gopkg.in/go-playground/validator.v9"

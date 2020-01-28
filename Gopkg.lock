@@ -2,15 +2,6 @@
 
 
 [[projects]]
-  branch = "default"
-  name = "bitbucket.org/ignitionrobotics/ign-go"
-  packages = [
-    ".",
-    "testhelpers"
-  ]
-  revision = "6411ed410bffe72e8f61208f29fe4c7d24f730b9"
-
-[[projects]]
   name = "github.com/Knetic/govaluate"
   packages = ["."]
   revision = "d216395917cc49052c7c7094cf57f09657ca08a8"
@@ -285,6 +276,15 @@
   version = "v0.2.0"
 
 [[projects]]
+  name = "gitlab.com/ignitionrobotics/web/ign-go"
+  packages = [
+    ".",
+    "testhelpers"
+  ]
+  revision = "0366041efcb3529850ce1fa2f0d88e94f8525722"
+  version = "4.0.0"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = [
@@ -414,6 +414,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "64854a3500dd17f72b78dc9e10d2b9557308975087cb69446d3d63ed87624670"
+  inputs-digest = "4a2f64f4798500ee4d09c5da35ea7cd3725ed528e1d9b41600d7deb49bfa9730"
   solver-name = "gps-cdcl"
   solver-version = 1
