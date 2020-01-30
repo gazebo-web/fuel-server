@@ -109,9 +109,9 @@ type Enforcer interface {
 	AddPermissionForUser(user string, permission ...string) bool
 	DeletePermissionForUser(user string, permission ...string) bool
 	DeletePermissionsForUser(user string) bool
-	GetUsersForRole(name string) []string
-	GetRolesForUser(name string) []string
-	HasRoleForUser(name string, role string) bool
+	GetUsersForRole(name string) ([]string, error)
+	GetRolesForUser(name string) ([]string, error)
+	HasRoleForUser(name string, role string) (bool, error)
 	HasPermissionForUser(user string, permission ...string) bool
 	RemoveFilteredPolicy(fieldIndex int, fieldValues ...string) bool
 }
@@ -183,7 +183,8 @@ func (p *Permissions) setSystemAdmin(sysAdmin string) {
 
 // IsSystemAdmin returns a bool indicating if the given user is a system admin.
 func (p *Permissions) IsSystemAdmin(user string) bool {
-	return p.data.enforcer.HasRoleForUser(user, roleToString(SystemAdmin))
+	ok, _ := p.data.enforcer.HasRoleForUser(user, roleToString(SystemAdmin))
+	return ok
 }
 
 // IsAuthorized checks if user has the permission to perform an action on a
@@ -239,7 +240,7 @@ func (p *Permissions) GetGroupsForUser(user string) []string {
 // groups as keys and the user role in those groups as values.
 func (p *Permissions) GetGroupsAndRolesForUser(user string) map[string]string {
 	m := make(map[string]string, 0)
-	roles := p.data.enforcer.GetRolesForUser(user)
+	roles, _ := p.data.enforcer.GetRolesForUser(user)
 	re := regexp.MustCompile("(.+)_#([^_]+)$")
 	for _, r := range roles {
 		s := re.FindStringSubmatch(r)
@@ -254,7 +255,8 @@ func (p *Permissions) GetGroupsAndRolesForUser(user string) map[string]string {
 
 // GetUsersForGroup gets the users that belong to a group.
 func (p *Permissions) GetUsersForGroup(group string) []string {
-	return p.data.enforcer.GetUsersForRole(group)
+	users, _ := p.data.enforcer.GetUsersForRole(group)
+	return users
 }
 
 // UserBelongsToGroup returns true if the user belongs to the group.
@@ -264,7 +266,8 @@ func (p *Permissions) UserBelongsToGroup(user, group string) bool {
 
 // HasRoleForUser checks and see if a user has the specified role
 func (p *Permissions) HasRoleForUser(user, role string) bool {
-	return p.data.enforcer.HasRoleForUser(user, role)
+	ok, _ := p.data.enforcer.HasRoleForUser(user, role)
+	return ok
 }
 
 // AddUserGroupRoleString is same as AddUserGroupRole but receives a role name
@@ -299,7 +302,8 @@ func (p *Permissions) AddUserGroupRole(user, group string, role Role) (bool, *ig
 
 // AddRoleForUser adds a role for a user
 func (p *Permissions) AddRoleForUser(user, role string) (bool, *ign.ErrMsg) {
-	if p.data.enforcer.HasRoleForUser(user, role) {
+	ok, _ := p.data.enforcer.HasRoleForUser(user, role)
+	if ok {
 		extra := fmt.Sprintf("Role [%s] exist for user [%s]", role, user)
 		return false, ign.NewErrorMessageWithArgs(ign.ErrorResourceExists, nil, []string{extra})
 	}
@@ -336,7 +340,8 @@ func (p *Permissions) GetUserRoleForGroup(user, group string) (Role, *ign.ErrMsg
 			return -1, em
 		}
 		groupRole := getRoleForGroup(role, group)
-		if p.data.enforcer.HasRoleForUser(user, groupRole) {
+		ok, _ := p.data.enforcer.HasRoleForUser(user, groupRole)
+		if ok {
 			return role, nil
 		}
 	}
@@ -367,15 +372,17 @@ func (p *Permissions) CompareRoles(role1, role2 Role) int {
 
 // RemoveUserFromGroup removes all roles from a user in a group
 func (p *Permissions) RemoveUserFromGroup(user, group string) (bool, *ign.ErrMsg) {
-	if !p.data.enforcer.HasRoleForUser(user, group) {
+	ok, _ := p.data.enforcer.HasRoleForUser(user, group)
+	if !ok {
 		extra := fmt.Sprintf("User [%s] does not belong to group [%s]", user, group)
 		return false, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, nil, []string{extra})
 	}
 
 	// Should not be able to remove the last owner.
 	ownerRole := getRoleForGroup(Owner, group)
-	owners := p.data.enforcer.GetUsersForRole(ownerRole)
-	if len(owners) == 1 && p.data.enforcer.HasRoleForUser(user, ownerRole) {
+	owners, _ := p.data.enforcer.GetUsersForRole(ownerRole)
+	ok, _ = p.data.enforcer.HasRoleForUser(user, ownerRole)
+	if len(owners) == 1 && ok {
 		extra := fmt.Sprintf("Cannot remove the last owner [%s] of an Org [%s]", user, group)
 		return false, ign.NewErrorMessageWithArgs(ign.ErrorUnexpected, nil, []string{extra})
 	}
@@ -384,19 +391,22 @@ func (p *Permissions) RemoveUserFromGroup(user, group string) (bool, *ign.ErrMsg
 
 	// remove specific group roles of user (owner, admin, member)
 	role := getRoleForGroup(Member, group)
-	if p.data.enforcer.HasRoleForUser(user, role) {
+	ok, _ = p.data.enforcer.HasRoleForUser(user, role)
+	if ok {
 		if !p.data.enforcer.DeleteRoleForUser(user, role) {
 			return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 		}
 	}
 	role = getRoleForGroup(Admin, group)
-	if p.data.enforcer.HasRoleForUser(user, role) {
+	ok, _ = p.data.enforcer.HasRoleForUser(user, role)
+	if ok {
 		if !p.data.enforcer.DeleteRoleForUser(user, role) {
 			return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 		}
 	}
 	// if the user was an owner, then remove that role too.
-	if p.data.enforcer.HasRoleForUser(user, ownerRole) {
+	ok, _ = p.data.enforcer.HasRoleForUser(user, ownerRole)
+	if ok {
 		if !p.data.enforcer.DeleteRoleForUser(user, ownerRole) {
 			return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 		}

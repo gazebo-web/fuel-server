@@ -1,13 +1,12 @@
 module gitlab.com/ignitionrobotics/web/fuelserver
 
 require (
-	github.com/Knetic/govaluate v3.0.0+incompatible // indirect
 	github.com/Selvatico/go-mocket v1.0.4
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 // indirect
 	github.com/aws/aws-sdk-go v1.15.11
-	github.com/casbin/casbin v1.5.0
-	github.com/casbin/gorm-adapter v0.0.0-20190318080705-e74a050c51a4
+	github.com/casbin/casbin v1.9.1
+	github.com/casbin/gorm-adapter v1.0.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/emirpasic/gods v1.9.0 // indirect
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect

@@ -1,5 +1,7 @@
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=
 github.com/Knetic/govaluate v3.0.0+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
+github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible h1:1G1pk05UrOh0NlF1oeaaix1x8XzrfjIDK47TY0Zehcw=
+github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Selvatico/go-mocket v1.0.4 h1:F1wAmyP3M0eNXRWYE3jLKGRWRax1pSw/3+CvF9cMQT4=
 github.com/Selvatico/go-mocket v1.0.4/go.mod h1:4gO2v+uQmsL+jzQgLANy3tyEFzaEzHlymVbZ3GP2Oes=
 github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7 h1:uSoVVbwJiQipAclBbw+8quDsfcvFjOpI5iCf4p/cqCs=
@@ -12,8 +14,12 @@ github.com/aws/aws-sdk-go v1.15.11 h1:m45+Ru/wA+73cOZXiEGLDH2d9uLN3iHqMc0/z4noDX
 github.com/aws/aws-sdk-go v1.15.11/go.mod h1:mFuSZ37Z9YOHbQEwBWztmVzqXrEkub65tZoCYDt7FT0=
 github.com/casbin/casbin v1.5.0 h1:mu575Bh7CW6JrjAjnQz0sTtHJvhpf3Gm5r2+tsWn6AY=
 github.com/casbin/casbin v1.5.0/go.mod h1:c67qKN6Oum3UF5Q1+BByfFxkwKvhwW57ITjqwtzR1KE=
+github.com/casbin/casbin v1.9.1 h1:ucjbS5zTrmSLtH4XogqOG920Poe6QatdXtz1FEbApeM=
+github.com/casbin/casbin v1.9.1/go.mod h1:z8uPsfBJGUsnkagrt3G8QvjgTKFMBJ32UP8HpZllfog=
 github.com/casbin/gorm-adapter v0.0.0-20190318080705-e74a050c51a4 h1:7k27RXBL/0c7vJhLbelMPk+yNN+ceYX1WUlzlKDaIME=
 github.com/casbin/gorm-adapter v0.0.0-20190318080705-e74a050c51a4/go.mod h1:1E0t3/djAo+vIvDfNPGigJjLMyoh2XNesXMW69R3ykA=
+github.com/casbin/gorm-adapter v1.0.0 h1:s6U2gJQ4reenRde0L85YsrwNt8k0bv6iUAfRigi1/cM=
+github.com/casbin/gorm-adapter v1.0.0/go.mod h1:1E0t3/djAo+vIvDfNPGigJjLMyoh2XNesXMW69R3ykA=
 github.com/codegangsta/negroni v0.3.0 h1:ByBtJaE0u71x6Ebli7lm95c8oCkrmF88+s5qB2o6j8I=
 github.com/codegangsta/negroni v0.3.0/go.mod h1:v0y3T5G7Y1UlFfyxFn/QLRU4a2EuNau2iZY63YTKWo0=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
