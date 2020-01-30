@@ -7,6 +7,9 @@ variables:
 
 before_script:
   - go version
+  - mkdir -p -v $GOPATH/src/$PKG_NAME
+  - mv -f * $GOPATH/src/$PKG_NAME
+  - cd $GOPATH/src/$PKG_NAME
   - export DEP_RELEASE_TAG=v0.4.1
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - $GOPATH/bin/dep ensure
