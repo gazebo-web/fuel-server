@@ -37,7 +37,7 @@ format:
 lint:
   stage: linting
   before_script:
-    - go get -u https://github.com/golang/lint.git
+    - go get -u github.com/golang/lint
   script:
     - golint -set_exit_status $(go list ./... | grep -v /vendor/)
 
