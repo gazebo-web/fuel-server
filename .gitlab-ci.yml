@@ -15,11 +15,11 @@ before_script:
   - $GOPATH/bin/dep ensure -vendor-only
   - $GOPATH/bin/dep status
 
-cache:
-  key: ${CI_COMMIT_REF_SLUG}
-  paths:
-    - /go/src/$PKG_NAME/vendor
-    - /go/bin
+#cache:
+#  key: ${CI_COMMIT_REF_SLUG}
+#  paths:
+#    - /go/src/$PKG_NAME/vendor
+#    - /go/bin
 
 stages:
   - formatting
