@@ -14,15 +14,15 @@ before_script:
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - pwd
   - ls -l
-  - ls -l /go/src/$PKG_NAME/vendor
   - $GOPATH/bin/dep ensure -vendor-only
   - $GOPATH/bin/dep status
+  - ls -l /go/src/$PKG_NAME/vendor
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - /go/src/$PKG_NAME/vendor
-    - /go/bin
+    - $GOPATH/src/$PKG_NAME/vendor
+    - $GOPATH/bin
 
 stages:
   - formatting
