@@ -14,12 +14,13 @@ before_script:
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - $GOPATH/bin/dep ensure -vendor-only
   - $GOPATH/bin/dep status
+  - grep -rn "$GOPATH/src/$PKG_NAME/" -e "bitbucket.org"
 
-#cache:
-#  key: ${CI_COMMIT_REF_SLUG}
-#  paths:
-#    - /go/src/$PKG_NAME/vendor
-#    - /go/bin
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - /go/src/$PKG_NAME/vendor
+    - /go/bin
 
 stages:
   - formatting
