@@ -1,7 +1,7 @@
 image: golang:1.9.4
 
 variables:
-  PKG_NAME: gitlab.com/ignitionrobotics/web/fuelserver.git
+  PKG_NAME: gitlab.com/ignitionrobotics/web/fuelserver
   MYSQL_DATABASE: "fuel_test"
   MYSQL_ROOT_PASSWORD: "root"
 
@@ -12,7 +12,9 @@ before_script:
   - cd $GOPATH/src/$PKG_NAME
   - export DEP_RELEASE_TAG=v0.4.1
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-  - grep -rn "$GOPATH/src/$PKG_NAME/" -e "bitbucket.org"
+  - pwd
+  - ls -l
+  - ls -l /go/src/$PKG_NAME/vendor
   - $GOPATH/bin/dep ensure -vendor-only
   - $GOPATH/bin/dep status
 
