@@ -276,13 +276,13 @@
   version = "v0.2.0"
 
 [[projects]]
+  branch = "feature/verbose_connection_debug"
   name = "gitlab.com/ignitionrobotics/web/ign-go"
   packages = [
     ".",
     "testhelpers"
   ]
-  revision = "0366041efcb3529850ce1fa2f0d88e94f8525722"
-  version = "4.0.0"
+  revision = "3f92c3e12c0c06fa9ca45ee762dd117be97c438a"
 
 [[projects]]
   branch = "master"
@@ -414,6 +414,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4a2f64f4798500ee4d09c5da35ea7cd3725ed528e1d9b41600d7deb49bfa9730"
+  inputs-digest = "33eac0e3a863ed44097898f2a08f4dc448aabe75ac70745c65270e4b88cee264"
   solver-name = "gps-cdcl"
   solver-version = 1
