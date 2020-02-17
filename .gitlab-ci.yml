@@ -7,21 +7,21 @@ variables:
 
 before_script:
   - go version
-  - mkdir -p -v $GOPATH/src/$PKG_NAME
-  - mv -f * $GOPATH/src/$PKG_NAME
-  - cd $GOPATH/src/$PKG_NAME
+  - mkdir -p -v $(GOPATH)/src/$(PKG_NAME)/vendor
+  - mv -f * $(GOPATH)/src/$(PKG_NAME)
+  - cd $(GOPATH)/src/$(PKG_NAME)
   - export DEP_RELEASE_TAG=v0.4.1
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-  - $GOPATH/bin/dep ensure -vendor-only
-  - $GOPATH/bin/dep status
+  - $(GOPATH)/bin/dep ensure -vendor-only
+  - $(GOPATH)/bin/dep status
   - git config --global user.name "ign-fuelserver"
   - git config --global user.email "ign-fuelserver@test.org"
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - $GOPATH/src/$PKG_NAME/vendor
-    - $GOPATH/bin
+    - $(GOPATH)/src/$(PKG_NAME)/vendor
+    - $(GOPATH)/bin
 
 stages:
   - formatting
@@ -86,10 +86,47 @@ build:
   script:
     - go build
 
-package:
+package_next:
   stage: packaging
+  image: docker
+  only:
+    - "develop"
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+  before_script:
+    - docker version
+    - docker info
+    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
   script:
-    - echo "Packaging"
+    - "docker pull $CI_REGISTRY_IMAGE || true"
+    - "docker build --cache-from $CI_REGISTRY_IMAGE --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE:next ."
+    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - "docker push $CI_REGISTRY_IMAGE:next"
+
+package_latest:
+  stage: packaging
+  image: docker
+  only:
+    - "master"
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+  before_script:
+    - docker version
+    - docker info
+    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
+  script:
+    - "docker pull $CI_REGISTRY_IMAGE || true"
+    - "docker build --cache-from $CI_REGISTRY_IMAGE --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE:latest ."
+    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - "docker push $CI_REGISTRY_IMAGE:latest"
+  after_script:
+    - "docker logout ${CI_REGISTRY}"
 
 
 integration:
@@ -112,6 +149,7 @@ staging:
     name: staging
     url: https://web-fuel-staging.us-east-1.elasticbeanstalk.com/1.0
   only:
+    - "/^release\\/.*$/"
     - develop
   when: manual
 
