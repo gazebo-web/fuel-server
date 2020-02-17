@@ -5,6 +5,9 @@ variables:
   MYSQL_DATABASE: "fuel_test"
   MYSQL_ROOT_PASSWORD: "root"
 
+#################################################################
+# Before Script
+
 before_script:
   - go version
   - mkdir -p -v $GOPATH/src/$PKG_NAME/vendor
@@ -17,11 +20,17 @@ before_script:
   - git config --global user.name "ign-fuelserver"
   - git config --global user.email "ign-fuelserver@test.org"
 
+#################################################################
+# Cache configuration
+
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
     - $GOPATH/src/$PKG_NAME/vendor
     - $GOPATH/bin
+
+#################################################################
+# Stages
 
 stages:
   - formatting
@@ -31,10 +40,16 @@ stages:
   - packaging
   - deploying
 
+#################################################################
+# Formatting stage
+
 format:
   stage: formatting
   script:
     - go fmt $(go list ./... | grep -v /vendor/)
+
+#################################################################
+# Linting stage
 
 lint:
   stage: linting
@@ -42,6 +57,9 @@ lint:
     - go get -u golang.org/x/lint/golint
   script:
     - golint -set_exit_status $(go list ./... | grep -v /vendor/)
+
+#################################################################
+# Testing stage
 
 vet:
   stage: testing
@@ -81,18 +99,50 @@ coverage:
   environment:
     name: testing
 
+#################################################################
+# Building stage
+
 build:
   stage: building
   script:
     - go build
+  artifacts:
+    - fuelserver
+
+
+#################################################################
+# Packaging stage
+
+package:
+  stage: packaging
+  image: docker
+  except:
+    - develop
+    - master
+  dependencies:
+    - build
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+    before_script:
+      - docker version
+      - docker info
+      - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
+    script:
+      - "docker pull $CI_REGISTRY_IMAGE || true"
+      - "docker build --cache-from $CI_REGISTRY_IMAGE --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE:next ."
+      - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+      - "docker push $CI_REGISTRY_IMAGE:next"
 
 package_next:
   stage: packaging
   image: docker
   only:
-    - "develop"
+    - develop
   services:
     - docker:dind
+  dependencies:
+    - build
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_DRIVER: overlay2
@@ -110,9 +160,11 @@ package_latest:
   stage: packaging
   image: docker
   only:
-    - "master"
+    - master
   services:
     - docker:dind
+  dependencies:
+    - build
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_DRIVER: overlay2
@@ -128,6 +180,8 @@ package_latest:
   after_script:
     - "docker logout ${CI_REGISTRY}"
 
+#################################################################
+# Deploying stage
 
 integration:
   stage: deploying
