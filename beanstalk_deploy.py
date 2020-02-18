@@ -9,10 +9,11 @@
 # BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under the License.
 """
-A Bitbucket Builds template for deploying
+A GitLab Builds template for deploying
 an application to AWS Elastic Beanstalk
 joshcb@amazon.com
-v1.0.0
+marcoshuck@ekumenlabs.com
+v1.0.1
 """
 from __future__ import print_function
 import os
@@ -64,7 +65,7 @@ def create_new_version():
         response = client.create_application_version(
             ApplicationName=os.getenv('APPLICATION_NAME'),
             VersionLabel=VERSION_LABEL,
-            Description='New build from Bitbucket',
+            Description='New build from GitLab',
             SourceBundle={
                 'S3Bucket': os.getenv('S3_BUCKET'),
                 'S3Key': BUCKET_KEY
