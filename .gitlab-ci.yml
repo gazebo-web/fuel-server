@@ -107,7 +107,9 @@ build:
   script:
     - go build
   artifacts:
-    - fuelserver
+    paths:
+      - fuelserver
+    expire_in: 1 month
 
 
 #################################################################
