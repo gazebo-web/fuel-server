@@ -124,14 +124,14 @@ package_default:
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_DRIVER: overlay2
-    before_script:
-      - docker version
-      - docker info
-      - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
-    script:
-      - "docker pull $CI_REGISTRY_IMAGE:next || true"
-      - "docker build --cache-from $CI_REGISTRY_IMAGE:next --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA ."
-      - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+  before_script:
+    - docker version
+    - docker info
+    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
+  script:
+    - "docker pull $CI_REGISTRY_IMAGE:next || true"
+    - "docker build --cache-from $CI_REGISTRY_IMAGE:next --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA ."
+    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
 
 package_next:
   stage: packaging
