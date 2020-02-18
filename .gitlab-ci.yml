@@ -113,7 +113,7 @@ build:
 #################################################################
 # Packaging stage
 
-package:
+package_default:
   stage: packaging
   image: docker
   except:
@@ -129,10 +129,9 @@ package:
       - docker info
       - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
     script:
-      - "docker pull $CI_REGISTRY_IMAGE || true"
-      - "docker build --cache-from $CI_REGISTRY_IMAGE --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE:next ."
+      - "docker pull $CI_REGISTRY_IMAGE:next || true"
+      - "docker build --cache-from $CI_REGISTRY_IMAGE:next --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA ."
       - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-      - "docker push $CI_REGISTRY_IMAGE:next"
 
 package_next:
   stage: packaging
