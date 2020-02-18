@@ -118,6 +118,8 @@ build:
 package_default:
   stage: packaging
   image: docker
+  services:
+    - docker:dind
   except:
     - develop
     - master
