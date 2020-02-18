@@ -108,7 +108,7 @@ build:
     - go build
   artifacts:
     paths:
-      - fuelserver
+      - ${GOPATH}/src/${PKG_NAME}/fuelserver
     expire_in: 1 month
 
 
