@@ -24,7 +24,7 @@ from botocore.exceptions import ClientError
 
 VERSION_LABEL = strftime("%Y%m%d%H%M%S")
 BUCKET_KEY = os.getenv('APPLICATION_NAME') + '/' + VERSION_LABEL + \
-    '-bitbucket_builds.zip'
+    '-gitlab_builds.zip'
 
 def upload_to_s3(artifact):
     """
