@@ -111,7 +111,7 @@ def deploy_new_version():
 
 def main():
     " Your favorite wrapper's favorite wrapper "
-    if not upload_to_s3('/tmp/artifact.zip'):
+    if not upload_to_s3('./artifact.zip'):
         sys.exit(1)
     if not create_new_version():
         sys.exit(1)
