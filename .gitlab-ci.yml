@@ -192,6 +192,7 @@ integration:
   dependencies:
     - build
   before_script:
+    - apt-get update
     - apt-get install -y zip python-pip
     - pip install boto3==1.3.0
   script:
@@ -210,6 +211,7 @@ staging:
   dependencies:
     - build
   before_script:
+    - apt-get update
     - apt-get install -y zip python-pip
     - pip install boto3==1.3.0
   script:
