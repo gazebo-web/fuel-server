@@ -61,43 +61,43 @@ lint:
 #################################################################
 # Testing stage
 
-vet:
-  stage: testing
-  script:
-    - go vet $(go list ./... | grep -v /vendor/)
-  services:
-    - mysql:5.7
-  environment:
-    name: testing
-
-test:
-  stage: testing
-  script:
-    - go test $(go list ./... | grep -v /vendor/)
-  services:
-    - mysql:5.7
-  environment:
-    name: testing
-
-race:
-  stage: testing
-  script:
-    - go test -race $(go list ./... | grep -v /vendor/)
-  services:
-    - mysql:5.7
-  environment:
-    name: testing
-
-coverage:
-  stage: testing
-  script:
-    - go test -covermode=atomic -coverprofile=coverage.tx
-    - go tool cover -func=coverage.tx
-    - bash <(curl -s https://codecov.io/bash)
-  services:
-    - mysql:5.7
-  environment:
-    name: testing
+#vet:
+#  stage: testing
+#  script:
+#    - go vet $(go list ./... | grep -v /vendor/)
+#  services:
+#    - mysql:5.7
+#  environment:
+#    name: testing
+#
+#test:
+#  stage: testing
+#  script:
+#    - go test $(go list ./... | grep -v /vendor/)
+#  services:
+#    - mysql:5.7
+#  environment:
+#    name: testing
+#
+#race:
+#  stage: testing
+#  script:
+#    - go test -race $(go list ./... | grep -v /vendor/)
+#  services:
+#    - mysql:5.7
+#  environment:
+#    name: testing
+#
+#coverage:
+#  stage: testing
+#  script:
+#    - go test -covermode=atomic -coverprofile=coverage.tx
+#    - go tool cover -func=coverage.tx
+#    - bash <(curl -s https://codecov.io/bash)
+#  services:
+#    - mysql:5.7
+#  environment:
+#    name: testing
 
 #################################################################
 # Building stage
