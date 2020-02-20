@@ -1,11 +1,11 @@
 package main
 
 // TO build this token-generator command (from go_ws/src):
-// $ go install bitbucket.org/ignitionrobotics/ign-fuelserver/cmd/token-generator
+// $ go install gitlab.com/ignitionrobotics/web/fuelserver/cmd/token-generator
 
 // Import this file's dependencies
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/cmd/token-generator/generator"
+	"gitlab.com/ignitionrobotics/web/fuelserver/cmd/token-generator/generator"
 	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"log"

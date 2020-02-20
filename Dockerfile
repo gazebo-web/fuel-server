@@ -7,9 +7,10 @@ RUN apt-get update && apt-get install -y nano vim &&  \
   git config --global user.name "ign-fuelserver"  &&  \
   git config --global user.email "ign-fuelserver@test.org"
 
-RUN mkdir -p /go/src/bitbucket.org/ignitionrobotics/ign-fuelserver
-COPY . /go/src/bitbucket.org/ignitionrobotics/ign-fuelserver
-WORKDIR /go/src/bitbucket.org/ignitionrobotics/ign-fuelserver
+RUN mkdir -p /go/src/gitlab.com/ignitionrobotics/web/fuelserver
+WORKDIR /go/src/gitlab.com/ignitionrobotics/web/fuelserver
+
+COPY . ./
 
 # Install go dep
 RUN curl -fsSL -o /usr/local/bin/dep https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 && chmod +x /usr/local/bin/dep
@@ -18,6 +19,6 @@ RUN dep ensure -vendor-only
 
 # Build app
 RUN go install
-CMD ["/go/bin/ign-fuelserver"]
+CMD ["/go/bin/fuelserver"]
 
 EXPOSE 8000

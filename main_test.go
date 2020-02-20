@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/globals"
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"context"
 	"log"
 	"os"

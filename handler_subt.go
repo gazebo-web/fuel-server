@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/subt"
-	"bitbucket.org/ignitionrobotics/ign-fuelserver/bundles/users"
-	"bitbucket.org/ignitionrobotics/ign-go"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/subt"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 )
