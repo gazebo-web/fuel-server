@@ -1,0 +1,37 @@
+syntax = "proto2";
+package fuel;
+
+// swagger:model
+message World {
+  optional string createdAt   = 2;
+  optional string updatedAt   = 3;
+  optional string deletedAt   = 4;
+
+  optional string name        = 5;
+  optional string owner       = 7;
+  optional string description = 8;
+  optional int64 likes        = 9;
+  optional int64 downloads    = 10;
+  optional int64 filesize     = 11;
+
+  optional string upload_date = 12;
+  optional string modify_date = 13;
+
+  optional uint64 license_id     = 14;
+  optional string license_name   = 15;
+  optional string license_url    = 16;
+  optional string license_image  = 17;
+
+  optional int64 permission    = 18;
+  optional string thumbnail_url = 19;
+  optional bool is_liked = 20;
+  optional int64 version = 21;
+  optional bool private =  22;
+
+  repeated string tags        = 30;
+}
+
+// swagger:model
+message Worlds {
+  repeated World worlds = 1;
+}
