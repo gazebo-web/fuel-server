@@ -1,0 +1,50 @@
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="modelName"
+
+testModel1
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="URLName"
+
+testModel5
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="description"
+
+testDesc
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="tags"
+
+test_tag.
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="license"
+
+2
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="permission"
+
+0
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="owner"
+
+test-username
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="file"; filename="model.config"
+Content-Type: application/octet-stream
+
+<?xml version="1.0"?>
+
+<model>
+  <name>Apartment</name>
+  <version>1.0</version>
+  <sdf version="1.6">model.sdf</sdf>
+
+  <author>
+    <name>Nate Koenig</name>
+    <email>nate@osrfoundation.org</email>
+  </author>
+
+  <description>
+    An apartment building.
+  </description>
+</model>
+
+-----------------------------103633748619302808251276201494--

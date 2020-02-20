@@ -1,0 +1,65 @@
+POST /1.0/models HTTP/1.1
+Host: localhost:8000
+User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:57.0) Gecko/20100101 Firefox/57.0
+Accept: application/json, text/plain, */*
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate
+Referer: http://localhost:3000/models/upload
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItaWRlbnRpdHkifQ.iV59-kBkZ86XKKsph8fxEeyxDiswY1zvPGi4977cHbbDEkMA3Y3t_zzmwU4JEmjbTeToQZ_qFNJGGNufK2guLy0SAicwjDmv-3dHDfJUH5x1vfi1fZFnmX_b8215BNbCBZU0T2a9DEFypxAQCQyiAQDE9gS8anFLHHlbcWdJdGw
+Content-Length: 1363
+Content-Type: multipart/form-data; boundary=---------------------------103633748619302808251276201494
+Origin: http://localhost:3000
+Connection: keep-alive
+Pragma: no-cache
+Cache-Control: no-cache
+
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="modelName"
+
+testModel1*
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="URLName"
+
+testModel5*
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="description"
+
+testDesc*
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="tags"
+
+test_tag.*
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="license"
+
+2*
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="permission"
+
+0*
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="owner"
+
+test-username
+-----------------------------103633748619302808251276201494
+Content-Disposition: form-data; name="file"; filename="model.config"
+Content-Type: application/octet-stream
+
+<?xml version="1.0"?>
+
+<model>
+  <name>Apartment</name>
+  <version>1.0</version>
+  <sdf version="1.6">model.sdf</sdf>
+
+  <author>
+    <name>Nate Koenig</name>
+    <email>nate@osrfoundation.org</email>
+  </author>
+
+  <description>
+    An apartment building.
+  </description>
+</model>
+
+-----------------------------103633748619302808251276201494--

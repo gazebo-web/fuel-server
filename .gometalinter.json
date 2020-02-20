@@ -1,0 +1,6 @@
+{
+  "Disable":["vet", "vetshadow", "goconst", "deadcode", "gocyclo", "errcheck", "varcheck", "staticcheck", "gosec", "interfacer", "maligned", "structcheck", "unconvert"], 
+  "Skip":["vendor"],
+  "Exclude":["Id.* should be"]
+}
+
