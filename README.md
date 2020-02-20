@@ -40,7 +40,7 @@
 1. Download server code into new directories in the workspace:
 
     ```
-    hg clone https://bitbucket.org/ignitionrobotics/ign-fuelserver ~/go_ws/src/bitbucket.org/ignitionrobotics/ign-fuelserver
+    git clone https:/gitlab.com/ignitionrobotics/web/fuelserver ~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver
     ```
 
 1. Set necessary environment variable (needs to be set every time the environment is built)
@@ -78,7 +78,7 @@
 1. Install dependencies
 
     ```
-    cd ~/go_ws/src/bitbucket.org/ignitionrobotics/ign-fuelserver
+    cd ~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver
     ```
 
     Download dependencies into `vendor` folder:
@@ -92,14 +92,14 @@
     execute the following statement regularly to download the latest version of ign-go.
 
         # Xenial
-        $GOPATH/bin/dep ensure -update bitbucket.org/ignitionrobotics/ign-go
+        $GOPATH/bin/dep ensure -update gitlab.com/ignitionrobotics/web/ign-go
         # Bionic
         ~/go_ws/bin/dep ensure
 
 1. Make the application
 
     ```
-    cd ~/go_ws/src/bitbucket.org/ignitionrobotics/ign-fuelserver
+    cd ~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver
     ```
 
     ```
@@ -127,15 +127,15 @@
     ```
 
     ```
-    mv cert.pem key.pem ~/go_ws/src/bitbucket.org/ignitionrobotics/ign-fuelserver/ssl
+    mv cert.pem key.pem ~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver/ssl
     ```
 
     ```
-    export IGN_SSL_CERT=~/go_ws/src/bitbucket.org/ignitionrobotics/ign-fuelserver/ssl/cert.pem
+    export IGN_SSL_CERT=~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver/ssl/cert.pem
     ```
 
     ```
-    export IGN_SSL_KEY=~/go_ws/src/bitbucket.org/ignitionrobotics/ign-fuelserver/ssl/key.pem
+    export IGN_SSL_KEY=~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver/ssl/key.pem
     ```
 
 
@@ -213,7 +213,7 @@
 
         Build all ign-fuelserver packages and programs:
 
-            go install bitbucket.org/ignitionrobotics/ign-fuelserver/...
+            go install gitlab.com/ignitionrobotics/web/fuelserver/...
 
         Note: the `...` instructs Go to build ign-fuelserver and all subpackages (eg. token-generator. You can find the extra packages in cmd/ subfolder).
 
@@ -271,7 +271,7 @@
 
     Then, run all tests:
     ```
-    go test bitbucket.org/ignitionrobotics/ign-fuelserver
+    go test gitlab.com/ignitionrobotics/web/fuelserver
     ```
 
 1. Run the backend server
@@ -420,7 +420,7 @@ In general we will try to follow Go naming conventions. In addition, these are o
 1. Run the linter
 
     ```
-    ./bin/golint $(go list bitbucket.org/ignitionrobotics/ign-fuelserver/...) | grep -v .pb.go
+    ./bin/golint $(go list gitlab.com/ignitionrobotics/web/fuelserver/...) | grep -v .pb.go
     ```
 
 Note you can create this bash script:
@@ -428,7 +428,7 @@ Note you can create this bash script:
 ```
 #!/bin/bash
 go get -u golang.org/x/lint/golint
-$GOPATH/bin/golint $(go list bitbucket.org/ignitionrobotics/ign-fuelserver/...) | grep -v .pb.go
+$GOPATH/bin/golint $(go list gitlab.com/ignitionrobotics/web/fuelserver/...) | grep -v .pb.go
 ```
 
 
@@ -449,7 +449,7 @@ run (from the proto folder):
 1. Run test suite with coverage enabled
 
     ```
-    go test -cover bitbucket.org/ignitionrobotics/ign-fuelserver
+    go test -cover gitlab.com/ignitionrobotics/web/fuelserver
     ```
 
 1. Tip. Add this function to your ~/.bashrc
@@ -558,7 +558,7 @@ route information.
    to display the API documentation.
 
     ```
-    ./bin/swagger generate spec -o ./src/bitbucket.org/ignitionrobotics/ign-fuelserver/swagger.json -b ./src/bitbucket.org/ignitionrobotics/ign-fuelserver/ -m
+    ./bin/swagger generate spec -o ./src/gitlab.com/ignitionrobotics/web/fuelserver/swagger.json -b ./src/gitlab.com/ignitionrobotics/web/fuelserver/ -m
     ```
 
 1. Commit and push your changes to the repository.
@@ -657,4 +657,4 @@ How to use vg:
 
 1. To add or update dependencies (into Gopck.toml) use: `vg ensure -- -update <dependency>` (or just use normal `dep ensure -update <dependency>` style, and later run `vg ensure` to move dependencies into vg's workspace)
 
-1. How to switch to a local version of a dependency: eg. `vg localInstall bitbucket.org/ignitionrobotics/ign-go`
+1. How to switch to a local version of a dependency: eg. `vg localInstall gitlab.com/ignitionrobotics/web/ign-go`
