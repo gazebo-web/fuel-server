@@ -40,7 +40,6 @@ import (
 	"context"
 	"flag"
 	"github.com/go-playground/form"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
 	"log"
