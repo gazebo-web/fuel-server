@@ -223,7 +223,7 @@ var routes = ign.Routes{
 
 	// Route that returns the files tree of a single model based on owner, model name, and version
 	ign.Route{
-		"ModelOnwerVersionFileTree",
+		"ModelOwnerVersionFileTree",
 		"Route that returns the files tree of a single model.",
 		"/{username}/models/{model}/{version}/files",
 		ign.AuthHeadersOptional,
@@ -1768,6 +1768,81 @@ var routes = ign.Routes{
 			},
 		},
 		ign.SecureMethods{},
+	},
+
+	//////////////
+	// Categories //
+	//////////////
+
+	// Categories route with slug
+	// PATCH:
+	ign.Route{
+		Name:        "Categories",
+		Description: "Routes for categories with slug",
+		URI:         "/categories/{slug}",
+		Headers:     ign.AuthHeadersOptional,
+		Methods:     ign.Methods{},
+		SecureMethods: ign.SecureMethods{
+			ign.Method{
+				Type:        "PATCH",
+				Description: "Update a category",
+				Handlers: ign.FormatHandlers{
+					ign.FormatHandler{
+						Extension: "",
+						Handler:   ign.JSONResult(CategoryUpdate),
+					},
+				},
+			},
+			ign.Method{
+				Type:        "DELETE",
+				Description: "Delete a category",
+				Handlers: ign.FormatHandlers{
+					ign.FormatHandler{
+						Extension: "",
+						Handler:   ign.JSONResult(CategoryDelete),
+					},
+				},
+			},
+		},
+	},
+
+	// Categories route
+	// GET: Get the list of categories
+	// POST: Create a new category
+	ign.Route{
+		Name:        "Categories",
+		Description: "Route for categories",
+		URI:         "/categories",
+		Headers:     ign.AuthHeadersOptional,
+		Methods: ign.Methods{
+			ign.Method{
+				Type:        "GET",
+				Description: "Get all categories",
+				// Format handlers
+				Handlers: ign.FormatHandlers{
+					ign.FormatHandler{
+						Extension: ".json",
+						Handler:   ign.JSONResult(CategoryList),
+					},
+					ign.FormatHandler{
+						Extension: "",
+						Handler:   ign.JSONResult(CategoryList),
+					},
+				},
+			},
+		},
+		SecureMethods: ign.SecureMethods{
+			ign.Method{
+				Type:        "POST",
+				Description: "Create a new category",
+				Handlers: ign.FormatHandlers{
+					ign.FormatHandler{
+						Extension: "",
+						Handler:   ign.JSONResult(CategoryCreate),
+					},
+				},
+			},
+		},
 	},
 
 	///////////////////
