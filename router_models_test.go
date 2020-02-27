@@ -182,7 +182,7 @@ func TestGetModels(t *testing.T) {
 	// Create a user and test model (the user will be removed later, as part of tests)
 	testUser := createUser(t)
 	createThreeTestModels(t, nil)
-	// createa another user, with no models for now
+	// create another user, with no models for now
 	jwt2 := createValidJWTForIdentity("another-user", t)
 	testUser2 := createUserWithJWT(jwt2, t)
 	defer removeUserWithJWT(testUser2, jwt2, t)

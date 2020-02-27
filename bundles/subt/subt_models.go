@@ -63,7 +63,7 @@ type CompetitionParticipants []CompetitionParticipant
 type CompetitionScore struct {
 	gorm.Model
 	// Simulation unique identifier. For multisims, this should be the parent's group id.
-	GroupID     *string `gorm:"not null" json:"group_id"`
+	GroupId     *string `gorm:"not null" json:"group_id"`
 	Competition *string `gorm:"not null" json:"competition"`
 	Circuit     *string `gorm:"not null" json:"circuit"`
 	Owner       *string `gorm:"not null" json:"owner"`

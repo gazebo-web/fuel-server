@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -27,7 +28,26 @@ func ModelList(p *ign.PaginationRequest, owner *string, order, search string,
 	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
 
 	ms := &models.Service{}
-	return ms.ModelList(p, tx, owner, order, search, nil, user)
+	var categories category.Categories
+
+	if categoryFilters, ok := r.URL.Query()["category"]; ok {
+		if len(categoryFilters[0]) > 0 {
+			categories = modelListCategoryHelper(tx, categoryFilters[0], categories)
+		}
+
+		if len(categoryFilters[1]) > 0 {
+			categories = modelListCategoryHelper(tx, categoryFilters[1], categories)
+		}
+	}
+	return ms.ModelList(p, tx, owner, order, search, nil, user, &categories)
+}
+
+// modelListCategoryHelper append a category to filter in model list
+func modelListCategoryHelper(tx *gorm.DB, filter string, categories category.Categories) category.Categories {
+	if cat, err := category.BySlug(tx, filter); err == nil {
+		categories = append(categories, *cat)
+	}
+	return categories
 }
 
 // ModelLikeList returns the list of models liked by a certain user. The returned value
@@ -45,7 +65,7 @@ func ModelLikeList(p *ign.PaginationRequest, owner *string, order, search string
 		return nil, nil, em
 	}
 	ms := &models.Service{}
-	return ms.ModelList(p, tx, owner, order, search, likedBy, user)
+	return ms.ModelList(p, tx, owner, order, search, likedBy, user, nil)
 }
 
 // ModelOwnerVersionFileTree returns the file tree of a single model. The returned value
