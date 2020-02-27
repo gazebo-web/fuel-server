@@ -40,6 +40,7 @@ import (
 	"context"
 	"flag"
 	"github.com/go-playground/form"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
 	"log"
@@ -130,6 +131,13 @@ func init() {
 	// Use go-git for our VCS.
 	globals.VCSRepoFactory = func(ctx context.Context, dirpath string) vcs.VCS {
 		return vcs.GoGitVCS{}.NewRepo(dirpath)
+	}
+
+	globals.MaxCategoriesPerModel = 2
+	if value, err := ign.ReadEnvVar("IGN_MAX_MODEL_CATEGORIES"); err == nil {
+		if convertedValue, err := strconv.Atoi(value); err == nil {
+			globals.MaxCategoriesPerModel = convertedValue
+		}
 	}
 
 	// initialize permissions
