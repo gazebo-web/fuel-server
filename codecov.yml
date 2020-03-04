@@ -6,3 +6,4 @@ coverage:
     patch:
       default:
         informational: True
+# https://gitlab.com/gitlab-org/gitlab-foss/issues/58707#note_277688947
