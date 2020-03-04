@@ -207,6 +207,7 @@ integration:
   when: manual
 
 staging:
+  image: python:3.5
   stage: deploying
   dependencies:
     - build
@@ -226,6 +227,7 @@ staging:
   when: manual
 
 production:
+  image: python:3.5
   stage: deploying
   dependencies:
     - build
