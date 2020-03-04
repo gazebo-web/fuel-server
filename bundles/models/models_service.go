@@ -1,6 +1,7 @@
 package models
 
 import (
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"context"
 	"fmt"
 	"net/url"
@@ -80,11 +81,18 @@ func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
 // This function returns a list of fuel.Model that can then be mashalled into json or protobuf.
 // TODO: find a way to MERGE this with the one from Worlds service.
 func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *string,
-	order, search string, likedBy *users.User, user *users.User) (*fuel.Models, *ign.PaginationResult, *ign.ErrMsg) {
+	order, search string, likedBy *users.User, user *users.User, categories *category.Categories) (*fuel.Models, *ign.PaginationResult, *ign.ErrMsg) {
 
 	var modelList Models
 	// Create query
 	q := QueryForModels(tx)
+
+	var cat category.Category
+	if categories != nil {
+		for _, cat = range *categories {
+			q = q.Joins("JOIN model_categories ON models.id = model_categories.model_id").Where("category_id = ?", &cat.ID)
+		}
+	}
 
 	// Override default Order BY, unless the user explicitly requested ASC order
 	if !(order != "" && strings.ToLower(order) == "asc") {
@@ -226,6 +234,14 @@ func (ms *Service) ModelToProto(model *Model) *fuel.Model {
 			tags = append(tags, *tag.Name)
 		}
 		fuelModel.Tags = tags
+	}
+
+	if model.Categories != nil && len(model.Categories) > 0 {
+		categories := []string{}
+		for _, category := range model.Categories {
+			categories = append(categories, *category.Name)
+		}
+		fuelModel.Categories = categories
 	}
 
 	// Append metadata, if it exists
@@ -450,7 +466,7 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 // Returns the updated model
 func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	modelName string, desc, tagstr, filesPath *string, private *bool,
-	user *users.User, metadata *ModelMetadata) (*Model, *ign.ErrMsg) {
+	user *users.User, metadata *ModelMetadata, categories *string) (*Model, *ign.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, modelName, user)
 	if em != nil {
@@ -473,6 +489,30 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 			return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 		}
 		tx.Model(&model).Association("Tags").Replace(*tags)
+	}
+
+	if categories != nil {
+
+		sl := ign.StrToSlice(*categories)
+
+		cats, err := category.StrSliceToCategories(tx, sl)
+		if err != nil {
+			return nil, ign.NewErrorMessageWithBase(ign.ErrorFormInvalidValue, err)
+		}
+
+		if cats != nil {
+			length := len(*cats)
+
+			if length > globals.MaxCategoriesPerModel {
+				return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+			}
+
+			if length == 0 {
+				tx.Model(&model).Association("Categories").Clear()
+			} else {
+				tx.Model(&model).Association("Categories").Replace(cats)
+			}
+		}
 	}
 
 	// Update the metadata, if the data is present.
@@ -540,6 +580,24 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 		return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, err,
 			[]string{"license"})
 	}
+
+	// Set categories
+	var categories *category.Categories
+	if len(cm.Categories) > 0 {
+
+		sl := ign.StrToSlice(cm.Categories)
+		length := len(sl)
+
+		if length > globals.MaxCategoriesPerModel || length == 0 {
+			return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+		}
+
+		categories, err = category.StrSliceToCategories(tx, sl)
+		if err != nil {
+			return nil, ign.NewErrorMessageWithBase(ign.ErrorFormInvalidValue, err)
+		}
+	}
+
 	// Set the owner
 	owner := cm.Owner
 	if owner == "" {
@@ -569,7 +627,7 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 	// Create the Model struct
 	model, err := NewModel(&uuidStr, &cm.Name, &cm.URLName, &cm.Description,
 		&filesPath, &owner, creator.Username, *license, cm.Permission, *pTags,
-		private)
+		private, categories)
 
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
@@ -584,7 +642,6 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 	if em := ms.updateModelZip(ctx, repo, &model); em != nil {
 		return nil, em
 	}
-
 	// If everything went OK then create the model in DB.
 	if err := tx.Create(&model).Error; err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
@@ -658,7 +715,7 @@ func (ms *Service) CloneModel(ctx context.Context, tx *gorm.DB, smOwner,
 	// Create the new Model (the clone) struct and folder
 	clone, err := NewModelAndUUID(&modelName, model.URLName, model.Description,
 		nil, &owner, creator.Username, model.License, model.Permission, model.Tags,
-		clonePrivate)
+		clonePrivate, &model.Categories)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}

@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"github.com/gosimple/slug"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
@@ -53,6 +55,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		db.AutoMigrate(
 			&license.License{},
+			&category.Category{},
 			&models.ModelMetadatum{},
 			&models.Tag{},
 			&ign.AccessToken{},
@@ -134,10 +137,11 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 			&users.User{},
 			&users.UniqueOwner{},
 			&models.Tag{},
+			&category.Category{},
 			globals.Permissions.DBTable(),
 		)
 		// Now also remove many_to_many tables, because they are not automatically removed.
-		db.DropTableIfExists("model_tags", "world_tags")
+		db.DropTableIfExists("model_tags", "world_tags", "model_categories")
 	}
 }
 
@@ -146,6 +150,11 @@ type LicDesc struct {
 	name  string
 	url   string
 	image string
+}
+
+type CategoryDesc struct {
+	name     string
+	children []CategoryDesc
 }
 
 // DBAddDefaultData adds default data. Eg. Licenses.
@@ -175,6 +184,67 @@ func DBAddDefaultData(ctx context.Context, db *gorm.DB) {
 			// This Create will return error if the value already exist.
 			db.Create(&license)
 		}
+		defaultCategories := []CategoryDesc{
+			{"Animals", []CategoryDesc{}},
+			{"Architecture", []CategoryDesc{}},
+			{"Cars and Vehicles", []CategoryDesc{
+				{"Car Seat", []CategoryDesc{}},
+			}},
+			{"Electronics", []CategoryDesc{}},
+			{"Fashion", []CategoryDesc{
+				{"Bag", []CategoryDesc{}},
+				{"Hat", []CategoryDesc{}},
+				{"Shoe", []CategoryDesc{}},
+				{"Sunglasses", []CategoryDesc{}},
+				{"Watch", []CategoryDesc{}},
+			}},
+			{"Food and Drink", []CategoryDesc{
+				{"Bottles, Cans, and Cups", []CategoryDesc{}},
+				{"Perishables", []CategoryDesc{}},
+			}},
+			{"Furniture and Home", []CategoryDesc{
+				{"Kitchen", []CategoryDesc{
+					{"Appliance", []CategoryDesc{}},
+				}},
+			}},
+			{"Music", []CategoryDesc{
+				{"Guitar", []CategoryDesc{}},
+			}},
+			{"Nature and Plants", []CategoryDesc{}},
+			{"People", []CategoryDesc{}},
+			{"Places and Landscapes", []CategoryDesc{}},
+			{"Robots", []CategoryDesc{}},
+			{"Science and Technology", []CategoryDesc{
+				{"Computer", []CategoryDesc{
+					{"Keyboard", []CategoryDesc{}},
+					{"Mouse", []CategoryDesc{}},
+				}},
+				{"Tablet and Smartphone", []CategoryDesc{}},
+				{"Camera", []CategoryDesc{}},
+				{"Headmounted", []CategoryDesc{
+					{"Headphones", []CategoryDesc{}},
+				}},
+			}},
+			{"Sports and Fitness", []CategoryDesc{}},
+			{"Toys", []CategoryDesc{
+				{"Action Figures", []CategoryDesc{}},
+				{"Board Games", []CategoryDesc{}},
+				{"Legos", []CategoryDesc{}},
+				{"Stuffed Toys", []CategoryDesc{}},
+			}},
+		}
+		createCategories(db, defaultCategories, nil)
+	}
+}
+
+func createCategories(db *gorm.DB, categories []CategoryDesc, parentId *uint) {
+	for _, c := range categories {
+		newSlug := slug.Make(c.name)
+		cat := category.Category{Name: &c.name, Slug: &newSlug, ParentID: parentId}
+		db.Create(&cat)
+		var record category.Category
+		db.Where("name = ?", c.name).First(&record)
+		createCategories(db, c.children, &record.ID)
 	}
 }
 
