@@ -4,6 +4,7 @@ import (
 	"path"
 	"time"
 
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
@@ -84,6 +85,9 @@ type Model struct {
 
 	// Private - True to make this a private resource
 	Private *bool `json:"private,omitempty"`
+
+	// Categories associated to this model
+	Categories category.Categories `gorm:"many2many:model_categories;" json:"categories,omitempty"`
 }
 
 // GetID returns the ID
@@ -116,9 +120,9 @@ func (m *Model) GetUUID() *string {
 type Models []Model
 
 // QueryForModels returns a gorm query configured to query Models with
-// preloaded License and Tags.
+// preloaded License, Tags and Categories.
 func QueryForModels(q *gorm.DB) *gorm.DB {
-	return q.Model(&Model{}).Order("id").Preload("Tags").Preload("License")
+	return q.Model(&Model{}).Order("id").Preload("Tags").Preload("License").Preload("Categories")
 }
 
 // GetModelByName queries a Model by model name and owner.
@@ -131,16 +135,16 @@ func GetModelByName(tx *gorm.DB, modelName string, owner string) (*Model, error)
 }
 
 // NewModelAndUUID creates a Model struct with a new UUID.
-func NewModelAndUUID(name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags Tags, private bool) (Model, error) {
+func NewModelAndUUID(name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags Tags, private bool, categories *category.Categories) (Model, error) {
 	uuidStr, _, err := users.NewUUID(*owner, models)
 	if err != nil {
 		return Model{}, err
 	}
-	return NewModel(&uuidStr, name, urlName, desc, location, owner, creator, lic, permission, tags, private)
+	return NewModel(&uuidStr, name, urlName, desc, location, owner, creator, lic, permission, tags, private, categories)
 }
 
 // NewModel creates a new Model struct
-func NewModel(uuidStr, name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags Tags, private bool) (Model, error) {
+func NewModel(uuidStr, name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags Tags, private bool, categories *category.Categories) (Model, error) {
 
 	var modelPath string
 	// Override the generated location if we got a model location as argument
@@ -152,10 +156,14 @@ func NewModel(uuidStr, name, urlName, desc, location, owner, creator *string, li
 
 	uploadDate := time.Now()
 	modifyDate := time.Now()
+
 	model := Model{Name: name, URLName: urlName, Owner: owner, Creator: creator, UUID: uuidStr,
 		Description: desc, Location: &modelPath, Likes: 0, Downloads: 0,
 		UploadDate: &uploadDate, ModifyDate: &modifyDate, Tags: tags,
 		License: lic, Permission: permission, Private: &private,
+	}
+	if categories != nil {
+		model.Categories = *categories
 	}
 	return model, nil
 }
@@ -186,6 +194,9 @@ type CreateModel struct {
 	File string `json:"file" validate:"omitempty,gt=0" form:"-"`
 	// Optional privacy/visibility setting.
 	Private *bool `json:"private" validate:"omitempty" form:"private"`
+	// Categories
+	// maximum: 2
+	Categories string `json:"categories" validate:"printascii" form:"categories"`
 }
 
 // CloneModel encapsulates data required to clone a model
@@ -212,6 +223,8 @@ type UpdateModel struct {
 	Private *bool `json:"private" validate:"omitempty" form:"private"`
 	// Metadata associated to this model
 	Metadata *ModelMetadata `json:"metadata" form:"metadata"`
+	// Optional pair of categories (comma separated)
+	Categories *string `json:"categories" validate:"omitempty" form:"categories"`
 }
 
 // CreateReport encapsulates the data required to report a model
