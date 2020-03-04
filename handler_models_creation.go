@@ -205,7 +205,7 @@ func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 	}
 
 	model, em := (&models.Service{}).UpdateModel(r.Context(), tx, owner, modelName,
-		um.Description, um.Tags, newFilesPath, um.Private, user, um.Metadata)
+		um.Description, um.Tags, newFilesPath, um.Private, user, um.Metadata, um.Categories)
 	if em != nil {
 		return nil, em
 	}

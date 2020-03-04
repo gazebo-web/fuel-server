@@ -438,7 +438,7 @@ func (s *Service) GetCollectionAssets(p *ign.PaginationRequest, tx *gorm.DB,
 
 	// Delegate to corresponding service based on type
 	if assetsType == TModel {
-		return (&models.Service{}).ModelList(p, q, nil, "", "", nil, user)
+		return (&models.Service{}).ModelList(p, q, nil, "", "", nil, user, nil)
 	}
 	return (&worlds.Service{}).WorldList(p, q, nil, "", "", nil, user)
 }

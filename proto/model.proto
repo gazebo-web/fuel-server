@@ -31,6 +31,7 @@ message Model {
 
   repeated string tags        = 30;
   repeated ModelMetadatum metadata  = 31;
+  repeated string categories        = 32;
 }
 
 // swagger:model

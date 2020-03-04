@@ -132,6 +132,13 @@ func init() {
 		return vcs.GoGitVCS{}.NewRepo(dirpath)
 	}
 
+	globals.MaxCategoriesPerModel = 2
+	if value, err := ign.ReadEnvVar("IGN_MAX_MODEL_CATEGORIES"); err == nil {
+		if convertedValue, err := strconv.Atoi(value); err == nil {
+			globals.MaxCategoriesPerModel = convertedValue
+		}
+	}
+
 	// initialize permissions
 	// override sys admin for tests
 	var sysAdmin string

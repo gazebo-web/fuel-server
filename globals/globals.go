@@ -3,9 +3,9 @@ package globals
 import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"context"
 	"github.com/go-playground/form"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -58,3 +58,6 @@ var VCSRepoFactory (func(ctx context.Context, dirpath string) vcs.VCS)
 
 // Permissions manages permissions for users, roles and resources.
 var Permissions *permissions.Permissions
+
+// MaxCategoriesPerModel defines the maximum amount of categories that can be assigned to a model
+var MaxCategoriesPerModel int
