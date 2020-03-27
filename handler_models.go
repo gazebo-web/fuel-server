@@ -31,11 +31,13 @@ func ModelList(p *ign.PaginationRequest, owner *string, order, search string,
 	var categories category.Categories
 
 	if categoryFilters, ok := r.URL.Query()["category"]; ok {
-		if len(categoryFilters[0]) > 0 {
+		filtersLength := len(categoryFilters)
+
+		if filtersLength > 1 && len(categoryFilters[0]) > 0 {
 			categories = modelListCategoryHelper(tx, categoryFilters[0], categories)
 		}
 
-		if len(categoryFilters[1]) > 0 {
+		if filtersLength > 2 && len(categoryFilters[1]) > 0 {
 			categories = modelListCategoryHelper(tx, categoryFilters[1], categories)
 		}
 	}
