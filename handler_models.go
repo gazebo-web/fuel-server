@@ -31,14 +31,8 @@ func ModelList(p *ign.PaginationRequest, owner *string, order, search string,
 	var categories category.Categories
 
 	if categoryFilters, ok := r.URL.Query()["category"]; ok {
-		filtersLength := len(categoryFilters)
-
-		if filtersLength > 1 && len(categoryFilters[0]) > 0 {
-			categories = modelListCategoryHelper(tx, categoryFilters[0], categories)
-		}
-
-		if filtersLength > 2 && len(categoryFilters[1]) > 0 {
-			categories = modelListCategoryHelper(tx, categoryFilters[1], categories)
+		for _, f := range categoryFilters {
+			categories = modelListCategoryHelper(tx, f, categories)
 		}
 	}
 	return ms.ModelList(p, tx, owner, order, search, nil, user, &categories)
