@@ -90,7 +90,7 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 	var cat category.Category
 	if categories != nil {
 		for _, cat = range *categories {
-			q = q.Joins("JOIN model_categories ON models.id = model_categories.model_id").Where("category_id = ?", &cat.ID)
+			q = q.Joins("FULL OUTER JOIN model_categories ON models.id = model_categories.model_id").Where("category_id = ?", &cat.ID)
 		}
 	}
 
