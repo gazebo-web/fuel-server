@@ -1,16 +1,38 @@
 package main
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 )
+
+func TestGetModelsSearchWihCategoriesFilterValid(t *testing.T) {
+	setup()
+
+	jwt := os.Getenv("IGN_TEST_JWT")
+
+	testUser := createUser(t)
+	defer removeUser(testUser, t)
+
+	createModelWithCategories(t, &jwt, []string{"Cars and Vehicles", "Toys"})
+
+	req, respRec := searchModelWithCategories("model1", "toys")
+
+	globals.Server.Router.ServeHTTP(respRec, req)
+
+	var ms []models.Model
+	assert.Equal(t, http.StatusOK, respRec.Code)
+	assert.NoError(t, json.Unmarshal(respRec.Body.Bytes(), &ms))
+	assert.Len(t, ms, 1)
+}
 
 func TestCreateModelWithOneCategory(t *testing.T) {
 	setup()
@@ -163,4 +185,11 @@ func updateModelWithCategories(t *testing.T, jwt *string, owner, model string, c
 	}
 
 	return igntest.SendMultipartMethod(testName, t, "PATCH", uri, jwt, extraParams, withThumbnails)
+}
+
+func searchModelWithCategories(search string, category string) (*http.Request, *httptest.ResponseRecorder) {
+	uri := fmt.Sprintf("/1.0/models/?q=%s&category=%s", search, category)
+	req, _ := http.NewRequest("GET", uri, nil)
+	respRec := httptest.NewRecorder()
+	return req, respRec
 }
