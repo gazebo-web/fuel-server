@@ -86,12 +86,18 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 	var modelList Models
 	// Create query
 	q := QueryForModels(tx)
-
-	var cat category.Category
+	var categoryIds []uint
 	if categories != nil {
-		for _, cat = range *categories {
-			q = q.Joins("FULL OUTER JOIN model_categories ON models.id = model_categories.model_id").Where("category_id = ?", &cat.ID)
+		for _, c := range *categories {
+			categoryIds = append(categoryIds, c.ID)
 		}
+		sq := fmt.Sprint("SELECT DISTINCT model_id FROM model_categories WHERE model_categories.category_id IN (?));")
+		var modelIds []uint
+		if err := tx.Exec(sq, &categoryIds).Pluck("model_id", &modelIds).Error; err != nil {
+			em := ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
+			return nil, nil, em
+		}
+		q.Where("id IN (?)")
 	}
 
 	// Override default Order BY, unless the user explicitly requested ASC order
@@ -99,7 +105,6 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 		// Important: you need to reassign 'q' to keep the updated query
 		q = q.Order("created_at desc, id", true)
 	}
-
 	// Check if we should return the list of liked models instead.
 	if likedBy != nil {
 		q = q.Joins("JOIN model_likes ON models.id = model_likes.model_id").Where("user_id = ?", &likedBy.ID)
