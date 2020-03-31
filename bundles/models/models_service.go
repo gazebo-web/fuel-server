@@ -97,7 +97,7 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 			em := ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
 			return nil, nil, em
 		}
-		q.Where("id IN (?)")
+		q.Where("id IN (?)", &modelIds)
 	}
 
 	// Override default Order BY, unless the user explicitly requested ASC order
