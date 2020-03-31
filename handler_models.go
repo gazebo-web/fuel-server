@@ -1,17 +1,17 @@
 package main
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"fmt"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 )
 
 // ModelList returns the list of models from a team/user. The returned value
@@ -28,6 +28,7 @@ func ModelList(p *ign.PaginationRequest, owner *string, order, search string,
 	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
 
 	ms := &models.Service{}
+
 	var categories category.Categories
 
 	if categoryFilters, ok := r.URL.Query()["category"]; ok {

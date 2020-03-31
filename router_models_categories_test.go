@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -24,14 +22,12 @@ func TestGetModelsSearchWihCategoriesFilterValid(t *testing.T) {
 
 	createModelWithCategories(t, &jwt, []string{"Cars and Vehicles", "Toys"})
 
-	req, respRec := searchModelWithCategories("model1", "toys")
-
-	globals.Server.Router.ServeHTTP(respRec, req)
-
+	respCode, bslice, ok := searchModelWithCategories(t,"model1", "")
 	var ms []models.Model
-	assert.Equal(t, http.StatusOK, respRec.Code)
-	assert.NoError(t, json.Unmarshal(respRec.Body.Bytes(), &ms))
+	assert.NoError(t, json.Unmarshal(*bslice, &ms))
 	assert.Len(t, ms, 1)
+	assert.True(t, ok)
+	assert.Equal(t, http.StatusOK, respCode)
 }
 
 func TestCreateModelWithOneCategory(t *testing.T) {
@@ -187,9 +183,7 @@ func updateModelWithCategories(t *testing.T, jwt *string, owner, model string, c
 	return igntest.SendMultipartMethod(testName, t, "PATCH", uri, jwt, extraParams, withThumbnails)
 }
 
-func searchModelWithCategories(search string, category string) (*http.Request, *httptest.ResponseRecorder) {
-	uri := fmt.Sprintf("/1.0/models/?q=%s&category=%s", search, category)
-	req, _ := http.NewRequest("GET", uri, nil)
-	respRec := httptest.NewRecorder()
-	return req, respRec
+func searchModelWithCategories(t *testing.T, search string, category string) (respCode int, bslice *[]byte, ok bool) {
+	uri := fmt.Sprintf("/1.0/models/?q=%s", search)
+	return igntest.SendMultipartMethod(t.Name(), t, "GET", uri, nil, nil, nil)
 }

@@ -92,12 +92,12 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 			categoryIds = append(categoryIds, c.ID)
 		}
 		q = q.Where("id IN (?)",
-				tx.
-				Table("model_categories").
-				Select("DISTINCT(model_id)").
-				Where("category_id IN (?)", categoryIds).
-				QueryExpr(),
-			)
+			tx.
+			Table("model_categories").
+			Select("DISTINCT(model_id)").
+			Where("category_id IN (?)", categoryIds).
+			QueryExpr(),
+		)
 	}
 
 	// Override default Order BY, unless the user explicitly requested ASC order
