@@ -87,7 +87,7 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 	// Create query
 	q := QueryForModels(tx)
 	var categoryIds []uint
-	if categories != nil {
+	if categories != nil && len(*categories) > 0 {
 		for _, c := range *categories {
 			categoryIds = append(categoryIds, c.ID)
 		}
