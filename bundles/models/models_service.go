@@ -93,11 +93,9 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 		}
 		sq := fmt.Sprint("SELECT DISTINCT model_id FROM model_categories WHERE model_categories.category_id IN (?));")
 		var modelIds []uint
-		if err := tx.Exec(sq, &categoryIds).Pluck("model_id", &modelIds).Error; err != nil {
-			em := ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
-			return nil, nil, em
+		if err := tx.Exec(sq, &categoryIds).Pluck("model_id", &modelIds).Error; err == nil {
+			q.Where("id IN (?)", &modelIds)
 		}
-		q.Where("id IN (?)", &modelIds)
 	}
 
 	// Override default Order BY, unless the user explicitly requested ASC order
