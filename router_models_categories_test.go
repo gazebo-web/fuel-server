@@ -22,7 +22,7 @@ func TestGetModelsSearchWihCategoriesFilterValid(t *testing.T) {
 
 	createModelWithCategories(t, &jwt, []string{"Cars and Vehicles", "Toys"})
 
-	respCode, bslice, ok := searchModelWithCategories(t,"model1", "")
+	respCode, bslice, ok := searchModelWithCategories(t,"model1", "toys")
 	var ms []models.Model
 	assert.NoError(t, json.Unmarshal(*bslice, &ms))
 	assert.Len(t, ms, 1)
@@ -184,6 +184,6 @@ func updateModelWithCategories(t *testing.T, jwt *string, owner, model string, c
 }
 
 func searchModelWithCategories(t *testing.T, search string, category string) (respCode int, bslice *[]byte, ok bool) {
-	uri := fmt.Sprintf("/1.0/models/?q=%s", search)
+	uri := fmt.Sprintf("/1.0/models/?q=%s&category=%s", search, category)
 	return igntest.SendMultipartMethod(t.Name(), t, "GET", uri, nil, nil, nil)
 }
