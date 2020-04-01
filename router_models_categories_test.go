@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+	fuel "gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"net/http"
 	"os"
@@ -20,12 +21,23 @@ func TestGetModelsSearchWihCategoriesFilterValid(t *testing.T) {
 	testUser := createUser(t)
 	defer removeUser(testUser, t)
 
-	createModelWithCategories(t, &jwt, []string{"Cars and Vehicles", "Toys"})
+	respCode, _, ok := createModelWithCategories(t, &jwt, "model1", []string{"Cars and Vehicles", "Toys"})
+	assert.True(t, ok)
+	assert.Equal(t, http.StatusOK, respCode)
 
-	respCode, bslice, ok := searchModelWithCategories(t,"model1", "toys")
-	var ms []models.Model
+	respCode, _, ok = createModelWithCategories(t, &jwt, "model2", []string{"Music", "Toys"})
+	assert.True(t, ok)
+	assert.Equal(t, http.StatusOK, respCode)
+
+	respCode, _, ok = createModelWithCategories(t, &jwt, "model3", []string{"Animals", "Music"})
+	assert.True(t, ok)
+	assert.Equal(t, http.StatusOK, respCode)
+
+	respCode, bslice, ok := searchModelWithCategories(t,"test_tag_1", "toys")
+
+	var ms []fuel.Model
 	assert.NoError(t, json.Unmarshal(*bslice, &ms))
-	assert.Len(t, ms, 1)
+	assert.Len(t, ms, 2)
 	assert.True(t, ok)
 	assert.Equal(t, http.StatusOK, respCode)
 }
@@ -38,7 +50,7 @@ func TestCreateModelWithOneCategory(t *testing.T) {
 	testUser := createUser(t)
 	defer removeUser(testUser, t)
 
-	respCode, bslice, ok := createModelWithCategories(t, &jwt, []string{"Cars and Vehicles"})
+	respCode, bslice, ok := createModelWithCategories(t, &jwt, "model1", []string{"Cars and Vehicles"})
 	model := models.Model{}
 	assert.NoError(t, json.Unmarshal(*bslice, &model))
 	assert.Len(t, model.Categories, 1)
@@ -55,7 +67,7 @@ func TestCreateModelWithTwoCategories(t *testing.T) {
 	testUser := createUser(t)
 	defer removeUser(testUser, t)
 
-	respCode, bslice, ok := createModelWithCategories(t, &jwt, []string{"Cars and Vehicles", "Toys"})
+	respCode, bslice, ok := createModelWithCategories(t, &jwt, "model1", []string{"Cars and Vehicles", "Toys"})
 	model := models.Model{}
 	assert.NoError(t, json.Unmarshal(*bslice, &model))
 	assert.Len(t, model.Categories, 2)
@@ -71,7 +83,7 @@ func TestErrorCreateModelWithMoreThanTwoCategories(t *testing.T) {
 	testUser := createUser(t)
 	defer removeUser(testUser, t)
 
-	respCode, _, ok := createModelWithCategories(t, &jwt, []string{"Cars and Vehicles", "Toys", "Music"})
+	respCode, _, ok := createModelWithCategories(t, &jwt, "model1", []string{"Cars and Vehicles", "Toys", "Music"})
 	assert.True(t, ok)
 	assert.Equal(t, http.StatusBadRequest, respCode)
 
@@ -85,7 +97,7 @@ func TestErrorCreateModelWithWrongCategory(t *testing.T) {
 	testUser := createUser(t)
 	defer removeUser(testUser, t)
 
-	respCode, _, ok := createModelWithCategories(t, &jwt, []string{"sraC"})
+	respCode, _, ok := createModelWithCategories(t, &jwt, "model1", []string{"sraC"})
 	assert.True(t, ok)
 	assert.Equal(t, http.StatusBadRequest, respCode)
 
@@ -99,7 +111,7 @@ func TestUpdateModelWithNoCategories(t *testing.T) {
 	testUser := createUser(t)
 	defer removeUser(testUser, t)
 
-	_, bslice, ok := createModelWithCategories(t, &jwt, []string{"Cars and Vehicles", "Toys"})
+	_, bslice, ok := createModelWithCategories(t, &jwt, "model1", []string{"Cars and Vehicles", "Toys"})
 	model := models.Model{}
 	assert.NoError(t, json.Unmarshal(*bslice, &model))
 	assert.True(t, ok)
@@ -118,7 +130,7 @@ func TestUpdateModelWithLessThanTwoCategories(t *testing.T) {
 	testUser := createUser(t)
 	defer removeUser(testUser, t)
 
-	_, bslice, ok := createModelWithCategories(t, &jwt, []string{"Cars and Vehicles", "Toys"})
+	_, bslice, ok := createModelWithCategories(t, &jwt, "model1", []string{"Cars and Vehicles", "Toys"})
 	model := models.Model{}
 	assert.NoError(t, json.Unmarshal(*bslice, &model))
 	assert.True(t, ok)
@@ -136,7 +148,7 @@ func TestErrorUpdateModelWithMoreThanTwoCategories(t *testing.T) {
 	testUser := createUser(t)
 	defer removeUser(testUser, t)
 
-	_, bslice, ok := createModelWithCategories(t, &jwt, []string{"Cars and Vehicles", "Toys"})
+	_, bslice, ok := createModelWithCategories(t, &jwt, "model1", []string{"Cars and Vehicles", "Toys"})
 	model := models.Model{}
 	assert.NoError(t, json.Unmarshal(*bslice, &model))
 	assert.True(t, ok)
@@ -146,10 +158,10 @@ func TestErrorUpdateModelWithMoreThanTwoCategories(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, respCode)
 }
 
-func createModelWithCategories(t *testing.T, jwt *string, categories []string) (respCode int, bslice *[]byte, ok bool) {
+func createModelWithCategories(t *testing.T, jwt *string, name string, categories []string) (respCode int, bslice *[]byte, ok bool) {
 	cats := strings.Join(categories, ", ")
 	extraParams := map[string]string{
-		"name":        "model1",
+		"name":        name,
 		"tags":        "test_tag_1, test_tag2",
 		"description": "description",
 		"license":     "1",
@@ -184,6 +196,6 @@ func updateModelWithCategories(t *testing.T, jwt *string, owner, model string, c
 }
 
 func searchModelWithCategories(t *testing.T, search string, category string) (respCode int, bslice *[]byte, ok bool) {
-	uri := fmt.Sprintf("/1.0/models/?q=%s&category=%s", search, category)
+	uri := fmt.Sprintf("/1.0/models?q=%s&category=%s", search, category)
 	return igntest.SendMultipartMethod(t.Name(), t, "GET", uri, nil, nil, nil)
 }
