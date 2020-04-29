@@ -10,8 +10,6 @@ variables:
 
 before_script:
   - go version
-  - git config --global user.name "ign-fuelserver"
-  - git config --global user.email "ign-fuelserver@test.org"
 
 #################################################################
 # Cache configuration
