@@ -1,4 +1,4 @@
-image: golang:1.9.4
+image: registry.gitlab.com/ignitionrobotics/web/images/web-server-pipelines
 
 variables:
   PKG_NAME: gitlab.com/ignitionrobotics/web/fuelserver
@@ -10,13 +10,6 @@ variables:
 
 before_script:
   - go version
-  - mkdir -p -v $GOPATH/src/$PKG_NAME/vendor
-  - mv -f * $GOPATH/src/$PKG_NAME
-  - cd $GOPATH/src/$PKG_NAME
-  - export DEP_RELEASE_TAG=v0.4.1
-  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-  - $GOPATH/bin/dep ensure -vendor-only
-  - $GOPATH/bin/dep status
   - git config --global user.name "ign-fuelserver"
   - git config --global user.email "ign-fuelserver@test.org"
 
@@ -25,9 +18,6 @@ before_script:
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
-  paths:
-    - $GOPATH/src/$PKG_NAME/vendor
-    - $GOPATH/bin
 
 #################################################################
 # Stages
@@ -46,34 +36,23 @@ stages:
 format:
   stage: formatting
   script:
-    - go fmt $(go list ./... | grep -v /vendor/)
+    - go fmt $(go list ./...)
 
 #################################################################
 # Linting stage
 
 lint:
   stage: linting
-  before_script:
-    - go get -u golang.org/x/lint/golint
   script:
-    - golint -set_exit_status $(go list ./... | grep -v /vendor/)
+    - /root/go/bin/golangci-lint run
 
 #################################################################
 # Testing stage
 
-vet:
-  stage: testing
-  script:
-    - go vet $(go list ./... | grep -v /vendor/)
-  services:
-    - mysql:5.7
-  environment:
-    name: testing
-
 test:
   stage: testing
   script:
-    - go test $(go list ./... | grep -v /vendor/)
+    - go test
   services:
     - mysql:5.7
   environment:
@@ -82,7 +61,7 @@ test:
 race:
   stage: testing
   script:
-    - go test -race $(go list ./... | grep -v /vendor/)
+    - go test -race $(go list ./...)
   services:
     - mysql:5.7
   environment:
@@ -106,11 +85,6 @@ build:
   stage: building
   script:
     - go build
-  artifacts:
-    paths:
-      - ${GOPATH}/src/${PKG_NAME}/fuelserver
-    expire_in: 1 month
-
 
 #################################################################
 # Packaging stage
@@ -187,14 +161,10 @@ build:
 # Deploying stage
 
 integration:
-  image: python:3.5
+  image: registry.gitlab.com/ignitionrobotics/web/images/web-server-pipelines
   stage: deploying
   dependencies:
     - build
-  before_script:
-    - apt-get update
-    - apt-get install -y zip python-pip
-    - pip install boto3==1.3.0
   script:
     - zip -r artifact.zip * .ebextensions -x bin/\* -x vendor/\*
     - python beanstalk_deploy.py
@@ -207,14 +177,10 @@ integration:
   when: manual
 
 staging:
-  image: python:3.5
+  image: registry.gitlab.com/ignitionrobotics/web/images/web-server-pipelines
   stage: deploying
   dependencies:
     - build
-  before_script:
-    - apt-get update
-    - apt-get install -y zip python-pip
-    - pip install boto3==1.3.0
   script:
     - zip -r artifact.zip * .ebextensions -x bin/\* -x vendor/\*
     - python beanstalk_deploy.py
@@ -227,14 +193,10 @@ staging:
   when: manual
 
 production:
-  image: python:3.5
+  image: registry.gitlab.com/ignitionrobotics/web/images/web-server-pipelines
   stage: deploying
   dependencies:
     - build
-  before_script:
-    - apt-get update
-    - apt-get install -y zip python-pip
-    - pip install boto3==1.3.0
   script:
     - zip -r artifact.zip * .ebextensions -x bin/\* -x vendor/\*
     - python beanstalk_deploy.py
