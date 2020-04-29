@@ -1,11 +1,11 @@
 package main
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"database/sql"
 	"database/sql/driver"
 	mocket "github.com/Selvatico/go-mocket"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 )
 
 const (

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
-	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"bytes"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
+	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"net/http"
 	"os"
 	"testing"

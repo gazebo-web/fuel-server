@@ -31,15 +31,15 @@ package main
 
 // Import this file's dependencies
 import (
+	"context"
+	"flag"
+	"github.com/go-playground/form"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/subt"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/migrate"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"context"
-	"flag"
-	"github.com/go-playground/form"
 	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
 	"log"

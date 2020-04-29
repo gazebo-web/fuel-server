@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/gorilla/mux"
+	"github.com/gosimple/slug"
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/gorilla/mux"
-	"github.com/gosimple/slug"
-	"github.com/jinzhu/gorm"
 	"net/http"
 )
 
