@@ -6,7 +6,7 @@ import (
 )
 
 // List returns a list of categories.
-func (cs *CategoryService) List(tx *gorm.DB) (*Categories, *ign.ErrMsg) {
+func (cs *Service) List(tx *gorm.DB) (*Categories, *ign.ErrMsg) {
 	// Get the categories
 	var categories Categories
 

@@ -13,7 +13,7 @@ import (
 // GenerateTokenHS256 generates an HS256 token containing the given claims,
 // the returns the token signed with the given client secret.
 // Used with single keys (ie. client secret)
-func GenerateTokenHS256(base64ClientSecret string, jwtClaims jwt.MapClaims) (signedToken string, err error) {
+func GenerateTokenHS256(base64ClientSecret string, jwtClaims jwt.Claims) (signedToken string, err error) {
 
 	signingKey, err := base64.URLEncoding.DecodeString(base64ClientSecret)
 	if err != nil {
@@ -35,7 +35,7 @@ func GenerateTokenHS256(base64ClientSecret string, jwtClaims jwt.MapClaims) (sig
 // GenerateTokenRSA256 generates an RSA256 token containing the given claims,
 // the returns the token signed with the given PEM private key.
 // Used with public - private keys.
-func GenerateTokenRSA256(pemPrivKey []byte, jwtClaims jwt.MapClaims) (signedToken string, err error) {
+func GenerateTokenRSA256(pemPrivKey []byte, jwtClaims jwt.Claims) (signedToken string, err error) {
 	signingKey, err := jwt.ParseRSAPrivateKeyFromPEM(pemPrivKey)
 	if err != nil {
 		log.Println("error while parsing private key", err)

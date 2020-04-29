@@ -58,7 +58,7 @@ func TestCategoriesPostAdmin(t *testing.T) {
 
 	buffer := bytes.NewBuffer(body)
 
-	result := category.CategoryService{}
+	result := category.Service{}
 	t.Run("Admin should create categories", func(t *testing.T) {
 		bslice, ok := igntest.AssertRouteMultipleArgs("POST", uri, buffer, http.StatusOK, &jwt, "application/json", t)
 		assert.True(t, ok)

@@ -44,7 +44,7 @@ format:
 lint:
   stage: linting
   script:
-    - /root/go/bin/golangci-lint run
+    - /root/go/bin/golangci-lint run --skip-dirs vcs --disable-all  --enable=golint --enable=varcheck --enable=maligned --enable=interfacer --enable=gosec
 
 #################################################################
 # Testing stage

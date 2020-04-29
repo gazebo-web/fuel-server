@@ -24,12 +24,6 @@ func iptr(i int) *int {
 	return &i
 }
 
-// sptr returns a pointer to a given string.
-// This function is specially useful when using string literals as argument.
-func sptr(s string) *string {
-	return &s
-}
-
 func getRegistration(tx *gorm.DB, comp, participant string) (*Registration, *ign.ErrMsg) {
 	var r Registration
 	// Create query

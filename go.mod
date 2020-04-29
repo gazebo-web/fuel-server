@@ -10,7 +10,7 @@ require (
 	github.com/casbin/casbin v1.5.0
 	github.com/casbin/gorm-adapter v0.0.0-20190318080705-e74a050c51a4
 	github.com/codegangsta/negroni v0.3.0
-	github.com/davecgh/go-spew v1.1.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/emirpasic/gods v1.9.0
 	github.com/go-ini/ini v1.38.1
@@ -18,7 +18,8 @@ require (
 	github.com/go-playground/locales v0.12.1
 	github.com/go-playground/universal-translator v0.16.0
 	github.com/go-sql-driver/mysql v1.4.0
-	github.com/golang/protobuf v1.1.0
+	github.com/golang/protobuf v1.3.2
+	github.com/golangci/golangci-lint v1.25.1 // indirect
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/mux v1.6.2
 	github.com/gosimple/slug v1.9.0
@@ -29,23 +30,23 @@ require (
 	github.com/jpillora/go-ogle-analytics v0.0.0-20161213085824-14b04e0594ef
 	github.com/kevinburke/ssh_config v0.0.0-20180317175531-9fc7bb800b55
 	github.com/lib/pq v1.3.0
-	github.com/mitchellh/go-homedir v0.0.0-20180801233206-58046073cbff
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pelletier/go-buffruneio v0.2.0
-	github.com/pkg/errors v0.8.0
+	github.com/pkg/errors v0.8.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/rainycape/unidecode v0.0.0-20150907023854-cb7f23ec59be
 	github.com/rollbar/rollbar-go v1.0.1
 	github.com/satori/go.uuid v1.1.1-0.20180103003558-063359185d32
 	github.com/sergi/go-diff v1.0.0
 	github.com/src-d/gcfg v1.3.0
-	github.com/stretchr/testify v1.2.2
+	github.com/stretchr/testify v1.5.1
 	github.com/xanzy/ssh-agent v0.2.0
 	gitlab.com/ignitionrobotics/web/ign-go v0.0.0-20200117160426-0366041efcb3
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
-	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
-	golang.org/x/sys v0.0.0-20190412213103-97732733099d
-	golang.org/x/text v0.3.0
-	google.golang.org/appengine v1.1.0
+	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
+	golang.org/x/sys v0.0.0-20191120155948-bd437916bb0e
+	golang.org/x/text v0.3.2
+	google.golang.org/appengine v1.4.0
 	gopkg.in/go-playground/validator.v9 v9.21.0
 	gopkg.in/src-d/go-billy.v4 v4.2.0
 	gopkg.in/src-d/go-git.v4 v4.5.0
