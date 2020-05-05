@@ -157,52 +157,63 @@ func ModelClone(owner, modelName string, ignored *users.User, tx *gorm.DB,
 func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 
-	r.ParseMultipartForm(0)
-	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
-	// models.UpdateModel is the input form
+	// models.UpdateModel is the input form or JSON data.
 	var um models.UpdateModel
-	if errMsg := ParseStruct(&um, r, true); errMsg != nil {
-		return nil, errMsg
-	}
-	if um.IsEmpty() && r.MultipartForm == nil {
-		return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
-	}
+  var newFilesPath *string
 
-	// If the user has also sent files, then update the model's version
-	var newFilesPath *string
-	if r.MultipartForm != nil && len(getRequestFiles(r)) > 0 {
-		// first, populate files into tmp dir to avoid overriding model
-		// files in case of error.
-		tmpDir, err := ioutil.TempDir("", modelName)
-		defer os.Remove(tmpDir)
-		if err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
-		}
-		if _, errMsg := populateTmpDir(r, true, tmpDir); errMsg != nil {
-			return nil, errMsg
-		}
-		newFilesPath = &tmpDir
-	}
+  // Attempt to parse body as a form. If this fails, then try to parse
+  // the body as JSON.
+  if parseErr := r.ParseMultipartForm(0); parseErr != nil {
+    // Attempt to parse as JSON
+    if errMsg := ParseStruct(&um, r, false); errMsg != nil {
+      return nil, errMsg
+    }
+  } else {
+    // Delete temporary files from r.ParseMultipartForm(0)
+    defer r.MultipartForm.RemoveAll()
+    if errMsg := ParseStruct(&um, r, true); errMsg != nil {
+      return nil, errMsg
+    }
+    if um.IsEmpty() && r.MultipartForm == nil {
+      if um.IsEmpty() {
+        return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+      }
+    }
 
-	// Check if "metadata" exists
-	if _, valid := r.Form["metadata"]; valid {
-		// Process each metadata line
-		for _, meta := range r.Form["metadata"] {
+    // If the user has also sent files, then update the model's version
+    if r.MultipartForm != nil && len(getRequestFiles(r)) > 0 {
+      // first, populate files into tmp dir to avoid overriding model
+      // files in case of error.
+      tmpDir, err := ioutil.TempDir("", modelName)
+      defer os.Remove(tmpDir)
+      if err != nil {
+        return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
+      }
+      if _, errMsg := populateTmpDir(r, true, tmpDir); errMsg != nil {
+        return nil, errMsg
+      }
+      newFilesPath = &tmpDir
+    }
 
-			// Unmarshall the meta data
-			var unmarshalled models.ModelMetadatum
-			json.Unmarshal([]byte(meta), &unmarshalled)
+    // Check if "metadata" exists
+    if _, valid := r.Form["metadata"]; valid {
+      // Process each metadata line
+      for _, meta := range r.Form["metadata"] {
 
-			// Create the metadata array, if it is null.
-			if um.Metadata == nil {
-				um.Metadata = new(models.ModelMetadata)
-			}
+        // Unmarshall the meta data
+        var unmarshalled models.ModelMetadatum
+        json.Unmarshal([]byte(meta), &unmarshalled)
 
-			// Store the meta data
-			*um.Metadata = append(*um.Metadata, unmarshalled)
-		}
-	}
+        // Create the metadata array, if it is null.
+        if um.Metadata == nil {
+          um.Metadata = new(models.ModelMetadata)
+        }
+
+        // Store the meta data
+        *um.Metadata = append(*um.Metadata, unmarshalled)
+      }
+    }
+  }
 
 	model, em := (&models.Service{}).UpdateModel(r.Context(), tx, owner, modelName,
 		um.Description, um.Tags, newFilesPath, um.Private, user, um.Metadata, um.Categories)
