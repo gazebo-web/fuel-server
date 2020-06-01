@@ -1,10 +1,10 @@
 package vcs
 
 import (
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gopkg.in/src-d/go-billy.v4/osfs"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"

@@ -1,12 +1,12 @@
 package category
 
 import (
-	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"context"
 	"fmt"
 	"github.com/gosimple/slug"
 	"github.com/jinzhu/gorm"
+	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // Update updates a category in DB using the data from

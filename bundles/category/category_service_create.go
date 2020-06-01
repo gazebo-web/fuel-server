@@ -1,11 +1,11 @@
 package category
 
 import (
-	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
 	"context"
 	"fmt"
 	"github.com/gosimple/slug"
 	"github.com/jinzhu/gorm"
+	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 

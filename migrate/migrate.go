@@ -1,6 +1,8 @@
 package migrate
 
 import (
+	"context"
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
@@ -11,8 +13,6 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"context"
-	"github.com/jinzhu/gorm"
 	"log"
 	"os"
 	"path/filepath"

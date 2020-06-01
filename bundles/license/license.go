@@ -1,8 +1,8 @@
 package license
 
 import (
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // License is a license name and ID

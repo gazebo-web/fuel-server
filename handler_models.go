@@ -9,8 +9,6 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 	"net/http"
 	"strconv"
 )
