@@ -4,11 +4,11 @@ import (
 	"path"
 	"time"
 
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	"github.com/jinzhu/gorm"
 )
 
 // TODO: move DB related functions to a DB Accessor. Inject the db accessor to the models service.

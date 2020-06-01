@@ -1,6 +1,9 @@
 package collections
 
 import (
+	"context"
+	"fmt"
+	"github.com/jinzhu/gorm"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
@@ -8,9 +11,6 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"context"
-	"fmt"
-	"github.com/jinzhu/gorm"
 	"net/url"
 	"os"
 	"strings"
@@ -160,15 +160,9 @@ func populateCollectionThumbnails(tx *gorm.DB,
 		if a.Type == TModel {
 			s := &models.Service{}
 			r, em = s.GetModel(tx, a.AssetOwner, a.AssetName, user)
-			if em != nil && em.ErrCode != ign.ErrorUnauthorized {
-				return em
-			}
 		} else if a.Type == TWorld {
 			s := &worlds.Service{}
 			r, em = s.GetWorld(tx, a.AssetOwner, a.AssetName, user)
-			if em != nil && em.ErrCode != ign.ErrorUnauthorized {
-				return em
-			}
 		}
 
 		if em == nil {

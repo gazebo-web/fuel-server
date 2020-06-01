@@ -1,10 +1,10 @@
 package category
 
 import (
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"context"
 	"fmt"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // Delete deletes a category by the given slug.

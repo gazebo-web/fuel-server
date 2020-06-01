@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jinzhu/gorm"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	p "gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/jinzhu/gorm"
 )
 
 // SubTPortalName is the name of the Org that represents the competition.

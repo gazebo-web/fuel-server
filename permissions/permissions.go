@@ -1,11 +1,11 @@
 package permissions
 
 import (
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"fmt"
 	"github.com/casbin/casbin"
 	"github.com/casbin/gorm-adapter"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"regexp"
 )
 
