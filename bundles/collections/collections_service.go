@@ -160,15 +160,9 @@ func populateCollectionThumbnails(tx *gorm.DB,
 		if a.Type == TModel {
 			s := &models.Service{}
 			r, em = s.GetModel(tx, a.AssetOwner, a.AssetName, user)
-			if em != nil && em.ErrCode != ign.ErrorUnauthorized {
-				return em
-			}
 		} else if a.Type == TWorld {
 			s := &worlds.Service{}
 			r, em = s.GetWorld(tx, a.AssetOwner, a.AssetName, user)
-			if em != nil && em.ErrCode != ign.ErrorUnauthorized {
-				return em
-			}
 		}
 
 		if em == nil {
