@@ -264,11 +264,6 @@ func GetZip(ctx context.Context, res Resource, subfolder string, version string)
 		needsToZip = true
 	}
 
-	// TODO: When the tip is downloaded, we return any zip file we have in the file system.
-	// This could be the zip file of a previous version.
-	// This hack allows us to create the zip with on each request.
-	needsToZip = true
-
 	if needsToZip {
 		repo := globals.VCSRepoFactory(ctx, *res.GetLocation())
 		var err error
