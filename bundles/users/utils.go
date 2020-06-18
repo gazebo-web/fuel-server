@@ -1,10 +1,10 @@
 package users
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"context"
 	"github.com/satori/go.uuid"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"os"
 	"path"
 )

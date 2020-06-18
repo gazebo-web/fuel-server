@@ -7,15 +7,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/golang/protobuf/proto"
-	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
 )
 
 // This package contains common functions for file based resources. Eg: model,

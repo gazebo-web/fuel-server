@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 )
 
 // WorldList returns the list of worlds from a team/user. The returned value

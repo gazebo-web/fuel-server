@@ -1,10 +1,10 @@
 package worlds
 
 import (
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"github.com/jinzhu/gorm"
 	"time"
 )
 

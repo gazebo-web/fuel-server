@@ -1,14 +1,16 @@
 package models
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"context"
 	"fmt"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/jinzhu/gorm"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
@@ -18,8 +20,6 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/golang/protobuf/proto"
-	"github.com/jinzhu/gorm"
 )
 
 // Service is the main struct exported by this Models Service.
