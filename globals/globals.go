@@ -1,10 +1,10 @@
 package globals
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
-	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"context"
 	"github.com/go-playground/form"
+	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gopkg.in/go-playground/validator.v9"
 )

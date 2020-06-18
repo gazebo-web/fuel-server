@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
@@ -23,9 +26,6 @@ import (
 	fuel "gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/golang/protobuf/proto"
-	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
 )
 
 // ParseWorldContentsEnvVar holds the name of the boolean env var to check if parsing

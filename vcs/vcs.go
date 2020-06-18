@@ -1,11 +1,11 @@
 package vcs
 
 import (
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"bytes"
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"io/ioutil"
 	"os"
 	"os/exec"
