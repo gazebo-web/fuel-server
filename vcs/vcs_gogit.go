@@ -8,6 +8,7 @@ import (
 	"gopkg.in/src-d/go-billy.v4/osfs"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/cache"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"io/ioutil"
@@ -89,9 +90,12 @@ func (g *GoGitVCS) goGitInitAndCommitAll(ctx context.Context, msg string) error 
 	}
 	fs := osfs.New(g.Path)
 	dot, _ := fs.Chroot(".git")
-	storage, err := filesystem.NewStorage(dot)
-	if err != nil {
-		return ign.WithStack(err)
+	cache := cache.ObjectLRU{
+		MaxSize: 100 * cache.MiByte,
+	}
+	storage := filesystem.NewStorage(dot, &cache)
+	if storage == nil {
+		return errors.New("Unable to create new storage")
 	}
 	r, err := git.Init(storage, fs)
 	if err != nil {
