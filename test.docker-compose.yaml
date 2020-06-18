@@ -1,0 +1,20 @@
+version: '3.0'
+services:
+  test:
+    container_name: ign-fuelserver
+    build:
+      context: .
+      dockerfile: test.Dockerfile
+    environment:
+      IGN_DB_ADDRESS: ign-db:3306
+    env_file:
+      - .env
+    restart: always
+
+  db:
+    container_name: ign-db
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: fuel_test

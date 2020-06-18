@@ -10,9 +10,9 @@ import (
 )
 
 // Update updates a category in DB using the data from
-// the given CategoryService struct.
-// Returns a CategoryService.
-func (cs *CategoryService) Update(ctx context.Context, tx *gorm.DB,
+// the given Service struct.
+// Returns a Service.
+func (cs *Service) Update(ctx context.Context, tx *gorm.DB,
 	categorySlug string, cat dtos.UpdateCategory) (*Category, *ign.ErrMsg) {
 
 	var savedCategory *Category

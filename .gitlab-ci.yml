@@ -7,57 +7,50 @@ variables:
 
 #################################################################
 # Before Script
-
 before_script:
   - go version
 
 #################################################################
 # Cache configuration
-
 cache:
   key: ${CI_COMMIT_REF_SLUG}
 
 #################################################################
 # Stages
-
 stages:
-  - formatting
-  - linting
-  - testing
-  - building
-  - packaging
-  - deploying
+  - format
+  - test
+  - build
+  - deploy
 
 #################################################################
-# Formatting stage
-
-format:
-  stage: formatting
+# Format stage
+fmt:
+  stage: format
   script:
     - go fmt $(go list ./...)
 
-#################################################################
-# Linting stage
-
 lint:
-  stage: linting
+  stage: format
+  before_script:
+    - $GOPATH/bin/golangci-lint --version
   script:
-    - /root/go/bin/golangci-lint run
+    - $GOPATH/bin/golangci-lint run --skip-dirs vcs --disable-all  --enable=golint --enable=varcheck --enable=maligned --enable=interfacer
+  allow_failure: true
 
 #################################################################
-# Testing stage
-
+# Test stage
 test:
-  stage: testing
+  stage: test
   script:
-    - go test
+    - go test -v $(go list ./...)
   services:
     - mysql:5.7
   environment:
     name: testing
 
 race:
-  stage: testing
+  stage: test
   script:
     - go test -race $(go list ./...)
   services:
@@ -66,7 +59,7 @@ race:
     name: testing
 
 coverage:
-  stage: testing
+  stage: test
   script:
     - go test -covermode=atomic -coverprofile=coverage.tx
     - go tool cover -func=coverage.tx
@@ -77,90 +70,17 @@ coverage:
     name: testing
 
 #################################################################
-# Building stage
-
+# Build stage
 build:
-  stage: building
+  stage: build
   script:
     - go build
 
 #################################################################
-# Packaging stage
-
-#package_default:
-#  stage: packaging
-#  image: docker
-#  services:
-#    - docker:dind
-#  except:
-#    - develop
-#    - master
-#  dependencies:
-#    - build
-#  variables:
-#    DOCKER_HOST: tcp://docker:2375
-#    DOCKER_DRIVER: overlay2
-#  before_script:
-#    - docker version
-#    - docker info
-#    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
-#  script:
-#    - "docker pull $CI_REGISTRY_IMAGE:next || true"
-#    - "docker build --cache-from $CI_REGISTRY_IMAGE:next --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA ."
-#    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-#
-#package_next:
-#  stage: packaging
-#  image: docker
-#  only:
-#    - develop
-#  services:
-#    - docker:dind
-#  dependencies:
-#    - build
-#  variables:
-#    DOCKER_HOST: tcp://docker:2375
-#    DOCKER_DRIVER: overlay2
-#  before_script:
-#    - docker version
-#    - docker info
-#    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
-#  script:
-#    - "docker pull $CI_REGISTRY_IMAGE || true"
-#    - "docker build --cache-from $CI_REGISTRY_IMAGE --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE:next ."
-#    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-#    - "docker push $CI_REGISTRY_IMAGE:next"
-#
-#package_latest:
-#  stage: packaging
-#  image: docker
-#  only:
-#    - master
-#  services:
-#    - docker:dind
-#  dependencies:
-#    - build
-#  variables:
-#    DOCKER_HOST: tcp://docker:2375
-#    DOCKER_DRIVER: overlay2
-#  before_script:
-#    - docker version
-#    - docker info
-#    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
-#  script:
-#    - "docker pull $CI_REGISTRY_IMAGE || true"
-#    - "docker build --cache-from $CI_REGISTRY_IMAGE --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE:latest ."
-#    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-#    - "docker push $CI_REGISTRY_IMAGE:latest"
-#  after_script:
-#    - "docker logout ${CI_REGISTRY}"
-
-#################################################################
-# Deploying stage
+# Deploy stage
 
 integration:
-  image: registry.gitlab.com/ignitionrobotics/web/images/web-server-pipelines
-  stage: deploying
+  stage: deploy
   dependencies:
     - build
   script:
@@ -175,8 +95,7 @@ integration:
   when: manual
 
 staging:
-  image: registry.gitlab.com/ignitionrobotics/web/images/web-server-pipelines
-  stage: deploying
+  stage: deploy
   dependencies:
     - build
   script:
@@ -191,8 +110,7 @@ staging:
   when: manual
 
 production:
-  image: registry.gitlab.com/ignitionrobotics/web/images/web-server-pipelines
-  stage: deploying
+  stage: deploy
   dependencies:
     - build
   script:

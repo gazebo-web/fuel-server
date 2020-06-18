@@ -237,10 +237,10 @@ func DBAddDefaultData(ctx context.Context, db *gorm.DB) {
 	}
 }
 
-func createCategories(db *gorm.DB, categories []CategoryDesc, parentId *uint) {
+func createCategories(db *gorm.DB, categories []CategoryDesc, parentID *uint) {
 	for _, c := range categories {
 		newSlug := slug.Make(c.name)
-		cat := category.Category{Name: &c.name, Slug: &newSlug, ParentID: parentId}
+		cat := category.Category{Name: &c.name, Slug: &newSlug, ParentID: parentID}
 		db.Create(&cat)
 		var record category.Category
 		db.Where("name = ?", c.name).First(&record)

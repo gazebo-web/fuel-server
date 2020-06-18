@@ -1,0 +1,13 @@
+*.pem
+test_model*
+.elasticbeanstalk
+*.out
+test-reports/*.out
+test-reports/*.html
+vendor/
+.vgenable
+.idea/
+.vscode/
+fuelserver
+*.orig
+*.swp

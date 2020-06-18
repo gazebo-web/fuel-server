@@ -105,17 +105,19 @@ func TestSupportForMultipleAPIVersions(t *testing.T) {
 func TestSqlTxError(t *testing.T) {
 	tx := globals.Server.Db.Begin()
 	assert.NoError(t, tx.Rollback().Error)
-	// should fail on subsequent calls to rollback or commit
-	assert.Error(t, tx.Rollback().Error)
-	assert.True(t, ign.IsSQLTxError(tx.Error))
+	// should NOT fail on subsequent calls to rollback
+	assert.NoError(t, tx.Rollback().Error)
+	assert.False(t, ign.IsSQLTxError(tx.Error))
+	// should fail on subsequent calls to commit
 	assert.Error(t, tx.Commit().Error)
 	assert.True(t, ign.IsSQLTxError(tx.Error))
 
 	tx = globals.Server.Db.Begin()
 	assert.NoError(t, tx.Commit().Error)
-	// should fail on subsequent calls to rollback or commit
-	assert.Error(t, tx.Rollback().Error)
-	assert.True(t, ign.IsSQLTxError(tx.Error))
+	// should NOT fail on subsequent calls to rollback
+	assert.NoError(t, tx.Rollback().Error)
+	assert.False(t, ign.IsSQLTxError(tx.Error))
+	// should fail on subsequent calls to rollback
 	assert.Error(t, tx.Commit().Error)
 	assert.True(t, ign.IsSQLTxError(tx.Error))
 

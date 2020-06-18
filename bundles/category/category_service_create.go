@@ -11,7 +11,7 @@ import (
 
 // Create creates a new Category in DB using the data from
 // the given CreateCategory dto.
-func (cs *CategoryService) Create(ctx context.Context, tx *gorm.DB,
+func (cs *Service) Create(ctx context.Context, tx *gorm.DB,
 	newCategory dtos.CreateCategory) (*Category, *ign.ErrMsg) {
 
 	var count int64

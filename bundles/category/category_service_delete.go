@@ -8,7 +8,7 @@ import (
 )
 
 // Delete deletes a category by the given slug.
-func (cs *CategoryService) Delete(ctx context.Context, tx *gorm.DB, categorySlug string) (*Category, *ign.ErrMsg) {
+func (cs *Service) Delete(ctx context.Context, tx *gorm.DB, categorySlug string) (*Category, *ign.ErrMsg) {
 	var cat *Category
 	var err error
 	// Sanity check: Make sure that the category exists.
