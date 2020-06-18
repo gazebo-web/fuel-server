@@ -1230,7 +1230,7 @@ func TestOrganizationTeamUpdate(t *testing.T) {
 	// Team responses
 	t1Resp := users.TeamResponse{Name: "team1", Description: sptr("new desc"), Visible: false, Usernames: []string{username2}}
 	t2Resp := users.TeamResponse{Name: "team2", Description: nil, Visible: false, Usernames: nil}
-	t3Resp := users.TeamResponse{Name: "team3", Description: sptr("a"), Visible: false, Usernames: nil}
+	t3Resp := users.TeamResponse{Name: "team3", Description: sptr("a"), Visible: false, Usernames: []string{}}
 
 	uri := orgTeamsRoute(testOrg)
 	updateTeamTestsData := []updateTeamTest{

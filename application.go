@@ -32,7 +32,6 @@ package main
 // Import this file's dependencies
 import (
 	"context"
-	"flag"
 	"github.com/go-playground/form"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/subt"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
@@ -76,7 +75,7 @@ func init() {
 	logger := ign.NewLogger("init", logStd, verbosity)
 	logCtx := ign.NewContextWithLogger(context.Background(), logger)
 
-	isGoTest = flag.Lookup("test.v") != nil
+	isGoTest = strings.HasSuffix(os.Args[0], ".test")
 
 	// Get the root resource directory.
 	if globals.ResourceDir, err = ign.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil {

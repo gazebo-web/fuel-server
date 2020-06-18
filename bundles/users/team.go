@@ -19,8 +19,8 @@ type Team struct {
 	Description *string `json:"description"`
 
 	// The Organization to which this team belongs
-	Organization   Organization `gorm:"save_associations:false" json:"-"`
-	OrganizationID uint         `gorm:"not nulll;unique_index:idx_org_name" json:"-"`
+	Organization   Organization `json:"-"`
+	OrganizationID uint         `gorm:"not null;unique_index:idx_org_name" json:"-"`
 
 	// The username of the User that created this team (usually got from the JWT)
 	Creator *string `json:"-"`

@@ -654,11 +654,16 @@ func addUserToTeam(ctx context.Context, tx *gorm.DB,
 	team *Team, username string) *ign.ErrMsg {
 
 	org := team.Organization
+
 	// Add the user to the team in casbin too
-	teamGroupName := getCasbinNameForTeam(*org.Name, *team.Name)
-	ok, em := globals.Permissions.AddUserGroupRole(username, teamGroupName, permissions.Member)
-	if !ok {
-		return em
+	if org.Name != nil && team.Name != nil {
+		teamGroupName := getCasbinNameForTeam(*org.Name, *team.Name)
+		ok, em := globals.Permissions.AddUserGroupRole(username, teamGroupName, permissions.Member)
+		if !ok {
+			return em
+		}
+	} else {
+		return ign.NewErrorMessage(ign.ErrorUnexpected)
 	}
 	return nil
 }

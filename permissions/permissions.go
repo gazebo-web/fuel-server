@@ -2,8 +2,8 @@ package permissions
 
 import (
 	"fmt"
-	"github.com/casbin/casbin"
-	"github.com/casbin/gorm-adapter"
+	"github.com/casbin/casbin/v2"
+	"github.com/casbin/gorm-adapter/v2"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"regexp"
@@ -122,7 +122,7 @@ type Enforcer interface {
 // Private permission data objects
 type permissionsObj struct {
 	adapter  *gormadapter.Adapter
-	enforcer Enforcer
+	enforcer *casbin.Enforcer
 }
 
 // Global permission object
@@ -138,15 +138,15 @@ func (p *Permissions) Init(db *gorm.DB, sysAdmin string) error {
 
 	var adapter *gormadapter.Adapter
 
-	adapter = gormadapter.NewAdapterByDB(db)
-	enforcer := casbin.NewEnforcer("permissions/policy.conf", adapter)
+	adapter, _ = gormadapter.NewAdapterByDB(db)
+	enforcer, _ := casbin.NewEnforcer("permissions/policy.conf", adapter)
 
 	return p.InitWithEnforcerAndAdapter(enforcer, adapter, sysAdmin)
 }
 
 // InitWithEnforcerAndAdapter initializes permissions with a given pair of
 // enforcer and adapter.
-func (p *Permissions) InitWithEnforcerAndAdapter(e Enforcer, a *gormadapter.Adapter, sysAdmin string) error {
+func (p *Permissions) InitWithEnforcerAndAdapter(e *casbin.Enforcer, a *gormadapter.Adapter, sysAdmin string) error {
 
 	obj := &permissionsObj{
 		enforcer: e,
@@ -183,7 +183,8 @@ func (p *Permissions) setSystemAdmin(sysAdmin string) {
 
 // IsSystemAdmin returns a bool indicating if the given user is a system admin.
 func (p *Permissions) IsSystemAdmin(user string) bool {
-	return p.data.enforcer.HasRoleForUser(user, roleToString(SystemAdmin))
+	result, _ := p.data.enforcer.HasRoleForUser(user, roleToString(SystemAdmin))
+	return result
 }
 
 // IsAuthorized checks if user has the permission to perform an action on a
@@ -193,7 +194,8 @@ func (p *Permissions) IsAuthorized(user, resource string, action Action) (bool, 
 		return true, nil
 	}
 
-	if !p.data.enforcer.Enforce(user, resource, actionToString(action)) {
+	valid, err := p.data.enforcer.Enforce(user, resource, actionToString(action))
+	if !valid || err != nil {
 		return false, ign.NewErrorMessage(ign.ErrorUnauthorized)
 	}
 	return true, nil
@@ -201,7 +203,8 @@ func (p *Permissions) IsAuthorized(user, resource string, action Action) (bool, 
 
 // AddPermission adds a user (or group) permission on a resource
 func (p *Permissions) AddPermission(user, resource string, action Action) (bool, *ign.ErrMsg) {
-	if !p.data.enforcer.AddPermissionForUser(user, resource, actionToString(action)) {
+	valid, err := p.data.enforcer.AddPermissionForUser(user, resource, actionToString(action))
+	if !valid || err != nil {
 		return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 	}
 	return true, nil
@@ -209,7 +212,8 @@ func (p *Permissions) AddPermission(user, resource string, action Action) (bool,
 
 // RemovePermission removes a user (or group) permission on a resource
 func (p *Permissions) RemovePermission(user, resource string, action Action) (bool, *ign.ErrMsg) {
-	if !p.data.enforcer.DeletePermissionForUser(user, resource, actionToString(action)) {
+	valid, err := p.data.enforcer.DeletePermissionForUser(user, resource, actionToString(action))
+	if !valid || err != nil {
 		return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 	}
 	return true, nil
@@ -219,7 +223,8 @@ func (p *Permissions) RemovePermission(user, resource string, action Action) (bo
 func (p *Permissions) RemoveResource(resource string) (bool, *ign.ErrMsg) {
 	// policy is formatted in casbin as (user, resource, action)
 	// so the 1 in the arg below means resource.
-	if !p.data.enforcer.RemoveFilteredPolicy(PolicyResource, resource) {
+	valid, err := p.data.enforcer.RemoveFilteredPolicy(PolicyResource, resource)
+	if !valid || err != nil {
 		return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 	}
 	return true, nil
@@ -239,7 +244,7 @@ func (p *Permissions) GetGroupsForUser(user string) []string {
 // groups as keys and the user role in those groups as values.
 func (p *Permissions) GetGroupsAndRolesForUser(user string) map[string]string {
 	m := make(map[string]string, 0)
-	roles := p.data.enforcer.GetRolesForUser(user)
+	roles, _ := p.data.enforcer.GetRolesForUser(user)
 	re := regexp.MustCompile("(.+)_#([^_]+)$")
 	for _, r := range roles {
 		s := re.FindStringSubmatch(r)
@@ -254,7 +259,8 @@ func (p *Permissions) GetGroupsAndRolesForUser(user string) map[string]string {
 
 // GetUsersForGroup gets the users that belong to a group.
 func (p *Permissions) GetUsersForGroup(group string) []string {
-	return p.data.enforcer.GetUsersForRole(group)
+	result, _ := p.data.enforcer.GetUsersForRole(group)
+	return result
 }
 
 // UserBelongsToGroup returns true if the user belongs to the group.
@@ -264,7 +270,8 @@ func (p *Permissions) UserBelongsToGroup(user, group string) bool {
 
 // HasRoleForUser checks and see if a user has the specified role
 func (p *Permissions) HasRoleForUser(user, role string) bool {
-	return p.data.enforcer.HasRoleForUser(user, role)
+	result, _ := p.data.enforcer.HasRoleForUser(user, role)
+	return result
 }
 
 // AddUserGroupRoleString is same as AddUserGroupRole but receives a role name
@@ -299,11 +306,14 @@ func (p *Permissions) AddUserGroupRole(user, group string, role Role) (bool, *ig
 
 // AddRoleForUser adds a role for a user
 func (p *Permissions) AddRoleForUser(user, role string) (bool, *ign.ErrMsg) {
-	if p.data.enforcer.HasRoleForUser(user, role) {
+	valid, _ := p.data.enforcer.HasRoleForUser(user, role)
+	if valid {
 		extra := fmt.Sprintf("Role [%s] exist for user [%s]", role, user)
 		return false, ign.NewErrorMessageWithArgs(ign.ErrorResourceExists, nil, []string{extra})
 	}
-	if !p.data.enforcer.AddRoleForUser(user, role) {
+
+	added, _ := p.data.enforcer.AddRoleForUser(user, role)
+	if !added {
 		extra := fmt.Sprintf("Could not add role [%s] for user [%s]", role, user)
 		return false, ign.NewErrorMessageWithArgs(ign.ErrorUnexpected, nil, []string{extra})
 	}
@@ -317,7 +327,8 @@ func (p *Permissions) RemoveUserGroupRole(user, group string, role Role) (bool, 
 
 // RemoveRoleForUser removes a role from a user
 func (p *Permissions) RemoveRoleForUser(user, role string) (bool, *ign.ErrMsg) {
-	if !p.data.enforcer.DeleteRoleForUser(user, role) {
+	valid, err := p.data.enforcer.DeleteRoleForUser(user, role)
+	if !valid || err != nil {
 		return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 	}
 	return true, nil
@@ -336,7 +347,8 @@ func (p *Permissions) GetUserRoleForGroup(user, group string) (Role, *ign.ErrMsg
 			return -1, em
 		}
 		groupRole := getRoleForGroup(role, group)
-		if p.data.enforcer.HasRoleForUser(user, groupRole) {
+		result, _ := p.data.enforcer.HasRoleForUser(user, groupRole)
+		if result {
 			return role, nil
 		}
 	}
@@ -367,15 +379,17 @@ func (p *Permissions) CompareRoles(role1, role2 Role) int {
 
 // RemoveUserFromGroup removes all roles from a user in a group
 func (p *Permissions) RemoveUserFromGroup(user, group string) (bool, *ign.ErrMsg) {
-	if !p.data.enforcer.HasRoleForUser(user, group) {
+	result, _ := p.data.enforcer.HasRoleForUser(user, group)
+	if !result {
 		extra := fmt.Sprintf("User [%s] does not belong to group [%s]", user, group)
 		return false, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, nil, []string{extra})
 	}
 
 	// Should not be able to remove the last owner.
 	ownerRole := getRoleForGroup(Owner, group)
-	owners := p.data.enforcer.GetUsersForRole(ownerRole)
-	if len(owners) == 1 && p.data.enforcer.HasRoleForUser(user, ownerRole) {
+	owners, _ := p.data.enforcer.GetUsersForRole(ownerRole)
+	result, _ = p.data.enforcer.HasRoleForUser(user, ownerRole)
+	if len(owners) == 1 && result {
 		extra := fmt.Sprintf("Cannot remove the last owner [%s] of an Org [%s]", user, group)
 		return false, ign.NewErrorMessageWithArgs(ign.ErrorUnexpected, nil, []string{extra})
 	}
@@ -384,25 +398,34 @@ func (p *Permissions) RemoveUserFromGroup(user, group string) (bool, *ign.ErrMsg
 
 	// remove specific group roles of user (owner, admin, member)
 	role := getRoleForGroup(Member, group)
-	if p.data.enforcer.HasRoleForUser(user, role) {
-		if !p.data.enforcer.DeleteRoleForUser(user, role) {
+	result, _ = p.data.enforcer.HasRoleForUser(user, role)
+	if result {
+		result, _ = p.data.enforcer.DeleteRoleForUser(user, role)
+		if !result {
 			return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 		}
 	}
 	role = getRoleForGroup(Admin, group)
-	if p.data.enforcer.HasRoleForUser(user, role) {
-		if !p.data.enforcer.DeleteRoleForUser(user, role) {
+	result, _ = p.data.enforcer.HasRoleForUser(user, role)
+	if result {
+		result, _ = p.data.enforcer.DeleteRoleForUser(user, role)
+		if !result {
 			return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 		}
 	}
+
+	result, _ = p.data.enforcer.HasRoleForUser(user, ownerRole)
 	// if the user was an owner, then remove that role too.
-	if p.data.enforcer.HasRoleForUser(user, ownerRole) {
-		if !p.data.enforcer.DeleteRoleForUser(user, ownerRole) {
+	if result {
+		result, _ = p.data.enforcer.DeleteRoleForUser(user, ownerRole)
+		if !result {
 			return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 		}
 	}
+
+	result, _ = p.data.enforcer.DeleteRoleForUser(user, group)
 	// finally, remove the user from the group too
-	if !p.data.enforcer.DeleteRoleForUser(user, group) {
+	if !result {
 		return false, ign.NewErrorMessage(ign.ErrorUnexpected)
 	}
 	return true, nil
