@@ -462,7 +462,7 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 	if errorMsg != nil {
 		return nil, nil, 0, errorMsg
 	}
-	path, resolvedVersion, em := res.GetZip(ctx, model, models, version)
+	path, resolvedVersion, em := res.GetZip(ctx, model, "models", version)
 	return model, path, resolvedVersion, em
 }
 
@@ -568,7 +568,7 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 // updates its Filesize field in DB.
 func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS,
 	model *Model) *ign.ErrMsg {
-	zSize, em := res.ZipResourceTip(ctx, repo, model, models)
+	zSize, em := res.ZipResourceTip(ctx, repo, model, "models")
 	if em != nil {
 		return em
 	}

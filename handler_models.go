@@ -209,7 +209,7 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	zipFileName := fmt.Sprintf("model-%s.zip", *model.UUID)
+	zipFileName := fmt.Sprintf("model-%sv%d.zip", *model.UUID, ver)
 
 	// Remove request header to always serve fresh
 	r.Header.Del("If-Modified-Since")
