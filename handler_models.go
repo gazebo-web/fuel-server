@@ -2,16 +2,15 @@ package main
 
 import (
 	"fmt"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-	"net/http"
-	"strconv"
-
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
+	"net/http"
+	"strconv"
 )
 
 // ModelList returns the list of models from a team/user. The returned value
@@ -97,7 +96,7 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 
-	ms := (&models.Service{})
+	ms := &models.Service{}
 	fuelModel, em := ms.GetModelProto(r.Context(), tx, owner, modelName, user)
 	if em != nil {
 		return nil, em
