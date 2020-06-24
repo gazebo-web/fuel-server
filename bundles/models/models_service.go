@@ -95,6 +95,13 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 		q = q.Where("id IN (?)", subquery)
 	}
 
+	var cat category.Category
+	if categories != nil {
+		for _, cat = range *categories {
+			q = q.Joins("JOIN model_categories ON models.id = model_categories.model_id").Where("category_id = ?", &cat.ID)
+		}
+	}
+
 	// Override default Order BY, unless the user explicitly requested ASC order
 	if !(order != "" && strings.ToLower(order) == "asc") {
 		// Important: you need to reassign 'q' to keep the updated query

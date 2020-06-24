@@ -9,3 +9,5 @@ vendor/
 .vgenable
 .idea/
 .vscode/
+*.orig
+*.swp

@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
