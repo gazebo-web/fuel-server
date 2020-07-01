@@ -3,14 +3,9 @@ package models
 import (
 	"context"
 	"fmt"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-	"net/url"
-	"os"
-	"strings"
-	"time"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
@@ -20,6 +15,10 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
+	"net/url"
+	"os"
+	"strings"
+	"time"
 )
 
 // Service is the main struct exported by this Models Service.
@@ -107,6 +106,7 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 		// Important: you need to reassign 'q' to keep the updated query
 		q = q.Order("created_at desc, id", true)
 	}
+
 	// Check if we should return the list of liked models instead.
 	if likedBy != nil {
 		q = q.Joins("JOIN model_likes ON models.id = model_likes.model_id").Where("user_id = ?", &likedBy.ID)
@@ -649,6 +649,7 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 	if em := ms.updateModelZip(ctx, repo, &model); em != nil {
 		return nil, em
 	}
+
 	// If everything went OK then create the model in DB.
 	if err := tx.Create(&model).Error; err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)

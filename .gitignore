@@ -10,5 +10,5 @@ vendor/
 .idea/
 .vscode/
 fuelserver
-*.swp
 *.orig
+*.swp

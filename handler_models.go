@@ -96,7 +96,7 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 
-	ms := (&models.Service{})
+	ms := &models.Service{}
 	fuelModel, em := ms.GetModelProto(r.Context(), tx, owner, modelName, user)
 	if em != nil {
 		return nil, em
