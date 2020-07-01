@@ -178,7 +178,7 @@ func NewWorld(uuidStr, name, desc, location, owner, creator *string,
 type CreateWorld struct {
 	// The name of the World
 	// required: true
-	Name string `json:"name" validate:"required,noforwardslash,min=3" form:"name"`
+	Name string `json:"name" validate:"required,noforwardslash,min=3,nopercent" form:"name"`
 	// Optional Owner of the world. Must be a user or an org.
 	// If not set, the current user will be used as owner
 	Owner string `json:"owner" form:"owner"`
@@ -204,7 +204,7 @@ type CreateWorld struct {
 type CloneWorld struct {
 	// The name of the World
 	// required: false
-	Name string `json:"name" validate:"omitempty,noforwardslash,min=3" form:"name"`
+	Name string `json:"name" validate:"omitempty,noforwardslash,min=3,nopercent" form:"name"`
 	// Optional Owner of the world. Must be a user or an org.
 	// If not set, the current user will be used as owner
 	Owner string `json:"owner" form:"owner"`
