@@ -172,7 +172,7 @@ func NewModel(uuidStr, name, urlName, desc, location, owner, creator *string, li
 type CreateModel struct {
 	// The name of the Model
 	// required: true
-	Name string `json:"name" validate:"required,min=3,noforwardslash" form:"name"`
+	Name string `json:"name" validate:"required,min=3,noforwardslash,nopercent" form:"name"`
 	// Optional Owner of the model. Must be a user or an org.
 	// If not set, the current user will be used as owner
 	Owner string `json:"owner" form:"owner"`
@@ -203,7 +203,7 @@ type CreateModel struct {
 type CloneModel struct {
 	// The name of the Model
 	// required: false
-	Name string `json:"name" validate:"omitempty,noforwardslash,min=3" form:"name"`
+	Name string `json:"name" validate:"omitempty,noforwardslash,min=3,nopercent" form:"name"`
 	// Optional Owner of the model. Must be a user or an org.
 	// If not set, the current user will be used as owner
 	Owner string `json:"owner" form:"owner"`

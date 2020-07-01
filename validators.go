@@ -32,6 +32,7 @@ func InstallCustomValidators(validate *validator.Validate) {
 	loadBlacklist()
 	validate.RegisterValidation("notinblacklist", notInBlacklist)
 	validate.RegisterValidation("expfeatures", isExpFeatures)
+	validate.RegisterValidation("nopercent", notIncludePercent)
 }
 
 func loadBlacklist() {
@@ -74,6 +75,12 @@ func isAlphanumSpace(fl validator.FieldLevel) bool {
 // include forward slashes (/).
 func notIncludeForwardSlash(fl validator.FieldLevel) bool {
 	return !strings.Contains(fl.Field().String(), "/")
+}
+
+// notIncludePercent is a function that validates the field value does not
+// include percent signs (%).
+func notIncludePercent(fl validator.FieldLevel) bool {
+	return !strings.Contains(fl.Field().String(), "%")
 }
 
 // isExpFeatures is a function that validates if the field's value is a comma
