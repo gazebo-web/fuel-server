@@ -1,13 +1,6 @@
 package main
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/fuelserver/cmd/token-generator/generator"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
-	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -16,6 +9,13 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/fuelserver/cmd/token-generator/generator"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
+	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
+	"gitlab.com/ignitionrobotics/web/ign-go"
+	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"log"
 	"net/http"
 	"net/http/httptest"

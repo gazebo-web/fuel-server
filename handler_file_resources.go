@@ -4,13 +4,13 @@
 package main
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"bytes"
 	"context"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"net/http"
 	"path/filepath"
 	"strconv"

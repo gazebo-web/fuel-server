@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 )
 
 // WorldList returns the list of worlds from a team/user. The returned value
@@ -98,7 +98,7 @@ func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
 func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 
-	if em := (&worlds.Service{}).RemoveWorld(tx, owner, name, user); em != nil {
+	if em := (&worlds.Service{}).RemoveWorld(r.Context(), tx, owner, name, user); em != nil {
 		return nil, em
 	}
 

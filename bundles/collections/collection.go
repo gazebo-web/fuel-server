@@ -1,9 +1,9 @@
 package collections
 
 import (
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/jinzhu/gorm"
 	"time"
 )
 
@@ -181,7 +181,7 @@ func NewCollection(name, desc, owner, creator *string,
 type CreateCollection struct {
 	// The name
 	// required: true
-	Name string `json:"name" validate:"required,noforwardslash,min=3"`
+	Name string `json:"name" validate:"required,noforwardslash,min=3,nopercent"`
 	// Optional Owner. Must be a user or an org.
 	// If not set, the current user will be used as owner
 	Owner string `json:"owner" form:"owner"`
@@ -210,7 +210,7 @@ func (uc UpdateCollection) IsEmpty() bool {
 type NameOwnerPair struct {
 	// The name
 	// required: true
-	Name string `json:"name" validate:"required,noforwardslash"`
+	Name string `json:"name" validate:"required,noforwardslash,nopercent"`
 	// Asset Owner. Must be a user or an org.
 	// required: true
 	Owner string `json:"owner" validate:"required"`
