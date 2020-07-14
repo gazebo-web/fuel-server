@@ -152,7 +152,7 @@ func (ws *Service) WorldList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 
 // RemoveWorld removes a world. The user argument is the requesting user. It
 // is used to check if the user can perform the operation.
-func (ws *Service) RemoveWorld(tx *gorm.DB, owner, name string, user *users.User) *ign.ErrMsg {
+func (ws *Service) RemoveWorld(ctx context.Context, tx *gorm.DB, owner, name string, user *users.User) *ign.ErrMsg {
 
 	world, em := ws.GetWorld(tx, owner, name, user)
 	if em != nil {
@@ -171,6 +171,9 @@ func (ws *Service) RemoveWorld(tx *gorm.DB, owner, name string, user *users.User
 		return err
 	}
 	// NOTE: no need to remove the world's ModelIncludes.
+
+	// Remove the model from ElasticSearch
+	ElasticSearchRemoveWorld(ctx, world)
 
 	return res.Remove(tx, world, *user.Username)
 }
@@ -493,6 +496,7 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 		tx.Model(&world).Update("Private", *private)
 	}
 
+	ElasticSearchUpdateWorld(ctx, *world)
 	return world, nil
 }
 
@@ -581,6 +585,7 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 		return nil, em
 	}
 
+	ElasticSearchUpdateWorld(ctx, world)
 	return &world, nil
 }
 

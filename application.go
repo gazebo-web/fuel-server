@@ -219,6 +219,9 @@ func init() {
 	migrate.LogFileScoresToCompetitionScore(globals.Server.Db, "Tunnel Qualifiers")
 	// Migrate logic
 	migrate.ToModelGitRepositories(logCtx)
+
+	// Connect to ElasticSearch.
+	connectToElasticSearch(logCtx)
 }
 
 func initValidator() *validator.Validate {

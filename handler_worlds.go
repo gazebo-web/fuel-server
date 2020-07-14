@@ -98,7 +98,7 @@ func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
 func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 
-	if em := (&worlds.Service{}).RemoveWorld(tx, owner, name, user); em != nil {
+	if em := (&worlds.Service{}).RemoveWorld(r.Context(), tx, owner, name, user); em != nil {
 		return nil, em
 	}
 

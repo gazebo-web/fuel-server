@@ -113,7 +113,7 @@ func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 
-	if em := (&models.Service{}).RemoveModel(tx, owner, modelName, user); em != nil {
+	if em := (&models.Service{}).RemoveModel(r.Context(), tx, owner, modelName, user); em != nil {
 		return nil, em
 	}
 

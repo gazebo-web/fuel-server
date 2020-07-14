@@ -14,6 +14,7 @@ require (
 	github.com/codegangsta/negroni v1.0.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/elastic/go-elasticsearch/v8 v8.0.0-20200508105138-fc4f6f3c7fc3
 	github.com/emirpasic/gods v1.12.0
 	github.com/go-ini/ini v1.57.0
 	github.com/go-playground/form v3.1.4+incompatible

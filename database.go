@@ -82,6 +82,9 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&subt.Registration{},
 			&subt.CompetitionParticipant{},
 			&subt.CompetitionScore{},
+
+			// ElasticSearch
+			ElasticSearchConfig{},
 		)
 	}
 }

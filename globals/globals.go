@@ -2,6 +2,7 @@ package globals
 
 import (
 	"context"
+	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/go-playground/form"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
@@ -61,3 +62,6 @@ var Permissions *permissions.Permissions
 
 // MaxCategoriesPerModel defines the maximum amount of categories that can be assigned to a model
 var MaxCategoriesPerModel int
+
+// ElasticSearch is a pointer to the Elastic Search client.
+var ElasticSearch *elasticsearch.Client
