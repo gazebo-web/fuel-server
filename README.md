@@ -6,107 +6,26 @@
 
 # Install
 
-1. Dependencies
+1. [Go version 1.14](https://golang.org/dl/) or above.
 
-    1. Go version 1.9 or above (NOTE: we are currently using 1.9.4)
 
-        * On Ubuntu Xenial or earlier, download and follow instructions from https://golang.org/dl/
+1. Download the server code
 
-        * On Ubuntu Bionic:
+    ```
+    git clone https://gitlab.com/ignitionrobotics/web/fuelserver
+    ```
 
-            ```
-            sudo apt-get update
-            sudo apt-get install golang-go
-            ```
+1. Build and download dependencies
 
-    1. Other dependencies
-
-        ```
-        sudo apt-get update
-        sudo apt-get install golang-goprotobuf-dev git
-        ```
+    ```
+    cd fuelserver
+    go build
+    ```
 
 1. Make sure your git config is set, i.e.
 
         git config --global user.name "User Name"
         git config --global user.email "user@email.com"
-
-1. Make a workspace, for example
-
-    ```
-    mkdir -p ~/go_ws
-    ```
-
-1. Download server code into new directories in the workspace:
-
-    ```
-    git clone https:/gitlab.com/ignitionrobotics/web/fuelserver ~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver
-    ```
-
-1. Set necessary environment variable (needs to be set every time the environment is built)
-
-    ```
-    export GOPATH=~/go_ws
-    ```
-
-1. Install dep tool
-
-    Create a bin directory
-
-    ```
-    mkdir ~/go_ws/bin
-    ```
-
-    Move to the workspace's root
-
-    ```
-    cd ~/go_ws
-    ```
-
-    Install dep tool
-    
-    We're using version 0.4.1 to manage dependencies.
-
-    > On Ubuntu Bionic, the dep tool will be installed under ~/go_ws/bin (`GOBIN`), so create that:
-    >     `mkdir -p ~/go_ws/bin`
-
-    ```
-    export DEP_RELEASE_TAG=v0.4.1
-    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-    ```
-
-1. Install dependencies
-
-    ```
-    cd ~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver
-    ```
-
-    Download dependencies into `vendor` folder:
-
-        # Xenial
-        $GOPATH/bin/dep ensure
-        # Bionic
-        ~/go_ws/bin/dep ensure
-
-    Note: this project heavily depends on `ign-go` project. It is recommended to
-    execute the following statement regularly to download the latest version of ign-go.
-
-        # Xenial
-        $GOPATH/bin/dep ensure -update gitlab.com/ignitionrobotics/web/ign-go
-        # Bionic
-        ~/go_ws/bin/dep ensure
-
-1. Make the application
-
-    ```
-    cd ~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver
-    ```
-
-    ```
-    go install
-    ```
-
-1. NOTE: You should not use `go get` to get dependencies (instead use `dep ensure`). Use `go get` only when you need to modify the source code of any dependency. Alternatively, use `virtualgo` (see "Tips for local development" section below).
 
 1. (Optional) Generate a self-signed certificate. Replace `<GO_INSTALL_PATH>` with the path to your golang installation (e.g.: `usr/local/go/`:
 
@@ -271,7 +190,7 @@
 
     Then, run all tests:
     ```
-    go test gitlab.com/ignitionrobotics/web/fuelserver
+    go test
     ```
 
 1. Run the backend server
@@ -280,7 +199,7 @@
     Note: You can get this key from: <https://osrf.auth0.com/.well-known/jwks.json> (or from your own auth0 user). Open that url in the browser and copy the value of the `x5c` field.
 
     ```
-    $GOPATH/bin/ign-fuelserver
+    fuelserver
     ```
 
 1. Test in the browser

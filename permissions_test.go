@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/stretchr/testify/assert"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/stretchr/testify/assert"
 	"testing"
 )
 

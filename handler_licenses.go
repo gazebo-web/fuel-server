@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/jinzhu/gorm"
 	"net/http"
 )
 

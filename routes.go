@@ -2218,4 +2218,195 @@ var routes = ign.Routes{
 			},
 		},
 	},
+	// Route to create an elastic search config
+	ign.Route{
+		"ElasticSearch",
+		"Route to create an ElasticSearch config",
+		"/admin/search",
+		ign.AuthHeadersOptional,
+		ign.Methods{},
+		ign.SecureMethods{
+			// swagger:route GET /admin/search search elasticSearchUpdate
+			//
+			// Get a list of the ElasticSearchConfigs
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: TeamResponse
+			ign.Method{
+				"GET",
+				"Gets a list of the ElasticSearch configs",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(ListElasticSearchHandler)},
+				},
+			},
+
+			// swagger:route POST /admin/search search elasticSearchUpdate
+			//
+			// Creates an ElasticSearchConfig
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: TeamResponse
+			ign.Method{
+				"POST",
+				"Creates an ElasticSearch config",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(CreateElasticSearchHandler)},
+				},
+			},
+		},
+	},
+	// Route to reconnect to the primary elastic search config
+	ign.Route{
+		"ElasticSearch",
+		"Route to reconnect to the primary elastic search config",
+		"/admin/search/reconnect",
+		ign.AuthHeadersOptional,
+		ign.Methods{},
+		ign.SecureMethods{
+			// swagger:route GET /admin/search/reconnect search elasticSearchUpdate
+			//
+			// Reconnects to the primary ElasticSearchConfig
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: TeamResponse
+			ign.Method{
+				"GET",
+				"Reconnect to the primary ElasticSearch config",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(ReconnectElasticSearchHandler)},
+				},
+			},
+		},
+	},
+	// Route to rebuild to the primary elastic search indices
+	ign.Route{
+		"ElasticSearch",
+		"Route to rebuild to the primary elastic search indices",
+		"/admin/search/rebuild",
+		ign.AuthHeadersOptional,
+		ign.Methods{},
+		ign.SecureMethods{
+			// swagger:route GET /admin/search/rebuild search elasticSearchUpdate
+			//
+			// Rebuilds the primary ElasticSearchConfig indices
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: TeamResponse
+			ign.Method{
+				"GET",
+				"Rebuild the primary ElasticSearch indices",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(RebuildElasticSearchHandler)},
+				},
+			},
+		},
+	},
+	// Route to update to the primary elastic search indices
+	ign.Route{
+		"ElasticSearch",
+		"Route to update to the primary elastic search indices",
+		"/admin/search/update",
+		ign.AuthHeadersOptional,
+		ign.Methods{},
+		ign.SecureMethods{
+			// swagger:route GET /admin/search/update search elasticSearchUpdate
+			//
+			// Updates the primary ElasticSearchConfig indices
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: TeamResponse
+			ign.Method{
+				"GET",
+				"Update the primary ElasticSearch indices",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(UpdateElasticSearchHandler)},
+				},
+			},
+		},
+	},
+	// Route to manage an elastic search config
+	ign.Route{
+		"ElasticSearch",
+		"Route to manage an ElasticSearch config",
+		"/admin/search/{config_id}",
+		ign.AuthHeadersOptional,
+		ign.Methods{},
+		ign.SecureMethods{
+			// swagger:route DELETE /admin/search/{config_id} search elasticSearchUpdate
+			//
+			// Deletes an ElasticSearchConfig
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: TeamResponse
+			ign.Method{
+				"DELETE",
+				"Deletes an ElasticSearch config",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(DeleteElasticSearchHandler)},
+				},
+			},
+			// swagger:route PATCH /admin/search/{config_id} search elasticSearchUpdate
+			//
+			// Updates an ElasticSearchConfig
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: TeamResponse
+			ign.Method{
+				"PATCH",
+				"Modify an ElasticSearch config",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(ModifyElasticSearchHandler)},
+				},
+			},
+		},
+	},
 } // routes

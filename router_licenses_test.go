@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"github.com/stretchr/testify/assert"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
-	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"os"
 	"testing"

@@ -1,11 +1,11 @@
 package users
 
 import (
+	"context"
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"context"
-	"github.com/jinzhu/gorm"
 	"os"
 	"path"
 	"time"
