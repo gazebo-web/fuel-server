@@ -91,6 +91,18 @@ type CollectionAsset struct {
 // swagger:model dbCollectionAssets
 type CollectionAssets []CollectionAsset
 
+// CloneCollection encapsulates data required to clone a collection
+type CloneCollection struct {
+	// The name of the collection
+	// required: false
+	Name string `json:"name" validate:"omitempty,noforwardslash,min=3,nopercent" form:"name"`
+	// Optional Owner of the collection. Must be a user or an org.
+	// If not set, the current user will be used as owner
+	Owner string `json:"owner" form:"owner"`
+	// Private privacy/visibility setting
+	Private *bool `json:"private,omitempty" validate:"omitempty" form:"private"`
+}
+
 // GetID returns the ID
 func (c *Collection) GetID() uint {
 	return c.ID

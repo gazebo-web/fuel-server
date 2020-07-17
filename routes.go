@@ -1168,6 +1168,39 @@ var routes = ign.Routes{
 		},
 	},
 
+	// Route that clones a collection
+	ign.Route{
+		"CloneCollection",
+		"Clone a collection",
+		"/{username}/collections/{collection}/clone",
+		ign.AuthHeadersOptional,
+		ign.Methods{},
+		ign.SecureMethods{
+			// swagger:route POST /{username}/collections/{collection}/clone collections cloneCollection
+			//
+			// Clones a collection
+			//
+			//   Consumes:
+			//   - application/json
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: OK
+			ign.Method{
+				"POST",
+				"Clones a collection",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("collection", false, CollectionClone))},
+				},
+			},
+		},
+	},
+
 	// Route that downloads an individual file from a collection.
 	// It is used to download the collection logo and banner.
 	ign.Route{
