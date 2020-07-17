@@ -396,3 +396,29 @@ func CollectionIndividualFileDownload(owner, name string, user *users.User,
 	s := &collections.Service{}
 	return IndividualFileDownload(s, owner, name, user, tx, w, r)
 }
+
+// CollectionClone clones a collection.
+// You can request this method with the following curl request:
+//   curl -k -X POST --url http://localhost:3000/1.0/{other-username}/collections/{collection-name}/clone
+//    --header 'Private-Token: <your-private-token-here>'
+func CollectionClone(sourceCollectionOwner, sourceCollectionName string,
+	ignored *users.User, tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+
+	// Parse information about the collection to clone
+	var cloneData collections.CloneCollection
+	if em := ParseStruct(&cloneData, r, false); em != nil {
+		return nil, em
+	}
+
+	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*collections.Collection, *ign.ErrMsg) {
+		// Ask the Models Service to clone the model
+		cs := &collections.Service{}
+		clone, em := cs.CloneCollection(r.Context(), tx, sourceCollectionOwner, sourceCollectionName, cloneData, jwtUser)
+		if em != nil {
+			return nil, em
+		}
+		return clone, nil
+	}
+
+	return doCreateCollection(tx, createFn, w, r)
+}

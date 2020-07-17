@@ -573,6 +573,137 @@ func TestCollectionCreate(t *testing.T) {
 	}
 }
 
+// cloneCollectionTest includes the input and expected output for a
+// TestCollectionClone test case.
+type cloneCollectionTest struct {
+	uriTest
+
+	clone       collections.CloneCollection
+	sourceOwner string
+	sourceName  string
+	// should also delete the created resource as part of this test case?
+	deleteAfter bool
+	owner       string
+}
+
+// TestCollectionClone tests cloning a collection
+func TestCollectionClone(t *testing.T) {
+	setup()
+
+	// get the tests JWT
+	jwt := os.Getenv("IGN_TEST_JWT")
+	jwtDef := newJWT(jwt)
+	// create a random user using the default test JWT
+	username := createUser(t)
+	defer removeUser(username, t)
+
+	// Create an organization with the default jwt as owner.
+	testOrg := createOrganization(t)
+	defer removeOrganization(testOrg, t)
+
+	// create another user
+	jwt2 := createValidJWTForIdentity("another-user-3", t)
+	user2 := createUserWithJWT(jwt2, t)
+	defer removeUserWithJWT(user2, jwt2, t)
+
+	// note: this creates models named model1, model2 and model3
+	createThreeTestModels(t, nil)
+	createTestModelWithOwner(t, nil, "orgModel", testOrg, false)
+	// note: this creates worlds named world1, world2 and world3
+	createThreeTestWorlds(t, nil)
+	createTestWorldWithOwner(t, nil, "orgWorld", testOrg, false)
+
+	collectionName := "MyCollection"
+	description := "a cool Collection"
+	uri := "/1.0/collections"
+	boolFalse := false
+
+	// Create a collection
+	colCreateTestsData := []createCollectionTest{
+		{uriTest{"with all fields", uri, jwtDef, nil, false},
+			collections.CreateCollection{Name: collectionName, Description: description, Private: &boolFalse}, false,
+			username}}
+
+	for _, test := range colCreateTestsData {
+		t.Run(test.testDesc, func(t *testing.T) {
+			runSubTestWithCreateCollectionTestData(test, t)
+		})
+	}
+
+	// The clone URI
+	cloneURI := fmt.Sprintf("/1.0/%s/collections/%s/clone", username, collectionName)
+
+	// Test the we can successfully clone a collection
+	t.Run("Good collection clone", func(t *testing.T) {
+		runSubTestWithCloneCollectionTestData(
+			cloneCollectionTest{
+				uriTest{"Good collection clone", cloneURI, newJWT(jwt2), nil, false},
+				collections.CloneCollection{
+					Name:    "NewCollection",
+					Owner:   user2,
+					Private: &boolFalse},
+				username, collectionName, false, user2},
+			t)
+		var confirmCollection collections.Collection
+		err := globals.Server.Db.Where("name = 'NewCollection'").Find(&confirmCollection).Error
+		assert.NoError(t, err)
+		assert.Equal(t, *confirmCollection.Name, "NewCollection")
+	})
+
+	// Test that we can successfully clone a collection
+	t.Run("Duplicate clone should create a unique name", func(t *testing.T) {
+		runSubTestWithCloneCollectionTestData(
+			cloneCollectionTest{
+				uriTest{"Duplicate clone should create a unique name", cloneURI, newJWT(jwt2), nil, false},
+				collections.CloneCollection{
+					Name:    "NewCollection",
+					Owner:   user2,
+					Private: &boolFalse},
+				username, collectionName, false, user2},
+			t)
+		var confirmCollection collections.Collection
+		err := globals.Server.Db.Where("name = 'NewCollection 1'").Find(&confirmCollection).Error
+		assert.NoError(t, err)
+		assert.Equal(t, *confirmCollection.Name, "NewCollection 1")
+	})
+
+	// manually add model1 and world1 to col1
+	addAssetToCollection(t, jwt, username, collectionName, username, "model1", "model")
+	addAssetToCollection(t, jwt, username, collectionName, username, "world1", "world")
+
+	// Test that a cloned collection also acquires the assets.
+	t.Run("A cloned collection should copy the assets", func(t *testing.T) {
+		runSubTestWithCloneCollectionTestData(
+			cloneCollectionTest{
+				uriTest{"A cloned collection should copy the assets", cloneURI, newJWT(jwt2), nil, false},
+				collections.CloneCollection{
+					Name:    "NewCollection With Assets",
+					Owner:   user2,
+					Private: &boolFalse},
+				username, collectionName, false, user2},
+			t)
+
+		// Confirm that the new collection was created.
+		var confirmCollection collections.Collection
+		err := globals.Server.Db.Where("name = 'NewCollection With Assets'").Find(&confirmCollection).Error
+		assert.NoError(t, err)
+		assert.Equal(t, *confirmCollection.Name, "NewCollection With Assets")
+
+		// Get the new collection's assets, and confirm that they are correct.
+		var assets collections.CollectionAssets
+		err = globals.Server.Db.Where("col_id = ?", confirmCollection.ID).Find(&assets).Error
+		assert.NoError(t, err)
+		assert.Equal(t, len(assets), 2)
+		for _, asset := range assets {
+			if asset.Type == "model" {
+				assert.Equal(t, asset.AssetName, "model1")
+			} else {
+				assert.Equal(t, asset.AssetName, "world1")
+			}
+		}
+	})
+}
+
 // runSubTestWithCreateCollectionTestData tries to create a collection based
 // on the given test struct.
 func runSubTestWithCreateCollectionTestData(test createCollectionTest, t *testing.T) {
@@ -590,6 +721,26 @@ func runSubTestWithCreateCollectionTestData(test createCollectionTest, t *testin
 	}
 	if test.deleteAfter {
 		removeCollection(t, test.owner, cc.Name, jwt)
+	}
+}
+
+// runSubTestWithCloneCollectionTestData tries to clone a collection based
+// on the given test struct.
+func runSubTestWithCloneCollectionTestData(test cloneCollectionTest, t *testing.T) {
+	cloneCollection := test.clone
+	b := new(bytes.Buffer)
+	json.NewEncoder(b).Encode(cloneCollection)
+
+	jwt := getJWTToken(t, test.jwtGen)
+	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
+	expStatus := expEm.StatusCode
+	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	bslice, _ := igntest.AssertRouteMultipleArgs("POST", test.URL, b, expStatus, jwt, expCt, t)
+	if expStatus != http.StatusOK && !test.ignoreErrorBody {
+		igntest.AssertBackendErrorCode(t.Name()+" POST /{username}/collections/{collection_name}/clone", bslice, expEm.ErrCode, t)
+	}
+	if test.deleteAfter {
+		removeCollection(t, test.owner, cloneCollection.Name, jwt)
 	}
 }
 

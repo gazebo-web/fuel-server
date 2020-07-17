@@ -477,3 +477,136 @@ func (s *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
 	}
 	return res.GetFile(ctx, col, path, version)
 }
+
+// CloneCollection clones a collection.
+// creator argument is the active user requesting the operation.
+func (s *Service) CloneCollection(ctx context.Context, tx *gorm.DB,
+	sourceCollectionOwner, sourceCollectionName string,
+	cloneData CloneCollection, creator *users.User) (*Collection, *ign.ErrMsg) {
+
+	// Get source collection. This function will return an error if the `creator`
+	// does not have the correct permissions to access the collection.
+	sourceCollection, em := s.GetCollection(tx, sourceCollectionOwner, sourceCollectionName, creator)
+	if em != nil {
+		return nil, em
+	}
+
+	// Set the owner
+	owner := cloneData.Owner
+	if owner == "" {
+		owner = *creator.Username
+	} else {
+		ok, em := users.VerifyOwner(tx, owner, *creator.Username, permissions.Read)
+		if !ok {
+			return nil, em
+		}
+	}
+
+	private := false
+	if sourceCollection.Private != nil {
+		private = *sourceCollection.Private
+	}
+
+	if private {
+		authorized, _ := globals.Permissions.IsAuthorized(
+			*creator.Username, *sourceCollection.UUID, permissions.Read)
+		if !authorized {
+			return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		}
+	}
+
+	// Try to use the given clone collection's or source collection's name. Or find a new one
+	var cName string
+	if cloneData.Name != "" {
+		cName = cloneData.Name
+	} else {
+		cName = *sourceCollection.Name
+	}
+	collectionName, err := s.createUniqueCollectionName(tx, cName, owner)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+	}
+
+	clonePrivate := false
+	if cloneData.Private != nil {
+		clonePrivate = *cloneData.Private
+	}
+
+	// Create the new Collection (the clone) struct and folder
+	clone, err := NewCollection(&collectionName, sourceCollection.Description,
+		&owner, creator.Username, clonePrivate)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+	}
+
+	// If everything went OK then create the  new model in DB.
+	if err := tx.Create(&clone).Error; err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+	}
+
+	// Get the source collection's assets
+	var sourceAssets CollectionAssets
+	if err := tx.Where("col_id = ?", sourceCollection.ID).Find(&sourceAssets).Error; err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, err)
+	}
+
+	// Insert the assets
+	if err := insertAssets(tx, &sourceAssets, clone.ID); err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+	}
+
+	// add read and write permissions
+	ok, em := globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Read)
+	if !ok {
+		return nil, em
+	}
+	ok, em = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Write)
+	if !ok {
+		return nil, em
+	}
+
+	return &clone, nil
+}
+
+// createUniqueCollectionName is an internal helper that creates a new unique collection name.
+func (s *Service) createUniqueCollectionName(tx *gorm.DB, name, owner string) (string, error) {
+	// Find an unused name variation
+	nameModifier := 1
+	newName := name
+	for {
+		if _, err := ByName(tx, newName, owner); err == nil {
+			newName = fmt.Sprintf("%s %d", name, nameModifier)
+			nameModifier++
+		} else {
+			// got the right new name. Exit loop
+			break
+		}
+	}
+	return newName, nil
+}
+
+// insertAssets bulk inserts a set of assests into a collection.
+func insertAssets(tx *gorm.DB, assets *CollectionAssets, collectionID uint) error {
+	if assets == nil || len(*assets) <= 0 {
+		return nil
+	}
+
+	valueStrings := []string{}
+	valueArgs := []interface{}{}
+
+	for _, asset := range(*assets) {
+		valueStrings = append(valueStrings, "(?, ?, ?, ?, ?)")
+		valueArgs = append(valueArgs, collectionID)
+		valueArgs = append(valueArgs, asset.AssetID)
+		valueArgs = append(valueArgs, asset.AssetName)
+		valueArgs = append(valueArgs, asset.AssetOwner)
+		valueArgs = append(valueArgs, asset.Type)
+	}
+
+	stmt := fmt.Sprintf("INSERT INTO collection_assets (col_id, asset_id, asset_name, asset_owner, type) VALUES %s", strings.Join(valueStrings, ","))
+	if err := tx.Exec(stmt, valueArgs...).Error; err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -35,7 +35,7 @@ lint:
   before_script:
     - $GOPATH/bin/golangci-lint --version
   script:
-    - $GOPATH/bin/golangci-lint run --skip-dirs vcs --disable-all  --enable=golint --enable=varcheck --enable=maligned --enable=interfacer
+    - $GOPATH/bin/golangci-lint run --skip-dirs vcs --disable-all  --enable=golint --enable=varcheck --enable=maligned --enable=interfacer --timeout=2m0s
   allow_failure: true
 
 #################################################################
