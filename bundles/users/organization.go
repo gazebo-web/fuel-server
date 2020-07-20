@@ -1,8 +1,8 @@
 package users
 
 import (
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // Organization consists of a group of users/teams

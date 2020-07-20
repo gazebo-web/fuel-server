@@ -31,15 +31,14 @@ package main
 
 // Import this file's dependencies
 import (
+	"context"
+	"github.com/go-playground/form"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/subt"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/migrate"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"context"
-	"flag"
-	"github.com/go-playground/form"
 	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
 	"log"
@@ -76,7 +75,7 @@ func init() {
 	logger := ign.NewLogger("init", logStd, verbosity)
 	logCtx := ign.NewContextWithLogger(context.Background(), logger)
 
-	isGoTest = flag.Lookup("test.v") != nil
+	isGoTest = strings.HasSuffix(os.Args[0], ".test")
 
 	// Get the root resource directory.
 	if globals.ResourceDir, err = ign.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil {
@@ -220,6 +219,9 @@ func init() {
 	migrate.LogFileScoresToCompetitionScore(globals.Server.Db, "Tunnel Qualifiers")
 	// Migrate logic
 	migrate.ToModelGitRepositories(logCtx)
+
+	// Connect to ElasticSearch.
+	connectToElasticSearch(logCtx)
 }
 
 func initValidator() *validator.Validate {

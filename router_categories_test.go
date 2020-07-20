@@ -1,12 +1,12 @@
 package main
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
-	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"bytes"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
+	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"net/http"
 	"os"
 	"testing"
@@ -58,7 +58,7 @@ func TestCategoriesPostAdmin(t *testing.T) {
 
 	buffer := bytes.NewBuffer(body)
 
-	result := category.CategoryService{}
+	result := category.Service{}
 	t.Run("Admin should create categories", func(t *testing.T) {
 		bslice, ok := igntest.AssertRouteMultipleArgs("POST", uri, buffer, http.StatusOK, &jwt, "application/json", t)
 		assert.True(t, ok)

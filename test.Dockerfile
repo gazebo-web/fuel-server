@@ -7,11 +7,10 @@ RUN apt-get update && apt-get install -y nano vim &&  \
   git config --global user.name "ign-fuelserver"  &&  \
   git config --global user.email "ign-fuelserver@test.org"
 
-COPY . /root/ign-fuelserver
-WORKDIR /root/ign-fuelserver
+WORKDIR /go/src/gitlab.com/ignitionrobotics/web/fuelserver/
 
-# Build app
-RUN go build
-CMD ["./fuelserver"]
+COPY . .
 
-EXPOSE 8000
+RUN go mod download
+
+CMD go test -v ./...

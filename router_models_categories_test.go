@@ -33,7 +33,7 @@ func TestGetModelsSearchWihCategoriesFilterValid(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, http.StatusOK, respCode)
 
-	respCode, bslice, ok := searchModelWithCategories(t,"test_tag_1", "toys")
+	respCode, bslice, ok := searchModelWithCategories(t, "test_tag_1", "toys")
 
 	var ms []fuel.Model
 	assert.NoError(t, json.Unmarshal(*bslice, &ms))

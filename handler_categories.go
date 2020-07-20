@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/gorilla/mux"
+	"github.com/gosimple/slug"
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/gorilla/mux"
-	"github.com/gosimple/slug"
-	"github.com/jinzhu/gorm"
 	"net/http"
 )
 
@@ -16,7 +16,7 @@ import (
 //  curl -k -X GET http://localhost:8000/1.0/categories
 func CategoryList(tx *gorm.DB, w http.ResponseWriter,
 	r *http.Request) (interface{}, *ign.ErrMsg) {
-	s := &category.CategoryService{}
+	s := &category.Service{}
 	return s.List(tx)
 }
 
@@ -46,7 +46,7 @@ func CategoryCreate(tx *gorm.DB, w http.ResponseWriter,
 	}
 
 	// Create the new category.
-	s := &category.CategoryService{}
+	s := &category.Service{}
 	response, em := s.Create(r.Context(), tx, createCategory)
 	if em != nil {
 		return nil, em
@@ -83,7 +83,7 @@ func CategoryDelete(tx *gorm.DB, w http.ResponseWriter,
 	}
 
 	// Delete the category
-	s := &category.CategoryService{}
+	s := &category.Service{}
 	response, em := s.Delete(r.Context(), tx, categorySlug)
 	if em != nil {
 		return nil, em
@@ -125,7 +125,7 @@ func CategoryUpdate(tx *gorm.DB, w http.ResponseWriter,
 	}
 
 	// Update the category.
-	s := &category.CategoryService{}
+	s := &category.Service{}
 	response, em := s.Update(r.Context(), tx, categorySlug, cat)
 	if em != nil {
 		return nil, em

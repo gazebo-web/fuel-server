@@ -164,7 +164,7 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 
 // RemoveModel removes a model. The user argument is the requesting user. It
 // is used to check if the user can perform the operation.
-func (ms *Service) RemoveModel(tx *gorm.DB, owner, modelName string,
+func (ms *Service) RemoveModel(ctx context.Context, tx *gorm.DB, owner, modelName string,
 	user *users.User) *ign.ErrMsg {
 
 	model, em := ms.GetModel(tx, owner, modelName, user)
@@ -183,6 +183,9 @@ func (ms *Service) RemoveModel(tx *gorm.DB, owner, modelName string,
 	if !ok {
 		return err
 	}
+
+	// Remove the model from ElasticSearch
+	ElasticSearchRemoveModel(ctx, model)
 
 	return res.Remove(tx, model, *user.Username)
 }
@@ -462,7 +465,7 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 	if errorMsg != nil {
 		return nil, nil, 0, errorMsg
 	}
-	path, resolvedVersion, em := res.GetZip(ctx, model, models, version)
+	path, resolvedVersion, em := res.GetZip(ctx, model, "models", version)
 	return model, path, resolvedVersion, em
 }
 
@@ -561,6 +564,7 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 		tx.Model(&model).Update("Private", *private)
 	}
 
+	ElasticSearchUpdateModel(ctx, tx, *model)
 	return model, nil
 }
 
@@ -568,7 +572,7 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 // updates its Filesize field in DB.
 func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS,
 	model *Model) *ign.ErrMsg {
-	zSize, em := res.ZipResourceTip(ctx, repo, model, models)
+	zSize, em := res.ZipResourceTip(ctx, repo, model, "models")
 	if em != nil {
 		return em
 	}
@@ -665,6 +669,7 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 		return nil, em
 	}
 
+	ElasticSearchUpdateModel(ctx, tx, model)
 	return &model, nil
 }
 

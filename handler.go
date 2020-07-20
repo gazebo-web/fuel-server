@@ -1,14 +1,14 @@
 package main
 
 import (
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"encoding/json"
 	"fmt"
 	"github.com/go-playground/form"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gopkg.in/go-playground/validator.v9"
 	"io"
 	"mime/multipart"
@@ -50,30 +50,62 @@ type searchFnHandler func(p *ign.PaginationRequest, owner *string, order,
 func SearchHandler(handler searchFnHandler) ign.HandlerWithResult {
 	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 		// Prepare pagination
-		pr, em := ign.NewPaginationRequest(r)
-		if em != nil {
-			return nil, em
+		pr, errMsg := ign.NewPaginationRequest(r)
+		if errMsg != nil {
+			return nil, errMsg
 		}
 
 		// Get JWT user
 		// it is ok for user to be nil
-		user, ok, errMsg := getUserFromJWT(tx, r)
-		if !ok && (errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
+		user, ok, em2 := getUserFromJWT(tx, r)
+		if !ok && (em2.ErrCode != ign.ErrorAuthJWTInvalid &&
 			errMsg.ErrCode != ign.ErrorAuthNoUser) {
-			return nil, &errMsg
+			return nil, &em2
 		}
 
-		owner, order, search, valid, em := readListParams(r, tx)
+		// Note: A search query can be composed of multiple parts separated by an
+		// encoded ampersand (%26). For example:
+		// ?q=name:robot%26tags:drc
+		owner, order, search, valid, em3 := readListParams(r, tx)
 		if !valid {
-			return nil, em
+			return nil, em3
 		}
 
-		list, pagination, em := handler(pr, owner, order, search, user, tx, w, r)
-		if em != nil {
-			return nil, em
+		var list interface{}
+		var pagination *ign.PaginationResult
+		var eMsg *ign.ErrMsg
+
+		// Assume that we will need to use the backup search.
+		backupSearch := true
+
+		// Do we have a search term and Elastic Search? If so, then let's use it.
+		if len(search) > 0 && globals.ElasticSearch != nil {
+			if strings.Contains(r.URL.Path, "/models") {
+				list, pagination, eMsg = elasticSearch("fuel_models", pr, owner, order, search, user, tx, w, r)
+
+				// Do we need to fallback on our backup search?
+				backupSearch = eMsg != nil
+			} else if strings.Contains(r.URL.Path, "/worlds") {
+				list, pagination, eMsg = elasticSearch("fuel_worlds", pr, owner, order, search, user, tx, w, r)
+
+				// Do we need to fallback on our backup search?
+				backupSearch = eMsg != nil
+			}
 		}
 
-		ign.WritePaginationHeaders(*pagination, w, r)
+		// Fallback on SQL based search if Elastic Search failed or Elastic Search
+		// is not present.
+		if backupSearch {
+			list, pagination, eMsg = handler(pr, owner, order, search, user, tx, w, r)
+		}
+
+		if eMsg != nil {
+			return nil, eMsg
+		}
+
+		if pagination != nil {
+			ign.WritePaginationHeaders(*pagination, w, r)
+		}
 
 		return list, nil
 	}

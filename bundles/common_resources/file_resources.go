@@ -7,15 +7,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/golang/protobuf/proto"
-	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
 )
 
 // This package contains common functions for file based resources. Eg: model,
@@ -209,7 +209,14 @@ func Remove(tx *gorm.DB, res Resource, user string) *ign.ErrMsg {
 // Filesize or an error.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
 func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, *ign.ErrMsg) {
-	zipPath := getOrCreateZipLocation(res, subfolder)
+	zipPath := getOrCreateZipLocation(res, subfolder, "")
+
+	// If the zippath doesn't exist, then this is the first version. Recompute
+	// the zippath.
+	if _, err := os.Stat(zipPath); err != nil {
+		zipPath = getOrCreateZipLocation(res, subfolder, "1")
+	}
+
 	// Zip the model and compute its size
 	_, err := repo.Zip(ctx, "", zipPath)
 	if err != nil {
@@ -227,11 +234,18 @@ func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder s
 // getOrCreateZipLocation either returns the path to an existing resource's zip
 // file or creates a new '.zips' folder for the user and return the zip path.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
-func getOrCreateZipLocation(res Resource, subfolder string) string {
+func getOrCreateZipLocation(res Resource, subfolder, version string) string {
 	zipsFolder := filepath.Join(globals.ResourceDir, *res.GetOwner(), subfolder, ".zips")
 	os.Mkdir(zipsFolder, 0711)
+
+	if version == "" || version == "tip" {
+		version = ""
+	} else {
+		version = "v" + version
+	}
+
 	// path to this model's zip
-	zipPath := filepath.Join(zipsFolder, strings.Replace(*res.GetUUID(), " ", "_", -1)+".zip")
+	zipPath := filepath.Join(zipsFolder, strings.Replace(*res.GetUUID(), " ", "_", -1)+version+".zip")
 	return zipPath
 }
 
@@ -245,31 +259,10 @@ func GetZip(ctx context.Context, res Resource, subfolder string, version string)
 		return nil, 0, em
 	}
 
-	var zipPath *string
-	needsToZip := false
+	path := getOrCreateZipLocation(res, subfolder, version)
+	zipPath := &path
 
-	path := getOrCreateZipLocation(res, subfolder)
-	// If rev is "tip" or an empty string we assume the user is requesting the latest zip.
-	// (which is already created an available in the user/subfolder/zips folder)
-	if rev == "" || rev == "tip" {
-		// The zip for the tip version should already exist. But in case it doesn't
-		// we create and save it.
-		// TODO: this zip and all versions zips should be handled by having a
-		// proper cache in the filesystem.
-		zipPath = &path
-		if _, err := os.Stat(path); err != nil {
-			needsToZip = true
-		}
-	} else {
-		needsToZip = true
-	}
-
-	// TODO: When the tip is downloaded, we return any zip file we have in the file system.
-	// This could be the zip file of a previous version.
-	// This hack allows us to create the zip with on each request.
-	needsToZip = true
-
-	if needsToZip {
+	if _, err := os.Stat(path); err != nil {
 		repo := globals.VCSRepoFactory(ctx, *res.GetLocation())
 		var err error
 		zipPath, err = repo.Zip(ctx, rev, path)
@@ -277,6 +270,7 @@ func GetZip(ctx context.Context, res Resource, subfolder string, version string)
 			return nil, 0, ign.NewErrorMessageWithBase(ign.ErrorZipNotAvailable, err)
 		}
 	}
+
 	return zipPath, resolvedVersion, nil
 }
 

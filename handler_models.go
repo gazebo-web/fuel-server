@@ -113,7 +113,7 @@ func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 
-	if em := (&models.Service{}).RemoveModel(tx, owner, modelName, user); em != nil {
+	if em := (&models.Service{}).RemoveModel(r.Context(), tx, owner, modelName, user); em != nil {
 		return nil, em
 	}
 
@@ -209,7 +209,7 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	zipFileName := fmt.Sprintf("model-%s.zip", *model.UUID)
+	zipFileName := fmt.Sprintf("model-%sv%d.zip", *model.UUID, ver)
 
 	// Remove request header to always serve fresh
 	r.Header.Del("If-Modified-Since")

@@ -1,17 +1,17 @@
 package category
 
 import (
-	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
 	"context"
 	"fmt"
 	"github.com/gosimple/slug"
 	"github.com/jinzhu/gorm"
+	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // Create creates a new Category in DB using the data from
 // the given CreateCategory dto.
-func (cs *CategoryService) Create(ctx context.Context, tx *gorm.DB,
+func (cs *Service) Create(ctx context.Context, tx *gorm.DB,
 	newCategory dtos.CreateCategory) (*Category, *ign.ErrMsg) {
 
 	var count int64

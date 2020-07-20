@@ -1,6 +1,5 @@
 *.pem
 test_model*
-.env
 .elasticbeanstalk
 *.out
 test-reports/*.out

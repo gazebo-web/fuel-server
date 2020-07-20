@@ -1,12 +1,12 @@
 package category
 
 import (
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // List returns a list of categories.
-func (cs *CategoryService) List(tx *gorm.DB) (*Categories, *ign.ErrMsg) {
+func (cs *Service) List(tx *gorm.DB) (*Categories, *ign.ErrMsg) {
 	// Get the categories
 	var categories Categories
 
