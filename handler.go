@@ -82,11 +82,15 @@ func SearchHandler(handler searchFnHandler) ign.HandlerWithResult {
 		if len(search) > 0 && globals.ElasticSearch != nil {
 			if strings.Contains(r.URL.Path, "/models") {
 				list, pagination, eMsg = elasticSearch("fuel_models", pr, owner, order, search, user, tx, w, r)
+
+				// Do we need to fallback on our backup search?
+				backupSearch = eMsg != nil
 			} else if strings.Contains(r.URL.Path, "/worlds") {
 				list, pagination, eMsg = elasticSearch("fuel_worlds", pr, owner, order, search, user, tx, w, r)
+
+				// Do we need to fallback on our backup search?
+				backupSearch = eMsg != nil
 			}
-			// Do we need to fallback on our backup search?
-			backupSearch = eMsg != nil
 		}
 
 		// Fallback on SQL based search if Elastic Search failed or Elastic Search
