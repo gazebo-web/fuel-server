@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
@@ -21,8 +23,6 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/jinzhu/gorm"
 )
 
 // DBAlterTables gives the option to alter database tables before migrating data
@@ -82,6 +82,9 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&subt.Registration{},
 			&subt.CompetitionParticipant{},
 			&subt.CompetitionScore{},
+
+			// ElasticSearch
+			ElasticSearchConfig{},
 		)
 	}
 }
@@ -237,10 +240,10 @@ func DBAddDefaultData(ctx context.Context, db *gorm.DB) {
 	}
 }
 
-func createCategories(db *gorm.DB, categories []CategoryDesc, parentId *uint) {
+func createCategories(db *gorm.DB, categories []CategoryDesc, parentID *uint) {
 	for _, c := range categories {
 		newSlug := slug.Make(c.name)
-		cat := category.Category{Name: &c.name, Slug: &newSlug, ParentID: parentId}
+		cat := category.Category{Name: &c.name, Slug: &newSlug, ParentID: parentID}
 		db.Create(&cat)
 		var record category.Category
 		db.Where("name = ?", c.name).First(&record)

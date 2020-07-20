@@ -1,9 +1,9 @@
 package collections
 
 import (
+	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"github.com/jinzhu/gorm"
 	"time"
 )
 
@@ -90,6 +90,18 @@ type CollectionAsset struct {
 // CollectionAssets is a list of Collection assets
 // swagger:model dbCollectionAssets
 type CollectionAssets []CollectionAsset
+
+// CloneCollection encapsulates data required to clone a collection
+type CloneCollection struct {
+	// The name of the collection
+	// required: false
+	Name string `json:"name" validate:"omitempty,noforwardslash,min=3,nopercent" form:"name"`
+	// Optional Owner of the collection. Must be a user or an org.
+	// If not set, the current user will be used as owner
+	Owner string `json:"owner" form:"owner"`
+	// Private privacy/visibility setting
+	Private *bool `json:"private,omitempty" validate:"omitempty" form:"private"`
+}
 
 // GetID returns the ID
 func (c *Collection) GetID() uint {
@@ -181,7 +193,7 @@ func NewCollection(name, desc, owner, creator *string,
 type CreateCollection struct {
 	// The name
 	// required: true
-	Name string `json:"name" validate:"required,noforwardslash,min=3"`
+	Name string `json:"name" validate:"required,noforwardslash,min=3,nopercent"`
 	// Optional Owner. Must be a user or an org.
 	// If not set, the current user will be used as owner
 	Owner string `json:"owner" form:"owner"`
@@ -210,7 +222,7 @@ func (uc UpdateCollection) IsEmpty() bool {
 type NameOwnerPair struct {
 	// The name
 	// required: true
-	Name string `json:"name" validate:"required,noforwardslash"`
+	Name string `json:"name" validate:"required,noforwardslash,nopercent"`
 	// Asset Owner. Must be a user or an org.
 	// required: true
 	Owner string `json:"owner" validate:"required"`

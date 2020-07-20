@@ -1,15 +1,15 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
-	"encoding/json"
-	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"os"
 	"strconv"
@@ -43,6 +43,18 @@ func TestModelCreateVariants(t *testing.T) {
 			"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
 			"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
 			"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"license":    "1",
+		"permission": "0",
+	}
+
+	// Each field in this map will be a separate field in the multipart form
+	invalidNamePercentParams := map[string]string{
+		"name": "test%",
+		"tags": "test_tag_1, test_tag2",
+		"description": "255aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
+			"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
+			"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" +
+			"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		"license":    "1",
 		"permission": "0",
 	}
@@ -93,6 +105,7 @@ func TestModelCreateVariants(t *testing.T) {
 		{"TestCreateModelInvalidRangePermission2", uri, nil, map[string]string{"name": "test", "tags": "",
 			"license": "2", "permission": "-1"}, okModelFiles, http.StatusBadRequest, ign.ErrorFormInvalidValue, nil, &models.Model{}},
 		{"TestDescriptionMoreThan255Chars", uri, nil, longDescriptionParams, okModelFiles, http.StatusOK, -1, nil, &models.Model{}},
+		{"TestNameContainsPercent", uri, nil, invalidNamePercentParams, okModelFiles, http.StatusBadRequest, ign.ErrorFormInvalidValue, nil, &models.Model{}},
 	}
 	// Run all tests under different users, and removing each model after creation
 	testResourcePOST(t, modelTests, false, &rmRoute)

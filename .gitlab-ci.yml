@@ -1,4 +1,4 @@
-image: golang:1.9.4
+image: registry.gitlab.com/ignitionrobotics/web/images/web-server-pipelines
 
 variables:
   PKG_NAME: gitlab.com/ignitionrobotics/web/fuelserver
@@ -7,89 +7,59 @@ variables:
 
 #################################################################
 # Before Script
-
 before_script:
   - go version
-  - mkdir -p -v $GOPATH/src/$PKG_NAME/vendor
-  - mv -f * $GOPATH/src/$PKG_NAME
-  - cd $GOPATH/src/$PKG_NAME
-  - export DEP_RELEASE_TAG=v0.4.1
-  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-  - $GOPATH/bin/dep ensure -vendor-only
-  - $GOPATH/bin/dep status
-  - git config --global user.name "ign-fuelserver"
-  - git config --global user.email "ign-fuelserver@test.org"
 
 #################################################################
 # Cache configuration
-
 cache:
   key: ${CI_COMMIT_REF_SLUG}
-  paths:
-    - $GOPATH/src/$PKG_NAME/vendor
-    - $GOPATH/bin
 
 #################################################################
 # Stages
-
 stages:
-  - formatting
-  - linting
-  - testing
-  - building
-  - packaging
-  - deploying
+  - format
+  - test
+  - build
+  - deploy
 
 #################################################################
-# Formatting stage
-
-format:
-  stage: formatting
+# Format stage
+fmt:
+  stage: format
   script:
-    - go fmt $(go list ./... | grep -v /vendor/)
-
-#################################################################
-# Linting stage
+    - go fmt $(go list ./...)
 
 lint:
-  stage: linting
+  stage: format
   before_script:
-    - go get -u golang.org/x/lint/golint
+    - $GOPATH/bin/golangci-lint --version
   script:
-    - golint -set_exit_status $(go list ./... | grep -v /vendor/)
+    - $GOPATH/bin/golangci-lint run --skip-dirs vcs --disable-all  --enable=golint --enable=varcheck --enable=maligned --enable=interfacer --timeout=2m0s
+  allow_failure: true
 
 #################################################################
-# Testing stage
-
-vet:
-  stage: testing
-  script:
-    - go vet $(go list ./... | grep -v /vendor/)
-  services:
-    - mysql:5.7
-  environment:
-    name: testing
-
+# Test stage
 test:
-  stage: testing
+  stage: test
   script:
-    - go test $(go list ./... | grep -v /vendor/)
+    - go test -v $(go list ./...)
   services:
     - mysql:5.7
   environment:
     name: testing
 
 race:
-  stage: testing
+  stage: test
   script:
-    - go test -race $(go list ./... | grep -v /vendor/)
+    - go test -race $(go list ./...)
   services:
     - mysql:5.7
   environment:
     name: testing
 
 coverage:
-  stage: testing
+  stage: test
   script:
     - go test -covermode=atomic -coverprofile=coverage.tx
     - go tool cover -func=coverage.tx
@@ -100,101 +70,19 @@ coverage:
     name: testing
 
 #################################################################
-# Building stage
-
+# Build stage
 build:
-  stage: building
+  stage: build
   script:
     - go build
-  artifacts:
-    paths:
-      - ${GOPATH}/src/${PKG_NAME}/fuelserver
-    expire_in: 1 month
-
 
 #################################################################
-# Packaging stage
-
-#package_default:
-#  stage: packaging
-#  image: docker
-#  services:
-#    - docker:dind
-#  except:
-#    - develop
-#    - master
-#  dependencies:
-#    - build
-#  variables:
-#    DOCKER_HOST: tcp://docker:2375
-#    DOCKER_DRIVER: overlay2
-#  before_script:
-#    - docker version
-#    - docker info
-#    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
-#  script:
-#    - "docker pull $CI_REGISTRY_IMAGE:next || true"
-#    - "docker build --cache-from $CI_REGISTRY_IMAGE:next --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA ."
-#    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-#
-#package_next:
-#  stage: packaging
-#  image: docker
-#  only:
-#    - develop
-#  services:
-#    - docker:dind
-#  dependencies:
-#    - build
-#  variables:
-#    DOCKER_HOST: tcp://docker:2375
-#    DOCKER_DRIVER: overlay2
-#  before_script:
-#    - docker version
-#    - docker info
-#    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
-#  script:
-#    - "docker pull $CI_REGISTRY_IMAGE || true"
-#    - "docker build --cache-from $CI_REGISTRY_IMAGE --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE:next ."
-#    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-#    - "docker push $CI_REGISTRY_IMAGE:next"
-#
-#package_latest:
-#  stage: packaging
-#  image: docker
-#  only:
-#    - master
-#  services:
-#    - docker:dind
-#  dependencies:
-#    - build
-#  variables:
-#    DOCKER_HOST: tcp://docker:2375
-#    DOCKER_DRIVER: overlay2
-#  before_script:
-#    - docker version
-#    - docker info
-#    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
-#  script:
-#    - "docker pull $CI_REGISTRY_IMAGE || true"
-#    - "docker build --cache-from $CI_REGISTRY_IMAGE --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE:latest ."
-#    - "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-#    - "docker push $CI_REGISTRY_IMAGE:latest"
-#  after_script:
-#    - "docker logout ${CI_REGISTRY}"
-
-#################################################################
-# Deploying stage
+# Deploy stage
 
 integration:
-  image: python:3.5
-  stage: deploying
+  stage: deploy
   dependencies:
     - build
-  before_script:
-    - apt-get update
-    - apt-get install -y zip python-pip
-    - pip install boto3==1.3.0
   script:
     - zip -r artifact.zip * .ebextensions -x bin/\* -x vendor/\*
     - python beanstalk_deploy.py
@@ -207,14 +95,9 @@ integration:
   when: manual
 
 staging:
-  image: python:3.5
-  stage: deploying
+  stage: deploy
   dependencies:
     - build
-  before_script:
-    - apt-get update
-    - apt-get install -y zip python-pip
-    - pip install boto3==1.3.0
   script:
     - zip -r artifact.zip * .ebextensions -x bin/\* -x vendor/\*
     - python beanstalk_deploy.py
@@ -227,14 +110,9 @@ staging:
   when: manual
 
 production:
-  image: python:3.5
-  stage: deploying
+  stage: deploy
   dependencies:
     - build
-  before_script:
-    - apt-get update
-    - apt-get install -y zip python-pip
-    - pip install boto3==1.3.0
   script:
     - zip -r artifact.zip * .ebextensions -x bin/\* -x vendor/\*
     - python beanstalk_deploy.py

@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"context"
 	"log"
 	"os"
 	"testing"
