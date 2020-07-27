@@ -594,7 +594,7 @@ func insertAssets(tx *gorm.DB, assets *CollectionAssets, collectionID uint) erro
 	valueStrings := []string{}
 	valueArgs := []interface{}{}
 
-	for _, asset := range(*assets) {
+	for _, asset := range *assets {
 		valueStrings = append(valueStrings, "(?, ?, ?, ?, ?)")
 		valueArgs = append(valueArgs, collectionID)
 		valueArgs = append(valueArgs, asset.AssetID)
