@@ -787,20 +787,22 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 	// int(elasticResult["took"].(float64)))
 
 	var result interface{}
-	var count int64
 
 	if index == "fuel_models" {
-		result, count = createModelResults(ctx, tx, elasticResult)
+		result = createModelResults(ctx, tx, elasticResult)
 	} else if index == "fuel_worlds" {
-		result, count = createWorldResults(ctx, tx, elasticResult)
+		result = createWorldResults(ctx, tx, elasticResult)
 	}
+
+	hits := elasticResult["hits"].(map[string]interface{})
+	totalHits := hits["total"].(map[string]interface{})
 
 	// Construct the pagination result
 	page := ign.PaginationResult{}
 	page.Page = pr.Page
 	page.PerPage = pr.PerPage
 	page.URL = pr.URL
-	page.QueryCount = count
+	page.QueryCount = int64(totalHits["value"].(float64))
 	page.PageFound = page.QueryCount > 0 || (page.Page == 1 && page.QueryCount == 0)
 
 	// Debug
@@ -808,7 +810,7 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 	return result, &page, nil
 }
 
-func createWorldResults(ctx context.Context, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {
+func createWorldResults(ctx context.Context, tx *gorm.DB, elasticResult map[string]interface{}) interface{} {
 	// Construct the set of models
 	worldsProto := fuel.Worlds{}
 	var resourceIDs []int64
@@ -842,10 +844,10 @@ func createWorldResults(ctx context.Context, tx *gorm.DB, elasticResult map[stri
 		}
 	}
 
-	return worldsProto, int64(len(worldsProto.Worlds))
+	return worldsProto
 }
 
-func createModelResults(ctx context.Context, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {
+func createModelResults(ctx context.Context, tx *gorm.DB, elasticResult map[string]interface{}) interface{} {
 	// Construct the set of models
 	modelsProto := fuel.Models{}
 	var resourceIDs []int64
@@ -879,5 +881,5 @@ func createModelResults(ctx context.Context, tx *gorm.DB, elasticResult map[stri
 		}
 	}
 
-	return modelsProto, int64(len(modelsProto.Models))
+	return modelsProto
 }
