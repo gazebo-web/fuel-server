@@ -31,23 +31,23 @@ func TestGetLicenses(t *testing.T) {
 	uri := "/1.0/licenses"
 
 	expNames := []string{
-		"Creative Commons - Public Domain",
-		"Creative Commons - Attribution",
-		"Creative Commons - Attribution - Share Alike",
-		"Creative Commons - Attribution - No Derivatives",
-		"Creative Commons - Attribution - Non Commercial",
-		"Creative Commons - Attribution - Non Commercial - Share Alike",
-		"Creative Commons - Attribution - Non Commercial - No Derivatives",
+		"Creative Commons Zero v1.0 Universal",
+		"Creative Commons Attribution 4.0 International",
+		"Creative Commons Attribution Share Alike 4.0 International",
+		"Creative Commons Attribution No Derivatives 4.0 International",
+		"Creative Commons Attribution Non Commercial 4.0 International",
+		"Creative Commons Attribution Non Commercial Share Alike 4.0 International",
+		"Creative Commons Attribution Non Commercial No Derivatives 4.0 International",
 	}
 	expNamesPage2 := []string{
-		"Creative Commons - Attribution - Share Alike",
-		"Creative Commons - Attribution - No Derivatives",
+		"Creative Commons Attribution Share Alike 4.0 International",
+		"Creative Commons Attribution No Derivatives 4.0 International",
 	}
 
 	licenseListTestsData := []licenseListTest{
 		{uriTest{"all licenses", uri, nil, nil, false}, 7, expNames},
 		// WITH PAGINATION
-		{uriTest{"get page #1", uri + "?per_page=1&page=1", nil, nil, false}, 1, []string{"Creative Commons - Public Domain"}},
+		{uriTest{"get page #1", uri + "?per_page=1&page=1", nil, nil, false}, 1, []string{"Creative Commons Zero v1.0 Universal"}},
 		{uriTest{"get page #2 size 2", uri + "?per_page=2&page=2", nil, nil, false}, 2, expNamesPage2},
 		{uriTest{"invalid page", uri + "?per_page=1&page=8", nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound), false}, 0, nil},
 	}
