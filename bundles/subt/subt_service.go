@@ -110,7 +110,7 @@ func (s *Service) CreateRegistration(ctx context.Context, tx *gorm.DB,
 	}
 
 	registration := Registration{Status: iptr(int(RegOpPending)),
-		Participant: &orgName, Competition: &comp, Creator: user.Username}
+		Participant: &orgName, Competition: &comp, Creator: user.Username, Email: user.Email}
 	if err := tx.Create(&registration).Error; err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 	}

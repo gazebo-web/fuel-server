@@ -105,6 +105,8 @@ type Registration struct {
 	Participant *string `json:"participant"`
 	// The username of the User that requested this
 	Creator *string `json:"creator"`
+	// The registrant's email.
+	Email *string `json:"email,omitempty"`
 }
 
 func (r *Registration) regName() string {
