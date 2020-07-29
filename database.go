@@ -166,19 +166,19 @@ func DBAddDefaultData(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		// Add default licenses
 		defaultLicenses := []LicDesc{
-			{"Creative Commons - Public Domain", "https://creativecommons.org/publicdomain/zero/1.0/",
+			{"Creative Commons Zero v1.0 Universal", "https://creativecommons.org/publicdomain/zero/1.0/",
 				"https://i.creativecommons.org/p/88x31.png"},
-			{"Creative Commons - Attribution", "http://creativecommons.org/licenses/by/4.0/",
+			{"Creative Commons Attribution 4.0 International", "http://creativecommons.org/licenses/by/4.0/",
 				"https://i.creativecommons.org/l/by/4.0/88x31.png"},
-			{"Creative Commons - Attribution - Share Alike", "http://creativecommons.org/licenses/by-sa/4.0/",
+			{"Creative Commons Attribution Share Alike 4.0 International", "http://creativecommons.org/licenses/by-sa/4.0/",
 				"https://i.creativecommons.org/l/by-sa/4.0/88x31.png"},
-			{"Creative Commons - Attribution - No Derivatives", "http://creativecommons.org/licenses/by-nd/4.0/",
+			{"Creative Commons Attribution No Derivatives 4.0 International", "http://creativecommons.org/licenses/by-nd/4.0/",
 				"https://i.creativecommons.org/l/by-nd/4.0/88x31.png"},
-			{"Creative Commons - Attribution - Non Commercial", "http://creativecommons.org/licenses/by-nc/4.0/",
+			{"Creative Commons Attribution Non Commercial 4.0 International", "http://creativecommons.org/licenses/by-nc/4.0/",
 				"https://i.creativecommons.org/l/by-nc/4.0/88x31.png"},
-			{"Creative Commons - Attribution - Non Commercial - Share Alike", "http://creativecommons.org/licenses/by-nc-sa/4.0/",
+			{"Creative Commons Attribution Non Commercial Share Alike 4.0 International", "http://creativecommons.org/licenses/by-nc-sa/4.0/",
 				"https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png"},
-			{"Creative Commons - Attribution - Non Commercial - No Derivatives", "http://creativecommons.org/licenses/by-nc-nd/4.0/",
+			{"Creative Commons Attribution Non Commercial No Derivatives 4.0 International", "http://creativecommons.org/licenses/by-nc-nd/4.0/",
 				"https://i.creativecommons.org/l/by-nc-nd/4.0/88x31.png"},
 		}
 
