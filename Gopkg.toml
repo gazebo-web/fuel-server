@@ -23,7 +23,7 @@
 
 [[constraint]]
   name = "gitlab.com/ignitionrobotics/web/ign-go"
-  version = "4.0.0"
+  version = "5.0.0"
 
 [[constraint]]
   name = "github.com/Selvatico/go-mocket"

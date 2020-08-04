@@ -282,6 +282,12 @@
   version = "v1.2.2"
 
 [[projects]]
+  name = "github.com/urfave/negroni"
+  packages = ["."]
+  revision = "89f4046c21e1b86e8ef3550422b528ab1d62eba4"
+  version = "v2.0.2"
+
+[[projects]]
   name = "github.com/xanzy/ssh-agent"
   packages = ["."]
   revision = "640f0ab560aeb89d523bb6ac322b1244d5c3796c"
@@ -291,10 +297,11 @@
   name = "gitlab.com/ignitionrobotics/web/ign-go"
   packages = [
     ".",
+    "monitoring",
     "testhelpers"
   ]
-  revision = "0366041efcb3529850ce1fa2f0d88e94f8525722"
-  version = "4.0.0"
+  revision = "35e3a742e981ccfb66d79b4d6ed349d95a207ed0"
+  version = "5.0.0"
 
 [[projects]]
   branch = "master"
@@ -426,6 +433,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "be5d886652dbe71c174c2bca0b548ba1d892be6db31c8cbfc6b648049ec4b347"
+  inputs-digest = "ac9d3d2ed2ef68141a09045c464fc47101957e77cd52fd9ac2a7c7a8e88477d0"
   solver-name = "gps-cdcl"
   solver-version = 1
