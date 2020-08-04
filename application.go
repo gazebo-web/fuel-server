@@ -95,7 +95,7 @@ func init() {
 		logger.Info("Missing AUTH0_RSA256_PUBLIC_KEY env variable. Authentication will not work.")
 	}
 
-	globals.Server, err = ign.Init(auth0RsaPublickey, "")
+	globals.Server, err = ign.Init(auth0RsaPublickey, "", nil)
 	// Create the main Router and set it to the server.
 	// Note: here it is the place to define multiple APIs
 	s := globals.Server
