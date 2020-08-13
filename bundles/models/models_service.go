@@ -638,7 +638,7 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 	// Create the Model struct
 	model, err := NewModel(&uuidStr, &cm.Name, &cm.URLName, &cm.Description,
 		&filesPath, &owner, creator.Username, *license, cm.Permission, *pTags,
-		private, categories)
+		private, categories, cm.Metadata)
 
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
@@ -725,10 +725,13 @@ func (ms *Service) CloneModel(ctx context.Context, tx *gorm.DB, smOwner,
 		clonePrivate = *cm.Private
 	}
 
+	// Load the metadata
+	tx.Model(&model).Related(&model.Metadata)
+
 	// Create the new Model (the clone) struct and folder
 	clone, err := NewModelAndUUID(&modelName, model.URLName, model.Description,
 		nil, &owner, creator.Username, model.License, model.Permission, model.Tags,
-		clonePrivate, &model.Categories)
+		clonePrivate, &model.Categories, &model.Metadata)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
