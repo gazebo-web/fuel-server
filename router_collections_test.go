@@ -586,6 +586,92 @@ type cloneCollectionTest struct {
 	owner       string
 }
 
+// TestCollectionTransfer tests transfering a collection
+func TestCollectionTransfer(t *testing.T) {
+	// General test setup
+	setup()
+
+	// get the tests JWT
+	jwt := os.Getenv("IGN_TEST_JWT")
+	jwtDef := newJWT(jwt)
+	// create a random user using the default test JWT
+	username := createUser(t)
+	defer removeUser(username, t)
+
+	// Create an organization with the default jwt as owner.
+	testOrg := createOrganization(t)
+	defer removeOrganization(testOrg, t)
+
+	// create another user
+	jwt2 := createValidJWTForIdentity("another-user-3", t)
+	user2 := createUserWithJWT(jwt2, t)
+	defer removeUserWithJWT(user2, jwt2, t)
+
+	// note: this creates models named model1, model2 and model3
+	createThreeTestModels(t, nil)
+	createTestModelWithOwner(t, nil, "orgModel", testOrg, false)
+	// note: this creates worlds named world1, world2 and world3
+	createThreeTestWorlds(t, nil)
+	createTestWorldWithOwner(t, nil, "orgWorld", testOrg, false)
+
+	collectionName := "MyCollection"
+	description := "a cool Collection"
+	createURI := "/1.0/collections"
+	boolFalse := false
+
+	// Create a collection
+	colCreateTestsData := []createCollectionTest{
+		{uriTest{"with all fields", createURI, jwtDef, nil, false},
+			collections.CreateCollection{Name: collectionName, Description: description, Private: &boolFalse}, false,
+			username}}
+
+	for _, test := range colCreateTestsData {
+		t.Run(test.testDesc, func(t *testing.T) {
+			runSubTestWithCreateCollectionTestData(test, t)
+		})
+	}
+
+	// URL for world clone
+	uri := "/1.0/" + username + "/collections/" + collectionName + "/transfer"
+
+	transferTestsAnotherUser := []postTest{
+		{"TestTransferInvalidUserPermissions", uri, &jwt2,
+			map[string]string{"destOwner": "invalidOrg"}, nil,
+			http.StatusBadRequest, -1, nil, nil},
+		{"TestTransferInvalidDestinationName", uri, &jwt,
+			map[string]string{"destOwner": "invalidOrg"}, nil,
+			http.StatusBadRequest, -1, nil, nil},
+	}
+	// Run tests under different users
+	testResourcePOST(t, transferTestsAnotherUser, false, nil)
+
+	transferTestsMainUser := []postTest{
+		{"TestTransferToUser", uri, &jwt,
+			map[string]string{"destOwner": user2}, nil,
+			http.StatusNotFound, -1, nil, nil},
+		{"TestransferMissingJson", uri, &jwt,
+			nil, nil, http.StatusNotFound, -1, nil, nil},
+		{"TestransferValid", uri, &jwt,
+			map[string]string{"destOwner": testOrg}, nil,
+			http.StatusOK, -1, nil, nil},
+	}
+
+	// Run tests under main user
+	for _, test := range transferTestsMainUser {
+		t.Run(test.testDesc, func(t *testing.T) {
+
+			b := new(bytes.Buffer)
+			json.NewEncoder(b).Encode(test.postParams)
+
+			if test.expStatus != http.StatusOK {
+				igntest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwt, "text/plain; charset=utf-8", t)
+			} else {
+				igntest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwt, "application/json", t)
+			}
+		})
+	}
+}
+
 // TestCollectionClone tests cloning a collection
 func TestCollectionClone(t *testing.T) {
 	setup()

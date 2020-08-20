@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
@@ -421,4 +422,36 @@ func CollectionClone(sourceCollectionOwner, sourceCollectionName string,
 	}
 
 	return doCreateCollection(tx, createFn, w, r)
+}
+
+// CollectionTransfer transfer ownership of a collection to an organization.
+// The source owner must have write permissions on the destination organization
+//
+//    curl -k -X POST -H "Content-Type: application/json" http://localhost:8000/1.0/{username}/collections/{collectionname}/transfer --header "Private-Token: {private-token}" -d '{"destOwner":"destination_owner_name"}'
+//
+// \todo Support transfer of collection to owners other users and organizations.
+// This will require some kind of email notifcation to the destination and
+// acceptance form.
+func CollectionTransfer(sourceOwner, collectionName string, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+
+	// Read the request and check permissions.
+	transferAsset, em := processTransferRequest(sourceOwner, tx, r)
+	if em != nil {
+		return nil, em
+	}
+
+	// Get the collection
+	cs := &collections.Service{}
+	collection, em := cs.GetCollection(tx, sourceOwner, collectionName, user)
+	if em != nil {
+		extra := fmt.Sprintf("Collection [%s] not found", collectionName)
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, em.BaseError, []string{extra})
+	}
+
+	if em := transferMoveAsset(tx, collection, transferAsset.DestOwner); em != nil {
+		return nil, em
+	}
+
+	return &collection, nil
 }

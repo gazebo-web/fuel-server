@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
@@ -235,4 +236,36 @@ func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 	// Encode models into a protobuf message
 	fuelModel := (&models.Service{}).ModelToProto(model)
 	return &fuelModel, nil
+}
+
+// ModelTransfer transfer ownership of a model to an organization. The source
+// owner must have write permissions on the destination organization
+//
+//    curl -k -X POST -H "Content-Type: application/json" http://localhost:8000/1.0/{username}/models/{modelname}/transfer --header "Private-Token: {private-token}" -d '{"destOwner":"destination_owner_name"}'
+//
+// \todo Support transfer of models to owners other users and organizations.
+// This will require some kind of email notifcation to the destination and
+// acceptance form.
+func ModelTransfer(sourceOwner, modelName string, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+
+	// Read the request and check permissions.
+	transferAsset, em := processTransferRequest(sourceOwner, tx, r)
+	if em != nil {
+		return nil, em
+	}
+
+	// Get the model
+	ms := &models.Service{}
+	model, em := ms.GetModel(tx, sourceOwner, modelName, user)
+	if em != nil {
+		extra := fmt.Sprintf("Model [%s] not found", modelName)
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, em.BaseError, []string{extra})
+	}
+
+	if em := transferMoveAsset(tx, model, transferAsset.DestOwner); em != nil {
+		return nil, em
+	}
+
+	return &model, nil
 }
