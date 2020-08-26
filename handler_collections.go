@@ -449,9 +449,10 @@ func CollectionTransfer(sourceOwner, collectionName string, user *users.User, tx
 		return nil, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, em.BaseError, []string{extra})
 	}
 
-	if em := transferMoveAsset(tx, collection, transferAsset.DestOwner); em != nil {
+	if em := transferMoveResource(tx, collection, sourceOwner, transferAsset.DestOwner); em != nil {
 		return nil, em
 	}
+	tx.Save(&collection)
 
 	return &collection, nil
 }

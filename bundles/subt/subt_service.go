@@ -119,11 +119,11 @@ func (s *Service) CreateRegistration(ctx context.Context, tx *gorm.DB,
 	// as well as the requesting user.
 	// The Write permission will be only for admins of Competition (SubT).
 	rName := registration.regName()
-	if ok, em := globals.Permissions.AddPermission(comp, rName, p.Read); !ok {
-		return nil, em
+	if _, em := globals.Permissions.AddPermission(comp, rName, p.Read); em != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, em)
 	}
-	if ok, em := globals.Permissions.AddPermission(*user.Username, rName, p.Read); !ok {
-		return nil, em
+	if _, em := globals.Permissions.AddPermission(*user.Username, rName, p.Read); em != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, em)
 	}
 
 	sendMail(fmt.Sprintf("New Registration [regName:%s] for [%s]. Team [%s]", rName, comp, orgName), &registration, org)

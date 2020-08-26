@@ -45,22 +45,44 @@ func processTransferRequest(sourceOwner string, tx *gorm.DB, r *http.Request) (*
 	return &transferAsset, nil
 }
 
-// transferMoveAsset will move an asset, such as a model, world, or collection,
+// transferMoveResource will move an resource, such as a model, world, or collection,
 // from a user to an organization.
-func transferMoveAsset(tx *gorm.DB, resource commonres.Resource, destOwner string) *ign.ErrMsg {
+func transferMoveResource(tx *gorm.DB, resource commonres.Resource, sourceOwner, destOwner string) *ign.ErrMsg {
 
-	// Attempt to move the asset
-	newLocation, em := commonres.Move(resource, destOwner)
-
-	if em != nil {
+	// Attempt to move the resource
+	if em := commonres.MoveResource(resource, destOwner); em != nil {
 		return em
 	}
 
-	// Transfer the world to the new owner.
-	tx.Model(&resource).Updates(map[string]interface{}{
-            "Owner": destOwner,
-            "Location": *newLocation,
-        })
+	// Add permissions to destination owner
+	_, err := globals.Permissions.AddPermission(destOwner, *resource.GetUUID(), permissions.Read)
+	if err != nil {
+		// Revert move
+		commonres.MoveResource(resource, sourceOwner)
+		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+	}
+
+	_, err = globals.Permissions.AddPermission(destOwner, *resource.GetUUID(), permissions.Write)
+	if err != nil {
+		// Revert move
+		commonres.MoveResource(resource, sourceOwner)
+		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+	}
+
+	// Remove permissions from original owner
+	_, err = globals.Permissions.RemovePermission(sourceOwner, *resource.GetUUID(), permissions.Read)
+	if err != nil {
+		// Revert move
+		commonres.MoveResource(resource, sourceOwner)
+		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+	}
+
+	_, err = globals.Permissions.RemovePermission(sourceOwner, *resource.GetUUID(), permissions.Write)
+	if err != nil {
+		// Revert move
+		commonres.MoveResource(resource, sourceOwner)
+		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+	}
 
 	return nil
 }

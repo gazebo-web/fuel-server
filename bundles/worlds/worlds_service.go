@@ -570,13 +570,13 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 	}
 
 	// add read and write permissions
-	ok, em := globals.Permissions.AddPermission(owner, *world.UUID, permissions.Read)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *world.UUID, permissions.Read)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
-	ok, em = globals.Permissions.AddPermission(owner, *world.UUID, permissions.Write)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *world.UUID, permissions.Write)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
 
 	// parse the world file and find the model references
@@ -782,13 +782,13 @@ func (ws *Service) CloneWorld(ctx context.Context, tx *gorm.DB, swOwner,
 	}
 
 	// add read and write permissions
-	ok, em := globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Read)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Read)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
-	ok, em = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Write)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Write)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
 	// parse the world file, find the model references and recreate them in DB
 	if em := populateModelIncludes(ctx, tx, &clone, *clone.GetLocation()); em != nil {

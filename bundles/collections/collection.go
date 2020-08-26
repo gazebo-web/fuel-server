@@ -118,9 +118,19 @@ func (c *Collection) GetOwner() *string {
 	return c.Owner
 }
 
+// SetOwner sets the owner
+func (c *Collection) SetOwner(owner string) {
+	*c.Owner = owner
+}
+
 // GetLocation returns the location on disk
 func (c *Collection) GetLocation() *string {
 	return c.Location
+}
+
+// SetLocation sets the location path
+func (c *Collection) SetLocation(location string) {
+	*c.Location = location
 }
 
 // GetUUID returns the UUID
