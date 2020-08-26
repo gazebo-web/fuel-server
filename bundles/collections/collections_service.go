@@ -309,13 +309,13 @@ func (s *Service) CreateCollection(ctx context.Context, tx *gorm.DB, cc CreateCo
 	}
 
 	// add read and write permissions
-	ok, em := globals.Permissions.AddPermission(owner, *col.UUID, permissions.Read)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *col.UUID, permissions.Read)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
-	ok, em = globals.Permissions.AddPermission(owner, *col.UUID, permissions.Write)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *col.UUID, permissions.Write)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
 
 	return &col, nil
@@ -556,13 +556,13 @@ func (s *Service) CloneCollection(ctx context.Context, tx *gorm.DB,
 	}
 
 	// add read and write permissions
-	ok, em := globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Read)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Read)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
-	ok, em = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Write)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Write)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
 
 	return &clone, nil

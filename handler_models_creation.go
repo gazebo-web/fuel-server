@@ -263,9 +263,10 @@ func ModelTransfer(sourceOwner, modelName string, user *users.User, tx *gorm.DB,
 		return nil, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, em.BaseError, []string{extra})
 	}
 
-	if em := transferMoveAsset(tx, model, transferAsset.DestOwner); em != nil {
+	if em := transferMoveResource(tx, model, sourceOwner, transferAsset.DestOwner); em != nil {
 		return nil, em
 	}
+	tx.Save(&model)
 
 	return &model, nil
 }

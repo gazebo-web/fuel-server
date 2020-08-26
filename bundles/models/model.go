@@ -105,9 +105,19 @@ func (m *Model) GetOwner() *string {
 	return m.Owner
 }
 
+// SetOwner sets the owner
+func (m *Model) SetOwner(owner string) {
+	*m.Owner = owner
+}
+
 // GetLocation returns the model's location on disk
 func (m *Model) GetLocation() *string {
 	return m.Location
+}
+
+// SetLocation sets the location path
+func (m *Model) SetLocation(location string) {
+	*m.Location = location
 }
 
 // GetUUID returns the model's UUID

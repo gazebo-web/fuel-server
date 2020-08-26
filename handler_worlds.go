@@ -503,9 +503,10 @@ func WorldTransfer(sourceOwner, worldName string, user *users.User, tx *gorm.DB,
 		return nil, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, em.BaseError, []string{extra})
 	}
 
-	if em := transferMoveAsset(tx, world, transferAsset.DestOwner); em != nil {
+	if em := transferMoveResource(tx, world, sourceOwner, transferAsset.DestOwner); em != nil {
 		return nil, em
 	}
+	tx.Save(&world)
 
 	return &world, nil
 }
