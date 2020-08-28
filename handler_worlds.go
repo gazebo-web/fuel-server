@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
@@ -98,8 +99,20 @@ func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
 func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 
+	// Get the world
+	world, em := (&worlds.Service{}).GetWorld(tx, owner, name, user)
+	if em != nil {
+		return nil, em
+	}
+
+	// Remove the world from the worlds table
 	if em := (&worlds.Service{}).RemoveWorld(r.Context(), tx, owner, name, user); em != nil {
 		return nil, em
+	}
+
+	// Remove the world from collections
+	if err := (&collections.Service{}).RemoveAssetFromAllCollections(tx, world.ID); err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
 	}
 
 	// commit the DB transaction

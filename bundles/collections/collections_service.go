@@ -374,6 +374,11 @@ func findAssociatedAsset(tx *gorm.DB, owner, name,
 	return (&worlds.Service{}).GetWorld(tx, owner, name, user)
 }
 
+// RemoveAssetFromAllCollections will remove an asset with the provided assetId from all collections. This function assumes that the caller has permissions to perform a Delete on the `collection_assets` table.
+func (s *Service) RemoveAssetFromAllCollections(tx *gorm.DB, assetID uint) error {
+	return tx.Where("asset_id = ?", assetID).Delete(&CollectionAsset{}).Error
+}
+
 // RemoveAsset removes an asset from a collection.
 // user argument is the active user requesting the operation.
 func (s *Service) RemoveAsset(ctx context.Context, tx *gorm.DB, owner, name string,
