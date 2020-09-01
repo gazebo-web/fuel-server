@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
@@ -113,8 +114,20 @@ func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 
-	if em := (&models.Service{}).RemoveModel(r.Context(), tx, owner, modelName, user); em != nil {
+	// Get the model
+	model, em := (&models.Service{}).GetModel(tx, owner, modelName, user)
+	if em != nil {
 		return nil, em
+	}
+
+	// Remove the model from the models table
+	if em = (&models.Service{}).RemoveModel(r.Context(), tx, owner, modelName, user); em != nil {
+		return nil, em
+	}
+
+	// Remove the model from collections
+	if err := (&collections.Service{}).RemoveAssetFromAllCollections(tx, model.ID); err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
 	}
 
 	// commit the DB transaction

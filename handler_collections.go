@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"io/ioutil"
 	"net/http"
@@ -216,6 +218,7 @@ func CollectionModelsList(colOwner, colName string, user *users.User, tx *gorm.D
 //      --header 'authorization: Bearer <your-jwt-token-here>'
 func CollectionModelAdd(colOwner, colName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+
 	return collectionAssetAdd(colOwner, colName, collections.TModel, user, tx, w, r)
 }
 
@@ -273,6 +276,21 @@ func collectionAssetAdd(colOwner, colName, assetType string, user *users.User,
 		return nil, em
 	}
 
+	// Update elastic search with the new collection association information.
+	if assetType == collections.TModel {
+		model, em := (&models.Service{}).GetModel(tx, no.Owner, no.Name, user)
+		if em != nil {
+			return nil, em
+		}
+		models.ElasticSearchUpdateModel(r.Context(), tx, *model)
+	} else if assetType == collections.TModel {
+		world, em := (&worlds.Service{}).GetWorld(tx, no.Owner, no.Name, user)
+		if em != nil {
+			return nil, em
+		}
+		worlds.ElasticSearchUpdateWorld(r.Context(), *world)
+	}
+
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
@@ -280,6 +298,7 @@ func collectionAssetAdd(colOwner, colName, assetType string, user *users.User,
 	if err := tx.Commit().Error; err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
