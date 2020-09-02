@@ -202,21 +202,17 @@ func (p *Permissions) IsAuthorized(user, resource string, action Action) (bool, 
 }
 
 // AddPermission adds a user (or group) permission on a resource
-func (p *Permissions) AddPermission(user, resource string, action Action) (bool, *ign.ErrMsg) {
+// Returns true if the permission was added, false if the user already has the permission. A non-nil error indicates something went wrong.
+func (p *Permissions) AddPermission(user, resource string, action Action) (bool, error) {
 	valid, err := p.data.enforcer.AddPermissionForUser(user, resource, actionToString(action))
-	if !valid || err != nil {
-		return false, ign.NewErrorMessage(ign.ErrorUnexpected)
-	}
-	return true, nil
+	return valid, err
 }
 
 // RemovePermission removes a user (or group) permission on a resource
-func (p *Permissions) RemovePermission(user, resource string, action Action) (bool, *ign.ErrMsg) {
+// Returns true if the permission was deleted, false if the user already did not have the permission. A non-nil error indicates something went wrong.
+func (p *Permissions) RemovePermission(user, resource string, action Action) (bool, error) {
 	valid, err := p.data.enforcer.DeletePermissionForUser(user, resource, actionToString(action))
-	if !valid || err != nil {
-		return false, ign.NewErrorMessage(ign.ErrorUnexpected)
-	}
-	return true, nil
+	return valid, err
 }
 
 // RemoveResource removes a resource and all policies involving the resource

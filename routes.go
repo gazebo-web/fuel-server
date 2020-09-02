@@ -369,6 +369,40 @@ var routes = ign.Routes{
 		},
 	},
 
+	// Route that transfers a model
+	ign.Route{
+		"OwnerModelIndex",
+		"Transfer a model to another owner.",
+		"/{username}/models/{model}/transfer",
+		ign.AuthHeadersOptional,
+		ign.Methods{},
+		ign.SecureMethods{
+			// swagger:route POST /{username}/models/{model}/transfer models modelTransfer
+			//
+			// Transfer a model
+			//
+			//   Consumes:
+			//   - multipart/form-data
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: Model
+			ign.Method{
+				"POST",
+				"Transfer a model",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("model", true, ModelTransfer))},
+				},
+			},
+		},
+	},
+
 	// Route that returns a model zip file from a team/user
 	ign.Route{
 		"OwnerModelVersion",
@@ -834,6 +868,40 @@ var routes = ign.Routes{
 		},
 	},
 
+	// Route that transfers a world
+	ign.Route{
+		"OwnerWorldTransfer",
+		"Transfer a world to another owner.",
+		"/{username}/worlds/{world}/transfer",
+		ign.AuthHeadersOptional,
+		ign.Methods{},
+		ign.SecureMethods{
+			// swagger:route POST /{username}/worlds/{world}/transfer models worldTransfer
+			//
+			// Transfer a world
+			//
+			//   Consumes:
+			//   - multipart/form-data
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: Model
+			ign.Method{
+				"POST",
+				"Transfer a world",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("world", true, WorldTransfer))},
+				},
+			},
+		},
+	},
+
 	// Route that returns a world zip file from a team/user
 	ign.Route{
 		"WorldVersion",
@@ -1168,6 +1236,38 @@ var routes = ign.Routes{
 		},
 	},
 
+	ign.Route{
+		"OwnerCollectionTransfer",
+		"Transfer a collection to another owner.",
+		"/{username}/collections/{collection}/transfer",
+		ign.AuthHeadersOptional,
+		ign.Methods{},
+		ign.SecureMethods{
+			// swagger:route POST /{username}/collections/{collection}/transfer collections collectionTransfer
+			//
+			// Transfer a collection
+			//
+			//   Consumes:
+			//   - multipart/form-data
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: Model
+			ign.Method{
+				"POST",
+				"Transfer a collection",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("collection", true, CollectionTransfer))},
+				},
+			},
+		},
+	},
 	// Route that clones a collection
 	ign.Route{
 		"CloneCollection",

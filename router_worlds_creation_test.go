@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
@@ -248,6 +249,72 @@ func TestWorldCreateVariants(t *testing.T) {
 			http.StatusBadRequest, ign.ErrorFormDuplicateWorldName, nil, &worlds.World{}},
 	}
 	testResourcePOST(t, dupNameTests, true, nil)
+}
+
+// TestWorldTransfer tests transfering a world
+func TestWorldTransfer(t *testing.T) {
+	// General test setup
+	setup()
+
+	// create test user with default jwt
+	jwtDef := os.Getenv("IGN_TEST_JWT")
+	username := createUser(t)
+	defer removeUser(username, t)
+
+	// Create an organization with the default jwt as owner.
+	testOrg := createOrganization(t)
+	defer removeOrganization(testOrg, t)
+
+	// Create another user
+	anotherJwt := createValidJWTForIdentity("another-user", t)
+	testUser := createUserWithJWT(anotherJwt, t)
+	defer removeUserWithJWT(testUser, anotherJwt, t)
+
+	// Create source worlds
+	createThreeTestWorlds(t, &jwtDef)
+
+	// Sanity check: Get the created world to ensure it was created
+	world := getWorldFromDb(t, username, "world1")
+
+	// URL for world clone
+	uri := "/1.0/" + username + "/worlds/" + *world.Name + "/transfer"
+
+	transferTestsAnotherUser := []postTest{
+		{"TestTransferInvalidUserPermissions", uri, &anotherJwt,
+			map[string]string{"destOwner": "invalidOrg"}, nil,
+			http.StatusBadRequest, -1, nil, nil},
+		{"TestTransferInvalidDestinationName", uri, &jwtDef,
+			map[string]string{"destOwner": "invalidOrg"}, nil,
+			http.StatusBadRequest, -1, nil, nil},
+	}
+	// Run tests under different users
+	testResourcePOST(t, transferTestsAnotherUser, false, nil)
+
+	transferTestsMainUser := []postTest{
+		{"TestTransferToUser", uri, &jwtDef,
+			map[string]string{"destOwner": testUser}, nil,
+			http.StatusNotFound, -1, nil, nil},
+		{"TestransferMissingJson", uri, &jwtDef,
+			nil, nil, http.StatusNotFound, -1, nil, nil},
+		{"TestransferValid", uri, &jwtDef,
+			map[string]string{"destOwner": testOrg}, nil,
+			http.StatusOK, -1, nil, nil},
+	}
+
+	// Run tests under main user
+	for _, test := range transferTestsMainUser {
+		t.Run(test.testDesc, func(t *testing.T) {
+
+			b := new(bytes.Buffer)
+			json.NewEncoder(b).Encode(test.postParams)
+
+			if test.expStatus != http.StatusOK {
+				igntest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwtDef, "text/plain; charset=utf-8", t)
+			} else {
+				igntest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwtDef, "application/json", t)
+			}
+		})
+	}
 }
 
 // TestWorldClone tests cloning a world

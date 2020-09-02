@@ -110,9 +110,19 @@ func (w *World) GetOwner() *string {
 	return w.Owner
 }
 
+// SetOwner sets the owner
+func (w *World) SetOwner(owner string) {
+	*w.Owner = owner
+}
+
 // GetLocation returns the world's location on disk
 func (w *World) GetLocation() *string {
 	return w.Location
+}
+
+// SetLocation sets the location path
+func (w *World) SetLocation(location string) {
+	*w.Location = location
 }
 
 // GetUUID returns the world's UUID

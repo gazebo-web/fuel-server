@@ -105,9 +105,19 @@ func (m *Model) GetOwner() *string {
 	return m.Owner
 }
 
+// SetOwner sets the owner
+func (m *Model) SetOwner(owner string) {
+	*m.Owner = owner
+}
+
 // GetLocation returns the model's location on disk
 func (m *Model) GetLocation() *string {
 	return m.Location
+}
+
+// SetLocation sets the location path
+func (m *Model) SetLocation(location string) {
+	*m.Location = location
 }
 
 // GetUUID returns the model's UUID
@@ -135,16 +145,16 @@ func GetModelByName(tx *gorm.DB, modelName string, owner string) (*Model, error)
 }
 
 // NewModelAndUUID creates a Model struct with a new UUID.
-func NewModelAndUUID(name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags Tags, private bool, categories *category.Categories) (Model, error) {
+func NewModelAndUUID(name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags Tags, private bool, categories *category.Categories, metadata *ModelMetadata) (Model, error) {
 	uuidStr, _, err := users.NewUUID(*owner, models)
 	if err != nil {
 		return Model{}, err
 	}
-	return NewModel(&uuidStr, name, urlName, desc, location, owner, creator, lic, permission, tags, private, categories)
+	return NewModel(&uuidStr, name, urlName, desc, location, owner, creator, lic, permission, tags, private, categories, metadata)
 }
 
 // NewModel creates a new Model struct
-func NewModel(uuidStr, name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags Tags, private bool, categories *category.Categories) (Model, error) {
+func NewModel(uuidStr, name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags Tags, private bool, categories *category.Categories, metadata *ModelMetadata) (Model, error) {
 
 	var modelPath string
 	// Override the generated location if we got a model location as argument
@@ -161,6 +171,9 @@ func NewModel(uuidStr, name, urlName, desc, location, owner, creator *string, li
 		Description: desc, Location: &modelPath, Likes: 0, Downloads: 0,
 		UploadDate: &uploadDate, ModifyDate: &modifyDate, Tags: tags,
 		License: lic, Permission: permission, Private: &private,
+	}
+	if metadata != nil {
+		model.Metadata = *metadata
 	}
 	if categories != nil {
 		model.Categories = *categories
@@ -197,6 +210,8 @@ type CreateModel struct {
 	// Categories
 	// maximum: 2
 	Categories string `json:"categories" validate:"printascii" form:"categories"`
+	// Metadata associated to this model
+	Metadata *ModelMetadata `json:"metadata" form:"metadata"`
 }
 
 // CloneModel encapsulates data required to clone a model

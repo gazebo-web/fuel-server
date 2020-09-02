@@ -309,13 +309,13 @@ func (s *Service) CreateCollection(ctx context.Context, tx *gorm.DB, cc CreateCo
 	}
 
 	// add read and write permissions
-	ok, em := globals.Permissions.AddPermission(owner, *col.UUID, permissions.Read)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *col.UUID, permissions.Read)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
-	ok, em = globals.Permissions.AddPermission(owner, *col.UUID, permissions.Write)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *col.UUID, permissions.Write)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
 
 	return &col, nil
@@ -372,6 +372,11 @@ func findAssociatedAsset(tx *gorm.DB, owner, name,
 		return (&models.Service{}).GetModel(tx, owner, name, user)
 	}
 	return (&worlds.Service{}).GetWorld(tx, owner, name, user)
+}
+
+// RemoveAssetFromAllCollections will remove an asset with the provided assetId from all collections. This function assumes that the caller has permissions to perform a Delete on the `collection_assets` table.
+func (s *Service) RemoveAssetFromAllCollections(tx *gorm.DB, assetID uint) error {
+	return tx.Where("asset_id = ?", assetID).Delete(&CollectionAsset{}).Error
 }
 
 // RemoveAsset removes an asset from a collection.
@@ -556,13 +561,13 @@ func (s *Service) CloneCollection(ctx context.Context, tx *gorm.DB,
 	}
 
 	// add read and write permissions
-	ok, em := globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Read)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Read)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
-	ok, em = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Write)
-	if !ok {
-		return nil, em
+	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Write)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
 
 	return &clone, nil

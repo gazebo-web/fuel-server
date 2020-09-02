@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
@@ -98,8 +99,20 @@ func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
 func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 
+	// Get the world
+	world, em := (&worlds.Service{}).GetWorld(tx, owner, name, user)
+	if em != nil {
+		return nil, em
+	}
+
+	// Remove the world from the worlds table
 	if em := (&worlds.Service{}).RemoveWorld(r.Context(), tx, owner, name, user); em != nil {
 		return nil, em
+	}
+
+	// Remove the world from collections
+	if err := (&collections.Service{}).RemoveAssetFromAllCollections(tx, world.ID); err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
 	}
 
 	// commit the DB transaction
@@ -476,4 +489,37 @@ func WorldModelReferences(owner, name string, user *users.User, tx *gorm.DB,
 
 	ign.WritePaginationHeaders(*pagination, w, r)
 	return refs, nil
+}
+
+// WorldTransfer transfer ownership of a world to an organization. The source
+// owner must have write permissions on the destination organization
+//
+//    curl -k -X POST -H "Content-Type: application/json" http://localhost:8000/1.0/{username}/worlds/{worldname}/transfer --header "Private-Token: {private-token}" -d '{"destOwner":"{destination_owner_name"}'
+//
+// \todo Support transfer of worlds to owners other users and organizations.
+// This will require some kind of email notifcation to the destination and
+// acceptance form.
+func WorldTransfer(sourceOwner, worldName string, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+
+	// Read the request and check permissions.
+	transferAsset, em := processTransferRequest(sourceOwner, tx, r)
+	if em != nil {
+		return nil, em
+	}
+
+	// Get the world
+	ws := &worlds.Service{}
+	world, em := ws.GetWorld(tx, sourceOwner, worldName, user)
+	if em != nil {
+		extra := fmt.Sprintf("World [%s] not found", worldName)
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, em.BaseError, []string{extra})
+	}
+
+	if em := transferMoveResource(tx, world, sourceOwner, transferAsset.DestOwner); em != nil {
+		return nil, em
+	}
+	tx.Save(&world)
+
+	return &world, nil
 }
