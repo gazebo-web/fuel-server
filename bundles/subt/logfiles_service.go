@@ -87,11 +87,11 @@ func (s *LogService) CreateLog(ctx context.Context, tx *gorm.DB, f io.Reader,
 	// organizing team (SubT).
 	// The Write permission will be only for admins of Competition.
 	lfName := log.name()
-	if ok, em := globals.Permissions.AddPermission(comp, lfName, p.Read); !ok {
-		return nil, em
+	if _, em := globals.Permissions.AddPermission(comp, lfName, p.Read); em != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, em)
 	}
-	if ok, em := globals.Permissions.AddPermission(owner, lfName, p.Read); !ok {
-		return nil, em
+	if _, em := globals.Permissions.AddPermission(owner, lfName, p.Read); em != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, em)
 	}
 
 	sendMail(fmt.Sprintf("LogFile uploaded by participant [%s]", owner), &log)

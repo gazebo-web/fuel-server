@@ -2,6 +2,7 @@ package commonres
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,7 +27,9 @@ import (
 type Resource interface {
 	GetName() *string
 	GetOwner() *string
+	SetOwner(owner string)
 	GetLocation() *string
+	SetLocation(location string)
 	GetUUID() *string
 }
 
@@ -357,4 +360,27 @@ func QueryForResourceVisibility(tx, q *gorm.DB, owner *string, user *users.User)
 		}
 	}
 	return q
+}
+
+// MoveResource will move a resource's on-disk location from sourceOwner to destOwner.
+func MoveResource(resource Resource, destOwner string) *ign.ErrMsg {
+	searchStr := "/" + *resource.GetOwner() + "/"
+	replaceStr := "/" + destOwner + "/"
+	newLocation := strings.Replace(*resource.GetLocation(), searchStr, replaceStr, 1)
+
+	if newLocation == *resource.GetLocation() {
+		extra := fmt.Sprintf("Source and destination owners are identical")
+		return ign.NewErrorMessageWithArgs(ign.ErrorUnauthorized, nil, []string{extra})
+	}
+
+	// Move resource on disk
+	if err := os.Rename(*resource.GetLocation(), newLocation); err != nil {
+		return ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+	}
+
+	// Set the new location and owner
+	resource.SetLocation(newLocation)
+	resource.SetOwner(destOwner)
+
+	return nil
 }
