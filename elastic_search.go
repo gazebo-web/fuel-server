@@ -831,7 +831,8 @@ func createWorldResults(ctx context.Context, tx *gorm.DB, elasticResult map[stri
 
 	// Get all the worlds from the DB and add them to the result
 	var foundWorlds []worlds.World
-	if err := tx.Preload("Tags").Preload("Categories").Preload("License").Where(resourceIDs).Find(&foundWorlds).Error; err == nil {
+	// \todo: Add categories to world, and add back in `.Preload("Categories")` to the following line.
+	if err := tx.Preload("Tags").Preload("License").Where(resourceIDs).Find(&foundWorlds).Error; err == nil {
 		for _, world := range foundWorlds {
 
 			// Encode world into a protobuf message and add it to the list.
