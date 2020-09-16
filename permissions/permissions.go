@@ -122,7 +122,7 @@ type Enforcer interface {
 // Private permission data objects
 type permissionsObj struct {
 	adapter  *gormadapter.Adapter
-	enforcer *casbin.Enforcer
+	enforcer casbin.IEnforcer
 }
 
 // Global permission object
@@ -146,7 +146,7 @@ func (p *Permissions) Init(db *gorm.DB, sysAdmin string) error {
 
 // InitWithEnforcerAndAdapter initializes permissions with a given pair of
 // enforcer and adapter.
-func (p *Permissions) InitWithEnforcerAndAdapter(e *casbin.Enforcer, a *gormadapter.Adapter, sysAdmin string) error {
+func (p *Permissions) InitWithEnforcerAndAdapter(e casbin.IEnforcer, a *gormadapter.Adapter, sysAdmin string) error {
 
 	obj := &permissionsObj{
 		enforcer: e,
