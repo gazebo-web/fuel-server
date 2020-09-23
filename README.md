@@ -8,6 +8,12 @@
 
 1. [Go version 1.14](https://golang.org/dl/) or above.
 
+   Make sure to set the following environment variables:
+
+   1. `$PATH`:  Set environment variable to point to the `bin` directory of where you installed Go so your system can find the `go` executable.
+
+   1. `$GOPATH`: This is the working directory of your go project. Project dependencies and binaries will be installed to this path. If the environment variable is unset, by default Go will point to the `$HOME/go` directory.
+
 
 1. Download the server code
 
@@ -15,22 +21,31 @@
     git clone https://gitlab.com/ignitionrobotics/web/fuelserver
     ```
 
-1. Build and download dependencies
+1. Build and install fuelserver
 
     ```
     cd fuelserver
-    go build
+    go install
     ```
+
+    `go install` does the following:
+
+    1. Download dependencies if not found
+    1. Builds the Project.
+    1. Copies the project binary to the `$GOPATH/bin` directory
+
+    A `fuelserver` executable should now be installed to `$GOPATH/bin`
 
 1. Make sure your git config is set, i.e.
 
         git config --global user.name "User Name"
         git config --global user.email "user@email.com"
 
-1. (Optional) Generate a self-signed certificate. Replace `<GO_INSTALL_PATH>` with the path to your golang installation (e.g.: `usr/local/go/`:
+1. (Optional) Generate a self-signed certificate:
 
     ```
-    cd ~/go_ws/src
+    # navigate to your fuelserver directory
+    cd fuelserver
     ```
 
     ```
@@ -38,23 +53,19 @@
     ```
 
     ```
-    cd ~/go_ws
+    go run generate_cert.go --host localhost --ca true
     ```
 
     ```
-    go run <GO_INSTALL_PATH>/src/generate_cert.go --host localhost --ca true
+    mv cert.pem key.pem ssl
     ```
 
     ```
-    mv cert.pem key.pem ~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver/ssl
+    export IGN_SSL_CERT=`pwd`/ssl/cert.pem
     ```
 
     ```
-    export IGN_SSL_CERT=~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver/ssl/cert.pem
-    ```
-
-    ```
-    export IGN_SSL_KEY=~/go_ws/src/gitlab.com/ignitionrobotics/web/fuelserver/ssl/key.pem
+    export IGN_SSL_KEY=`pwd`/ssl/key.pem
     ```
 
 
@@ -75,6 +86,7 @@
 
         # Xenial
         mysql -u root -p
+
         # Bionic requires sudo
         sudo mysql -u root -p
 
@@ -134,9 +146,9 @@
 
             go install gitlab.com/ignitionrobotics/web/fuelserver/...
 
-        Note: the `...` instructs Go to build ign-fuelserver and all subpackages (eg. token-generator. You can find the extra packages in cmd/ subfolder).
+        Note: the token generator should be installed to your go path's `bin` directory. By default if no GO environment variables are set, it should be `~/go`
 
-            bin/token-generator
+            $GOPATH/bin/token-generator
 
     1. The token-generator program will output a signed token. You will need to set the `IGN_TEST_JWT` env var with that generated value.
 
@@ -176,10 +188,6 @@
     ```
 
     ```
-    export IGN_POPULATE_PATH=~/.gazebo/models/
-    ```
-
-    ```
     export IGN_TEST_JWT=<JWT token>
     ```
 
@@ -189,18 +197,22 @@
     ```
 
     Then, run all tests:
+
     ```
     go test
     ```
 
 1. Run the backend server
 
-    First, make sure to set the `AUTH0_RSA256_PUBLIC_KEY` environment variable with the Auth0 RSA256 public key. This env var will be used by the backend to decode and validate any received Auth0 JWT tokens.
-    Note: You can get this key from: <https://osrf.auth0.com/.well-known/jwks.json> (or from your own auth0 user). Open that url in the browser and copy the value of the `x5c` field.
+    First, make sure you have all the required env variables set (Please see the [Environment Variables](#environment-variables) section). At minimum, you need to have the required variables for local development set and also the `AWS_BUCKET_PREFIX` variable.
+
+    By default if no GO environment variables are set, fuelserver should be installed to `~/go/bin`
 
     ```
-    fuelserver
+    $GOPATH/bin/fuelserver
     ```
+
+    Note: You may see errors about parsing `IGN_FUEL_MIGRATE_*` variables. They are for migration purposes and can be ignored.
 
 1. Test in the browser
 
@@ -232,8 +244,20 @@ a predefined string: `root`
 
 # Environment Variables
 
-You may want to create an `.env.bash` file to define environment vars. Remember to add it to `.hgignore`.
+You may want to create an `.env.bash` file to define environment vars. Remember to add it to `.gitignore`.
 Then load the env vars using `source .env.bash` from the bash terminal where you will run go commands.
+
+# Minimum required variables for local development.
+
+1. `IGN_DB_USERNAME` : Mysql user name.
+1. `IGN_DB_PASSWORD` : Mysql user password.
+1. `IGN_DB_ADDRESS` : Mysql address, of the form `host:port`.
+1. `IGN_DB_NAME` : Mysql database name, which should be `fuel`.
+1. `IGN_DB_MAX_OPEN_CONNS` : Max number of open connections in connections pool. Eg. 66.
+1. `IGN_FUEL_RESOURCE_DIR` : the file system path where models will be stored.
+1. `IGN_FUEL_VERBOSITY` : controls the level of output, with a default value of 2. 0 = critical messages, 1 = critical & error messages, 2 = critical & error & warning messages, 3 = critical & error & warning & informational messages, 4 = critical & error & warning & informational & debug messages
+1. `AUTH0_RSA256_PUBLIC_KEY` : Auth0 RSA256 public key without the '-----BEGIN CERTIFICATE-----' and '-----END CERTIFICATE-----'
+    Note: This env var will be used by the backend to decode and validate any received Auth0 JWT tokens.This env var will be used by the backend to decode and validate any received Auth0 JWT tokens. You can get this key from: <https://osrfoundation.auth0.com/.well-known/jwks.json> (or from your auth0 user). It is the "x5c" field.
 
 ## Using AWS S3 buckets
 
@@ -271,18 +295,6 @@ catch migration errors on the staging Elastic beanstalk instance. The
 integration database is used during testing and development. This database
 is frequently wiped and altered.
 
-### Environment variables
-
-1. `IGN_DB_USERNAME` : Mysql user name.
-1. `IGN_DB_PASSWORD` : Mysql user password.
-1. `IGN_DB_ADDRESS` : Mysql address, of the form `host:port`.
-1. `IGN_DB_NAME` : Mysql database name, which should be `fuel`.
-1. `IGN_DB_MAX_OPEN_CONNS` : Max number of open connections in connections pool. Eg. 66.
-1. `IGN_FUEL_RESOURCE_DIR` : the file system path where models will be stored.
-1. `IGN_FUEL_VERBOSITY` : controls the level of output, with a default value of 2. 0 = critical messages, 1 = critical & error messages, 2 = critical & error & warning messages, 3 = critical & error & warning & informational messages, 4 = critical & error & warning & informational & debug messages
-1. `AUTH0_RSA256_PUBLIC_KEY` : Auth0 RSA256 public key without the '-----BEGIN CERTIFICATE-----' and '-----END CERTIFICATE-----'
-    Note: You can get this key from: <https://osrfoundation.auth0.com/.well-known/jwks.json> (or from your auth0 user). It is the "x5c" field.
-
 ## Leaderboards
 
 There may be some cases where scores for specific organizations or circuits 
@@ -309,6 +321,16 @@ All of these environment variables can contain multiple comma-separated values.
 1. `TOKEN_GENERATOR_PRIVATE_RSA256_KEY` : RSA 256 private key Used by the Token Generator utility program to generate the Test JWT token. It must pair with the `TEST_RSA256_PUBLIC_KEY` public key.
 
 
+# Migration environment variables
+
+These variables are used for migration. You may see errors about parsing these variables when running `fuelserver` locally but they are safe to ignore when doing development locally.
+
+* `IGN_FUEL_MIGRATE_UNIQUEOWNERS_TABLE`
+* `IGN_FUEL_MIGRATE_RESET_LIKE_AND_DOWNLOADS`
+* `IGN_FUEL_MIGRATE_RESET_ZIP_FILESIZE`
+* `IGN_FUEL_MIGRATE_CASBIN`
+* `IGN_FUEL_MIGRATE_MODEL_REPOSITORIES`
+
 # Naming conventions
 
 In general we will try to follow Go naming conventions. In addition, these are own conventions:
@@ -329,17 +351,13 @@ In general we will try to follow Go naming conventions. In addition, these are o
 1. Get the linter
 
     ```
-    cd ~/go_ws
-    ```
-
-    ```
     go get -u golang.org/x/lint/golint
     ```
 
 1. Run the linter
 
     ```
-    ./bin/golint $(go list gitlab.com/ignitionrobotics/web/fuelserver/...) | grep -v .pb.go
+    $GOPATH/bin/golint $(go list gitlab.com/ignitionrobotics/web/fuelserver/...) | grep -v .pb.go
     ```
 
 Note you can create this bash script:
