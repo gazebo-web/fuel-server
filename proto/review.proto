@@ -1,0 +1,22 @@
+syntax = "proto2";
+package fuel;
+
+// swagger:review
+message Review {
+  optional string createdAt   = 2;
+  optional string updatedAt   = 3;
+
+  optional string creator = 4;
+  optional string owner       = 5;
+  optional string description = 6;
+  optional string branch = 6;
+  optional string status = 8;
+
+  repeated string reviewers = 9;
+  repeated string approvals = 10;
+}
+
+// swagger:review
+message Reviews {
+  repeated Review reviews = 1;
+}

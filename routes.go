@@ -2542,4 +2542,97 @@ var routes = ign.Routes{
 			},
 		},
 	},
+
+	/////////////
+	// Reviews //
+	/////////////
+
+	// Route for all reviews
+	ign.Route{
+		"Reviews",
+		"Information about all reviews",
+		"/reviews",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			// swagger:route GET /reviews reviews listReviews
+			//
+			// Get list of reviews.
+			//
+			// Get a list of reviews. reviews will be returned paginated,
+			// with pages of 20 reviews by default. The user can request a
+			// different page with query parameter 'page', and the page size
+			// can be defined with query parameter 'per_page'.
+			// The route supports the 'order' parameter, with values 'asc' and
+			// 'desc' (default: desc).
+			// It also supports the 'q' parameter to perform a fulltext search on reviews
+			// name, description and tags.
+			//
+			//   Produces:
+			//   - application/json
+			//   - application/x-protobuf
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: jsonReviews
+			ign.Method{
+				"GET",
+				"Get all reviews",
+				ign.FormatHandlers{
+					ign.FormatHandler{".json", ign.JSONListResult("Reviews", SearchHandler(ReviewList))},
+					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ReviewList))},
+					ign.FormatHandler{"", ign.JSONListResult("Reviews", SearchHandler(ReviewList))},
+				},
+			},
+		},
+    ign.SecureMethods{},
+	},
+
+	// Route that returns a list of reviews from a team/user (ie. an 'owner')
+	ign.Route{
+		"OwnerReviews",
+		"Information about reviews belonging to an owner. The {username} URI option will limit the scope to the specified user/team. Otherwise all reviews are considered.",
+		"/{username}/reviews",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			// swagger:route GET /{username}/reviews reviews listOwnerReviews
+			//
+			// Get owner's reviews
+			//
+			// Get a list of reviews for the specified owner.
+			// Reviews will be returned paginated,
+			// with pages of 20 reviews by default. The user can request a
+			// different page with query parameter 'page' (first page is value 1).
+			// The page size can be controlled with query parameter 'per_page',
+			// with a maximum of 100 items per page.
+			// The route supports the 'order' parameter, with values 'asc' and
+			// 'desc' (default: desc).
+			// It also supports the 'q' parameter to perform a fulltext search on reviews
+			// name, description and tags.
+			//
+			//   Produces:
+			//   - application/json
+			//   - application/x-protobuf
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: jsonReviews
+			ign.Method{
+				"GET",
+				"Get all reviews of the specified team/user",
+				// Format handlers
+				ign.FormatHandlers{
+					ign.FormatHandler{".json", ign.JSONListResult("Reviews", SearchHandler(ReviewList))},
+					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ReviewList))},
+					ign.FormatHandler{"", ign.JSONListResult("Reviews", SearchHandler(ReviewList))},
+				},
+			},
+		},
+		ign.SecureMethods{},
+	},
+
+
 } // routes
