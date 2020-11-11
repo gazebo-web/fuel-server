@@ -18,6 +18,7 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/reviews"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/subt"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
@@ -74,6 +75,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&worlds.WorldReport{},
 			&worlds.WorldDownload{},
 			&worlds.ModelInclude{},
+			&reviews.Review{},
 			globals.Permissions.DBTable(),
 
 			// SubT tables
@@ -100,6 +102,9 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 
 		db.Model(&worlds.Worlds{}).RemoveForeignKey("owner", "unique_owners(name)")
 		db.Model(&worlds.Worlds{}).RemoveForeignKey("creator", "users(username)")
+
+		db.Model(&reviews.Reviews{}).RemoveForeignKey("owner", "unique_owners(name)")
+		db.Model(&reviews.Reviews{}).RemoveForeignKey("creator", "users(username)")
 
 		db.Model(&worlds.WorldReport{}).RemoveForeignKey("world", "worlds(world)")
 
@@ -133,6 +138,7 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 			&worlds.World{},
 			&worlds.WorldLike{},
 			&worlds.WorldDownload{},
+			&reviews.Review{},
 			&collections.CollectionAsset{},
 			&collections.Collection{},
 			&users.Team{},
@@ -271,6 +277,9 @@ func DBAddCustomIndexes(ctx context.Context, db *gorm.DB) {
 
 	db.Model(&worlds.WorldReport{}).AddForeignKey("world_id", "worlds(id)", "RESTRICT", "RESTRICT")
 
+	db.Model(&reviews.Reviews{}).AddForeignKey("owner", "unique_owners(name)", "RESTRICT", "RESTRICT")
+	db.Model(&reviews.Reviews{}).AddForeignKey("creator", "users(username)", "RESTRICT", "RESTRICT")
+
 	db.Model(&collections.Collection{}).AddForeignKey("owner", "unique_owners(name)", "RESTRICT", "RESTRICT")
 	db.Model(&collections.Collection{}).AddForeignKey("creator", "users(username)", "RESTRICT", "RESTRICT")
 
@@ -307,6 +316,16 @@ func DBAddCustomIndexes(ctx context.Context, db *gorm.DB) {
 	}
 	if !found {
 		db.Exec("ALTER TABLE collections ADD FULLTEXT collections_fulltext (name, description);")
+	}
+	// Now add indexes for Reviews
+	found, err = indexIsPresent(db, "reviews", "reviews_fulltext")
+	if err != nil {
+		ign.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
+		log.Fatal("Error with DB while checking index", err)
+		return
+	}
+	if !found {
+		db.Exec("ALTER TABLE reviews ADD FULLTEXT reviews_fulltext (title, description);")
 	}
 }
 

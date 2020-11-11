@@ -54,7 +54,7 @@ require (
 	golang.org/x/text v0.3.2
 	golang.org/x/tools v0.0.0-20200818005847-188abfa75333 // indirect
 	google.golang.org/appengine v1.6.6
-	google.golang.org/protobuf v1.24.0 // indirect
+	google.golang.org/protobuf v1.24.0
 	gopkg.in/go-playground/validator.v9 v9.31.0
 	gopkg.in/src-d/go-billy.v4 v4.3.2
 	gopkg.in/src-d/go-git.v4 v4.13.1

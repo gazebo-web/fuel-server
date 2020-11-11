@@ -30,12 +30,15 @@ type Review struct {
 	// The username of the User that created this model (usually got from the JWT)
 	Creator *string `json:"creator,omitempty"`
 
+	// Title the review (max 65,535 chars)
+	Title *string `gorm:"type:text" json:"title,omitempty"`
+
 	// A description of the review (max 65,535 chars)
 	// Interesting post about TEXT vs VARCHAR(30000) performance:
 	// https://nicj.net/mysql-text-vs-varchar-performance/
 	Description *string `gorm:"type:text" json:"description,omitempty"`
 
-	// The owner of this review (must exist in UniqueOwners). Can be user or org.
+	// The owner of this review
 	Owner *string `gorm:"unique_index:idx_reviewname_owner" json:"owner,omitempty"`
 
 	// The branch associated with this review

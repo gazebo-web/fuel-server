@@ -3,13 +3,14 @@ package fuel;
 
 // swagger:review
 message Review {
-  optional string createdAt   = 2;
-  optional string updatedAt   = 3;
+  optional string createdAt = 1;
+  optional string updatedAt = 2;
 
-  optional string creator = 4;
-  optional string owner       = 5;
+  optional string creator = 3;
+  optional string owner = 4;
+  optional string title = 5;
   optional string description = 6;
-  optional string branch = 6;
+  optional string branch = 7;
   optional string status = 8;
 
   repeated string reviewers = 9;
