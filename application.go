@@ -75,7 +75,7 @@ func init() {
 	logger := ign.NewLogger("init", logStd, verbosity)
 	logCtx := ign.NewContextWithLogger(context.Background(), logger)
 
-	isGoTest = strings.HasSuffix(os.Args[0], ".test")
+	isGoTest = strings.Contains(strings.ToLower(os.Args[0]), "test")
 
 	// Get the root resource directory.
 	if globals.ResourceDir, err = ign.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil {
