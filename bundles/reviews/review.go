@@ -63,4 +63,19 @@ func QueryForReviews(q *gorm.DB) *gorm.DB {
 	return q.Model(&Review{}).Order("id")
 }
 
-
+// CreateReview encapulates data required to create a review
+type CreateReview struct {
+	// The title of the review
+	// required: true
+	Title string `json:"title" validate:"required, noforwardslash,nopercent" form:"title"`
+	// Description of the review
+	Description string `json:"description" form:"description"`
+	// Optional Owner of the model. Must be a user or an org
+	// If not set, the current user will be used as the owner
+	Owner string `json: "owner" form: "owner"`
+	// The branch associated with the review
+	// required: true
+	Branch string `json:"branch" validate:"required" form:"branch"`
+	// A list of reviewers for the review
+	Reviewers []string `json:"reviewers" validate:"omitempty" form:"reviewers"`
+}

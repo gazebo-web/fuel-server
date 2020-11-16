@@ -17,15 +17,6 @@ type CreateModelReview struct {
 	// relay all fields from CreateModel struct
 	CreateModel
 
-	// the branch where the model is on
-	Branch *string `json:"branch,omitempty"`
-
-	// reviewers requested for this pull request
-	Reviewers []*string `gorm:"-" json:"reviewers,omitempty"`
-
-	// owner organization for this model review
-	Owner *string `json:"branch,omitempty"`
-
-	// creator of this pull request
-	Creator *string `json:"branch,omitempty"`
+	// relay all fields from CreateReview struct
+	reviews.CreateReview
 }
