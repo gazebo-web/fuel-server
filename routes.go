@@ -79,6 +79,7 @@ var routes = ign.Routes{
 				"Create a new model",
 				ign.FormatHandlers{
 					ign.FormatHandler{"", ign.JSONResult(ModelCreate)},
+					ign.FormatHandler{}
 				},
 			},
 		},
@@ -2634,5 +2635,34 @@ var routes = ign.Routes{
 		ign.SecureMethods{},
 	},
 
+	//////////////////
+	// Model Review //
+	//////////////////
+
+	// Route for a model review
+	ign.Route{
+		"ModelReview",
+		"Information about a model review",
+		"/{username}/{model}/review",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			ign.Method{},
+		},
+		ign.SecureMethods{
+			// swagger:route POST /{username}/{model}/review review
+			//
+			// Create a new model, model review and record for the model review.
+			//
+			//
+			//
+			ign.Method{
+				"POST",
+				"Post a review",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(ModelReviewCreate)},
+				},
+			},
+		},
+	},
 
 } // routes
