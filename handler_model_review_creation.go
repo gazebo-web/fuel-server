@@ -100,7 +100,7 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 			return nil, em
 		}
 
-		// Create model and review via the Models Service
+		// Create review via the reviews Service
 
 
 		return modelReview, nil

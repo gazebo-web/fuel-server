@@ -1,21 +1,24 @@
 package reviews
 
 import (
-//	"context"
+	//	"context"
 	"fmt"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-//	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
+
+	//	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+	//	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
+	//	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	//	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	//	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
+	//	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-//	"net/url"
-//	"os"
+	//	"net/url"
+	//	"os"
 	"strings"
 	"time"
 )
@@ -109,8 +112,14 @@ func (ms *Service) ReviewToProto(review *Review) *fuel.Review {
 }
 
 // CreateReview creates a model review for a new model.
-func (ms *Service) CreateReview() (*Review, *ign.ErrMsg) {
+func (ms *Service) CreateReview(cmr models.CreateModelReview) (*Review, *ign.ErrMsg) {
+	// title, description, owner, branch, status *string, reviewers, approvals []string
+	review, err := NewReview(&cmr.CreateReview.Title, &cmr.Description, &cmr.Owner,
+		&cmr.CreateReview.Branch, &cmr.CreateReview.Status, cmr.CreateReview.Reviewers,
+		cmr.CreateReview.Approvals)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+	}
 
-
-
+	return &review, nil
 }
