@@ -54,6 +54,17 @@ type Review struct {
   Approvals []string `gorm:"-" json:"approvals,omitempty"`
 }
 
+// NewReview creates a new Review struct
+func NewReview(title, description, owner, branch, status *string, reviewers, approvals []string) (Review, error) {
+	createTime := time.Now()
+	updateTime := time.Now()
+
+	review := Review{CreatedAt: createTime, UpdatedAt: updateTime, Title: title,
+		Description: description, Owner: owner, Branch: branch,
+		Status: status, Reviewers: reviewers, Approvals: approvals}
+	return review, nil
+}
+
 // Reviews is an array of Review
 //
 type Reviews []Review
@@ -65,17 +76,21 @@ func QueryForReviews(q *gorm.DB) *gorm.DB {
 
 // CreateReview encapulates data required to create a review
 type CreateReview struct {
-	// The title of the review
-	// required: true
-	Title string `json:"title" validate:"required, noforwardslash,nopercent" form:"title"`
-	// Description of the review
-	Description string `json:"description" form:"description"`
 	// Optional Owner of the model. Must be a user or an org
 	// If not set, the current user will be used as the owner
-	Owner string `json: "owner" form: "owner"`
+	Owner string `json:"owner" form:"owner"`
+	// A list of reviewers for the review
+	Reviewers []string `json:"reviewers" validate:"omitempty" form:"reviewers"`
+	// a list of approved reviewers
+	Approvals []string `json:"approvals" validate:"omitempty" form:"approvals"`
+	// Description of the review
+	Description string `json:"description" form:"description"`
 	// The branch associated with the review
 	// required: true
 	Branch string `json:"branch" validate:"required" form:"branch"`
-	// A list of reviewers for the review
-	Reviewers []string `json:"reviewers" validate:"omitempty" form:"reviewers"`
+	// The status of the review
+	Status string `json:"status" form:"status"`
+	// The title of the review
+	// required: true
+	Title string `json:"title" validate:"required, noforwardslash,nopercent" form:"title"`
 }

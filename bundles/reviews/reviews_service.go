@@ -107,3 +107,10 @@ func (ms *Service) ReviewToProto(review *Review) *fuel.Review {
 
 	return &fuelReview
 }
+
+// CreateReview creates a model review for a new model.
+func (ms *Service) CreateReview() (*Review, *ign.ErrMsg) {
+
+
+
+}

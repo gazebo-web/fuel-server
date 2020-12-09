@@ -8,16 +8,60 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"net/http"
+	"os"
+	"time"
 )
 
-// ModelCreate creates a new model based on input form. It return a model.Model or an error.
-// You can request this method with the following cURL request:
-//    curl -k -X POST -F name=my_model -F license=1
-//      -F file=@<full-path-to-file>
-//      https://localhost:4430/1.0/models --header 'authorization: Bearer <your-jwt-token-here>'
-func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
-	// TODO: consider limiting max form size (https://golang.org/pkg/net/http/#MaxBytesReader)
+// createReviewFn is a callback func that "creation handlers" will pass to doCreateModelReview.
+// It is expected that createReviewFn will have the real logic for model review creation.
+type createReviewFn func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.ModelReview, *ign.ErrMsg)
 
+// doCreateModelReview provides the pre and post steps needed to create a modelReview.
+// Handlers should invoke this function and pass a createReviewFn callback.
+func doCreateModelReview(tx *gorm.DB, cb createReviewFn, w http.ResponseWriter, r *http.Request) (*models.ModelReview, *ign.ErrMsg) {
+
+	// Extract the creator of the new model from the request.
+	jwtUser, ok, errMsg := getUserFromJWT(tx, r)
+	if !ok {
+		return nil, &errMsg
+	}
+
+	// invoke the actual createFn (the callback function)
+	modelReview, em := cb(tx, jwtUser, w, r)
+	if em != nil {
+		return nil, em
+	}
+
+	// commit the DB transaction
+	// Note: we commit the TX here on purpose, to be able to detect DB errors
+	// before writing "data" to ResponseWriter. Once you write data (not headers)
+	// into it the status code is set to 200 (OK).
+	if err := tx.Commit().Error; err != nil {
+		os.Remove(*modelReview.Location)
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
+	}
+
+	infoStr := "A new model review has been created:" +
+		"\n\t name: " + *modelReview.Name +
+		"\n\t owner: " + *modelReview.Model.Owner+
+		"\n\t creator: " + *modelReview.Model.Creator +
+		"\n\t Reviews: " + modelReview.Reviewers +
+		"\n\t Branch: " + modelReview.Branch +
+		"\n\t Approvals: " + modelReview.Approvals +
+		"\n\t uuid: " + *modelReview.UUID +
+		"\n\t location: " + *modelReview.Location +
+		"\n\t UploadDate: " + modelReview.UploadDate.UTC().Format(time.RFC3339) +
+		"\n\t Tags:"
+	for _, t := range modelReview.Tags {
+		infoStr += *t.Name
+	}
+
+	ign.LoggerFromRequest(r).Info(infoStr)
+	// TODO: we should NOT be returning the DB model (including ID) to users.
+	return modelReview, nil
+}
+
+func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
@@ -25,15 +69,14 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 	// Delete temporary files from r.ParseMultipartForm(0)
 	defer r.MultipartForm.RemoveAll()
 
-	// models.CreateModel is the input form
-	var cm models.CreateModel
-	if em := ParseStruct(&cm, r, true); em != nil {
+	// reviews.CreateModelReview is the input form
+	var cmr models.CreateModelReview
+	if em := ParseStruct(&cmr, r, true); em != nil {
 		return nil, em
 	}
-	cm.Metadata = parseMetadata(r)
-
-	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.Model, *ign.ErrMsg) {
-		owner := cm.Owner
+	cmr.Metadata = parseMetadata(r)
+	createModelReviewFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.ModelReview, *ign.ErrMsg) {
+		owner := cmr.CreateModel.Owner
 		if owner != "" {
 			// Ensure the passed in name exists before moving forward
 			_, em := users.OwnerByName(tx, owner, true)
@@ -57,15 +100,11 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 			return nil, em
 		}
 
-		// Create the model via the Models Service
-		ms := &models.Service{}
-		model, em := ms.CreateModel(r.Context(), tx, cm, uuidStr, modelPath, jwtUser)
-		if em != nil {
-			os.Remove(modelPath)
-			return nil, em
-		}
-		return model, nil
+		// Create model and review via the Models Service
+
+
+		return modelReview, nil
 	}
 
-	return doCreateModel(tx, createFn, w, r)
+	return doCreateModelReview(tx, createReviewFn, w, r)
 }
