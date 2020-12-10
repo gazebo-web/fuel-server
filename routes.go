@@ -79,7 +79,7 @@ var routes = ign.Routes{
 				"Create a new model",
 				ign.FormatHandlers{
 					ign.FormatHandler{"", ign.JSONResult(ModelCreate)},
-					ign.FormatHandler{}
+					ign.FormatHandler{},
 				},
 			},
 		},

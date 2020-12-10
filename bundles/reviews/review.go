@@ -1,12 +1,8 @@
 package reviews
 
 import (
-//	"path"
 	"time"
-
 	"github.com/jinzhu/gorm"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 )
 
 // TODO: move DB related functions to a DB Accessor. Inject the db accessor to the reviews service.
@@ -47,11 +43,11 @@ type Review struct {
 	// The status of the review
 	Status *string `json:"status,omitempty"`
 
-  // A list of reviewers for the review
-  Reviewers []string `gorm:"-" json:"reviewers,omitempty"`
+	// A list of reviewers for the review
+	Reviewers []string `gorm:"-" json:"reviewers,omitempty"`
 
-  // A list of approvals for the review
-  Approvals []string `gorm:"-" json:"approvals,omitempty"`
+	// A list of approvals for the review
+	Approvals []string `gorm:"-" json:"approvals,omitempty"`
 }
 
 // NewReview creates a new Review struct
