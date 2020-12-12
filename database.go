@@ -76,6 +76,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&worlds.WorldDownload{},
 			&worlds.ModelInclude{},
 			&reviews.Review{},
+			&reviews.ModelReview{},
 			globals.Permissions.DBTable(),
 
 			// SubT tables
@@ -106,6 +107,9 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 		db.Model(&reviews.Reviews{}).RemoveForeignKey("owner", "unique_owners(name)")
 		db.Model(&reviews.Reviews{}).RemoveForeignKey("creator", "users(username)")
 
+		db.Model(&reviews.ModelReview{}).RemoveForeignKey("review", "reviews(id)")
+		db.Model(&reviews.ModelReview{}).RemoveForeignKey("model", "models(id)")
+
 		db.Model(&worlds.WorldReport{}).RemoveForeignKey("world", "worlds(world)")
 
 		db.Model(&collections.Collection{}).RemoveForeignKey("owner", "unique_owners(name)")
@@ -127,6 +131,8 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 			&subt.CompetitionParticipant{},
 
 			// Fuel tables
+			&reviews.Review{},
+			&reviews.ModelReview{},
 			&license.License{},
 			&models.ModelMetadatum{},
 			&models.ModelReport{},
@@ -138,7 +144,6 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 			&worlds.World{},
 			&worlds.WorldLike{},
 			&worlds.WorldDownload{},
-			&reviews.Review{},
 			&collections.CollectionAsset{},
 			&collections.Collection{},
 			&users.Team{},
@@ -277,8 +282,11 @@ func DBAddCustomIndexes(ctx context.Context, db *gorm.DB) {
 
 	db.Model(&worlds.WorldReport{}).AddForeignKey("world_id", "worlds(id)", "RESTRICT", "RESTRICT")
 
-	db.Model(&reviews.Reviews{}).AddForeignKey("owner", "unique_owners(name)", "RESTRICT", "RESTRICT")
-	db.Model(&reviews.Reviews{}).AddForeignKey("creator", "users(username)", "RESTRICT", "RESTRICT")
+	db.Model(&reviews.Review{}).AddForeignKey("owner", "unique_owners(name)", "RESTRICT", "RESTRICT")
+	db.Model(&reviews.Review{}).AddForeignKey("creator", "users(username)", "RESTRICT", "RESTRICT")
+
+	db.Model(&reviews.ModelReview{}).AddForeignKey("review", "reviews(id)", "RESTRICT", "RESTRICT")
+	db.Model(&reviews.ModelReview{}).AddForeignKey("model", "models(id)", "RESTRICT", "RESTRICT")
 
 	db.Model(&collections.Collection{}).AddForeignKey("owner", "unique_owners(name)", "RESTRICT", "RESTRICT")
 	db.Model(&collections.Collection{}).AddForeignKey("creator", "users(username)", "RESTRICT", "RESTRICT")

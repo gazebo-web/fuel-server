@@ -64,14 +64,18 @@ type customInitializer func(ctx context.Context)
 
 // setup helper function
 func setupWithCustomInitalizer(customFn customInitializer) {
+  fmt.Print(" setup custom ini\n ")
 	logger := ign.NewLoggerNoRollbar("test", ign.VerbosityDebug)
 	logCtx := ign.NewContextWithLogger(context.Background(), logger)
 	// Make sure we don't have data from other tests.
 	// For this we drop db tables and recreate them.
 	// cleanDBTables(logCtx)
+  fmt.Print(" tear down\n ")
 	packageTearDown(logCtx)
+  fmt.Print(" add default data\n ")
 	DBAddDefaultData(logCtx, globals.Server.Db)
 
+  fmt.Print(" custom fun\n ")
 	if customFn != nil {
 		customFn(logCtx)
 	}
@@ -81,9 +85,11 @@ func setupWithCustomInitalizer(customFn customInitializer) {
 		log.Printf("Missing IGN_TEST_JWT env variable." +
 			"Authentication will not work.")
 	}
+  fmt.Print("before setup test\n ")
 
 	// Create the router, and indicate that we are testing
 	igntest.SetupTest(globals.Server.Router)
+  fmt.Print("done setup test\n ")
 }
 
 //////////////////////////////

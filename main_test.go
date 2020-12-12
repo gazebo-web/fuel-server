@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"fmt"
 )
 
 // This function applies to ALL tests in the application.

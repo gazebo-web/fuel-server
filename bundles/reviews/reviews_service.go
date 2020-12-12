@@ -1,39 +1,47 @@
 package reviews
 
 import (
-//	"context"
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-//	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
-//	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-//	"net/url"
-//	"os"
+	"reflect"
 	"strings"
 	"time"
 )
 
-const noFullTimeSearch = ":noft:"
+const noFullTextSearch = ":noft:"
 
 // Service is the main struct exported by this Reviews Service.
 // It was meant as a way to structure code and help future extensions.
-type Service struct{}
+type Service struct{
+  ResourceType reflect.Type
+}
+
+// GetResourceInstance returns an instance of the type contained in ResourceType.
+func (s *Service) GetResourceInstance() interface{} {
+  return reflect.New(s.ResourceType).Elem().Interface()
+}
+
+// GetResourceSlice returns a slice of the type contained in ResourceType.
+func (s *Service) GetResourceSlice(len int, cap int) interface{} {
+	return reflect.MakeSlice(reflect.SliceOf(s.ResourceType), len, cap).Interface()
+}
 
 // ReviewList returns a paginated list of reviews.
 // This function returns a list of Reviews that can then be mashalled into json or protobuf.
 func (ms *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *string,
-	order, search string, user *users.User) (*fuel.Reviews, *ign.PaginationResult, *ign.ErrMsg) {
+	order, search string, user *users.User) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
 
-	var reviewList Reviews
+	resourceInstance := ms.GetResourceInstance()
+	reviewList := ms.GetResourceSlice(0, 0)
+
 	// Create query
-	q := QueryForReviews(tx)
+	q := tx.Model(&resourceInstance)
+
+	q.Preload("Review")
 
 	// Override default Order BY, unless the user explicitly requested ASC order
 	if !(order != "" && strings.ToLower(order) == "asc") {
@@ -41,11 +49,12 @@ func (ms *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *stri
 		q = q.Order("created_at desc, id", true)
 	}
 
-  // filter resources based on privacy setting
-  // todo(anyone) reviews do not have a "private" field so this does not work
-  // We need filter resource based on model privacy setting
-  // q = res.QueryForResourceVisibility(tx, q, owner, user)
+	// filter resources based on privacy setting
+	// todo(anyone) reviews do not have a "private" field so this does not work
+	// We need filter resource based on model privacy setting
+	// q = res.QueryForResourceVisibility(tx, q, owner, user)
 
+	// todo(anyone) check if search works
 	// If a search criteria was defined, then also apply a fulltext search on "review's description"
 	if search != "" {
 		// Trim leading and trailing whitespaces
@@ -54,39 +63,48 @@ func (ms *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *stri
 			// Check if the user wants a full-text search or a simple one. The simple
 			// search allows searching for "partial words" (eg. UI filtering while the
 			// user types in).
-			if strings.HasPrefix(searchStr, noFullTimeSearch) {
-				searchStr = strings.TrimPrefix(searchStr, noFullTimeSearch)
+			if strings.HasPrefix(searchStr, noFullTextSearch) {
+				searchStr = strings.TrimPrefix(searchStr, noFullTextSearch)
 				expanded := fmt.Sprintf("%%%s%%", searchStr)
-				q = q.Where("title LIKE ?", expanded)
+				q = q.Where("reviews.title LIKE ?", expanded)
 			} else {
 				// Note: this is a fulltext search IN NATURAL LANGUAGE MODE.
 				// See https://dev.mysql.com/doc/refman/5.7/en/fulltext-search.html for other
 				// modes, eg BOOLEAN and WITH QUERY EXPANSION modes.
-				q = q.Where("MATCH (title, description) AGAINST (?)", searchStr)
+				q = q.Where("MATCH (reviews.title, reviews.description) AGAINST (?)", searchStr)
 			}
 		}
 	}
 
+  return reviewList, nil, nil
+
+	// todo(anyone) make pagination work
+	// reviewList := reflect.MakeSlice(reflect.SliceOf(ms.ResourceType), 0, 0)
+	// rl := reflect.New(reviewList.Type())
+	// rl.Elem().Set(reviewList)
+	// paginationResult, err := ign.PaginateQuery(q, &rl.Interface(), *p)
+
 	// Use pagination
-	paginationResult, err := ign.PaginateQuery(q, &reviewList, *p)
-	if err != nil {
-		em := ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
-		return nil, nil, em
-	}
-	if !paginationResult.PageFound {
-		em := ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
-		return nil, nil, em
-	}
+	// paginationResult, err := ign.PaginateQuery(q, &reviewList, *p)
+	// if err != nil {
+	// 	em := ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+	// 	return nil, nil, em
+	// }
+	// if !paginationResult.PageFound {
+	// 	em := ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+	// 	return nil, nil, em
+	// }
 
-//	return &reviewList, paginationResult, nil
-
-	var reviewsProto fuel.Reviews
-	// Encode reviews into a protobuf message
-	for _, review := range reviewList {
-		fuelReview := ms.ReviewToProto(&review)
-		reviewsProto.Reviews = append(reviewsProto.Reviews, fuelReview)
-	}
-	return &reviewsProto, paginationResult, nil
+	// todo(anyone) convert and return ResourceReview to proto
+	// var reviewsProto fuel.Reviews
+	// switch t := reviewList.(type) {
+	//   case []ModelReview:
+	//     for _, mr := range t {
+	//       fuelReview := ms.ReviewToProto(mr.Review)
+	//       reviewsProto.Reviews = append(reviewsProto.Reviews, fuelReview)
+	//     }
+	// }
+	// return &reviewsProto, paginationResult, nil
 }
 
 // ReviewToProto creates a new 'fuel.Review' from the given review.
@@ -101,8 +119,8 @@ func (ms *Service) ReviewToProto(review *Review) *fuel.Review {
 		Description:  proto.String(*review.Description),
 		Branch:       proto.String(*review.Branch),
 		Status:       proto.String(*review.Status),
-    Reviewers:    review.Reviewers,
-    Approvals:    review.Approvals,
+		Reviewers:    review.Reviewers,
+		Approvals:    review.Approvals,
 	}
 
 	return &fuelReview
