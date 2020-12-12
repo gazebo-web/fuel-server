@@ -15,7 +15,7 @@ type ModelReview struct {
 	// Review for a model
 	Review *Review
 
-  // Model that is under review
+	// Model that is under review
 	Model *models.Model
 }
 

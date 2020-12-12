@@ -76,7 +76,7 @@ func (ms *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *stri
 		}
 	}
 
-  return reviewList, nil, nil
+	return reviewList, nil, nil
 
 	// todo(anyone) make pagination work
 	// reviewList := reflect.MakeSlice(reflect.SliceOf(ms.ResourceType), 0, 0)
