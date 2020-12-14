@@ -107,8 +107,7 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 		db.Model(&reviews.Reviews{}).RemoveForeignKey("owner", "unique_owners(name)")
 		db.Model(&reviews.Reviews{}).RemoveForeignKey("creator", "users(username)")
 
-		db.Model(&reviews.ModelReview{}).RemoveForeignKey("review", "reviews(id)")
-		db.Model(&reviews.ModelReview{}).RemoveForeignKey("model", "models(id)")
+		db.Model(&reviews.ModelReview{}).RemoveForeignKey("model_id", "models(id)")
 
 		db.Model(&worlds.WorldReport{}).RemoveForeignKey("world", "worlds(world)")
 
@@ -285,8 +284,7 @@ func DBAddCustomIndexes(ctx context.Context, db *gorm.DB) {
 	db.Model(&reviews.Review{}).AddForeignKey("owner", "unique_owners(name)", "RESTRICT", "RESTRICT")
 	db.Model(&reviews.Review{}).AddForeignKey("creator", "users(username)", "RESTRICT", "RESTRICT")
 
-	db.Model(&reviews.ModelReview{}).AddForeignKey("review", "reviews(id)", "RESTRICT", "RESTRICT")
-	db.Model(&reviews.ModelReview{}).AddForeignKey("model", "models(id)", "RESTRICT", "RESTRICT")
+	db.Model(&reviews.ModelReview{}).AddForeignKey("model_id", "models(id)", "RESTRICT", "RESTRICT")
 
 	db.Model(&collections.Collection{}).AddForeignKey("owner", "unique_owners(name)", "RESTRICT", "RESTRICT")
 	db.Model(&collections.Collection{}).AddForeignKey("creator", "users(username)", "RESTRICT", "RESTRICT")

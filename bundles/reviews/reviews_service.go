@@ -26,8 +26,11 @@ func (s *Service) GetResourceInstance() interface{} {
 }
 
 // GetResourceSlice returns a slice of the type contained in ResourceType.
-func (s *Service) GetResourceSlice(len int, cap int) interface{} {
-	return reflect.MakeSlice(reflect.SliceOf(s.ResourceType), len, cap).Interface()
+func (ms *Service) GetResourceSlice(len int, cap int) interface{} {
+	resourceSlice := reflect.MakeSlice(reflect.SliceOf(ms.ResourceType), 0, 0)
+	rs := reflect.New(resourceSlice.Type())
+	rs.Elem().Set(resourceSlice)
+	return rs.Interface()
 }
 
 // ReviewList returns a paginated list of reviews.
@@ -66,34 +69,28 @@ func (ms *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *stri
 			if strings.HasPrefix(searchStr, noFullTextSearch) {
 				searchStr = strings.TrimPrefix(searchStr, noFullTextSearch)
 				expanded := fmt.Sprintf("%%%s%%", searchStr)
-				q = q.Where("reviews.title LIKE ?", expanded)
+				q = q.Where("title LIKE ?", expanded)
 			} else {
 				// Note: this is a fulltext search IN NATURAL LANGUAGE MODE.
 				// See https://dev.mysql.com/doc/refman/5.7/en/fulltext-search.html for other
 				// modes, eg BOOLEAN and WITH QUERY EXPANSION modes.
-				q = q.Where("MATCH (reviews.title, reviews.description) AGAINST (?)", searchStr)
+				q = q.Where("MATCH (title, description) AGAINST (?)", searchStr)
 			}
 		}
 	}
 
-	return reviewList, nil, nil
-
-	// todo(anyone) make pagination work
-	// reviewList := reflect.MakeSlice(reflect.SliceOf(ms.ResourceType), 0, 0)
-	// rl := reflect.New(reviewList.Type())
-	// rl.Elem().Set(reviewList)
-	// paginationResult, err := ign.PaginateQuery(q, &rl.Interface(), *p)
-
 	// Use pagination
-	// paginationResult, err := ign.PaginateQuery(q, &reviewList, *p)
-	// if err != nil {
-	// 	em := ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
-	// 	return nil, nil, em
-	// }
-	// if !paginationResult.PageFound {
-	// 	em := ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
-	// 	return nil, nil, em
-	// }
+	paginationResult, err := ign.PaginateQuery(q, reviewList, *p)
+	if err != nil {
+		em := ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		return nil, nil, em
+	}
+	if !paginationResult.PageFound {
+		em := ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		return nil, nil, em
+	}
+
+	return reviewList, paginationResult, nil
 
 	// todo(anyone) convert and return ResourceReview to proto
 	// var reviewsProto fuel.Reviews
