@@ -2547,7 +2547,7 @@ var routes = ign.Routes{
 	// Reviews //
 	/////////////
 
-	// Route for all reviews
+	// Route for all model reviews
 	ign.Route{
 		"ModelReviews",
 		"Information about all reviews",
@@ -2586,7 +2586,7 @@ var routes = ign.Routes{
 				},
 			},
 		},
-    ign.SecureMethods{},
+		ign.SecureMethods{},
 	},
 
 	// Route that returns a list of reviews from a team/user (ie. an 'owner')

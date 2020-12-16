@@ -17,7 +17,7 @@ const noFullTextSearch = ":noft:"
 // Service is the main struct exported by this Reviews Service.
 // It was meant as a way to structure code and help future extensions.
 type Service struct{
-  ResourceType reflect.Type
+	ResourceType reflect.Type
 }
 
 // GetResourceInstance returns an instance of the type contained in ResourceType.
@@ -43,8 +43,6 @@ func (ms *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *stri
 
 	// Create query
 	q := tx.Model(&resourceInstance)
-
-	q.Preload("Review")
 
 	// Override default Order BY, unless the user explicitly requested ASC order
 	if !(order != "" && strings.ToLower(order) == "asc") {
