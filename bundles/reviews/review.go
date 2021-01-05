@@ -46,6 +46,9 @@ type Review struct {
 
 	// Approvals for the review
 	Approvals []string `gorm:"-" json:"approvals,omitempty"`
+
+	// Private - True to make this a private resource
+	Private *bool `gorm:"default:true" json:"private,omitempty"`
 }
 
 // Reviews is an array of Review

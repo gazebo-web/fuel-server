@@ -81,7 +81,6 @@ func setupWithCustomInitalizer(customFn customInitializer) {
 		log.Printf("Missing IGN_TEST_JWT env variable." +
 			"Authentication will not work.")
 	}
-  fmt.Print("before setup test\n ")
 
 	// Create the router, and indicate that we are testing
 	igntest.SetupTest(globals.Server.Router)

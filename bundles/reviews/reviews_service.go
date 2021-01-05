@@ -2,14 +2,12 @@ package reviews
 
 import (
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"reflect"
+	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"strings"
-	"time"
 )
 
 const noFullTextSearch = ":noft:"
@@ -27,7 +25,7 @@ func (s *Service) GetResourceInstance() interface{} {
 
 // GetResourceSlice returns a slice of the type contained in ResourceType.
 func (ms *Service) GetResourceSlice(len int, cap int) interface{} {
-	resourceSlice := reflect.MakeSlice(reflect.SliceOf(ms.ResourceType), 0, 0)
+	resourceSlice := reflect.MakeSlice(reflect.SliceOf(ms.ResourceType), len, cap)
 	rs := reflect.New(resourceSlice.Type())
 	rs.Elem().Set(resourceSlice)
 	return rs.Interface()
@@ -51,9 +49,8 @@ func (ms *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *stri
 	}
 
 	// filter resources based on privacy setting
-	// todo(anyone) reviews do not have a "private" field so this does not work
-	// We need filter resource based on model privacy setting
-	// q = res.QueryForResourceVisibility(tx, q, owner, user)
+	// We need filter resource based on review privacy setting
+	q = res.QueryForResourceVisibility(tx, q, owner, user)
 
 	// todo(anyone) check if search works
 	// If a search criteria was defined, then also apply a fulltext search on "review's description"
@@ -88,35 +85,29 @@ func (ms *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *stri
 		return nil, nil, em
 	}
 
-	return reviewList, paginationResult, nil
-
-	// todo(anyone) convert and return ResourceReview to proto
-	// var reviewsProto fuel.Reviews
-	// switch t := reviewList.(type) {
-	//   case []ModelReview:
-	//     for _, mr := range t {
-	//       fuelReview := ms.ReviewToProto(mr.Review)
-	//       reviewsProto.Reviews = append(reviewsProto.Reviews, fuelReview)
-	//     }
-	// }
-	// return &reviewsProto, paginationResult, nil
-}
-
-// ReviewToProto creates a new 'fuel.Review' from the given review.
-func (ms *Service) ReviewToProto(review *Review) *fuel.Review {
-	fuelReview := fuel.Review{
-		// Note: time.RFC3339 is the format expected by Go's JSON unmarshal
-		CreatedAt:    proto.String(review.CreatedAt.UTC().Format(time.RFC3339)),
-		UpdatedAt:    proto.String(review.UpdatedAt.UTC().Format(time.RFC3339)),
-		Creator:      proto.String(*review.Creator),
-		Owner:        proto.String(*review.Owner),
-		Title:        proto.String(*review.Title),
-		Description:  proto.String(*review.Description),
-		Branch:       proto.String(*review.Branch),
-		Status:       proto.String(*review.Status),
-		Reviewers:    review.Reviewers,
-		Approvals:    review.Approvals,
+	switch rl := reviewList.(type) {
+		case *[]ModelReview:
+			reviewsProto := make([]interface{}, len(*rl))
+			for i, review := range *rl {
+				// We only need the resource to implement Protobuffer to be
+				// able to convert to proto
+				protoReview, ok := reflect.ValueOf(review).Interface().(Protobuffer)
+				// If the review cannot be cast to the interface, just fail
+				if !ok {
+					em := ign.NewErrorMessage(ign.ErrorMarshalProto)
+					return nil, nil, em
+				}
+				reviewsProto[i] = protoReview.ToProto()
+			}
+			return &reviewsProto, paginationResult, nil
 	}
 
-	return &fuelReview
+	return reviewList, paginationResult, nil
+}
+
+// Protobuffer should be implemented by resources that have a protobuf
+// representation. It provides methods to convert to a protobuf representation.
+type Protobuffer interface{
+    // This method returns a protobuf representation of the object
+    ToProto() interface{}
 }

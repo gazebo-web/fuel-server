@@ -17,6 +17,7 @@ message Review {
 
   repeated string reviewers = 9;
   repeated string approvals = 10;
+  optional bool private = 11;
 }
 
 // swagger:review
