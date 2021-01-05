@@ -2548,16 +2548,16 @@ var routes = ign.Routes{
 	// Reviews //
 	/////////////
 
-	// Route for all reviews
+	// Route for all model reviews
 	ign.Route{
-		"Reviews",
+		"ModelReviews",
 		"Information about all reviews",
-		"/reviews",
+		"/models/reviews",
 		ign.AuthHeadersOptional,
 		ign.Methods{
 			// swagger:route GET /reviews reviews listReviews
 			//
-			// Get list of reviews.
+			// Get list of reviews for models.
 			//
 			// Get a list of reviews. reviews will be returned paginated,
 			// with pages of 20 reviews by default. The user can request a
@@ -2579,22 +2579,22 @@ var routes = ign.Routes{
 			//     200: jsonReviews
 			ign.Method{
 				"GET",
-				"Get all reviews",
+				"Get all reviews for models",
 				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONListResult("Reviews", SearchHandler(ReviewList))},
-					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ReviewList))},
-					ign.FormatHandler{"", ign.JSONListResult("Reviews", SearchHandler(ReviewList))},
+					ign.FormatHandler{".json", ign.JSONResult(SearchHandler(ModelReviewList))},
+					// ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ModelReviewList))},
+					ign.FormatHandler{"", ign.JSONResult(SearchHandler(ModelReviewList))},
 				},
 			},
 		},
-    ign.SecureMethods{},
+		ign.SecureMethods{},
 	},
 
 	// Route that returns a list of reviews from a team/user (ie. an 'owner')
 	ign.Route{
-		"OwnerReviews",
-		"Information about reviews belonging to an owner. The {username} URI option will limit the scope to the specified user/team. Otherwise all reviews are considered.",
-		"/{username}/reviews",
+		"OwnerModelReviews",
+		"Information about model reviews belonging to an owner. The {username} URI option will limit the scope to the specified user/team. Otherwise all reviews are considered.",
+		"/{username}/models/reviews",
 		ign.AuthHeadersOptional,
 		ign.Methods{
 			// swagger:route GET /{username}/reviews reviews listOwnerReviews
@@ -2626,9 +2626,9 @@ var routes = ign.Routes{
 				"Get all reviews of the specified team/user",
 				// Format handlers
 				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONListResult("Reviews", SearchHandler(ReviewList))},
-					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ReviewList))},
-					ign.FormatHandler{"", ign.JSONListResult("Reviews", SearchHandler(ReviewList))},
+					ign.FormatHandler{".json", ign.JSONResult(SearchHandler(ModelReviewList))},
+					// ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ModelReviewList))},
+					ign.FormatHandler{"", ign.JSONResult(SearchHandler(ModelReviewList))},
 				},
 			},
 		},

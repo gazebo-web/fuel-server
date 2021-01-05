@@ -7,40 +7,38 @@ import (
 
 // TODO: move DB related functions to a DB Accessor. Inject the db accessor to the reviews service.
 
-const (
-	reviews string = "reviews"
-)
-
-// Review represents information about a simulation review
+// Review contains changes proposed for a resource
 //
-// A review contains information about a single simulation object, such
-// as a robot, table, or structure.
+// A review contains changes for a resource such as a model or a world. It is
+// also known as a pull request.
 //
 // swagger:review dbReview
 type Review struct {
-	// Override default GORM Review fields
+	// ID of the review
+	// Overrides the default GORM Review fields
 	ID        uint      `gorm:"primary_key" json:"-"`
 	CreatedAt time.Time `gorm:"type:timestamp(3) NULL"`
 	UpdatedAt time.Time
 
-	// The username of the User that created this model (usually got from the JWT)
+	// Creator contains the username of the User that created this model (usually
+  // got from the JWT)
 	Creator *string `json:"creator,omitempty"`
 
-	// Title the review (max 65,535 chars)
+	// Title of the review (max 65,535 chars)
 	Title *string `gorm:"type:text" json:"title,omitempty"`
 
-	// A description of the review (max 65,535 chars)
+	// Description of the review (max 65,535 chars)
 	// Interesting post about TEXT vs VARCHAR(30000) performance:
 	// https://nicj.net/mysql-text-vs-varchar-performance/
 	Description *string `gorm:"type:text" json:"description,omitempty"`
 
-	// The owner of this review
+	// Owner of this review
 	Owner *string `gorm:"unique_index:idx_reviewname_owner" json:"owner,omitempty"`
 
-	// The branch associated with this review
+	// Branch associated with this review
 	Branch *string `json:"branch,omitempty"`
 
-	// The status of the review
+	// Status of the review
 	Status *string `json:"status,omitempty"`
 
 	// A list of reviewers for the review
@@ -54,6 +52,15 @@ type Review struct {
 func NewReview(title, description, owner, branch, status *string, reviewers, approvals []string) (Review, error) {
 	createTime := time.Now()
 	updateTime := time.Now()
+
+	// Reviewers for the review
+	Reviewers []string `gorm:"-" json:"reviewers,omitempty"`
+
+	// Approvals for the review
+	Approvals []string `gorm:"-" json:"approvals,omitempty"`
+
+	// Private - True to make this a private resource
+	Private *bool `gorm:"default:true" json:"private,omitempty"`
 
 	review := Review{CreatedAt: createTime, UpdatedAt: updateTime, Title: title,
 		Description: description, Owner: owner, Branch: branch,

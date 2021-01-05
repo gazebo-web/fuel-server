@@ -1,6 +1,8 @@
 syntax = "proto2";
 package fuel;
 
+import "model.proto";
+
 // swagger:review
 message Review {
   optional string createdAt = 1;
@@ -15,9 +17,21 @@ message Review {
 
   repeated string reviewers = 9;
   repeated string approvals = 10;
+  optional bool private = 11;
 }
 
 // swagger:review
 message Reviews {
   repeated Review reviews = 1;
 }
+
+message ModelReview {
+  required Review review = 1;
+  required Model model = 2;
+}
+
+message ModelReviews {
+  repeated ModelReview modelReviews = 1;
+}
+
+
