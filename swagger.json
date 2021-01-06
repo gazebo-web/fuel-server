@@ -5,7 +5,7 @@
   "swagger": "2.0",
   "info": {
     "description": "This package provides a REST API to the Ignition Fuel server.",
-    "title": "Ignition Fuel Server RESET API",
+    "title": "Ignition Fuel Server REST API",
     "contact": {
       "email": "info@openrobotics.org"
     },
@@ -14,9 +14,242 @@
     },
     "version": "0.1.0"
   },
-  "host": "staging-api.ignitionfuel.org",
+  "host": "fuel.ignitionrobotics.org",
   "basePath": "/1.0",
   "paths": {
+    "/admin/search": {
+      "get": {
+        "description": "Get a list of the ElasticSearchConfigs",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "search"
+        ],
+        "operationId": "elasticSearchUpdate",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates an ElasticSearchConfig",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "search"
+        ],
+        "operationId": "elasticSearchUpdate",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/admin/search/rebuild": {
+      "get": {
+        "description": "Rebuilds the primary ElasticSearchConfig indices",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "search"
+        ],
+        "operationId": "elasticSearchUpdate",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/admin/search/reconnect": {
+      "get": {
+        "description": "Reconnects to the primary ElasticSearchConfig",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "search"
+        ],
+        "operationId": "elasticSearchUpdate",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/admin/search/update": {
+      "get": {
+        "description": "Updates the primary ElasticSearchConfig indices",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "search"
+        ],
+        "operationId": "elasticSearchUpdate",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/admin/search/{config_id}": {
+      "delete": {
+        "description": "Deletes an ElasticSearchConfig",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "search"
+        ],
+        "operationId": "elasticSearchUpdate",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "patch": {
+        "description": "Updates an ElasticSearchConfig",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "search"
+        ],
+        "operationId": "elasticSearchUpdate",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/collections": {
+      "get": {
+        "description": "Get a list of collections. Collections will be returned paginated,\nwith pages of 20 items by default. The user can request a\ndifferent page with query parameter 'page', and the page size\ncan be defined with query parameter 'per_page'.\nThe route supports the 'order' parameter, with values 'asc' and\n'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on\nname and description.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "Get list of collections.",
+        "operationId": "listCollections",
+        "responses": {
+          "200": {
+            "description": "dbCollections",
+            "schema": {
+              "$ref": "#/definitions/dbCollections"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a new collection. The request body should contain the\nfollowing fields: 'name', 'description'. All values as strings.\nThe collection owner will be retrieved from the passed JWT.",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "Create collection",
+        "operationId": "createCollection",
+        "responses": {
+          "200": {
+            "description": "dbCollection",
+            "schema": {
+              "$ref": "#/definitions/dbCollection"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
     "/licenses": {
       "get": {
         "description": "Get the list of licenses. Licenses will be returned paginated,\nwith pages of 20 items by default. The user can request a\ndifferent page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page',\nwith a maximum of 100 items per page.",
@@ -200,36 +433,80 @@
         }
       }
     },
-    "/models/{uuid}": {
+    "/organizations": {
       "get": {
-        "description": "Return a model given its UUID.",
+        "description": "Get the list of organizations. Organizations will be returned paginated,\nwith pages of 20 organizations by default. The user can request a\ndifferent page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page',\nwith a maximum of 100 items per page.",
         "produces": [
-          "application/json",
-          "application/x-protobuf",
-          "application/zip"
+          "application/json"
         ],
         "schemes": [
           "https"
         ],
         "tags": [
-          "models"
+          "organizations"
         ],
-        "summary": "Get a single model",
-        "operationId": "singleModel",
-        "parameters": [
-          {
-            "type": "string",
-            "x-go-name": "UUID",
-            "name": "uuid",
-            "in": "path",
-            "required": true
-          }
-        ],
+        "summary": "List organizations",
+        "operationId": "listOrganizations",
         "responses": {
           "200": {
-            "description": "Model",
+            "description": "OrganizationResponses",
             "schema": {
-              "$ref": "#/definitions/Model"
+              "$ref": "#/definitions/OrganizationResponses"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a new organization. Note: the user identity will be retrieved from the passed JWT.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Create organization",
+        "operationId": "createOrganization",
+        "responses": {
+          "200": {
+            "description": "OrganizationResponse",
+            "schema": {
+              "$ref": "#/definitions/OrganizationResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/organizations/{name}": {
+      "get": {
+        "description": "Return an organization given its name and a valid JWT.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Get an organization",
+        "operationId": "singleOrganization",
+        "responses": {
+          "200": {
+            "description": "OrganizationResponse",
+            "schema": {
+              "$ref": "#/definitions/OrganizationResponse"
             }
           },
           "default": {
@@ -238,7 +515,7 @@
         }
       },
       "delete": {
-        "description": "Deletes a model given its UUID.",
+        "description": "Deletes an organization given its name and a valid JWT.",
         "produces": [
           "application/json"
         ],
@@ -246,50 +523,43 @@
           "https"
         ],
         "tags": [
-          "models"
+          "organizations"
         ],
-        "summary": "Delete a model",
-        "operationId": "deleteModel",
-        "parameters": [
-          {
-            "type": "string",
-            "x-go-name": "UUID",
-            "name": "uuid",
-            "in": "path",
-            "required": true
+        "summary": "Delete an organization",
+        "operationId": "deleteOrganizations",
+        "responses": {
+          "200": {
+            "description": "OrganizationResponse",
+            "schema": {
+              "$ref": "#/definitions/OrganizationResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
           }
-        ]
-      }
-    },
-    "/models/{uuid}/files": {
-      "get": {
-        "description": "Return the files information of a given model.",
+        }
+      },
+      "patch": {
+        "description": "Update an organization",
+        "consumes": [
+          "application/json"
+        ],
         "produces": [
-          "application/json",
-          "application/x-protobuf"
+          "application/json"
         ],
         "schemes": [
           "https"
         ],
         "tags": [
-          "models"
+          "organizations"
         ],
-        "summary": "Model's file tree.",
-        "operationId": "modelFileTree",
-        "parameters": [
-          {
-            "type": "string",
-            "x-go-name": "UUID",
-            "name": "uuid",
-            "in": "path",
-            "required": true
-          }
-        ],
+        "summary": "Update an organization",
+        "operationId": "organizationUpdate",
         "responses": {
           "200": {
-            "description": "ModelFileTree",
+            "description": "OrganizationResponse",
             "schema": {
-              "$ref": "#/definitions/ModelFileTree"
+              "$ref": "#/definitions/OrganizationResponse"
             }
           },
           "default": {
@@ -298,39 +568,571 @@
         }
       }
     },
-    "/models/{uuid}/files/{path}": {
+    "/organizations/{name}/teams": {
       "get": {
+        "description": "Return the list of teams of an organization.",
         "produces": [
-          "application/octet-stream"
+          "application/json"
         ],
         "schemes": [
           "https"
         ],
         "tags": [
-          "models"
+          "organizations"
         ],
-        "summary": "Download an individual file from a model.",
-        "operationId": "downloadModelFile",
-        "parameters": [
-          {
-            "type": "string",
-            "x-go-name": "Path",
-            "description": "File path within model",
-            "name": "path",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "x-go-name": "UUID",
-            "name": "uuid",
-            "in": "path",
-            "required": true
-          }
-        ],
+        "summary": "Get the list of teams of an organization",
+        "operationId": "orgTeams",
         "responses": {
           "200": {
-            "$ref": "#/responses/fileResponse"
+            "description": "TeamResponses",
+            "schema": {
+              "$ref": "#/definitions/TeamResponses"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Adds a team to an organization.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Adds a team to an organization",
+        "operationId": "addTeamToOrganization",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/organizations/{name}/teams/{teamname}": {
+      "get": {
+        "description": "Return a team given its organization and team name.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Get a single team of an organization",
+        "operationId": "singleTeam",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Removes a team from an organization",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Removes a team",
+        "operationId": "orgTeamDelete",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "patch": {
+        "description": "Updates a team of an organization",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Updates a team",
+        "operationId": "orgTeamUpdate",
+        "responses": {
+          "200": {
+            "description": "TeamResponse",
+            "schema": {
+              "$ref": "#/definitions/TeamResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/organizations/{name}/users": {
+      "get": {
+        "description": "Return the list of users of an organization.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Get the list of users of an organization",
+        "operationId": "orgUsers",
+        "responses": {
+          "200": {
+            "description": "UserResponses",
+            "schema": {
+              "$ref": "#/definitions/UserResponses"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Adds a user to an organization.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Adds a user to an organization",
+        "operationId": "addUserToOrganization",
+        "responses": {
+          "200": {
+            "description": "UserResponse",
+            "schema": {
+              "$ref": "#/definitions/UserResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/organizations/{name}/users/{username}": {
+      "delete": {
+        "description": "Removes a user from an organization",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Removes a user from an organization",
+        "operationId": "orgUserDelete",
+        "responses": {
+          "200": {
+            "description": "UserResponse",
+            "schema": {
+              "$ref": "#/definitions/UserResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/profile/{username}": {
+      "get": {
+        "description": "Get the profile of an owner",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "users"
+        ],
+        "summary": "Get the profile of an owner",
+        "operationId": "ownerProfile",
+        "responses": {
+          "200": {
+            "description": "OwnerProfile",
+            "schema": {
+              "$ref": "#/definitions/OwnerProfile"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/subt/leaderboard": {
+      "get": {
+        "description": "Get the Subt leaderboard.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "leaderboard"
+        ],
+        "summary": "Get the Subt leaderboard.",
+        "operationId": "listLeaderboard",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/Leaderboard"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/subt/logfiles": {
+      "get": {
+        "description": "Get a list of log files.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "logfiles"
+        ],
+        "summary": "Get list of Subt log files.",
+        "operationId": "listLogfiles",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/LogFiles"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a new log file submission",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "logfiles"
+        ],
+        "summary": "Submit a SubT log file",
+        "operationId": "submitLog",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/LogFile"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/subt/logfiles/{id}": {
+      "get": {
+        "description": "Updates a log file submission (eg. for scoring)",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "logfiles"
+        ],
+        "summary": "Update a log file",
+        "operationId": "getLogFile",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/LogFile"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes a log file submission",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "logfiles"
+        ],
+        "summary": "Deletes a log file",
+        "operationId": "deleteLogFile",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/LogFile"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "patch": {
+        "description": "Updates a log file submission (eg. for scoring)",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "logfiles"
+        ],
+        "summary": "Update a log file",
+        "operationId": "updateLogFile",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/LogFile"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/subt/logfiles/{id}/file": {
+      "get": {
+        "description": "Downloads a log file",
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "logfiles"
+        ],
+        "summary": "Downloads a log file",
+        "operationId": "downloadLogFile",
+        "responses": {
+          "200": {
+            "description": "File",
+            "schema": {
+              "$ref": "#/definitions/File"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/subt/participants": {
+      "get": {
+        "description": "Get a list of participants.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "participants"
+        ],
+        "summary": "Get list of Subt participants.",
+        "operationId": "listParticipants",
+        "responses": {
+          "200": {
+            "description": "OrganizationResponses",
+            "schema": {
+              "$ref": "#/definitions/OrganizationResponses"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/subt/participants/{competition}/{name}": {
+      "delete": {
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "participants"
+        ],
+        "summary": "Delete a Subt participant.",
+        "operationId": "deleteSubtParticipants",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/CompetitionParticipant"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/subt/participants/{name}/logfiles": {
+      "get": {
+        "description": "Get a list of log files.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "logfiles"
+        ],
+        "summary": "Get list of Subt log files.",
+        "operationId": "listPartLogfiles",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/LogFiles"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/subt/registrations": {
+      "get": {
+        "description": "Get a list of registrations.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "registrations"
+        ],
+        "summary": "Get list of Subt registrations.",
+        "operationId": "listRegistrations",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/Registrations"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a new pending registration for SubT.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "subtRegistrations"
+        ],
+        "summary": "Apply a SubT registration",
+        "operationId": "applySubtReg",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/Registration"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/subt/registrations/{competition}/{name}": {
+      "delete": {
+        "description": "Deletes a pending registration for SubT.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "subtRegistrations"
+        ],
+        "summary": "Deletes a SubT registration",
+        "operationId": "deleteSubtReg",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/Registration"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "patch": {
+        "description": "Resolves a pending registration for SubT into Done or Rejected.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "subtRegistrations"
+        ],
+        "summary": "Resolves a SubT registration",
+        "operationId": "resolveSubtReg",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/Registration"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -485,6 +1287,512 @@
             "required": true
           }
         ]
+      },
+      "patch": {
+        "description": "Updates a user given its username and a valid JWT.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "users"
+        ],
+        "summary": "Update a user",
+        "operationId": "updateUser",
+        "responses": {
+          "200": {
+            "description": "UserResponse",
+            "schema": {
+              "$ref": "#/definitions/UserResponse"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/users/{username}/access-tokens": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "users"
+        ],
+        "summary": "Get the acccess tokens for a user.",
+        "operationId": "getAccessToken"
+      },
+      "post": {
+        "description": "Creates an access token for a user.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "users"
+        ],
+        "summary": "Creates an access token.",
+        "operationId": "createAccessToken"
+      }
+    },
+    "/users/{username}/access-tokens/revoke": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete an acccess token that belongs to a user.",
+        "operationId": "revokeAccessToken"
+      }
+    },
+    "/worlds": {
+      "get": {
+        "description": "Get a list of worlds. Worlds will be returned paginated,\nwith pages of 20 worlds by default. The user can request a\ndifferent page with query parameter 'page', and the page size\ncan be defined with query parameter 'per_page'.\nThe route supports the 'order' parameter, with values 'asc' and\n'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on worlds\nname, description and tags.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "Get list of worlds.",
+        "operationId": "listWorlds",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/jsonWorlds"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a new world. The request body should contain the\nfollowing fields: 'name', 'description',\n'license' (number), 'permission' (number). All values as strings.\n'tags': a string containing a comma separated list of tags.\nThe worlds owner will be retrieved from the passed JWT.\n'file': multiple files in the multipart form.",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "Create world",
+        "operationId": "createWorld",
+        "responses": {
+          "200": {
+            "description": "dbWorld",
+            "schema": {
+              "$ref": "#/definitions/dbWorld"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/collections": {
+      "get": {
+        "description": "Get a list of collections for the specified owner.\nCollections will be returned paginated,\nwith pages of 20 items by default. The user can request a\ndifferent page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page',\nwith a maximum of 10belonging0 items per page.\nThe route supports the 'order' parameter, with values 'asc' and\n'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on\nname and description.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "Get owner's collections",
+        "operationId": "listOwnerCollections",
+        "responses": {
+          "200": {
+            "description": "dbCollections",
+            "schema": {
+              "$ref": "#/definitions/dbCollections"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/collections/{collection}": {
+      "get": {
+        "description": "Return a collection given its owner and name.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "Get a single collection from an owner",
+        "operationId": "singleOwnerCollection",
+        "responses": {
+          "200": {
+            "description": "dbCollection",
+            "schema": {
+              "$ref": "#/definitions/dbCollection"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes a Collection given its owner and name.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collection"
+        ],
+        "summary": "Delete a Collection",
+        "operationId": "deleteCollection",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/OK"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "patch": {
+        "description": "Update a collection",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "Update a collection",
+        "operationId": "collectionUpdate",
+        "responses": {
+          "200": {
+            "description": "dbCollection",
+            "schema": {
+              "$ref": "#/definitions/dbCollection"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/collections/{collection}/clone": {
+      "post": {
+        "description": "Clones a collection",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "operationId": "cloneCollection",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/OK"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/collections/{collection}/models": {
+      "get": {
+        "description": "Return the list of models that belong to a collection",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "Lists the models of a collection",
+        "operationId": "collectionModels",
+        "responses": {
+          "200": {
+            "description": "dbCollectionAssets",
+            "schema": {
+              "$ref": "#/definitions/dbCollectionAssets"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Adds a model to a collection",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "Add a model to a collection",
+        "operationId": "collectionModelAdd",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/OK"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Removes a model from a Collection",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collection"
+        ],
+        "summary": "Remove model from Collection",
+        "operationId": "collectionModelRemove",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/OK"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/collections/{collection}/transfer": {
+      "post": {
+        "description": "Transfer a collection",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "operationId": "collectionTransfer",
+        "responses": {
+          "200": {
+            "description": "Model",
+            "schema": {
+              "$ref": "#/definitions/Model"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/collections/{collection}/worlds": {
+      "get": {
+        "description": "Return the list of worlds that belong to a collection",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "Lists the worlds of a collection",
+        "operationId": "collectionWorlds",
+        "responses": {
+          "200": {
+            "description": "dbCollectionAssets",
+            "schema": {
+              "$ref": "#/definitions/dbCollectionAssets"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "description": "Adds a world to a collection",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "Add a world to a collection",
+        "operationId": "collectionWorldAdd",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/OK"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Removes a world from a Collection",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collection"
+        ],
+        "summary": "Remove world from Collection",
+        "operationId": "collectionWorldRemove",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/OK"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/collections/{collection}/{version}/files/{path}": {
+      "get": {
+        "produces": [
+          "application/octet-stream"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "Download an individual file from a collection.",
+        "operationId": "downloadColFile",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/fileResponse"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/likes/models": {
+      "get": {
+        "description": "Get a list of models liked by the specified user.\nModels will be returned paginated, with pages of 20 models by default.\nThe user can request a different page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page', with a maximum of\n100 items per page.\nThe route supports the 'order' parameter, with values 'asc' and 'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on models name,\ndescription and tags.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Get models liked by a user.",
+        "operationId": "modelLikeList",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/jsonModels"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/likes/worlds": {
+      "get": {
+        "description": "Get a list of worlds liked by the specified user.\nWorlds will be returned paginated, with pages of 20 worlds by default.\nThe user can request a different page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page', with a maximum of\n100 items per page.\nThe route supports the 'order' parameter, with values 'asc' and 'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on world's name,\ndescription and tags.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "Get worlds liked by a user.",
+        "operationId": "worldLikeList",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/jsonWorlds"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
       }
     },
     "/{username}/models": {
@@ -562,10 +1870,8 @@
     },
     "/{username}/models/{model}": {
       "get": {
-        "description": "Return a model given its owner and name.",
+        "description": "Return a model zip file given its owner, name, and version.",
         "produces": [
-          "application/json",
-          "application/x-protobuf",
           "application/zip"
         ],
         "schemes": [
@@ -574,7 +1880,335 @@
         "tags": [
           "models"
         ],
-        "summary": "Get a single model from an owner",
+        "summary": "Get a single model zip file from an owner",
+        "operationId": "singleOwnerModel",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Username",
+            "name": "username",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "Model",
+            "description": "Model name",
+            "name": "model",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model",
+            "schema": {
+              "$ref": "#/definitions/Model"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes a model given its owner and name.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Delete a model",
+        "operationId": "deleteModel",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "path",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "description": "Update a model",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Update a model",
+        "operationId": "modelUpdate",
+        "responses": {
+          "200": {
+            "description": "Model",
+            "schema": {
+              "$ref": "#/definitions/Model"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/models/{model}/clone": {
+      "post": {
+        "description": "Clones a model.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Clones a models",
+        "operationId": "cloneModel",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/OK"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/models/{model}/collections": {
+      "get": {
+        "description": "List of collections associated to a model.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "List of collections associated to a model.",
+        "operationId": "modelCollections",
+        "responses": {
+          "200": {
+            "description": "dbCollections",
+            "schema": {
+              "$ref": "#/definitions/dbCollections"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/models/{model}/likes": {
+      "post": {
+        "description": "Like a model",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "operationId": "modelLikeCreate",
+        "responses": {
+          "200": {
+            "description": "Model",
+            "schema": {
+              "$ref": "#/definitions/Model"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Unlike a model",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "operationId": "modelUnlike",
+        "responses": {
+          "200": {
+            "description": "Model",
+            "schema": {
+              "$ref": "#/definitions/Model"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/models/{model}/report": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Reports a model.",
+        "operationId": "reportModel",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/OK"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/models/{model}/transfer": {
+      "post": {
+        "description": "Transfer a model",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "operationId": "modelTransfer",
+        "responses": {
+          "200": {
+            "description": "Model",
+            "schema": {
+              "$ref": "#/definitions/Model"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/models/{model}/{version}/files": {
+      "get": {
+        "description": "Return the files information of a given model.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Model's file tree.",
+        "operationId": "modelFileTree",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ModelFileTree"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/models/{model}/{version}/files/{path}": {
+      "get": {
+        "produces": [
+          "application/octet-stream"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Download an individual file from a model.",
+        "operationId": "downloadModelFile",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Path",
+            "description": "File path within model",
+            "name": "path",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "UUID",
+            "name": "uuid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/fileResponse"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/models/{model}/{version}/{model}": {
+      "get": {
+        "description": "Return a model zip file given its owner, name, and version.",
+        "produces": [
+          "application/zip"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "summary": "Get a single model zip file from an owner",
         "operationId": "singleOwnerModel",
         "parameters": [
           {
@@ -605,18 +2239,494 @@
           }
         }
       }
+    },
+    "/{username}/worlds": {
+      "get": {
+        "description": "Get a list of worlds for the specified owner.\nWorlds will be returned paginated,\nwith pages of 20 worlds by default. The user can request a\ndifferent page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page',\nwith a maximum of 100 items per page.\nThe route supports the 'order' parameter, with values 'asc' and\n'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on worlds\nname, description and tags.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "Get owner's worlds",
+        "operationId": "listOwnerWorlds",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/jsonWorlds"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/worlds/{world}": {
+      "get": {
+        "description": "Return a world given its owner and name.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf",
+          "application/zip"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "Get a single world from an owner",
+        "operationId": "singleOwnerWorld",
+        "responses": {
+          "200": {
+            "description": "World",
+            "schema": {
+              "$ref": "#/definitions/World"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes a world given its owner and name.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "world"
+        ],
+        "summary": "Delete a world",
+        "operationId": "deleteWorld"
+      },
+      "patch": {
+        "description": "Update a world",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "Update a world",
+        "operationId": "worldUpdate",
+        "responses": {
+          "200": {
+            "description": "World",
+            "schema": {
+              "$ref": "#/definitions/World"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/worlds/{world}/clone": {
+      "post": {
+        "description": "Clones a world.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "Clones a world",
+        "operationId": "cloneWorld",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/OK"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/worlds/{world}/collections": {
+      "get": {
+        "description": "List of collections associated to a world.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "collections"
+        ],
+        "summary": "List of collections associated to a world.",
+        "operationId": "worldCollections",
+        "responses": {
+          "200": {
+            "description": "dbCollections",
+            "schema": {
+              "$ref": "#/definitions/dbCollections"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/worlds/{world}/likes": {
+      "post": {
+        "description": "Like a world",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "operationId": "worldLikeCreate",
+        "responses": {
+          "200": {
+            "description": "World",
+            "schema": {
+              "$ref": "#/definitions/World"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "description": "Unlike a world",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "operationId": "worldUnlike",
+        "responses": {
+          "200": {
+            "description": "World",
+            "schema": {
+              "$ref": "#/definitions/World"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/worlds/{world}/report": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "Reports a world.",
+        "operationId": "reportWorld",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/OK"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/worlds/{world}/transfer": {
+      "post": {
+        "description": "Transfer a world",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "models"
+        ],
+        "operationId": "worldTransfer",
+        "responses": {
+          "200": {
+            "description": "Model",
+            "schema": {
+              "$ref": "#/definitions/Model"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/worlds/{world}/{version}/files": {
+      "get": {
+        "description": "Return the files information of a given world.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "World's file tree.",
+        "operationId": "worldFileTree",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/WorldFileTree"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/worlds/{world}/{version}/files/{path}": {
+      "get": {
+        "produces": [
+          "application/octet-stream"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "Download an individual file from a world.",
+        "operationId": "downloadWorldFile",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/fileResponse"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/worlds/{world}/{version}/{world}": {
+      "get": {
+        "description": "Return a world zip file given its owner, name, and version.",
+        "produces": [
+          "application/zip"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "Get a single world zip file from an owner",
+        "operationId": "singleOwnerWorld",
+        "responses": {
+          "200": {
+            "description": "World",
+            "schema": {
+              "$ref": "#/definitions/World"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/worlds/{world}/{version}/{world}/modelrefs": {
+      "get": {
+        "description": "Return the external models referenced by a world.",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "worlds"
+        ],
+        "summary": "World's model references.",
+        "operationId": "worldModelIncludes",
+        "responses": {
+          "200": {
+            "description": "ModelIncludes",
+            "schema": {
+              "$ref": "#/definitions/ModelIncludes"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
     }
   },
   "definitions": {
+    "AccessToken": {
+      "type": "object",
+      "title": "AccessToken is a single personal access token for a user.",
+      "properties": {
+        "created_at": {
+          "description": "CreatedAt is the time when the access token was created",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "CreatedAt"
+        },
+        "expires": {
+          "description": "For future use, when we add in the ability to expire tokens.",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Expires"
+        },
+        "last_used": {
+          "description": "Last used time.",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "LastUsed"
+        },
+        "name": {
+          "description": "Name is a string given to a token by the user. The name does not have to be unique.",
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "prefix": {
+          "description": "Prefix is the first set of characters in the token. The prefix is used to identify the user\nand help a user keep track of their tokens. We use 'latin1_general_cs` collation to enforce\ncase-senstive queries.",
+          "type": "string",
+          "x-go-name": "Prefix"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/ign-go"
+    },
+    "AccessTokens": {
+      "description": "AccessTokens is an array of AccessToken",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/AccessToken"
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/ign-go"
+    },
+    "Categories": {
+      "description": "Categories is an array of Category",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Category"
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+    },
+    "Category": {
+      "description": "Category is a type of label used to group resources, such as models and\nworlds, together. A category consists of a name, ID, and parentID. The\nparentID field should refer to a parent category, and supports a hierarchy\nof categories.",
+      "type": "object",
+      "properties": {
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "DeletedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "name": {
+          "description": "Name is the name of the category",
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "parent_id": {
+          "description": "ParentID is an optional parent ID.",
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "ParentID"
+        },
+        "slug": {
+          "description": "Slug is the human-friendly URL path to the category",
+          "type": "string",
+          "x-go-name": "Slug"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+    },
+    "CollectionAsset": {
+      "description": "It was implemented with a \"type\" to support adding new types easily.",
+      "type": "object",
+      "title": "CollectionAsset represents an association between a collection and a resource.",
+      "properties": {
+        "asset_name": {
+          "description": "The name of the related asset",
+          "type": "string",
+          "x-go-name": "AssetName"
+        },
+        "asset_owner": {
+          "description": "The owner of the related asset (org / user)",
+          "type": "string",
+          "x-go-name": "AssetOwner"
+        },
+        "type": {
+          "description": "The asset type (model | world).",
+          "type": "string",
+          "x-go-name": "Type"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+    },
     "CreateModel": {
       "description": "CreateModel encapsulates data required to create a model",
       "type": "object",
       "required": [
-        "modelName",
+        "name",
         "license",
         "file"
       ],
       "properties": {
+        "categories": {
+          "description": "Categories",
+          "type": "string",
+          "maximum": 2,
+          "x-go-name": "Categories"
+        },
         "description": {
           "description": "Optional description",
           "type": "string",
@@ -634,20 +2744,33 @@
           "minimum": 1,
           "x-go-name": "License"
         },
-        "modelName": {
+        "metadata": {
+          "$ref": "#/definitions/ModelMetadata"
+        },
+        "name": {
           "description": "The name of the Model",
           "type": "string",
-          "x-go-name": "ModelName"
+          "x-go-name": "Name"
+        },
+        "owner": {
+          "description": "Optional Owner of the model. Must be a user or an org.\nIf not set, the current user will be used as owner",
+          "type": "string",
+          "x-go-name": "Owner"
         },
         "permission": {
           "description": "The associated permissions. 0 for public, 1 for private models.",
           "type": "integer",
           "format": "int64",
           "enum": [
-            "0",
+            0,
             " 1"
           ],
           "x-go-name": "Permission"
+        },
+        "private": {
+          "description": "Optional privacy/visibility setting.",
+          "type": "boolean",
+          "x-go-name": "Private"
         },
         "tags": {
           "description": "A comma separated list of tags",
@@ -660,7 +2783,7 @@
           "x-go-name": "URLName"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
     },
     "ErrMsg": {
       "description": "ErrMsg is serialized as JSON, and returned if the request does not succeed\nTODO: consider making ErrMsg an 'error'",
@@ -689,6 +2812,21 @@
           "description": "Error message.",
           "type": "string",
           "x-go-name": "Msg"
+        },
+        "remote-address": {
+          "description": "Associated request remote address, if applicable",
+          "type": "string",
+          "x-go-name": "RemoteAddress"
+        },
+        "route": {
+          "description": "Associated request Route, if applicable",
+          "type": "string",
+          "x-go-name": "Route"
+        },
+        "user-agent": {
+          "description": "Associated request User-Agent, if applicable",
+          "type": "string",
+          "x-go-name": "UserAgent"
         }
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/ign-go"
@@ -698,17 +2836,76 @@
       "title": "File represents an open file descriptor.",
       "x-go-package": "os"
     },
+    "FileTree": {
+      "type": "object",
+      "properties": {
+        "file_tree": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FileTree_FileNode"
+          },
+          "x-go-name": "FileTree"
+        },
+        "name": {
+          "description": "resource name (eg. model or world name)",
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "owner": {
+          "description": "resource owner",
+          "type": "string",
+          "x-go-name": "Owner"
+        },
+        "version": {
+          "description": "resource version",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Version"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+    },
+    "FileTree_FileNode": {
+      "type": "object",
+      "properties": {
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FileTree_FileNode"
+          },
+          "x-go-name": "Children"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "path": {
+          "type": "string",
+          "x-go-name": "Path"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+    },
     "License": {
       "description": "License is a license name and ID",
       "type": "object",
       "properties": {
-        "CreatedAt": {},
-        "DeletedAt": {},
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "DeletedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
         "ID": {
           "type": "integer",
           "format": "uint64"
         },
-        "UpdatedAt": {},
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
         "image_url": {
           "type": "string",
           "x-go-name": "ImageURL"
@@ -722,7 +2919,7 @@
           "x-go-name": "ContentURL"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
     },
     "Licenses": {
       "description": "Licenses is an slice of License",
@@ -730,9 +2927,406 @@
       "items": {
         "$ref": "#/definitions/License"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
     },
     "Model": {
+      "description": "Model base model definition, including fields `ID`, `CreatedAt`, `UpdatedAt`, `DeletedAt`, which could be embedded in your models\ntype User struct {\ngorm.Model\n}",
+      "type": "object",
+      "properties": {
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "DeletedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "x-go-package": "github.com/jinzhu/gorm"
+    },
+    "ModelInclude": {
+      "description": "ModelInclude represents an external model \"included\" in a world\nIncludes are usually in the form of \"full urls\" or prefixed with \"model://\"",
+      "type": "object",
+      "properties": {
+        "model_name": {
+          "description": "The name of the model",
+          "type": "string",
+          "x-go-name": "ModelName"
+        },
+        "model_owner": {
+          "description": "The owner name of the model",
+          "type": "string",
+          "x-go-name": "ModelOwner"
+        },
+        "model_version": {
+          "description": "The version of the model",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "ModelVersion"
+        },
+        "type": {
+          "description": "The Include type, eg. full_url, model://, etc",
+          "type": "string",
+          "x-go-name": "IncludeType"
+        },
+        "world_version": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "WorldVersion"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
+    },
+    "ModelIncludes": {
+      "description": "ModelIncludes is a slice of ModelInclude",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ModelInclude"
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
+    },
+    "ModelMetadata": {
+      "description": "Metadata is an array of Metadatum",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/dbModel"
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+    },
+    "ModelMetadatum": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "x-go-name": "Key"
+        },
+        "value": {
+          "type": "string",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+    },
+    "Models": {
+      "type": "object",
+      "properties": {
+        "models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Model"
+          },
+          "x-go-name": "Models"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+    },
+    "Organization": {
+      "description": "Organization consists of a group of users/teams",
+      "type": "object",
+      "properties": {
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "DeletedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": {
+          "description": "Description of the organization",
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "email": {
+          "description": "Email",
+          "type": "string",
+          "x-go-name": "Email"
+        },
+        "name": {
+          "description": "Name of the organization\nName is unique in the Fuel community (including users)",
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+    },
+    "OrganizationResponse": {
+      "type": "object",
+      "title": "OrganizationResponse stores organization information used in REST responses.",
+      "properties": {
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "email": {
+          "type": "string",
+          "x-go-name": "Email"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "private": {
+          "type": "boolean",
+          "x-go-name": "Private"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+    },
+    "OrganizationResponses": {
+      "description": "OrganizationResponses is a slice of OrganizationResponse",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/OrganizationResponse"
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+    },
+    "OwnerProfile": {
+      "type": "object",
+      "title": "OwnerProfile stores information about a user OR an organization.",
+      "properties": {
+        "Org": {
+          "$ref": "#/definitions/OrganizationResponse"
+        },
+        "OwnerType": {
+          "description": "The type: 'users' or 'organizations'",
+          "type": "string"
+        },
+        "User": {
+          "$ref": "#/definitions/UserResponse"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+    },
+    "Tag": {
+      "description": "Tag is a string that can be used to mark other resources, such as models\nand worlds",
+      "type": "object",
+      "properties": {
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "DeletedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+    },
+    "Tags": {
+      "description": "Tags is an array of Tag",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Tag"
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+    },
+    "TeamResponse": {
+      "type": "object",
+      "title": "TeamResponse represents a team for API responses.",
+      "properties": {
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "usernames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Usernames"
+        },
+        "visible": {
+          "type": "boolean",
+          "x-go-name": "Visible"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+    },
+    "TeamResponses": {
+      "description": "TeamResponses is a slice of TeamResponse",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/TeamResponse"
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+    },
+    "User": {
+      "description": "User information",
+      "type": "object",
+      "properties": {
+        "AccessTokens": {
+          "$ref": "#/definitions/AccessTokens"
+        },
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "DeletedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ID": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "downloaded_models": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "DownloadedModels"
+        },
+        "downloaded_worlds": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "DownloadedWorlds"
+        },
+        "email": {
+          "type": "string",
+          "x-go-name": "Email"
+        },
+        "exp_features": {
+          "description": "A comma separated list of features enabled for the user.",
+          "type": "string",
+          "x-go-name": "ExpFeatures"
+        },
+        "identity": {
+          "type": "string",
+          "x-go-name": "Identity"
+        },
+        "liked_models": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "LikedModels"
+        },
+        "liked_worlds": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "LikedWorlds"
+        },
+        "model_count": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "ModelCount"
+        },
+        "name": {
+          "description": "Person name",
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "org": {
+          "description": "DEPRECATED: Organization is an ignored field.",
+          "type": "string",
+          "x-go-name": "Organization"
+        },
+        "username": {
+          "description": "Username is unique in the Fuel community (including organizations)",
+          "type": "string",
+          "x-go-name": "Username"
+        },
+        "world_count": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "WorldCount"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+    },
+    "UserResponse": {
+      "type": "object",
+      "title": "UserResponse stores user information used in REST responses.",
+      "properties": {
+        "email": {
+          "description": "private",
+          "type": "string",
+          "x-go-name": "Email"
+        },
+        "exp_features": {
+          "description": "private",
+          "type": "string",
+          "x-go-name": "ExpFeatures"
+        },
+        "id": {
+          "description": "private",
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "ID"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "orgRoles": {
+          "description": "private",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "OrgRoles"
+        },
+        "orgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Organizations"
+        },
+        "sysAdmin": {
+          "description": "True if the user is a system administrator",
+          "type": "boolean",
+          "x-go-name": "SysAdmin"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+    },
+    "UserResponses": {
+      "description": "UserResponses is a slice of UserResponse",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/UserResponse"
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+    },
+    "World": {
       "type": "object",
       "properties": {
         "createdAt": {
@@ -757,10 +3351,9 @@
           "format": "int64",
           "x-go-name": "Filesize"
         },
-        "id": {
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "Id"
+        "is_liked": {
+          "type": "boolean",
+          "x-go-name": "IsLiked"
         },
         "license_id": {
           "type": "integer",
@@ -801,6 +3394,10 @@
           "format": "int64",
           "x-go-name": "Permission"
         },
+        "private": {
+          "type": "boolean",
+          "x-go-name": "Private"
+        },
         "tags": {
           "type": "array",
           "items": {
@@ -820,237 +3417,26 @@
           "type": "string",
           "x-go-name": "UploadDate"
         },
-        "url_name": {
-          "type": "string",
-          "x-go-name": "UrlName"
-        },
-        "uuid": {
-          "type": "string",
-          "x-go-name": "Uuid"
+        "version": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Version"
         }
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
     },
-    "ModelFileTree": {
+    "Worlds": {
       "type": "object",
       "properties": {
-        "file_tree": {
+        "worlds": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/ModelFileTree_FileNode"
+            "$ref": "#/definitions/World"
           },
-          "x-go-name": "FileTree"
-        },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "uuid": {
-          "type": "string",
-          "x-go-name": "Uuid"
+          "x-go-name": "Worlds"
         }
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
-    },
-    "ModelFileTree_FileNode": {
-      "type": "object",
-      "properties": {
-        "children": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/ModelFileTree_FileNode"
-          },
-          "x-go-name": "Children"
-        },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "path": {
-          "type": "string",
-          "x-go-name": "Path"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
-    },
-    "Models": {
-      "description": "Models is an array of Model",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/dbModel"
-      },
-      "properties": {
-        "models": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Model"
-          },
-          "x-go-name": "Models"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
-    },
-    "Tag": {
-      "description": "Tag is a string that can be used to mark other resources, such as models\nand worlds",
-      "type": "object",
-      "properties": {
-        "CreatedAt": {},
-        "DeletedAt": {},
-        "ID": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "UpdatedAt": {},
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
-    },
-    "Tags": {
-      "description": "Tags is an array of Tag",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/Tag"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
-    },
-    "Team": {
-      "description": "Team is a group of users",
-      "type": "object",
-      "properties": {
-        "CreatedAt": {},
-        "DeletedAt": {},
-        "ID": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "UpdatedAt": {},
-        "description": {
-          "description": "Description of the team",
-          "type": "string",
-          "x-go-name": "Description"
-        },
-        "teamname": {
-          "description": "Name of the team",
-          "type": "string",
-          "x-go-name": "Teamname"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
-    },
-    "Teams": {
-      "description": "Teams is an array of Team",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/Team"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
-    },
-    "User": {
-      "description": "User information",
-      "type": "object",
-      "properties": {
-        "CreatedAt": {},
-        "DeletedAt": {},
-        "DownloadedModels": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "DownloadedWorlds": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "ID": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "LikedModels": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "LikedWorlds": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "ModelCount": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "UpdatedAt": {},
-        "WorldCount": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "email": {
-          "type": "string",
-          "x-go-name": "Email"
-        },
-        "identity": {
-          "type": "string",
-          "x-go-name": "Identity"
-        },
-        "name": {
-          "description": "Person name",
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "org": {
-          "type": "string",
-          "x-go-name": "Organization"
-        },
-        "username": {
-          "description": "Username is unique in the Fuel community",
-          "type": "string",
-          "x-go-name": "Username"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
-    },
-    "UserResponse": {
-      "type": "object",
-      "title": "UserResponse stores user information used in REST responses.",
-      "properties": {
-        "email": {
-          "type": "string",
-          "x-go-name": "Email"
-        },
-        "id": {
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "ID"
-        },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "org": {
-          "type": "string",
-          "x-go-name": "Organization"
-        },
-        "username": {
-          "type": "string",
-          "x-go-name": "Username"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
-    },
-    "UserResponses": {
-      "description": "UserResponses is a slice of UserResponse",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/UserResponse"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
-    },
-    "Users": {
-      "description": "Users is an slice of User",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/User"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
     },
     "createUserPayload": {
       "description": "TODO: use this struct to parse and validate input parameters hadler_users.go",
@@ -1084,23 +3470,127 @@
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
     },
-    "dbModel": {
-      "description": "A model contains information about a single simulation object, such\nas a robot, table, or structure.",
+    "dbCollection": {
+      "description": "A collection has a name, owner and optional description.",
       "type": "object",
-      "title": "Model represents information about a simulation model",
+      "title": "Collection represents a collection of assets.",
       "properties": {
-        "CreatedAt": {},
-        "DeletedAt": {
-          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index to help disambiguate\nwhen soft deleted rows are involved."
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
         },
-        "ID": {
-          "description": "Override default GORM Model fields",
+        "DeletedAt": {
+          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index\nto help disambiguate when soft deleted rows are involved.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": {
+          "description": "A description of the collection (max 65,535 chars)",
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "name": {
+          "description": "The name of the collection",
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "owner": {
+          "description": "The owner of this collection (must exist in UniqueOwners). Can be user or org.",
+          "type": "string",
+          "x-go-name": "Owner"
+        },
+        "private": {
+          "description": "Private - True to make this a private resource",
+          "type": "boolean",
+          "x-go-name": "Private"
+        },
+        "thumbnails": {
+          "description": "A list of thumbnail urls from the associated models/worlds.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "ThumbnailUrls"
+        }
+      },
+      "x-go-name": "Collection",
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+    },
+    "dbCollectionAssets": {
+      "description": "CollectionAssets is a list of Collection assets",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/CollectionAsset"
+      },
+      "x-go-name": "CollectionAssets",
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+    },
+    "dbCollections": {
+      "description": "Collections is an array of Collection",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/dbCollection"
+      },
+      "x-go-name": "Collections",
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+    },
+    "dbModel": {
+      "type": "object",
+      "title": "Metadatum contains a key-value pair for a model.",
+      "properties": {
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ModelID": {
           "type": "integer",
           "format": "uint64"
         },
-        "UpdatedAt": {},
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "key": {
+          "description": "The name of the model",
+          "type": "string",
+          "x-go-name": "Key"
+        },
+        "value": {
+          "type": "string",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-name": "ModelMetadatum",
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+    },
+    "dbWorld": {
+      "type": "object",
+      "title": "World represents information about a simulation world.",
+      "properties": {
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "DeletedAt": {
+          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index\nto help disambiguate when soft deleted rows are involved.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "creator": {
+          "description": "The username of the User that created this world (usually got from the JWT)",
+          "type": "string",
+          "x-go-name": "Creator"
+        },
         "description": {
-          "description": "A description of the model (max 65,535 chars)\nInteresting post about TEXT vs VARCHAR(30000) performance:\nhttps://nicj.net/mysql-text-vs-varchar-performance/",
+          "description": "A description of the world (max 65,535 chars)\nInteresting post about TEXT vs VARCHAR(30000) performance:\nhttps://nicj.net/mysql-text-vs-varchar-performance/",
           "type": "string",
           "x-go-name": "Description"
         },
@@ -1111,7 +3601,7 @@
           "x-go-name": "Downloads"
         },
         "filesize": {
-          "description": "Bytes of the model, when downloaded as a zip",
+          "description": "Bytes of the world, when downloaded as a zip",
           "type": "integer",
           "format": "int64",
           "x-go-name": "Filesize"
@@ -1131,16 +3621,18 @@
           "x-go-name": "Likes"
         },
         "modify_date": {
-          "description": "Date and time the model was modified",
+          "description": "Modification Date and time",
+          "type": "string",
+          "format": "date-time",
           "x-go-name": "ModifyDate"
         },
         "name": {
-          "description": "The name of the model",
+          "description": "The name of the world",
           "type": "string",
           "x-go-name": "Name"
         },
         "owner": {
-          "description": "The user who created this model",
+          "description": "The user who created this world",
           "type": "string",
           "x-go-name": "Owner"
         },
@@ -1150,26 +3642,23 @@
           "format": "int64",
           "x-go-name": "Permission"
         },
+        "private": {
+          "description": "Private - True to make this a private resource",
+          "type": "boolean",
+          "x-go-name": "Private"
+        },
         "tags": {
           "$ref": "#/definitions/Tags"
         },
         "upload_date": {
-          "description": "Date and time the model was first uploaded",
+          "description": "Date and time the world was first uploaded",
+          "type": "string",
+          "format": "date-time",
           "x-go-name": "UploadDate"
-        },
-        "url_name": {
-          "description": "Optional user friendly name to use in URLs",
-          "type": "string",
-          "x-go-name": "URLName"
-        },
-        "uuid": {
-          "description": "Unique identifier for the the model",
-          "type": "string",
-          "x-go-name": "UUID"
         }
       },
-      "x-go-name": "Model",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/models"
+      "x-go-name": "World",
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
     }
   },
   "responses": {

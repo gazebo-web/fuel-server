@@ -1,16 +1,16 @@
-// Package main Ignition Fuel Server RESET API
+// Package main Ignition Fuel Server REST API
 //
 // This package provides a REST API to the Ignition Fuel server.
 //
 // Schemes: https
-// Host: staging-api.ignitionfuel.org
+// Host: fuel.ignitionrobotics.org
 // BasePath: /1.0
 // Version: 0.1.0
 // License: Apache 2.0
 // Contact: info@openrobotics.org
 //
 // swagger:meta
-// go:generate swagger generate spec
+// go:generate swagger generate spec -m
 package main
 
 // \todo Add in the following to the comments at the top of this file to enable
@@ -42,6 +42,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -108,6 +109,12 @@ func init() {
 	subtPrefix := apiPrefix + "/subt"
 	sub := mainRouter.PathPrefix(subtPrefix).Subrouter()
 	s.ConfigureRouterWithRoutes(subtPrefix, sub, subTRoutes)
+
+	// Special swagger.json file server route
+	swaggerRoute := "/" + globals.APIVersion + "/swagger.json"
+	mainRouter.HandleFunc(swaggerRoute, func(w http.ResponseWriter, req *http.Request) {
+		http.ServeFile(w, req, "swagger.json")
+	})
 
 	globals.Server.SetRouter(mainRouter)
 
