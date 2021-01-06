@@ -1,35 +1,27 @@
 package reviews
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+	"time"
+
 	"github.com/golang/protobuf/proto"
 	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
-	"time"
 )
 
-// contains information to create a model review
+// contains information to create a review for a model
 type ModelReview struct {
-	// information in a reveiw
-	Review *Review
-	// information in a model
-	Model *models.Model
-}
-
-func NewModelReview(review *Review, model *models.Model) (ModelReview, error){
-	modelReview := ModelReview{Review:review, Model: model}
-	return modelReview, nil
-}
-
-type CreateModelReview struct {
-	// relay all fields from CreateModel struct
-	models.CreateModel
-
-	// relay all fields from CreateReview struct
-	CreateReview
-	// Review for a model
+	// information in a review
 	Review
 
 	// Model that is under review
+	ModelID *uint
+}
+
+// create a review for a model
+type CreateModelReview struct {
+	// relay all fields from CreateReview struct
+	CreateReview
+
+	// Model ID under review
 	ModelID *uint
 }
 

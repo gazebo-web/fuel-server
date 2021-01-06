@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"reflect"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
+	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"strings"
 )
 
@@ -117,11 +116,10 @@ type Protobuffer interface{
 func (ms *Service) CreateReview(cmr CreateModelReview) (*Review, *ign.ErrMsg) {
 	// title, description, owner, branch, status *string, reviewers, approvals []string
 	review, err := NewReview(&cmr.CreateReview.Title, &cmr.CreateReview.Description,
-		&cmr.CreateModel.Owner, &cmr.CreateReview.Branch, &cmr.CreateReview.Status,
+		&cmr.CreateReview.Owner, &cmr.CreateReview.Branch, &cmr.CreateReview.Status,
 		cmr.CreateReview.Reviewers, cmr.CreateReview.Approvals)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
-
 	return &review, nil
 }

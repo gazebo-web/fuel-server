@@ -46,26 +46,9 @@ type Review struct {
 
 	// A list of approvals for the review
 	Approvals []string `gorm:"-" json:"approvals,omitempty"`
-}
-
-// NewReview creates a new Review struct
-func NewReview(title, description, owner, branch, status *string, reviewers, approvals []string) (Review, error) {
-	createTime := time.Now()
-	updateTime := time.Now()
-
-	// Reviewers for the review
-	Reviewers []string `gorm:"-" json:"reviewers,omitempty"`
-
-	// Approvals for the review
-	Approvals []string `gorm:"-" json:"approvals,omitempty"`
 
 	// Private - True to make this a private resource
 	Private *bool `gorm:"default:true" json:"private,omitempty"`
-
-	review := Review{CreatedAt: createTime, UpdatedAt: updateTime, Title: title,
-		Description: description, Owner: owner, Branch: branch,
-		Status: status, Reviewers: reviewers, Approvals: approvals}
-	return review, nil
 }
 
 // Reviews is an array of Review
@@ -75,6 +58,17 @@ type Reviews []Review
 // QueryForReviews returns a gorm query configured to query Reviews
 func QueryForReviews(q *gorm.DB) *gorm.DB {
 	return q.Model(&Review{}).Order("id")
+}
+
+// NewReview creates a new Review struct
+func NewReview(title, description, owner, branch, status *string, reviewers, approvals []string) (Review, error) {
+	createTime := time.Now()
+	updateTime := time.Now()
+
+	review := Review{CreatedAt: createTime, UpdatedAt: updateTime, Title: title,
+		Description: description, Owner: owner, Branch: branch,
+		Status: status, Reviewers: reviewers, Approvals: approvals}
+	return review, nil
 }
 
 // CreateReview encapulates data required to create a review

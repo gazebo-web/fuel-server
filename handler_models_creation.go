@@ -85,14 +85,7 @@ func doCreateModel(tx *gorm.DB, cb createFn, w http.ResponseWriter, r *http.Requ
 	return model, nil
 }
 
-// ModelCreate creates a new model based on input form. It return a model.Model or an error.
-// You can request this method with the following cURL request:
-//    curl -k -X POST -F name=my_model -F license=1
-//      -F file=@<full-path-to-file>
-//      https://localhost:4430/1.0/models --header 'authorization: Bearer <your-jwt-token-here>'
-func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
-	// TODO: consider limiting max form size (https://golang.org/pkg/net/http/#MaxBytesReader)
-
+func modelCreateFn(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.Model, *ign.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
@@ -107,8 +100,7 @@ func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 	}
 	cm.Metadata = parseMetadata(r)
 
-	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.Model, *ign.ErrMsg) {
-		owner := cm.Owner
+	owner := cm.Owner
 		if owner != "" {
 			// Ensure the passed in name exists before moving forward
 			_, em := users.OwnerByName(tx, owner, true)
@@ -140,7 +132,17 @@ func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 			return nil, em
 		}
 		return model, nil
-	}
+}
+
+// ModelCreate creates a new model based on input form. It return a model.Model or an error.
+// You can request this method with the following cURL request:
+//    curl -k -X POST -F name=my_model -F license=1
+//      -F file=@<full-path-to-file>
+//      https://localhost:4430/1.0/models --header 'authorization: Bearer <your-jwt-token-here>'
+func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	// TODO: consider limiting max form size (https://golang.org/pkg/net/http/#MaxBytesReader)
+
+	createFn := modelCreateFn
 
 	return doCreateModel(tx, createFn, w, r)
 }
