@@ -14,11 +14,11 @@ import (
 
 // createFn is a callback func that "creation handlers" will pass to doCreateModel.
 // It is expected that createFn will have the real logic for the model creation.
-type createReviewFn func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*reviews.ModelReviews, *ign.ErrMsg)
+type modelReviewCreateFn func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*reviews.ModelReview, *ign.ErrMsg)
 
 // doCreateModelReview provides the pre and post steps needed to create a modelReview.
-// Handlers should invoke this function and pass a createReviewFn callback.
-func doCreateModelReview(tx *gorm.DB, cb createReviewFn, w http.ResponseWriter, r *http.Request) (*reviews.ModelReview, *ign.ErrMsg) {
+// Handlers should invoke this function and pass a modelReviewCreateFn callback.
+func doCreateModelReview(tx *gorm.DB, cb modelReviewCreateFn, w http.ResponseWriter, r *http.Request) (*reviews.ModelReview, *ign.ErrMsg) {
 
 	// Extract the creator of the new model from the request.
 	jwtUser, ok, errMsg := getUserFromJWT(tx, r)
@@ -33,14 +33,10 @@ func doCreateModelReview(tx *gorm.DB, cb createReviewFn, w http.ResponseWriter, 
 	}
 
 	infoStr := "A new model review has been created:" +
-		"\n\t name: " + *modelReview.Review.Name +
+		"\n\t title: " + *modelReview.Review.Title +
 		"\n\t owner: " + *modelReview.Review.Owner+
 		"\n\t creator: " + *modelReview.Review.Creator +
-		"\n\t branch: " + *modelReview.Review.Branch +
-		"\n\t tags:"
-	for _, t := range modelReview.Review.Tags {
-		infoStr += *t.Name
-	}
+		"\n\t branch: " + *modelReview.Review.Branch
 	infoStr +=	"\n\t reviewers: "
 	for _, r := range modelReview.Review.Reviewers {
 		infoStr += r
@@ -55,21 +51,28 @@ func doCreateModelReview(tx *gorm.DB, cb createReviewFn, w http.ResponseWriter, 
 	return modelReview, nil
 }
 
-func createModelReviewFn(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*reviews.ModelReview, *ign.ErrMsg) {
+func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
 	defer r.MultipartForm.RemoveAll()
-
-	// reviews.CreateModelReview is the input form
-	var cmr reviews.CreateModelReview
+    // The input data structure for this handler should contain all fields required by both the
+    // `ModelCreate` and `ModelReviewCreate` `createFn` functions.
+    var cmr reviews.ModelAndReviewCreate
 	if em := ParseStruct(&cmr, r, true); em != nil {
 		return nil, em
 	}
 
-	owner := cmr.CreateReview.Owner
+	// Create model input form
+	cm := CreateModel{
+		// fill in model info with cmr
+	}
+
+	// create the model, same as createFn in model_creation
+	//
+	owner := cm.Owner
 	if owner != "" {
 		// Ensure the passed in name exists before moving forward
 		_, em := users.OwnerByName(tx, owner, true)
@@ -81,7 +84,7 @@ func createModelReviewFn(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter
 	}
 
 	// Get a new UUID and model folder
-	_, modelPath, err := users.NewUUID(owner, "models")
+	uuidStr, modelPath, err := users.NewUUID(owner, "models")
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
@@ -93,19 +96,21 @@ func createModelReviewFn(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter
 		return nil, em
 	}
 
-	// Create review via the reviews Service
-	// rs := &reviews.Service{}
-	// review, rem := rs.CreateReview(cmr)
-	// model, rem := ?
-	// if rem != nil {
-	// 	os.Remove(modelPath)
-	// 	return nil, rem
-	// }
-	modelReview, _ := reviews.CreateModelReview(review, model.GetID())
-	return &modelReview, nil
-}
+	// Create the model via the Models Service
+	ms := &models.Service{}
+	model, em := ms.CreateModel(r.Context(), tx, cm, uuidStr, modelPath, jwtUser)
+	if em != nil {
+		os.Remove(modelPath)
+		return nil, em
+	}
 
-func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
-	createReviewFn := createModelReviewFn
-	return doCreateModelReview(tx, createReviewFn, w, r)
+	rm := CreateReview{
+		// fill in review info with model
+	}
+
+	modelReviewCreateFn := (tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*reviews.ModelReview, *ign.ErrMsg) {
+		// use model and rm fill in modelReview info
+	}
+
+	return doCreateModelReview(tx, modelReviewCreateFn, w, r)
 }

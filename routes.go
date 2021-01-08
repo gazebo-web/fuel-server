@@ -2657,7 +2657,6 @@ var routes = ign.Routes{
 				"POST",
 				"Post a review",
 				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(ModelCreate)},
 					ign.FormatHandler{"", ign.JSONResult(ModelReviewCreate)},
 				},
 			},

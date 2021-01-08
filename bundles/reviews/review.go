@@ -60,17 +60,6 @@ func QueryForReviews(q *gorm.DB) *gorm.DB {
 	return q.Model(&Review{}).Order("id")
 }
 
-// NewReview creates a new Review struct
-func NewReview(title, description, owner, branch, status *string, reviewers, approvals []string) (Review, error) {
-	createTime := time.Now()
-	updateTime := time.Now()
-
-	review := Review{CreatedAt: createTime, UpdatedAt: updateTime, Title: title,
-		Description: description, Owner: owner, Branch: branch,
-		Status: status, Reviewers: reviewers, Approvals: approvals}
-	return review, nil
-}
-
 // CreateReview encapulates data required to create a review
 type CreateReview struct {
 	// Optional Owner of the model. Must be a user or an org
@@ -90,4 +79,17 @@ type CreateReview struct {
 	// The title of the review
 	// required: true
 	Title string `json:"title" validate:"required, noforwardslash,nopercent" form:"title"`
+}
+
+// NewReview creates a new Review struct
+func NewModelReview(title, description, owner, branch, status *string, reviewers, approvals []string, modelID *uint) (ModelReview, error) {
+	createTime := time.Now()
+	updateTime := time.Now()
+
+	review := Review{CreatedAt: createTime, UpdatedAt: updateTime, Title: title,
+		Description: description, Owner: owner, Branch: branch,
+		Status: status, Reviewers: reviewers, Approvals: approvals}
+
+	modelReview := ModelReview{Review: review, ModelID: modelID}
+	return modelReview, nil
 }

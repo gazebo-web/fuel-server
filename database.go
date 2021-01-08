@@ -96,9 +96,6 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 func DBDropModels(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		// First remove added FKs
-		db.Model(&reviews.ModelReview{}).RemoveForeignKey("owner", "unique_owners(name)")
-		db.Model(&reviews.ModelReview{}).RemoveForeignKey("creator", "users(username)")
-
 		db.Model(&models.Model{}).RemoveForeignKey("owner", "unique_owners(name)")
 		db.Model(&models.Model{}).RemoveForeignKey("creator", "users(username)")
 

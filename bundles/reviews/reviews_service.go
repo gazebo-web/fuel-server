@@ -112,14 +112,14 @@ type Protobuffer interface{
     ToProto() interface{}
 }
 
-// CreateReview creates a review for a new model.
-func (ms *Service) CreateReview(cmr CreateModelReview) (*Review, *ign.ErrMsg) {
+// NewReview creates a model review.
+func (ms *Service) NewModelReview(cmr CreateModelReview) (*ModelReview, *ign.ErrMsg) {
 	// title, description, owner, branch, status *string, reviewers, approvals []string
-	review, err := NewReview(&cmr.CreateReview.Title, &cmr.CreateReview.Description,
+	modelReview, err := NewModelReview(&cmr.CreateReview.Title, &cmr.CreateReview.Description,
 		&cmr.CreateReview.Owner, &cmr.CreateReview.Branch, &cmr.CreateReview.Status,
-		cmr.CreateReview.Reviewers, cmr.CreateReview.Approvals)
+		cmr.CreateReview.Reviewers, cmr.CreateReview.Approvals, cmr.ModelID)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
-	return &review, nil
+	return &modelReview, nil
 }
