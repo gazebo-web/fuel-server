@@ -85,29 +85,32 @@ func (ms *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *stri
 		return nil, nil, em
 	}
 
-	switch rl := reviewList.(type) {
-		case *[]ModelReview:
-			reviewsProto := make([]interface{}, len(*rl))
-			for i, review := range *rl {
-				// We only need the resource to implement Protobuffer to be
-				// able to convert to proto
-				protoReview, ok := reflect.ValueOf(review).Interface().(Protobuffer)
-				// If the review cannot be cast to the interface, just fail
-				if !ok {
-					em := ign.NewErrorMessage(ign.ErrorMarshalProto)
-					return nil, nil, em
-				}
-				reviewsProto[i] = protoReview.ToProto()
-			}
-			return &reviewsProto, paginationResult, nil
+	reviewListValue := reflect.ValueOf(reviewList)
+	reviewListValueLen := reflect.Indirect(reviewListValue).Len()
+	reviewsProto := make([]interface{}, reviewListValueLen)
+	for i := 0; i < reviewListValueLen; i++ {
+		// Get the item from the slice
+		review := reviewListValue.Index(i)
+		// Attempt to cast it
+		protoReview, ok := reflect.ValueOf(review).Interface().(Protobuffer)
+		// If the review cannot be cast to the interface, just fail
+		if !ok {
+			em := ign.NewErrorMessage(ign.ErrorMarshalProto)
+			return nil, nil, em
+		}
+		// Store the element's protobuf representation
+		reviewsProto[i] = protoReview.ToProto()
 	}
 
-	return reviewList, paginationResult, nil
+	return &reviewsProto, paginationResult, nil
 }
 
 // Protobuffer should be implemented by resources that have a protobuf
 // representation. It provides methods to convert to a protobuf representation.
 type Protobuffer interface{
     // This method returns a protobuf representation of the object
+	// Note: consider using proto.Message interface instead of just an empty
+	// interface as ToProto return data type.
+	// https://godoc.org/github.com/golang/protobuf/proto#Message
     ToProto() interface{}
 }
