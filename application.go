@@ -113,6 +113,19 @@ func init() {
 	// Special swagger.json file server route
 	swaggerRoute := "/" + globals.APIVersion + "/swagger.json"
 	mainRouter.HandleFunc(swaggerRoute, func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Methods",
+			"GET, HEAD, POST, PUT, PATCH, DELETE")
+
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		w.Header().Set("Access-Control-Allow-Headers",
+			`Accept, Accept-Language, Content-Language, Origin,
+                  Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token,
+                  Authorization`)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		w.Header().Set("Access-Control-Expose-Headers", "Link, X-Total-Count, X-Ign-Resource-Version")
+
 		http.ServeFile(w, req, "swagger.json")
 	})
 
