@@ -75,7 +75,6 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&worlds.WorldReport{},
 			&worlds.WorldDownload{},
 			&worlds.ModelInclude{},
-			&reviews.Review{},
 			&reviews.ModelReview{},
 			globals.Permissions.DBTable(),
 
