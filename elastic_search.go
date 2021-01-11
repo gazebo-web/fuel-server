@@ -24,6 +24,7 @@ import (
 var fuelIndices = []string{"fuel_models", "fuel_worlds"}
 
 // ElasticSearchConfig is a configuration for an ElasticSearch server.
+// swagger:model
 type ElasticSearchConfig struct {
 	// ID is the primary key
 	ID uint `gorm:"primary_key" json:"id"`
@@ -48,7 +49,12 @@ type ElasticSearchConfig struct {
 	IsPrimary bool `json:"primary"`
 }
 
+// ElasticSearchConfigs is a list of ElasticSearchConfig
+// swagger:model
+type ElasticSearchConfigs []ElasticSearchConfig
+
 // AdminSearchRequest is a request to alter the ElasticSearchConfig
+// swagger:model
 type AdminSearchRequest struct {
 	// Address of the server. This must contain either "http" or "https".
 	Address string `json:"address"`
@@ -61,6 +67,12 @@ type AdminSearchRequest struct {
 
 	// True if this is the server to use by default.
 	Primary bool `json:"primary"`
+}
+
+// AdminSearchResponse contains a response to an AdminSearchRequest.
+// swagger:model
+type AdminSearchResponse struct {
+	Message string `json:"status"`
 }
 
 // DeleteElasticSearchHandler deletes an elasticsearch config
@@ -212,7 +224,7 @@ func ListElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Reques
 		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
 	}
 
-	var dbConfigs []ElasticSearchConfig
+	var dbConfigs ElasticSearchConfigs
 
 	tx.Find(&dbConfigs)
 
@@ -239,10 +251,7 @@ func ReconnectElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.R
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
 
-	type adminSearchResponse struct {
-		Message string `json:"status"`
-	}
-	response := adminSearchResponse{Message: "Reconnected"}
+	response := AdminSearchResponse{Message: "Reconnected"}
 	return response, nil
 }
 
@@ -267,11 +276,7 @@ func RebuildElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Req
 	models.ElasticSearchUpdateAll(r.Context(), tx)
 	worlds.ElasticSearchUpdateAll(r.Context(), tx)
 
-	type adminSearchResponse struct {
-		Message string `json:"status"`
-	}
-
-	response := adminSearchResponse{Message: "Rebuilt indices"}
+	response := AdminSearchResponse{Message: "Rebuilt indices"}
 
 	return response, nil
 }
@@ -295,10 +300,7 @@ func UpdateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 	models.ElasticSearchUpdateAll(r.Context(), tx)
 	worlds.ElasticSearchUpdateAll(r.Context(), tx)
 
-	type adminSearchResponse struct {
-		Message string `json:"status"`
-	}
-	response := adminSearchResponse{Message: "Updated indices"}
+	response := AdminSearchResponse{Message: "Updated indices"}
 
 	return response, nil
 }
