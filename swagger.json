@@ -19,7 +19,7 @@
   "paths": {
     "/admin/search": {
       "get": {
-        "description": "Get a list of the ElasticSearchConfigs",
+        "description": "Zero or more ElasticSearch configurations may be specified. The\nconfiguration marked as `primary` is the active ElasticSearch server.",
         "produces": [
           "application/json"
         ],
@@ -29,12 +29,26 @@
         "tags": [
           "search"
         ],
+        "summary": "Get a list of the available ElasticSearch configurations.",
         "operationId": "elasticSearchUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "A personal access token.",
+            "name": "Private-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "description": "A personal access token.",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "TeamResponse",
+            "description": "ElasticSearchConfigs",
             "schema": {
-              "$ref": "#/definitions/TeamResponse"
+              "$ref": "#/definitions/ElasticSearchConfigs"
             }
           },
           "default": {
@@ -43,7 +57,7 @@
         }
       },
       "post": {
-        "description": "Creates an ElasticSearchConfig",
+        "description": "Use this route to tell Fuel about a new ElasticSearch server.",
         "produces": [
           "application/json"
         ],
@@ -53,12 +67,68 @@
         "tags": [
           "search"
         ],
+        "summary": "Creates an ElasticSearch server configuration.",
         "operationId": "elasticSearchUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "A personal access token.",
+            "name": "Private-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "description": "A personal access token.",
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "description": "URL address of an Elastic Search server.",
+            "name": "address",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "description": "URL address of an Elastic Search server.",
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "description": "\"true\" to make this configuration the primary config.",
+            "name": "primary",
+            "in": "body",
+            "schema": {
+              "description": "\"true\" to make this configuration the primary config.",
+              "type": "string",
+              "default": "false"
+            }
+          },
+          {
+            "type": "string",
+            "description": "Username for ElasticSearch authentication",
+            "name": "username",
+            "in": "body",
+            "schema": {
+              "description": "Username for ElasticSearch authentication",
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "description": "Password for ElasticSearch authentication",
+            "name": "password",
+            "in": "body",
+            "schema": {
+              "description": "Password for ElasticSearch authentication",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "TeamResponse",
+            "description": "ElasticSearchConfig",
             "schema": {
-              "$ref": "#/definitions/TeamResponse"
+              "$ref": "#/definitions/ElasticSearchConfig"
             }
           },
           "default": {
@@ -69,7 +139,7 @@
     },
     "/admin/search/rebuild": {
       "get": {
-        "description": "Rebuilds the primary ElasticSearchConfig indices",
+        "description": "Rebuilding the indices may take several minutes. Use this route when\nor if the ElasticSearch indices have become out of date.",
         "produces": [
           "application/json"
         ],
@@ -79,12 +149,26 @@
         "tags": [
           "search"
         ],
+        "summary": "Rebuilds the primary ElasticSearch indices.",
         "operationId": "elasticSearchUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "A personal access token.",
+            "name": "Private-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "description": "A personal access token.",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "TeamResponse",
+            "description": "AdminSearchResponse",
             "schema": {
-              "$ref": "#/definitions/TeamResponse"
+              "$ref": "#/definitions/AdminSearchResponse"
             }
           },
           "default": {
@@ -95,7 +179,6 @@
     },
     "/admin/search/reconnect": {
       "get": {
-        "description": "Reconnects to the primary ElasticSearchConfig",
         "produces": [
           "application/json"
         ],
@@ -105,12 +188,26 @@
         "tags": [
           "search"
         ],
+        "summary": "Reconnects to the primary ElasticSearch server.",
         "operationId": "elasticSearchUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "A personal access token.",
+            "name": "Private-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "description": "A personal access token.",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "TeamResponse",
+            "description": "AdminSearchResponse",
             "schema": {
-              "$ref": "#/definitions/TeamResponse"
+              "$ref": "#/definitions/AdminSearchResponse"
             }
           },
           "default": {
@@ -121,7 +218,7 @@
     },
     "/admin/search/update": {
       "get": {
-        "description": "Updates the primary ElasticSearchConfig indices",
+        "description": "This route will populate the primary ElasticSearch server with new\ndata contained in the Fuel database. This route may take several\nminutes to complete.",
         "produces": [
           "application/json"
         ],
@@ -131,12 +228,26 @@
         "tags": [
           "search"
         ],
+        "summary": "Updates the primary ElasticSearch servers indices.",
         "operationId": "elasticSearchUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "A personal access token.",
+            "name": "Private-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "description": "A personal access token.",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "TeamResponse",
+            "description": "AdminSearchResponse",
             "schema": {
-              "$ref": "#/definitions/TeamResponse"
+              "$ref": "#/definitions/AdminSearchResponse"
             }
           },
           "default": {
@@ -147,7 +258,7 @@
     },
     "/admin/search/{config_id}": {
       "delete": {
-        "description": "Deletes an ElasticSearchConfig",
+        "description": "Use this route to remove and ElasticSearch configuration.",
         "produces": [
           "application/json"
         ],
@@ -157,12 +268,37 @@
         "tags": [
           "search"
         ],
+        "summary": "Deletes an ElasticSearch server configuration.",
         "operationId": "elasticSearchUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "A personal access token.",
+            "name": "Private-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "description": "A personal access token.",
+              "type": "string"
+            }
+          },
+          {
+            "type": "integer",
+            "description": "ID of the ElasticSearch configuration.",
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "description": "ID of the ElasticSearch configuration.",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "TeamResponse",
+            "description": "ElasticSearchConfig",
             "schema": {
-              "$ref": "#/definitions/TeamResponse"
+              "$ref": "#/definitions/ElasticSearchConfig"
             }
           },
           "default": {
@@ -171,7 +307,7 @@
         }
       },
       "patch": {
-        "description": "Updates an ElasticSearchConfig",
+        "description": "Set the username, password, address, and primary status of an\nElasticSearch server configuration.",
         "produces": [
           "application/json"
         ],
@@ -181,12 +317,79 @@
         "tags": [
           "search"
         ],
+        "summary": "Updates an ElasticSearch server configuration.",
         "operationId": "elasticSearchUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "A personal access token.",
+            "name": "Private-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "description": "A personal access token.",
+              "type": "string"
+            }
+          },
+          {
+            "type": "integer",
+            "description": "ID of the ElasticSearch configuration.",
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "description": "ID of the ElasticSearch configuration.",
+              "type": "integer"
+            }
+          },
+          {
+            "type": "string",
+            "description": "URL address of an Elastic Search server.",
+            "name": "address",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "description": "URL address of an Elastic Search server.",
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "description": "\"true\" to make this configuration the primary config.",
+            "name": "primary",
+            "in": "body",
+            "schema": {
+              "description": "\"true\" to make this configuration the primary config.",
+              "type": "string",
+              "default": "false"
+            }
+          },
+          {
+            "type": "string",
+            "description": "Username for ElasticSearch authentication",
+            "name": "username",
+            "in": "body",
+            "schema": {
+              "description": "Username for ElasticSearch authentication",
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "description": "Password for ElasticSearch authentication",
+            "name": "password",
+            "in": "body",
+            "schema": {
+              "description": "Password for ElasticSearch authentication",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "TeamResponse",
+            "description": "ElasticSearchConfig",
             "schema": {
-              "$ref": "#/definitions/TeamResponse"
+              "$ref": "#/definitions/ElasticSearchConfig"
             }
           },
           "default": {
@@ -2642,6 +2845,44 @@
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/ign-go"
     },
+    "AdminSearchRequest": {
+      "description": "AdminSearchRequest is a request to alter the ElasticSearchConfig",
+      "type": "object",
+      "properties": {
+        "address": {
+          "description": "Address of the server. This must contain either \"http\" or \"https\".",
+          "type": "string",
+          "x-go-name": "Address"
+        },
+        "password": {
+          "description": "Password for basic authentication. Optional.",
+          "type": "string",
+          "x-go-name": "Password"
+        },
+        "primary": {
+          "description": "True if this is the server to use by default.",
+          "type": "boolean",
+          "x-go-name": "Primary"
+        },
+        "username": {
+          "description": "Username for basic authentication. Optional.",
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
+    },
+    "AdminSearchResponse": {
+      "type": "object",
+      "title": "AdminSearchResponse contains a response to an AdminSearchRequest.",
+      "properties": {
+        "status": {
+          "type": "string",
+          "x-go-name": "Message"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
+    },
     "Categories": {
       "description": "Categories is an array of Category",
       "type": "array",
@@ -2784,6 +3025,62 @@
         }
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+    },
+    "ElasticSearchConfig": {
+      "type": "object",
+      "title": "ElasticSearchConfig is a configuration for an ElasticSearch server.",
+      "properties": {
+        "CreatedAt": {
+          "description": "CreatedAt is the time the entry was created.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "DeletedAt": {
+          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index to help disambiguate\nwhen soft deleted rows are involved.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "UpdatedAt": {
+          "description": "UpdatedAt is the time the entry was update.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "address": {
+          "description": "Address of the server. This must contain either \"http\" or \"https\".",
+          "type": "string",
+          "x-go-name": "Address"
+        },
+        "id": {
+          "description": "ID is the primary key",
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "ID"
+        },
+        "password": {
+          "description": "Password for basic authentication. Optional.",
+          "type": "string",
+          "x-go-name": "Password"
+        },
+        "primary": {
+          "description": "True if this is the server to use by default.",
+          "type": "boolean",
+          "x-go-name": "IsPrimary"
+        },
+        "username": {
+          "description": "Username for basic authentication. Optional.",
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
+    },
+    "ElasticSearchConfigs": {
+      "description": "ElasticSearchConfigs is a list of ElasticSearchConfig",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ElasticSearchConfig"
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
     },
     "ErrMsg": {
       "description": "ErrMsg is serialized as JSON, and returned if the request does not succeed\nTODO: consider making ErrMsg an 'error'",
@@ -3539,32 +3836,108 @@
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
     },
     "dbModel": {
+      "description": "A model contains information about a single simulation object, such\nas a robot, table, or structure.",
       "type": "object",
-      "title": "Metadatum contains a key-value pair for a model.",
+      "title": "Model represents information about a simulation model",
       "properties": {
         "CreatedAt": {
           "type": "string",
           "format": "date-time"
         },
-        "ModelID": {
-          "type": "integer",
-          "format": "uint64"
+        "DeletedAt": {
+          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index to help disambiguate\nwhen soft deleted rows are involved.",
+          "type": "string",
+          "format": "date-time"
         },
         "UpdatedAt": {
           "type": "string",
           "format": "date-time"
         },
-        "key": {
+        "categories": {
+          "$ref": "#/definitions/Categories"
+        },
+        "creator": {
+          "description": "The username of the User that created this model (usually got from the JWT)",
+          "type": "string",
+          "x-go-name": "Creator"
+        },
+        "description": {
+          "description": "A description of the model (max 65,535 chars)\nInteresting post about TEXT vs VARCHAR(30000) performance:\nhttps://nicj.net/mysql-text-vs-varchar-performance/",
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "downloads": {
+          "description": "Number of downloads",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Downloads"
+        },
+        "filesize": {
+          "description": "Bytes of the model, when downloaded as a zip",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Filesize"
+        },
+        "lic_id": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "LicenseID"
+        },
+        "license": {
+          "$ref": "#/definitions/License"
+        },
+        "likes": {
+          "description": "Number of likes",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Likes"
+        },
+        "metadata": {
+          "$ref": "#/definitions/ModelMetadata"
+        },
+        "modify_date": {
+          "description": "Date and time the model was modified",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "ModifyDate"
+        },
+        "name": {
           "description": "The name of the model",
           "type": "string",
-          "x-go-name": "Key"
+          "x-go-name": "Name"
         },
-        "value": {
+        "owner": {
+          "description": "The owner of this model (must exist in UniqueOwners). Can be user or org.",
           "type": "string",
-          "x-go-name": "Value"
+          "x-go-name": "Owner"
+        },
+        "permission": {
+          "description": "Permission - 0: public, 1: owner, (future: team, others)",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Permission"
+        },
+        "private": {
+          "description": "Private - True to make this a private resource",
+          "type": "boolean",
+          "x-go-name": "Private"
+        },
+        "tags": {
+          "$ref": "#/definitions/Tags"
+        },
+        "upload_date": {
+          "description": "Date and time the model was first uploaded",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "UploadDate"
+        },
+        "url_name": {
+          "description": "Optional user friendly name to use in URLs",
+          "type": "string",
+          "x-go-name": "URLName"
         }
       },
-      "x-go-name": "ModelMetadatum",
+      "x-go-name": "Model",
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
     },
     "dbWorld": {
