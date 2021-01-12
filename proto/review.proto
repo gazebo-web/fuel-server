@@ -27,7 +27,7 @@ message Reviews {
 
 message ModelReview {
   required Review review = 1;
-  required Model model = 2;
+  required uint64 model_id = 2;
 }
 
 message ModelReviews {
