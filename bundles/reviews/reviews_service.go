@@ -123,3 +123,10 @@ func (ms *Service) NewModelReview(cmr CreateModelReview) (*ModelReview, *ign.Err
 	}
 	return &modelReview, nil
 }
+
+// CreateReview creates a new review.
+func (ms *Service) CreateModelReview(ctx context.Context, tx *gorm.DB, rm CreateReview,
+	uuidStr, filesPath string, creator *users.User) (*Review, *ign.ErrMsg) {
+
+	return review, nil
+}

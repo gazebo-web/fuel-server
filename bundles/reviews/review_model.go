@@ -12,7 +12,7 @@ type ModelReview struct {
 	// information in a review
 	Review
 
-	// Model that is under review
+	// Model ID under review
 	ModelID *uint
 }
 
@@ -28,7 +28,6 @@ type CreateModelReview struct {
 // ModelReviews is an array of ModelReview
 //
 type ModelReviews []ModelReview
-
 
 // ReviewToProto creates a new 'fuel.Review' from the given review.
 func (mr *ModelReview) ToProto() interface{} {

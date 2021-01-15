@@ -149,7 +149,7 @@ func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 		return nil, &errMsg
 	}
 
-	// invoke the actual createFn (the callback function)
+	// invoke the actual model callback function
 	model, em := modelFn(cm, tx, jwtUser, w, r)
 	if em != nil {
 		return nil, em
