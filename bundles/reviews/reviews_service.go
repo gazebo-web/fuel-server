@@ -112,8 +112,8 @@ type Protobuffer interface{
     ToProto() interface{}
 }
 
-// NewReview creates a model review.
-func (ms *Service) NewModelReview(cmr CreateModelReview) (*ModelReview, *ign.ErrMsg) {
+// create a new modelReview
+func (ms *Service) CreateModelReview(cmr CreateModelReview) (*ModelReview, *ign.ErrMsg) {
 	// title, description, owner, branch, status *string, reviewers, approvals []string
 	modelReview, err := NewModelReview(&cmr.CreateReview.Title, &cmr.CreateReview.Description,
 		&cmr.CreateReview.Owner, &cmr.CreateReview.Branch, &cmr.CreateReview.Status,
@@ -122,11 +122,4 @@ func (ms *Service) NewModelReview(cmr CreateModelReview) (*ModelReview, *ign.Err
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
 	return &modelReview, nil
-}
-
-// CreateReview creates a new review.
-func (ms *Service) CreateModelReview(ctx context.Context, tx *gorm.DB, rm CreateReview,
-	uuidStr, filesPath string, creator *users.User) (*Review, *ign.ErrMsg) {
-
-	return review, nil
 }

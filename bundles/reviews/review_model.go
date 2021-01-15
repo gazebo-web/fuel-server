@@ -52,3 +52,16 @@ func (mr *ModelReview) ToProto() interface{} {
 
 	return &fuelModelReview
 }
+
+// NewReview creates a new Review struct
+func NewModelReview(title, description, owner, branch, status *string, reviewers, approvals []string, modelID *uint) (ModelReview, error) {
+	createTime := time.Now()
+	updateTime := time.Now()
+
+	review := Review{CreatedAt: createTime, UpdatedAt: updateTime, Title: title,
+		Description: description, Owner: owner, Branch: branch,
+		Status: status, Reviewers: reviewers, Approvals: approvals}
+
+	modelReview := ModelReview{Review: review, ModelID: modelID}
+	return modelReview, nil
+}

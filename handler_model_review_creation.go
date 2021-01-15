@@ -2,8 +2,6 @@ package main
 
 import (
 	"net/http"
-	"os"
-	"time"
 
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
@@ -13,26 +11,30 @@ import (
 )
 
 // extract actual model review process
-func modelReviewFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*reviews.ModelReview, *ign.ErrMsg) {
-	owner := cm.Owner
-	if owner != "" {
-		// Ensure the passed in name exists before moving forward
-		_, em := users.OwnerByName(tx, owner, true)
-		if em != nil {
-			return nil, em
-		}
-	} else {
-		owner = *jwtUser.Username
-	}
+func reviewFn(cmr reviews.CreateModelReview, tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*reviews.ModelReview, *ign.ErrMsg) {
+	// parse rm input
+	// Owner
 
-	// Create the review via the Reviews Service
+	// reviewers
+
+	// empty approvals
+
+	// descriptions
+
+	// branch
+
+	// status
+
+	// title
+
+	// call review_service.CreateReview using cmr which already has modelID
 	rs := &reviews.Service{}
-	review, em := rs.CreateReview(r.Context(), tx, cm, uuidStr, jwtUser)
+	modelReview, em := rs.CreateModelReview(cmr)
 	if em != nil {
-		os.Remove()
 		return nil, em
 	}
-	return model, nil
+
+	return modelReview, nil
 }
 
 func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
@@ -49,7 +51,7 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 		return nil, &errMsg
 	}
 
-	// Block 1: Create model
+	// Create model
 	var cm models.CreateModel
 	if em := ParseStruct(&cm, r, true); em != nil {
 		return nil, em
@@ -62,18 +64,17 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 		return nil, em
 	}
 
-	// Block 2: Create model review with the newly created model
-	// The input data structure for this handler should contain all fields required by both the
-	// `ModelCreate` and `ModelReviewCreate` functions.
 	// create CreateModelReview input from request
 	var cmr reviews.CreateModelReview
-	if em := ParseStruct(&cm, r, true); em != nil {
+	if em := ParseStruct(&cmr, r, true); em != nil {
 		return nil, em
 	}
+	// Create model review with the newly created model
+	// pass in newly created model id to create model review
 	cmr.ModelID = &model.ID
 
-	// create the model
-	model, em := modelFn(cm, tx, jwtUser, w, r)
+	// create the review
+	modelReview, em := reviewFn(cmr, tx, jwtUser, w, r)
 
 	return modelReview, nil
 }

@@ -86,8 +86,8 @@ func doCreateModel(tx *gorm.DB, cb createFn, w http.ResponseWriter, r *http.Requ
 }
 
 // extracted actual model creation process
-func modelFn (input interface{}, tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request)(*models.Model, *ign.ErrMsg) {
-	owner := input.Owner
+func modelFn (cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request)(*models.Model, *ign.ErrMsg) {
+	owner := cm.Owner
 	if owner != "" {
 		// Ensure the passed in name exists before moving forward
 		_, em := users.OwnerByName(tx, owner, true)
@@ -113,7 +113,7 @@ func modelFn (input interface{}, tx *gorm.DB, jwtUser *users.User, w http.Respon
 
 	// Create the model via the Models Service
 	ms := &models.Service{}
-	model, em := ms.CreateModel(r.Context(), tx, input, uuidStr, modelPath, jwtUser)
+	model, em := ms.CreateModel(r.Context(), tx, cm, uuidStr, modelPath, jwtUser)
 	if em != nil {
 		os.Remove(modelPath)
 		return nil, em
