@@ -37,6 +37,7 @@ func reviewFn(cmr reviews.CreateModelReview, tx *gorm.DB, jwtUser *users.User, w
 	return modelReview, nil
 }
 
+// Create a new model and a new review
 func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {
@@ -75,6 +76,39 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 
 	// create the review
 	modelReview, em := reviewFn(cmr, tx, jwtUser, w, r)
+	if em != nil {
+		return nil, em
+	}
+
+	return modelReview, nil
+}
+
+// Create a new review for an existing model
+func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
+	if err := r.ParseMultipartForm(0); err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+	}
+	// Delete temporary files from r.ParseMultipartForm(0)
+	defer r.MultipartForm.RemoveAll()
+
+	// Extract the creator of the new modelReview from the request.
+	jwtUser, ok, errMsg := getUserFromJWT(tx, r)
+	if !ok {
+		return nil, &errMsg
+	}
+
+	// create and parse input form, modelID parsd into cmr
+	var cmr reviews.CreateModelReview
+	if em := ParseStruct(&cmr, r, true); em != nil {
+		return nil, em
+	}
+
+	// create a new modelReview with prefilled modelID in cmr
+	modelReview, em := reviewFn(cmr, tx, jwtUser, w, r)
+	if em != nil {
+		return nil, em
+	}
 
 	return modelReview, nil
 }
