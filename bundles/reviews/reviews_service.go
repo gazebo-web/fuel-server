@@ -7,6 +7,7 @@ import (
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"reflect"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
+	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"strings"
 )
 
@@ -113,13 +114,37 @@ type Protobuffer interface{
 }
 
 // create a new modelReview
-func (ms *Service) CreateModelReview(cmr CreateModelReview) (*ModelReview, *ign.ErrMsg) {
-	// title, description, owner, branch, status *string, reviewers, approvals []string
+func (ms *Service) CreateModelReview(cmr CreateModelReview, tx *gormDB, creator *users.User) (*ModelReview, *ign.ErrMsg) {
+	// set the owner
+	owner := cmr.CreateReview.Owner
+	if owner := "" {
+		owner = *creator.Username
+	} else {
+		ok, em := users.VerifyOwner(tx, owner, *creator.Username, permissions.Read)
+	}
+
+	// create the ModelReview struct
 	modelReview, err := NewModelReview(&cmr.CreateReview.Title, &cmr.CreateReview.Description,
-		&cmr.CreateReview.Owner, &cmr.CreateReview.Branch, &cmr.CreateReview.Status,
+		&owner, &cmr.CreateReview.Branch, &cmr.CreateReview.Status,
 		cmr.CreateReview.Reviewers, cmr.CreateReview.Approvals, cmr.ModelID)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
+
+	// create model review in the DB
+	if err := tx.Create(&modelReview).Error; err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+	}
+
+	// read and write permissions
+	_, err := globals.Permissions.AddPermission(owner, *modelReview.ModelID, permissions.Read)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+	}
+	_, err := globals.Permissions.AddPermission(owner, *modelReview.ModelID, permissions.Write)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+	}
+
 	return &modelReview, nil
 }
