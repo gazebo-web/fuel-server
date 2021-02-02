@@ -7,23 +7,18 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"strconv"
 	"strings"
 )
 
-// meta Contains a key-value pair
-type meta struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
 // This is the structure of the  data will be stored in the fuel index.
 type modelElastic struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	Metadata    []meta `json:"metadata,omitempty"`
+	Metadata    commonres.Metadata `json:"metadata,omitempty"`
 	Owner       string `json:"owner"`
 	Tags        string `json:"tags,omitempty"`
 	Categories  string `json:"categories"`
@@ -58,11 +53,11 @@ func ElasticSearchUpdateModel(ctx context.Context, tx *gorm.DB, model Model) {
 	}
 
 	// Construct the metadata information
-	var metadata []meta
+	var metadata commonres.Metadata
 	for _, metadatum := range model.Metadata {
-		metadata = append(metadata, meta{
-			Key:   *metadatum.Key,
-			Value: *metadatum.Value,
+		metadata = append(metadata, commonres.Metadatum{
+			Key:   metadatum.Key,
+			Value: metadatum.Value,
 		})
 	}
 
@@ -85,7 +80,7 @@ func ElasticSearchUpdateModel(ctx context.Context, tx *gorm.DB, model Model) {
 	}
 
 	// Construct the tag information
-	tags := strings.Join(TagsToStrSlice(model.Tags), " ")
+	tags := strings.Join(commonres.TagsToStrSlice(model.Tags), " ")
 
 	// Construct the category information
 	categories := strings.Join(category.CategoriesToStrSlice(model.Categories), " ")

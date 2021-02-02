@@ -1,6 +1,8 @@
 syntax = "proto2";
 package fuel;
 
+import "metadata.proto";
+
 // swagger:model
 message Model {
   optional string createdAt   = 2;
@@ -30,14 +32,8 @@ message Model {
   optional bool private = 23;
 
   repeated string tags        = 30;
-  repeated ModelMetadatum metadata  = 31;
+  repeated Metadatum metadata  = 31;
   repeated string categories        = 32;
-}
-
-// swagger:model
-message ModelMetadatum {
-  required string key = 1;
-  required string value = 2;
 }
 
 // swagger:model

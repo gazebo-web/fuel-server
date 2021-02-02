@@ -7,6 +7,8 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"strconv"
 	"strings"
@@ -16,9 +18,12 @@ import (
 type worldElastic struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Metadata    commonres.Metadata `json:"metadata,omitempty"`
 	Owner       string `json:"owner"`
 	Tags        string `json:"tags,omitempty"`
+	Categories  string `json:"categories"`
 	Creator     string `json:"creator"`
+	Collections string `json:"collections"`
 }
 
 //ElasticSearchRemoveWorld removes a world from elastic search
@@ -42,17 +47,43 @@ func ElasticSearchRemoveWorld(ctx context.Context, world *World) {
 }
 
 // ElasticSearchUpdateWorld will update ElasticSearch with a single world.
-func ElasticSearchUpdateWorld(ctx context.Context, world World) {
+func ElasticSearchUpdateWorld(ctx context.Context, tx *gorm.DB, world World) {
 	if globals.ElasticSearch == nil {
 		return
 	}
 
-	// Construct the tag information
-	var tagsBuilder strings.Builder
-	for _, tag := range world.Tags {
-		tagsBuilder.WriteString(*tag.Name)
-		tagsBuilder.WriteString(` `)
+	// Construct the metadata information
+	var metadata commonres.Metadata
+	for _, metadatum := range world.Metadata {
+		metadata = append(metadata, commonres.Metadatum{
+			Key:   metadatum.Key,
+			Value: metadatum.Value,
+		})
 	}
+
+	// Get the name of each collection that this world belongs to.
+	// We use a Raw SQL query because we can't use the collections_service due to
+	// circular dependencies.
+	type CollectionName struct {
+		Name string
+	}
+	var collections []CollectionName
+	tx.Raw("SELECT collections.name FROM collections INNER JOIN collection_assets ON collections.id = collection_assets.col_id WHERE collection_assets.asset_id=?;", world.ID).Scan(&collections)
+
+	// Construct the collection information
+	var collectionBuilder strings.Builder
+	for i, col := range collections {
+		collectionBuilder.WriteString(col.Name)
+		if i+1 < len(collections) {
+			collectionBuilder.WriteString(`, `)
+		}
+	}
+
+	// Construct the tag information
+	tags := strings.Join(commonres.TagsToStrSlice(world.Tags), " ")
+
+	// Construct the category information
+	categories := strings.Join(category.CategoriesToStrSlice(world.Categories), " ")
 
 	// Build the ElasticSearch struct.
 	m := worldElastic{
@@ -60,7 +91,14 @@ func ElasticSearchUpdateWorld(ctx context.Context, world World) {
 		Owner:       *world.Owner,
 		Creator:     *world.Creator,
 		Description: *world.Description,
-		Tags:        tagsBuilder.String(),
+		Tags:        tags,
+		Categories:  categories,
+		Collections: collectionBuilder.String(),
+	}
+
+	// Add in metadata
+	if len(metadata) > 0 {
+		m.Metadata = metadata
 	}
 
 	// Create the json representation
@@ -107,11 +145,11 @@ func ElasticSearchUpdateAll(ctx context.Context, tx *gorm.DB) {
 		var worlds Worlds
 
 		// Get all the worlds
-		tx.Preload("Tags").Find(&worlds)
+		tx.Preload("Tags").Preload("Metadata").Preload("Categories").Find(&worlds)
 
 		// Add each world to ElasticSearch.
 		for _, world := range worlds {
-			ElasticSearchUpdateWorld(ctx, world)
+			ElasticSearchUpdateWorld(ctx, tx, world)
 		}
 	}
 }

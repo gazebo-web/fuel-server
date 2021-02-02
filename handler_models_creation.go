@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
@@ -17,31 +16,6 @@ import (
 // It is expected that createFn will have the real logic for the model creation.
 type createFn func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.Model, *ign.ErrMsg)
 
-// parseMetadata will check if metadata exists in a request, and return a
-// pointer to a models.ModelMetadata struct or nil.
-func parseMetadata(r *http.Request) *models.ModelMetadata {
-	var metadata *models.ModelMetadata
-
-	// Check if "metadata" exists
-	if _, valid := r.Form["metadata"]; valid {
-		// Process each metadata line
-		for _, meta := range r.Form["metadata"] {
-
-			// Unmarshall the meta data
-			var unmarshalled models.ModelMetadatum
-			json.Unmarshal([]byte(meta), &unmarshalled)
-
-			// Create the metadata array, if it is null.
-			if metadata == nil {
-				metadata = new(models.ModelMetadata)
-			}
-
-			// Store the meta data
-			*metadata = append(*metadata, unmarshalled)
-		}
-	}
-	return metadata
-}
 
 // doCreateModel provides the pre and post steps needed to create or clone a model.
 // Handlers should invoke this function and pass a createFn callback.
@@ -105,7 +79,7 @@ func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 	if em := ParseStruct(&cm, r, true); em != nil {
 		return nil, em
 	}
-	cm.Metadata = parseMetadata(r)
+	cm.Metadata = ParseMetadata(r)
 
 	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.Model, *ign.ErrMsg) {
 		owner := cm.Owner
@@ -213,7 +187,7 @@ func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 		newFilesPath = &tmpDir
 	}
 
-	um.Metadata = parseMetadata(r)
+	um.Metadata = ParseMetadata(r)
 
 	model, em := (&models.Service{}).UpdateModel(r.Context(), tx, owner, modelName,
 		um.Description, um.Tags, newFilesPath, um.Private, user, um.Metadata, um.Categories)

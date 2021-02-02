@@ -33,19 +33,13 @@ func ModelList(p *ign.PaginationRequest, owner *string, order, search string,
 
 	if categoryFilters, ok := r.URL.Query()["category"]; ok {
 		for _, f := range categoryFilters {
-			categories = modelListCategoryHelper(tx, f, categories)
+			categories = ListCategoryHelper(tx, f, categories)
 		}
 	}
 	return ms.ModelList(p, tx, owner, order, search, nil, user, &categories)
 }
 
-// modelListCategoryHelper append a category to filter in model list
-func modelListCategoryHelper(tx *gorm.DB, filter string, categories category.Categories) category.Categories {
-	if cat, err := category.BySlug(tx, filter); err == nil {
-		categories = append(categories, *cat)
-	}
-	return categories
-}
+
 
 // ModelLikeList returns the list of models liked by a certain user. The returned value
 // will be of type "fuel.Models".

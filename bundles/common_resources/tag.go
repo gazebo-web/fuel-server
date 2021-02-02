@@ -1,4 +1,4 @@
-package models
+package commonres
 
 import (
 	"github.com/jinzhu/gorm"

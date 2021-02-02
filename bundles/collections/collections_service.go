@@ -439,7 +439,7 @@ func (s *Service) GetCollectionAssets(p *ign.PaginationRequest, tx *gorm.DB,
 	if assetsType == TModel {
 		return (&models.Service{}).ModelList(p, q, nil, "", "", nil, user, nil)
 	}
-	return (&worlds.Service{}).WorldList(p, q, nil, "", "", nil, user)
+	return (&worlds.Service{}).WorldList(p, q, nil, "", "", nil, user, nil)
 }
 
 // GetAssociatedCollections returns a paginated list of collections given the

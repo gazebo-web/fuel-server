@@ -6,6 +6,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
@@ -62,10 +63,10 @@ type Model struct {
 	ModifyDate *time.Time `json:"modify_date,omitempty"`
 
 	// Tags associated to this model
-	Tags Tags `gorm:"many2many:model_tags;" json:"tags,omitempty"`
+	Tags commonres.Tags `gorm:"many2many:model_tags;" json:"tags,omitempty"`
 
 	// Metadata associated to this model
-	Metadata ModelMetadata `json:"metadata,omitempty"`
+	Metadata commonres.Metadata `json:"metadata,omitempty"`
 
 	// Location of the model on disk
 	Location *string `json:"-"`
@@ -145,7 +146,7 @@ func GetModelByName(tx *gorm.DB, modelName string, owner string) (*Model, error)
 }
 
 // NewModelAndUUID creates a Model struct with a new UUID.
-func NewModelAndUUID(name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags Tags, private bool, categories *category.Categories, metadata *ModelMetadata) (Model, error) {
+func NewModelAndUUID(name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags commonres.Tags, private bool, categories *category.Categories, metadata *commonres.Metadata) (Model, error) {
 	uuidStr, _, err := users.NewUUID(*owner, models)
 	if err != nil {
 		return Model{}, err
@@ -154,7 +155,7 @@ func NewModelAndUUID(name, urlName, desc, location, owner, creator *string, lic 
 }
 
 // NewModel creates a new Model struct
-func NewModel(uuidStr, name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags Tags, private bool, categories *category.Categories, metadata *ModelMetadata) (Model, error) {
+func NewModel(uuidStr, name, urlName, desc, location, owner, creator *string, lic license.License, permission int, tags commonres.Tags, private bool, categories *category.Categories, metadata *commonres.Metadata) (Model, error) {
 
 	var modelPath string
 	// Override the generated location if we got a model location as argument
@@ -211,7 +212,7 @@ type CreateModel struct {
 	// maximum: 2
 	Categories string `json:"categories" validate:"printascii" form:"categories"`
 	// Metadata associated to this model
-	Metadata *ModelMetadata `json:"metadata" form:"metadata"`
+	Metadata *commonres.Metadata `json:"metadata" form:"metadata"`
 }
 
 // CloneModel encapsulates data required to clone a model
@@ -237,7 +238,7 @@ type UpdateModel struct {
 	// Private privacy/visibility setting
 	Private *bool `json:"private" validate:"omitempty" form:"private"`
 	// Metadata associated to this model
-	Metadata *ModelMetadata `json:"metadata" form:"metadata"`
+	Metadata *commonres.Metadata `json:"metadata" form:"metadata"`
 	// Optional pair of categories (comma separated)
 	Categories *string `json:"categories" validate:"omitempty" form:"categories"`
 }

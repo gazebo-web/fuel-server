@@ -6,6 +6,8 @@ import (
 	"github.com/go-playground/form"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
@@ -17,6 +19,40 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+// ListCategoryHelper append a category to filter in model/world list
+func ListCategoryHelper(tx *gorm.DB, filter string, categories category.Categories) category.Categories {
+	if cat, err := category.BySlug(tx, filter); err == nil {
+		categories = append(categories, *cat)
+	}
+	return categories
+}
+
+// ParseMetadata will check if metadata exists in a request, and return a
+// pointer to a models.ModelMetadata struct or nil.
+func ParseMetadata(r *http.Request) *commonres.Metadata {
+	var metadata *commonres.Metadata
+
+	// Check if "metadata" exists
+	if _, valid := r.Form["metadata"]; valid {
+		// Process each metadata line
+		for _, meta := range r.Form["metadata"] {
+
+			// Unmarshall the meta data
+			var unmarshalled commonres.Metadatum
+			json.Unmarshal([]byte(meta), &unmarshalled)
+
+			// Create the metadata array, if it is null.
+			if metadata == nil {
+				metadata = new(commonres.Metadata)
+			}
+
+			// Store the meta data
+			*metadata = append(*metadata, unmarshalled)
+		}
+	}
+	return metadata
+}
 
 // NoResult is a middleware that adapts a ign.HandlerWithResult into a ign.Handler.
 func NoResult(handler ign.HandlerWithResult) ign.Handler {

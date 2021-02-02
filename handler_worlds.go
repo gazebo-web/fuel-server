@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
@@ -31,7 +32,16 @@ func WorldList(p *ign.PaginationRequest, owner *string, order, search string,
 	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
 
 	ws := &worlds.Service{}
-	return ws.WorldList(p, tx, owner, order, search, nil, user)
+
+	var categories category.Categories
+
+	if categoryFilters, ok := r.URL.Query()["category"]; ok {
+		for _, f := range categoryFilters {
+			categories = ListCategoryHelper(tx, f, categories)
+		}
+	}
+
+	return ws.WorldList(p, tx, owner, order, search, nil, user, nil)
 }
 
 // WorldLikeList returns the list of worlds liked by a certain user. The returned value
@@ -48,7 +58,7 @@ func WorldLikeList(p *ign.PaginationRequest, owner *string, order, search string
 		return nil, nil, em
 	}
 	ws := &worlds.Service{}
-	return ws.WorldList(p, tx, owner, order, search, likedBy, user)
+	return ws.WorldList(p, tx, owner, order, search, likedBy, user, nil)
 }
 
 // WorldFileTree returns the file tree of a single world. The returned value
@@ -330,6 +340,7 @@ func WorldCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 	if em := ParseStruct(&cw, r, true); em != nil {
 		return nil, em
 	}
+	cw.Metadata = ParseMetadata(r)
 
 	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*worlds.World, *ign.ErrMsg) {
 		owner := cw.Owner
@@ -437,8 +448,10 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 		newFilesPath = &tmpDir
 	}
 
+	uw.Metadata = ParseMetadata(r)
+
 	world, em := (&worlds.Service{}).UpdateWorld(r.Context(), tx, owner, worldName,
-		uw.Description, uw.Tags, newFilesPath, uw.Private, user)
+		uw.Description, uw.Tags, newFilesPath, uw.Private, user, uw.Metadata, uw.Categories)
 	if em != nil {
 		return nil, em
 	}

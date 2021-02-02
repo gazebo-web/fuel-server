@@ -288,7 +288,7 @@ func collectionAssetAdd(colOwner, colName, assetType string, user *users.User,
 		if em != nil {
 			return nil, em
 		}
-		worlds.ElasticSearchUpdateWorld(r.Context(), *world)
+		worlds.ElasticSearchUpdateWorld(r.Context(), tx, *world)
 	}
 
 	// commit the DB transaction

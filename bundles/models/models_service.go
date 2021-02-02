@@ -256,11 +256,11 @@ func (ms *Service) ModelToProto(model *Model) *fuel.Model {
 
 	// Append metadata, if it exists
 	if len(model.Metadata) > 0 {
-		var metadata []*fuel.ModelMetadatum
+		var metadata []*fuel.Metadatum
 
 		// Convert DB representation to proto
 		for _, datum := range model.Metadata {
-			fuelDatum := fuel.ModelMetadatum{
+			fuelDatum := fuel.Metadatum{
 				Key:   proto.String(*datum.Key),
 				Value: proto.String(*datum.Value),
 			}
@@ -476,7 +476,7 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 // Returns the updated model
 func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	modelName string, desc, tagstr, filesPath *string, private *bool,
-	user *users.User, metadata *ModelMetadata, categories *string) (*Model, *ign.ErrMsg) {
+	user *users.User, metadata *res.Metadata, categories *string) (*Model, *ign.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, modelName, user)
 	if em != nil {
@@ -494,7 +494,7 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	}
 	// Edit the model tags, if present.
 	if tagstr != nil {
-		tags, err := StrToTags(tx, *tagstr)
+		tags, err := res.StrToTags(tx, *tagstr)
 		if err != nil {
 			return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 		}
@@ -625,7 +625,7 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 		return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormDuplicateModelName, nil, []string{cm.Name})
 	}
 	// Process the optional tags
-	pTags, err := StrToTags(tx, cm.Tags)
+	pTags, err := res.StrToTags(tx, cm.Tags)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 	}

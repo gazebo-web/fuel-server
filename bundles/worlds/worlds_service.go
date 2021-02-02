@@ -16,10 +16,10 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
@@ -68,6 +68,9 @@ func (ws *Service) GetWorldProto(ctx context.Context, tx *gorm.DB, owner,
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
 
+	// Load the metadata
+	tx.Model(&world).Related(&world.Metadata)
+
 	fuelWorld := ws.WorldToProto(world)
 	fuelWorld.Version = proto.Int64(int64(latestVersion))
 
@@ -84,11 +87,26 @@ func (ws *Service) GetWorldProto(ctx context.Context, tx *gorm.DB, owner,
 // If the likedBy argument is set, it will return the list of worlds liked by an user.
 // TODO: find a way to MERGE this with the one from Worlds service.
 func (ws *Service) WorldList(p *ign.PaginationRequest, tx *gorm.DB, owner *string,
-	order, search string, likedBy *users.User, user *users.User) (*fuel.Worlds, *ign.PaginationResult, *ign.ErrMsg) {
+	order, search string, likedBy *users.User, user *users.User, categories *category.Categories) (*fuel.Worlds, *ign.PaginationResult, *ign.ErrMsg) {
 
 	var worldList Worlds
 	// Create query
 	q := QueryForWorlds(tx)
+	var categoryIds []uint
+	if categories != nil && len(*categories) > 0 {
+		for _, c := range *categories {
+			categoryIds = append(categoryIds, c.ID)
+		}
+		subquery := tx.Table("world_categories").Select("DISTINCT(world_id)").Where("category_id IN (?)", categoryIds).QueryExpr()
+		q = q.Where("id IN (?)", subquery)
+	}
+
+	var cat category.Category
+	if categories != nil {
+		for _, cat = range *categories {
+			q = q.Joins("JOIN world_categories ON worlds.id = world_categories.world_id").Where("category_id = ?", &cat.ID)
+		}
+	}
 
 	// Override default Order BY, unless the user explicitly requested ASC order
 	if !(order != "" && strings.ToLower(order) == "asc") {
@@ -229,6 +247,29 @@ func (ws *Service) WorldToProto(world *World) *fuel.World {
 			tags = append(tags, *tag.Name)
 		}
 		fuelWorld.Tags = tags
+	}
+
+	if world.Categories != nil && len(world.Categories) > 0 {
+		categories := []string{}
+		for _, category := range world.Categories {
+			categories = append(categories, *category.Name)
+		}
+		fuelWorld.Categories = categories
+	}
+
+	// Append metadata, if it exists
+	if len(world.Metadata) > 0 {
+		var metadata []*fuel.Metadatum
+
+		// Convert DB representation to proto
+		for _, datum := range world.Metadata {
+			fuelDatum := fuel.Metadatum{
+				Key:   proto.String(*datum.Key),
+				Value: proto.String(*datum.Value),
+			}
+			metadata = append(metadata, &fuelDatum)
+		}
+		fuelWorld.Metadata = metadata
 	}
 
 	// Squash first thumbnail url
@@ -439,7 +480,7 @@ func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldNam
 // The filesPath argument points to a tmp folder from which to read the new files.
 func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 	worldName string, desc, tagstr, filesPath *string, private *bool,
-	user *users.User) (*World, *ign.ErrMsg) {
+	user *users.User, metadata *res.Metadata, categories *string) (*World, *ign.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, worldName, user)
 	if em != nil {
@@ -458,12 +499,49 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 	}
 	// Edit the tags, if present.
 	if tagstr != nil {
-		tags, err := models.StrToTags(tx, *tagstr)
+		tags, err := res.StrToTags(tx, *tagstr)
 		if err != nil {
 			return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 		}
 		tx.Model(&world).Association("Tags").Replace(*tags)
 	}
+
+	if categories != nil {
+
+		sl := ign.StrToSlice(*categories)
+
+		cats, err := category.StrSliceToCategories(tx, sl)
+		if err != nil {
+			return nil, ign.NewErrorMessageWithBase(ign.ErrorFormInvalidValue, err)
+		}
+
+		if cats != nil {
+			length := len(*cats)
+
+			if length > globals.MaxCategoriesPerModel {
+				return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+			}
+
+			if length == 0 {
+				tx.Model(&world).Association("Categories").Clear()
+			} else {
+				tx.Model(&world).Association("Categories").Replace(cats)
+			}
+		}
+	}
+
+	// Update the metadata, if the data is present.
+	if metadata != nil {
+		// Handle the special case where the metadata consists of one Metadatum
+		// element with empty Key and Value elements. This indicates that
+		// the metadata should be cleared.
+		if len(*metadata) == 1 && (*metadata)[0].IsEmpty() {
+			tx.Model(&world).Association("Metadata").Clear()
+		} else {
+			tx.Model(&world).Association("Metadata").Replace(*metadata)
+		}
+	}
+
 	// Update the modification date.
 	tx.Model(&world).Update("ModifyDate", time.Now())
 
@@ -496,7 +574,7 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 		tx.Model(&world).Update("Private", *private)
 	}
 
-	ElasticSearchUpdateWorld(ctx, *world)
+	ElasticSearchUpdateWorld(ctx, tx, *world)
 	return world, nil
 }
 
@@ -522,6 +600,23 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 		return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, err, []string{"license"})
 	}
 
+	// Set categories
+	var categories *category.Categories
+	if len(cm.Categories) > 0 {
+
+		sl := ign.StrToSlice(cm.Categories)
+		length := len(sl)
+
+		if length > globals.MaxCategoriesPerModel || length == 0 {
+			return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+		}
+
+		categories, err = category.StrSliceToCategories(tx, sl)
+		if err != nil {
+			return nil, ign.NewErrorMessageWithBase(ign.ErrorFormInvalidValue, err)
+		}
+	}
+
 	// Set the owner
 	owner := cm.Owner
 	if owner == "" {
@@ -538,7 +633,7 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 		return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormDuplicateWorldName, nil, []string{cm.Name})
 	}
 	// Process the optional tags
-	pTags, err := models.StrToTags(tx, cm.Tags)
+	pTags, err := res.StrToTags(tx, cm.Tags)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 	}
@@ -549,7 +644,8 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 	}
 
 	world, err := NewWorld(&uuidStr, &cm.Name, &cm.Description, nil, &owner,
-		creator.Username, *license, cm.Permission, *pTags, private)
+		creator.Username, *license, cm.Permission, *pTags,
+    private, categories, cm.Metadata)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
@@ -585,7 +681,7 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 		return nil, em
 	}
 
-	ElasticSearchUpdateWorld(ctx, world)
+	ElasticSearchUpdateWorld(ctx, tx, world)
 	return &world, nil
 }
 
@@ -756,10 +852,13 @@ func (ws *Service) CloneWorld(ctx context.Context, tx *gorm.DB, swOwner,
 		clonePrivate = *cw.Private
 	}
 
+	// Load the metadata
+	tx.Model(&world).Related(&world.Metadata)
+
 	// Create the new world (the clone) struct and folder
 	clone, err := NewWorldAndUUID(&worldName, world.Description,
 		nil, &owner, creator.Username, world.License, world.Permission, world.Tags,
-		clonePrivate)
+		clonePrivate, &world.Categories, &world.Metadata)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}

@@ -2,8 +2,9 @@ package worlds
 
 import (
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"time"
 )
@@ -51,7 +52,13 @@ type World struct {
 	ModifyDate *time.Time `json:"modify_date,omitempty"`
 
 	// Tags associated to this world
-	Tags models.Tags `gorm:"many2many:world_tags;" json:"tags,omitempty"`
+	Tags commonres.Tags `gorm:"many2many:world_tags;" json:"tags,omitempty"`
+
+	// Metadata associated to this world
+	Metadata commonres.Metadata `json:"metadata,omitempty"`
+
+	// Categories associated to this world
+	Categories category.Categories `gorm:"many2many:world_categories;" json:"categories,omitempty"`
 
 	// Location of the world on disk
 	Location *string `json:"-"`
@@ -151,21 +158,21 @@ func GetWorldByName(tx *gorm.DB, name string, owner string) (*World, error) {
 
 // NewWorldAndUUID creates a World struct with a new UUID.
 func NewWorldAndUUID(name, desc, location, owner, creator *string,
-	lic license.License, permission int, tags models.Tags,
-	private bool) (World, error) {
+	lic license.License, permission int, tags commonres.Tags,
+  private bool, categories *category.Categories, metadata *commonres.Metadata) (World, error) {
 
 	uuidStr, _, err := users.NewUUID(*owner, worlds)
 	if err != nil {
 		return World{}, err
 	}
 	return NewWorld(&uuidStr, name, desc, location, owner, creator, lic,
-		permission, tags, private)
+		permission, tags, private, categories, metadata)
 }
 
 // NewWorld creates a new World struct
 func NewWorld(uuidStr, name, desc, location, owner, creator *string,
-	lic license.License, permission int, tags models.Tags,
-	private bool) (World, error) {
+	lic license.License, permission int, tags commonres.Tags,
+	private bool, categories *category.Categories, metadata *commonres.Metadata) (World, error) {
 
 	// Override the generated location if we got a location as argument
 	var wPath string
@@ -180,6 +187,12 @@ func NewWorld(uuidStr, name, desc, location, owner, creator *string,
 		Description: desc, Location: &wPath, Likes: 0, Downloads: 0,
 		UploadDate: &uploadDate, ModifyDate: &modifyDate, Tags: tags,
 		License: lic, Permission: permission, Private: &private,
+	}
+	if metadata != nil {
+		w.Metadata = *metadata
+	}
+	if categories != nil {
+		w.Categories = *categories
 	}
 	return w, nil
 }
@@ -208,6 +221,11 @@ type CreateWorld struct {
 	File string `json:"file" validate:"omitempty,gt=0" form:"-"`
 	// Optional privacy/visibility setting.
 	Private *bool `json:"private" validate:"omitempty" form:"private"`
+	// Categories
+	// maximum: 2
+	Categories string `json:"categories" validate:"printascii" form:"categories"`
+	// Metadata associated to this world
+	Metadata *commonres.Metadata `json:"metadata" form:"metadata"`
 }
 
 // CloneWorld encapsulates data required to clone a world
@@ -232,6 +250,10 @@ type UpdateWorld struct {
 	File string `json:"file" validate:"omitempty,gt=0" form:"-"`
 	// Optional privacy/visibility setting.
 	Private *bool `json:"private" validate:"omitempty" form:"private"`
+	// Metadata associated to this world
+	Metadata *commonres.Metadata `json:"metadata" form:"metadata"`
+	// Optional pair of categories (comma separated)
+	Categories *string `json:"categories" validate:"omitempty" form:"categories"`
 }
 
 // CreateReport encapsulates the data required to report a world

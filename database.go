@@ -16,6 +16,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/subt"
@@ -56,8 +57,8 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 		db.AutoMigrate(
 			&license.License{},
 			&category.Category{},
-			&models.ModelMetadatum{},
-			&models.Tag{},
+			&commonres.Metadatum{},
+			&commonres.Tag{},
 			&ign.AccessToken{},
 			&users.UniqueOwner{},
 			&users.User{},
@@ -123,7 +124,7 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 
 			// Fuel tables
 			&license.License{},
-			&models.ModelMetadatum{},
+			&commonres.Metadatum{},
 			&models.ModelReport{},
 			&models.Model{},
 			&models.ModelDownload{},
@@ -139,7 +140,7 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 			&users.Organization{},
 			&users.User{},
 			&users.UniqueOwner{},
-			&models.Tag{},
+			&commonres.Tag{},
 			&category.Category{},
 			globals.Permissions.DBTable(),
 		)
