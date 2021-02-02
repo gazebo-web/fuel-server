@@ -24,8 +24,8 @@ func (s *Service) GetResourceInstance() interface{} {
 }
 
 // GetResourceSlice returns a slice of the type contained in ResourceType.
-func (ms *Service) GetResourceSlice(len int, cap int) interface{} {
-	resourceSlice := reflect.MakeSlice(reflect.SliceOf(ms.ResourceType), len, cap)
+func (s *Service) GetResourceSlice(len int, cap int) interface{} {
+	resourceSlice := reflect.MakeSlice(reflect.SliceOf(s.ResourceType), len, cap)
 	rs := reflect.New(resourceSlice.Type())
 	rs.Elem().Set(resourceSlice)
 	return rs.Interface()
@@ -33,11 +33,11 @@ func (ms *Service) GetResourceSlice(len int, cap int) interface{} {
 
 // ReviewList returns a paginated list of reviews.
 // This function returns a list of Reviews that can then be mashalled into json or protobuf.
-func (ms *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *string,
+func (s *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *string,
 	order, search string, user *users.User) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
 
-	resourceInstance := ms.GetResourceInstance()
-	reviewList := ms.GetResourceSlice(0, 0)
+	resourceInstance := s.GetResourceInstance()
+	reviewList := s.GetResourceSlice(0, 0)
 
 	// Create query
 	q := tx.Model(&resourceInstance)
