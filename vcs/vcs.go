@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // TODO: consider having a repo.Rollback() to checkout and return to
@@ -36,13 +37,30 @@ type WalkFn (func(path, parent string, isDir bool) error)
 
 // NewRepo creates a new GitVCS repository object.
 func (g GitVCS) NewRepo(dirpath string) VCS {
-	r := GitVCS{Path: dirpath}
+	r := GitVCS{Path: dirpath, Operations: make(chan Operation, 1),
+		OperationResults: make(chan OperationResult, 1)}
 	return &r
+}
+
+type Command []string
+
+type Operation struct {
+	Commands []Command
+	// Callback func(string, error)
+}
+
+type OperationResult struct {
+	output string
+	err	error
+	stderr bytes.Buffer
 }
 
 // GitVCS represents a local Git repo.
 type GitVCS struct {
 	Path string
+	Operations chan Operation
+	OperationResults chan OperationResult
+	WG sync.WaitGroup
 }
 
 func ensureFolderExists(dir string) error {
@@ -63,7 +81,11 @@ func ensureRev(rev string) string {
 // InitRepo - Inits the version control repository and commits all
 // files found. Git Path must exist.
 func (g *GitVCS) InitRepo(ctx context.Context) error {
-	return g.initAndCommitAll(ctx, "Created repository")
+	err := g.initAndCommitAll(ctx, "Created repository")
+	if err != nil {
+		go g.RunOperationLoop()
+	}
+    return err
 }
 
 // initAndCommitAll - Inits the version control repository and commits all
@@ -87,7 +109,7 @@ func (g *GitVCS) Init(ctx context.Context) error {
 	if err := ensureFolderExists(g.Path); err != nil {
 		return err
 	}
-	// Init the mercurial repository
+	// Init the git repository
 	cmd := exec.Command("git", "init", g.Path)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -257,11 +279,41 @@ func doLocalClone(ctx context.Context, source, target string) error {
 // Returns the number of revisions.
 func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 	ign.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")
-	return getRevisionCount(ctx, g.Path, rev)
+
+	repoPath := g.Path
+
+	if err := ensureFolderExists(repoPath); err != nil {
+		return 0, err
+	}
+
+	rev = ensureRev(rev)
+
+	// Create an operation with one cmd and execute it
+	var commands []Command
+	command := []string{"git", "-C", repoPath, "rev-list", "--count", rev}
+	commands = append(commands, command)
+	s, err, stderr := g.ExecuteOperation(commands);
+
+	var count int
+	if err != nil {
+		err = ign.WithStack(err)
+		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		count = 0
+	} else {
+		parsed, parseErr := strconv.Atoi(strings.Fields(s)[0])
+		if parseErr != nil {
+			parseErr = ign.WithStack(parseErr)
+			ign.LoggerFromContext(ctx).Info("Error while parsing revision count: " + fmt.Sprint(parseErr))
+		} else {
+			count = parsed
+		}
+	}
+	return count, err
 }
 
 // get the number of revisions from given commit/revision
 func getRevisionCount(ctx context.Context, repoPath, rev string) (int, error) {
+
 	if err := ensureFolderExists(repoPath); err != nil {
 		return 0, err
 	}
@@ -290,4 +342,74 @@ func getRevisionCount(ctx context.Context, repoPath, rev string) (int, error) {
 		}
 	}
 	return count, err
+}
+
+/// RunOperation is a go routine that monitors the channel for any new
+/// operations that need to be run. It allows only one operation running
+/// at any one time. If the operation consists of multiple commands, it
+/// executes the commands in series and stops if there is an error. The last
+/// ouput of the last successful command is returned
+func (g *GitVCS) RunOperationLoop() {
+	for {
+		// get the operation from the queue
+		op := <-g.Operations
+
+		fmt.Println("RunOperationLoop - new operation")
+
+		// add to wait group so that it blocks other incoming operations
+		g.WG.Add(1)
+
+		/// execute the operation (list of commands)
+		var s string
+		var err error
+		var stderr bytes.Buffer
+		for _, command := range op.Commands {
+			fmt.Println(command)
+			cmd := exec.Command(command[0], command[1:]...)
+
+			// TODO remove me
+			fmt.Println(command)
+
+			var bs []byte
+			s = ""
+			stderr.Reset()
+			cmd.Stderr = &stderr
+			bs, err = cmd.Output()
+			if err != nil {
+				break
+			} else {
+				s = string(bs[:])
+			}
+		}
+		// commands have been executed so now invoke callback and pass output
+		// or error to caller
+		var result OperationResult
+		result.output = s
+		result.err = err
+		result.stderr = stderr
+		g.OperationResults <- result
+
+		// make sure to call done so it unblocks other operations.
+		// This allows a new operation to be put into the queue
+		g.WG.Done()
+	}
+}
+
+/// ExecuteOperation is a blocking call for executing a VCS operation,
+/// i.e.g one git command or a group of git commands. It first waits for the
+/// existing operation (if any) to finish before queueing the new input
+/// operation. When the operation is complete, it returns the output of the execution.
+func (g *GitVCS) ExecuteOperation(cmds []Command) (string, error, bytes.Buffer) {
+	// wait for operation queue to be available
+	g.WG.Wait()
+
+	fmt.Println("ExecuteOperation")
+	// queue a new operation
+	var op Operation
+	op.Commands = cmds
+	// op.Callback = callback
+	g.Operations <- op
+
+	result := <-g.OperationResults
+	return result.output, result.err, result.stderr
 }
