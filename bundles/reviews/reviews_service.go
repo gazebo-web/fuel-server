@@ -2,11 +2,13 @@ package reviews
 
 import (
 	"fmt"
+	"strconv"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"reflect"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"strings"
 )
@@ -114,13 +116,16 @@ type Protobuffer interface{
 }
 
 // create a new modelReview
-func (ms *Service) CreateModelReview(cmr CreateModelReview, tx *gormDB, creator *users.User) (*ModelReview, *ign.ErrMsg) {
+func (ms *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator *users.User) (*ModelReview, *ign.ErrMsg) {
 	// set the owner
 	owner := cmr.CreateReview.Owner
-	if owner := "" {
+	if owner == "" {
 		owner = *creator.Username
 	} else {
 		ok, em := users.VerifyOwner(tx, owner, *creator.Username, permissions.Read)
+		if !ok {
+			return nil, em
+		}
 	}
 
 	// create the ModelReview struct
@@ -137,11 +142,13 @@ func (ms *Service) CreateModelReview(cmr CreateModelReview, tx *gormDB, creator 
 	}
 
 	// read and write permissions
-	_, err := globals.Permissions.AddPermission(owner, *modelReview.ModelID, permissions.Read)
+	// convert ID to string
+	modelIDStr := strconv.FormatUint(uint64(*modelReview.ModelID), 10)
+	_, err = globals.Permissions.AddPermission(owner, modelIDStr, permissions.Read)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
-	_, err := globals.Permissions.AddPermission(owner, *modelReview.ModelID, permissions.Write)
+	_, err = globals.Permissions.AddPermission(owner, modelIDStr, permissions.Write)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}

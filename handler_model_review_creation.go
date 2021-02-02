@@ -26,7 +26,7 @@ func reviewFn(cmr reviews.CreateModelReview, tx *gorm.DB, jwtUser *users.User, w
 
 	// call review_service.CreateReview using cmr which already has modelID
 	rs := &reviews.Service{}
-	modelReview, em := rs.CreateModelReview(cmr, tx, user)
+	modelReview, em := rs.CreateModelReview(cmr, tx, jwtUser)
 	if em != nil {
 		return nil, em
 	}
