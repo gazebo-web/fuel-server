@@ -2582,7 +2582,7 @@ var routes = ign.Routes{
 				"Get all reviews for models",
 				ign.FormatHandlers{
 					ign.FormatHandler{".json", ign.JSONResult(SearchHandler(ModelReviewList))},
-					// ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ModelReviewList))},
+					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ModelReviewList))},
 					ign.FormatHandler{"", ign.JSONResult(SearchHandler(ModelReviewList))},
 				},
 			},
@@ -2602,79 +2602,9 @@ var routes = ign.Routes{
 		},
 	},
 
-	// Route that returns a list of reviews from a team/user (ie. an 'owner')
-	ign.Route{
-		"OwnerModelReviews",
-		"Information about model reviews belonging to an owner. The {username} URI option will limit the scope to the specified user/team. Otherwise all reviews are considered.",
-		"/{username}/models/reviews",
-		ign.AuthHeadersOptional,
-		ign.Methods{
-			// swagger:route GET /{username}/reviews reviews listOwnerReviews
-			//
-			// Get owner's reviews
-			//
-			// Get a list of reviews for the specified owner.
-			// Reviews will be returned paginated,
-			// with pages of 20 reviews by default. The user can request a
-			// different page with query parameter 'page' (first page is value 1).
-			// The page size can be controlled with query parameter 'per_page',
-			// with a maximum of 100 items per page.
-			// The route supports the 'order' parameter, with values 'asc' and
-			// 'desc' (default: desc).
-			// It also supports the 'q' parameter to perform a fulltext search on reviews
-			// name, description and tags.
-			//
-			//   Produces:
-			//   - application/json
-			//   - application/x-protobuf
-			//
-			//   Schemes: https
-			//
-			//   Responses:
-			//     default: fuelError
-			//     200: jsonReviews
-			ign.Method{
-				"GET",
-				"Get all reviews of the specified team/user",
-				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(SearchHandler(ModelReviewList))},
-					// ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ModelReviewList))},
-					ign.FormatHandler{"", ign.JSONResult(SearchHandler(ModelReviewList))},
-				},
-			},
-		},
-		ign.SecureMethods{},
-	},
-
 	//////////////////
 	// Model Review //
 	//////////////////
-
-	// // Route for a new model and a new review
-	// ign.Route{
-	// 	"ModelReview",
-	// 	"Information about model and review",
-	// 	"/models/reviews",
-	// 	ign.AuthHeadersOptional,
-	// 	ign.Methods{
-	// 		ign.Method{},
-	// 	},
-	// 	ign.SecureMethods{
-	// 		// swagger:route POST /models/reviews review
-	// 		//
-	// 		// Create a new model and a new review.
-	// 		//
-	// 		ign.Method{
-	// 			"POST",
-	// 			"Post a review and a new model",
-	// 			ign.FormatHandlers{
-	// 				ign.FormatHandler{"", ign.JSONResult(ModelReviewCreate)},
-	// 			},
-	// 		},
-	// 	},
-	// },
-
 	// Route for a new review for an existing model
 	ign.Route{
 		"Review",
