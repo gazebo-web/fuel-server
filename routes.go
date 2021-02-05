@@ -2586,21 +2586,20 @@ var routes = ign.Routes{
 					ign.FormatHandler{"", ign.JSONResult(SearchHandler(ModelReviewList))},
 				},
 			},
-			ign.SecureMethods{
-				// swagger:route POST /models/reviews review
-				//
-				// Create a new model and a new review.
-				//
-				ign.Method{
-					"POST",
-					"Post a review and a new model",
-					ign.FormatHandlers{
-						ign.FormatHandler{"", ign.JSONResult(ModelReviewCreate)},
-					},
+		},
+		ign.SecureMethods{
+			// swagger:route POST /models/reviews review
+			//
+			// Create a new model and a new review.
+			//
+			ign.Method{
+				"POST",
+				"Post a review and a new model",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(ModelReviewCreate)},
 				},
 			},
 		},
-		ign.SecureMethods{},
 	},
 
 	// Route that returns a list of reviews from a team/user (ie. an 'owner')
