@@ -2609,7 +2609,7 @@ var routes = ign.Routes{
 	ign.Route{
 		"Review",
 		"Information about creating a review",
-		"{username}/models/{model}/reviews",
+		"/{username}/models/{model}/reviews",
 		ign.AuthHeadersOptional,
 		ign.Methods{
 			ign.Method{},
@@ -2623,7 +2623,7 @@ var routes = ign.Routes{
 				"POST",
 				"Post a review for a model",
 				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(ReviewCreate)},
+					ign.FormatHandler{"", ign.JSONResult(ReviewCreate)},
 				},
 			},
 		},
