@@ -12,18 +12,6 @@ import (
 
 // extract actual model review process
 func reviewFn(cmr reviews.CreateModelReview, tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*reviews.ModelReview, *ign.ErrMsg) {
-	// parse rm input
-	// Owner
-	owner := cmr.CreateReview.Owner
-	if owner != "" {
-		_, em := users.OwnerByName(tx, owner, true)
-		if em != nil {
-			return nil, em
-		}
-	} else {
-		owner = * jwtUser.Username
-	}
-
 	// call review_service.CreateReview using cmr which already has modelID
 	rs := &reviews.Service{}
 	modelReview, em := rs.CreateModelReview(cmr, tx, jwtUser)
