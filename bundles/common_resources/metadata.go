@@ -1,21 +1,9 @@
 package commonres
 
-import (
-	"time"
-)
-
 // Metadatum contains a key-value pair for a resources.
 //
 // swagger:model
 type Metadatum struct {
-	// Override default GORM Model fields
-	ID        uint      `gorm:"primary_key" json:"-"`
-	CreatedAt time.Time `gorm:"type:timestamp(3) NULL"`
-	UpdatedAt time.Time
-
-  // ResourceID is the ID of the resource to which this metadata is attached.
-	ResourceID uint
-
 	// Key is the string containing the metadata key value.
 	Key *string `json:"key,omitempty"`
 
