@@ -30,7 +30,6 @@ func parseMetadata(r *http.Request) *models.ModelMetadata {
 			// Unmarshall the meta data
 			var unmarshalled models.ModelMetadatum
 			json.Unmarshal([]byte(meta), &unmarshalled)
-
 			// Create the metadata array, if it is null.
 			if metadata == nil {
 				metadata = new(models.ModelMetadata)
