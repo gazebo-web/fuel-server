@@ -74,6 +74,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&worlds.WorldReport{},
 			&worlds.WorldDownload{},
 			&worlds.ModelInclude{},
+			&worlds.WorldMetadatum{},
 			globals.Permissions.DBTable(),
 
 			// SubT tables
@@ -133,6 +134,7 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 			&worlds.World{},
 			&worlds.WorldLike{},
 			&worlds.WorldDownload{},
+			&worlds.WorldMetadatum{},
 			&collections.CollectionAsset{},
 			&collections.Collection{},
 			&users.Team{},

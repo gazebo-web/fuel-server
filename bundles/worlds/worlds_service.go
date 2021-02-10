@@ -68,6 +68,9 @@ func (ws *Service) GetWorldProto(ctx context.Context, tx *gorm.DB, owner,
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
 
+	// Load the metadata
+	tx.Model(&world).Related(&world.Metadata)
+
 	fuelWorld := ws.WorldToProto(world)
 	fuelWorld.Version = proto.Int64(int64(latestVersion))
 
@@ -229,6 +232,21 @@ func (ws *Service) WorldToProto(world *World) *fuel.World {
 			tags = append(tags, *tag.Name)
 		}
 		fuelWorld.Tags = tags
+	}
+
+	// Append metadata, if it exists
+	if len(world.Metadata) > 0 {
+		var metadata []*fuel.Metadatum
+
+		// Convert DB representation to proto
+		for _, datum := range world.Metadata {
+			fuelDatum := fuel.Metadatum{
+				Key:   proto.String(*datum.Key),
+				Value: proto.String(*datum.Value),
+			}
+			metadata = append(metadata, &fuelDatum)
+		}
+		fuelWorld.Metadata = metadata
 	}
 
 	// Squash first thumbnail url
@@ -439,7 +457,7 @@ func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldNam
 // The filesPath argument points to a tmp folder from which to read the new files.
 func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 	worldName string, desc, tagstr, filesPath *string, private *bool,
-	user *users.User) (*World, *ign.ErrMsg) {
+	user *users.User, metadata *WorldMetadata) (*World, *ign.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, worldName, user)
 	if em != nil {
@@ -464,6 +482,19 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 		}
 		tx.Model(&world).Association("Tags").Replace(*tags)
 	}
+
+	// Update the metadata, if the data is present.
+	if metadata != nil {
+		// Handle the special case where the metadata consists of one Metadatum
+		// element with empty Key and Value elements. This indicates that
+		// the metadata should be cleared.
+		if len(*metadata) == 1 && (*metadata)[0].IsEmpty() {
+			tx.Model(&world).Association("Metadata").Clear()
+		} else {
+			tx.Model(&world).Association("Metadata").Replace(*metadata)
+		}
+	}
+
 	// Update the modification date.
 	tx.Model(&world).Update("ModifyDate", time.Now())
 
@@ -549,7 +580,7 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 	}
 
 	world, err := NewWorld(&uuidStr, &cm.Name, &cm.Description, nil, &owner,
-		creator.Username, *license, cm.Permission, *pTags, private)
+		creator.Username, *license, cm.Permission, *pTags, private, cm.Metadata)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
@@ -756,10 +787,13 @@ func (ws *Service) CloneWorld(ctx context.Context, tx *gorm.DB, swOwner,
 		clonePrivate = *cw.Private
 	}
 
+	// Load the metadata
+	tx.Model(&world).Related(&world.Metadata)
+
 	// Create the new world (the clone) struct and folder
 	clone, err := NewWorldAndUUID(&worldName, world.Description,
 		nil, &owner, creator.Username, world.License, world.Permission, world.Tags,
-		clonePrivate)
+		clonePrivate, &world.Metadata)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
