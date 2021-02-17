@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,6 +17,31 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 )
+
+// parseMetadata will check if metadata exists in a request, and return a
+// pointer to a worlds.WorldMetadata struct or nil.
+func parseWorldMetadata(r *http.Request) *worlds.WorldMetadata {
+	var metadata *worlds.WorldMetadata
+
+	// Check if "metadata" exists
+	if _, valid := r.Form["metadata"]; valid {
+		// Process each metadata line
+		for _, meta := range r.Form["metadata"] {
+
+			// Unmarshall the meta data
+			var unmarshalled worlds.WorldMetadatum
+			json.Unmarshal([]byte(meta), &unmarshalled)
+			// Create the metadata array, if it is null.
+			if metadata == nil {
+				metadata = new(worlds.WorldMetadata)
+			}
+
+			// Store the meta data
+			*metadata = append(*metadata, unmarshalled)
+		}
+	}
+	return metadata
+}
 
 // WorldList returns the list of worlds from a team/user. The returned value
 // will be of type "fuel.Worlds".
@@ -437,8 +463,10 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 		newFilesPath = &tmpDir
 	}
 
+	uw.Metadata = parseWorldMetadata(r)
+
 	world, em := (&worlds.Service{}).UpdateWorld(r.Context(), tx, owner, worldName,
-		uw.Description, uw.Tags, newFilesPath, uw.Private, user)
+		uw.Description, uw.Tags, newFilesPath, uw.Private, user, uw.Metadata)
 	if em != nil {
 		return nil, em
 	}

@@ -12,10 +12,17 @@ import (
 	"strings"
 )
 
+// meta Contains a key-value pair
+type meta struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 // This is the structure of the  data will be stored in the fuel index.
 type worldElastic struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Metadata    []meta `json:"metadata,omitempty"`
 	Owner       string `json:"owner"`
 	Tags        string `json:"tags,omitempty"`
 	Creator     string `json:"creator"`
@@ -47,6 +54,15 @@ func ElasticSearchUpdateWorld(ctx context.Context, world World) {
 		return
 	}
 
+	// Construct the metadata information
+	var metadata []meta
+	for _, metadatum := range world.Metadata {
+		metadata = append(metadata, meta{
+			Key:   *metadatum.Key,
+			Value: *metadatum.Value,
+		})
+	}
+
 	// Construct the tag information
 	var tagsBuilder strings.Builder
 	for _, tag := range world.Tags {
@@ -61,6 +77,11 @@ func ElasticSearchUpdateWorld(ctx context.Context, world World) {
 		Creator:     *world.Creator,
 		Description: *world.Description,
 		Tags:        tagsBuilder.String(),
+	}
+
+	// Add in metadata
+	if len(metadata) > 0 {
+		m.Metadata = metadata
 	}
 
 	// Create the json representation
@@ -107,7 +128,7 @@ func ElasticSearchUpdateAll(ctx context.Context, tx *gorm.DB) {
 		var worlds Worlds
 
 		// Get all the worlds
-		tx.Preload("Tags").Find(&worlds)
+		tx.Preload("Tags").Preload("Metadata").Find(&worlds)
 
 		// Add each world to ElasticSearch.
 		for _, world := range worlds {

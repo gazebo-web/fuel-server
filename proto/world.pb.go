@@ -31,27 +31,28 @@ type World struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	CreatedAt    *string  `protobuf:"bytes,2,opt,name=createdAt" json:"createdAt,omitempty"`
-	UpdatedAt    *string  `protobuf:"bytes,3,opt,name=updatedAt" json:"updatedAt,omitempty"`
-	DeletedAt    *string  `protobuf:"bytes,4,opt,name=deletedAt" json:"deletedAt,omitempty"`
-	Name         *string  `protobuf:"bytes,5,opt,name=name" json:"name,omitempty"`
-	Owner        *string  `protobuf:"bytes,7,opt,name=owner" json:"owner,omitempty"`
-	Description  *string  `protobuf:"bytes,8,opt,name=description" json:"description,omitempty"`
-	Likes        *int64   `protobuf:"varint,9,opt,name=likes" json:"likes,omitempty"`
-	Downloads    *int64   `protobuf:"varint,10,opt,name=downloads" json:"downloads,omitempty"`
-	Filesize     *int64   `protobuf:"varint,11,opt,name=filesize" json:"filesize,omitempty"`
-	UploadDate   *string  `protobuf:"bytes,12,opt,name=upload_date,json=uploadDate" json:"upload_date,omitempty"`
-	ModifyDate   *string  `protobuf:"bytes,13,opt,name=modify_date,json=modifyDate" json:"modify_date,omitempty"`
-	LicenseId    *uint64  `protobuf:"varint,14,opt,name=license_id,json=licenseId" json:"license_id,omitempty"`
-	LicenseName  *string  `protobuf:"bytes,15,opt,name=license_name,json=licenseName" json:"license_name,omitempty"`
-	LicenseUrl   *string  `protobuf:"bytes,16,opt,name=license_url,json=licenseUrl" json:"license_url,omitempty"`
-	LicenseImage *string  `protobuf:"bytes,17,opt,name=license_image,json=licenseImage" json:"license_image,omitempty"`
-	Permission   *int64   `protobuf:"varint,18,opt,name=permission" json:"permission,omitempty"`
-	ThumbnailUrl *string  `protobuf:"bytes,19,opt,name=thumbnail_url,json=thumbnailUrl" json:"thumbnail_url,omitempty"`
-	IsLiked      *bool    `protobuf:"varint,20,opt,name=is_liked,json=isLiked" json:"is_liked,omitempty"`
-	Version      *int64   `protobuf:"varint,21,opt,name=version" json:"version,omitempty"`
-	Private      *bool    `protobuf:"varint,22,opt,name=private" json:"private,omitempty"`
-	Tags         []string `protobuf:"bytes,30,rep,name=tags" json:"tags,omitempty"`
+	CreatedAt    *string      `protobuf:"bytes,2,opt,name=createdAt" json:"createdAt,omitempty"`
+	UpdatedAt    *string      `protobuf:"bytes,3,opt,name=updatedAt" json:"updatedAt,omitempty"`
+	DeletedAt    *string      `protobuf:"bytes,4,opt,name=deletedAt" json:"deletedAt,omitempty"`
+	Name         *string      `protobuf:"bytes,5,opt,name=name" json:"name,omitempty"`
+	Owner        *string      `protobuf:"bytes,7,opt,name=owner" json:"owner,omitempty"`
+	Description  *string      `protobuf:"bytes,8,opt,name=description" json:"description,omitempty"`
+	Likes        *int64       `protobuf:"varint,9,opt,name=likes" json:"likes,omitempty"`
+	Downloads    *int64       `protobuf:"varint,10,opt,name=downloads" json:"downloads,omitempty"`
+	Filesize     *int64       `protobuf:"varint,11,opt,name=filesize" json:"filesize,omitempty"`
+	UploadDate   *string      `protobuf:"bytes,12,opt,name=upload_date,json=uploadDate" json:"upload_date,omitempty"`
+	ModifyDate   *string      `protobuf:"bytes,13,opt,name=modify_date,json=modifyDate" json:"modify_date,omitempty"`
+	LicenseId    *uint64      `protobuf:"varint,14,opt,name=license_id,json=licenseId" json:"license_id,omitempty"`
+	LicenseName  *string      `protobuf:"bytes,15,opt,name=license_name,json=licenseName" json:"license_name,omitempty"`
+	LicenseUrl   *string      `protobuf:"bytes,16,opt,name=license_url,json=licenseUrl" json:"license_url,omitempty"`
+	LicenseImage *string      `protobuf:"bytes,17,opt,name=license_image,json=licenseImage" json:"license_image,omitempty"`
+	Permission   *int64       `protobuf:"varint,18,opt,name=permission" json:"permission,omitempty"`
+	ThumbnailUrl *string      `protobuf:"bytes,19,opt,name=thumbnail_url,json=thumbnailUrl" json:"thumbnail_url,omitempty"`
+	IsLiked      *bool        `protobuf:"varint,20,opt,name=is_liked,json=isLiked" json:"is_liked,omitempty"`
+	Version      *int64       `protobuf:"varint,21,opt,name=version" json:"version,omitempty"`
+	Private      *bool        `protobuf:"varint,22,opt,name=private" json:"private,omitempty"`
+	Tags         []string     `protobuf:"bytes,30,rep,name=tags" json:"tags,omitempty"`
+	Metadata     []*Metadatum `protobuf:"bytes,31,rep,name=metadata" json:"metadata,omitempty"`
 }
 
 func (x *World) Reset() {
@@ -233,6 +234,13 @@ func (x *World) GetTags() []string {
 	return nil
 }
 
+func (x *World) GetMetadata() []*Metadatum {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 // swagger:model
 type Worlds struct {
 	state         protoimpl.MessageState
@@ -285,7 +293,8 @@ var File_world_proto protoreflect.FileDescriptor
 
 var file_world_proto_rawDesc = []byte{
 	0x0a, 0x0b, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x04, 0x66,
-	0x75, 0x65, 0x6c, 0x22, 0xef, 0x04, 0x0a, 0x05, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x12, 0x1c, 0x0a,
+	0x75, 0x65, 0x6c, 0x1a, 0x0e, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x22, 0x9c, 0x05, 0x0a, 0x05, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x12, 0x1c, 0x0a,
 	0x09, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64, 0x41, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
 	0x52, 0x09, 0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64, 0x41, 0x74, 0x12, 0x1c, 0x0a, 0x09, 0x75,
 	0x70, 0x64, 0x61, 0x74, 0x65, 0x64, 0x41, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09,
@@ -324,10 +333,13 @@ var file_world_proto_rawDesc = []byte{
 	0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x18, 0x0a, 0x07, 0x70, 0x72, 0x69, 0x76, 0x61,
 	0x74, 0x65, 0x18, 0x16, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x70, 0x72, 0x69, 0x76, 0x61, 0x74,
 	0x65, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x61, 0x67, 0x73, 0x18, 0x1e, 0x20, 0x03, 0x28, 0x09, 0x52,
-	0x04, 0x74, 0x61, 0x67, 0x73, 0x22, 0x2d, 0x0a, 0x06, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x73, 0x12,
-	0x23, 0x0a, 0x06, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32,
-	0x0b, 0x2e, 0x66, 0x75, 0x65, 0x6c, 0x2e, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x52, 0x06, 0x77, 0x6f,
-	0x72, 0x6c, 0x64, 0x73,
+	0x04, 0x74, 0x61, 0x67, 0x73, 0x12, 0x2b, 0x0a, 0x08, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74,
+	0x61, 0x18, 0x1f, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x66, 0x75, 0x65, 0x6c, 0x2e, 0x4d,
+	0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x75, 0x6d, 0x52, 0x08, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61,
+	0x74, 0x61, 0x22, 0x2d, 0x0a, 0x06, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x73, 0x12, 0x23, 0x0a, 0x06,
+	0x77, 0x6f, 0x72, 0x6c, 0x64, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0b, 0x2e, 0x66,
+	0x75, 0x65, 0x6c, 0x2e, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x52, 0x06, 0x77, 0x6f, 0x72, 0x6c, 0x64,
+	0x73,
 }
 
 var (
@@ -344,16 +356,18 @@ func file_world_proto_rawDescGZIP() []byte {
 
 var file_world_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_world_proto_goTypes = []interface{}{
-	(*World)(nil),  // 0: fuel.World
-	(*Worlds)(nil), // 1: fuel.Worlds
+	(*World)(nil),     // 0: fuel.World
+	(*Worlds)(nil),    // 1: fuel.Worlds
+	(*Metadatum)(nil), // 2: fuel.Metadatum
 }
 var file_world_proto_depIdxs = []int32{
-	0, // 0: fuel.Worlds.worlds:type_name -> fuel.World
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: fuel.World.metadata:type_name -> fuel.Metadatum
+	0, // 1: fuel.Worlds.worlds:type_name -> fuel.World
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_world_proto_init() }
@@ -361,6 +375,7 @@ func file_world_proto_init() {
 	if File_world_proto != nil {
 		return
 	}
+	file_metadata_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_world_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*World); i {
