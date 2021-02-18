@@ -1614,16 +1614,30 @@ var routes = ign.Routes{
 		"Route for all users",
 		"/users",
 		ign.AuthHeadersOptional,
-		ign.Methods{
+		ign.Methods{},
+		ign.SecureMethods{
 			// swagger:route GET /users users listUsers
 			//
-			// List users
+			// Get a list of users. Access limited to administrators.
 			//
-			// Get the list of users. Users will be returned paginated,
-			// with pages of 20 users by default. The user can request a
+			// Returns a paginated list of users,
+			// with pages of 20 users by default. Only system administrators can
+			// access this route. The administrator can request a
 			// different page with query parameter 'page' (first page is value 1).
 			// The page size can be controlled with query parameter 'per_page',
 			// with a maximum of 100 items per page.
+			//
+			//   Parameters:
+			//   + name: Private-Token
+			//     description: A personal access token.
+			//     in: header
+			//     required: true
+			//     type: string
+			//   + name: page
+			//     description: Request a specific page of users.
+			//     in: query
+			//     required: false
+			//     type: integer
 			//
 			//   Produces:
 			//   - application/json
@@ -1642,8 +1656,6 @@ var routes = ign.Routes{
 					ign.FormatHandler{"", ign.JSONResult(PaginationHandler(UserList))},
 				},
 			},
-		},
-		ign.SecureMethods{
 			// swagger:route POST /users users createUser
 			//
 			// Create user
@@ -2362,9 +2374,9 @@ var routes = ign.Routes{
 			// swagger:route GET /admin/search search elasticSearchUpdate
 			//
 			// Get a list of the available ElasticSearch configurations.
-      //
-      // Zero or more ElasticSearch configurations may be specified. The
-      // configuration marked as `primary` is the active ElasticSearch server.
+			//
+			// Zero or more ElasticSearch configurations may be specified. The
+			// configuration marked as `primary` is the active ElasticSearch server.
 			//
 			//   Parameters:
 			//   + name: Private-Token
@@ -2393,8 +2405,8 @@ var routes = ign.Routes{
 			// swagger:route POST /admin/search search elasticSearchUpdate
 			//
 			// Creates an ElasticSearch server configuration.
-      //
-      // Use this route to tell Fuel about a new ElasticSearch server.
+			//
+			// Use this route to tell Fuel about a new ElasticSearch server.
 			//
 			//   Parameters:
 			//   + name: Private-Token
@@ -2490,9 +2502,9 @@ var routes = ign.Routes{
 			// swagger:route GET /admin/search/rebuild search elasticSearchUpdate
 			//
 			// Rebuilds the primary ElasticSearch indices.
-      //
-      // Rebuilding the indices may take several minutes. Use this route when
-      // or if the ElasticSearch indices have become out of date.
+			//
+			// Rebuilding the indices may take several minutes. Use this route when
+			// or if the ElasticSearch indices have become out of date.
 			//
 			//   Parameters:
 			//   + name: Private-Token
@@ -2530,10 +2542,10 @@ var routes = ign.Routes{
 			// swagger:route GET /admin/search/update search elasticSearchUpdate
 			//
 			// Updates the primary ElasticSearch servers indices.
-      // 
-      // This route will populate the primary ElasticSearch server with new
-      // data contained in the Fuel database. This route may take several
-      // minutes to complete.
+			//
+			// This route will populate the primary ElasticSearch server with new
+			// data contained in the Fuel database. This route may take several
+			// minutes to complete.
 			//
 			//   Parameters:
 			//   + name: Private-Token
@@ -2571,8 +2583,8 @@ var routes = ign.Routes{
 			// swagger:route DELETE /admin/search/{config_id} search elasticSearchUpdate
 			//
 			// Deletes an ElasticSearch server configuration.
-      //
-      // Use this route to remove and ElasticSearch configuration.
+			//
+			// Use this route to remove and ElasticSearch configuration.
 			//
 			//   Parameters:
 			//   + name: Private-Token
@@ -2605,9 +2617,9 @@ var routes = ign.Routes{
 			// swagger:route PATCH /admin/search/{config_id} search elasticSearchUpdate
 			//
 			// Updates an ElasticSearch server configuration.
-      //
-      // Set the username, password, address, and primary status of an
-      // ElasticSearch server configuration.
+			//
+			// Set the username, password, address, and primary status of an
+			// ElasticSearch server configuration.
 			//
 			//   Parameters:
 			//   + name: Private-Token
