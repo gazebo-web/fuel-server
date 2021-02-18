@@ -61,6 +61,7 @@ type GitVCS struct {
 	Operations chan Operation
 	OperationResults chan OperationResult
 	WG sync.WaitGroup
+	stopOperationLoop bool
 }
 
 func ensureFolderExists(dir string) error {
@@ -81,9 +82,10 @@ func ensureRev(rev string) string {
 // InitRepo - Inits the version control repository and commits all
 // files found. Git Path must exist.
 func (g *GitVCS) InitRepo(ctx context.Context) error {
+	go g.RunOperationLoop()
 	err := g.initAndCommitAll(ctx, "Created repository")
 	if err != nil {
-		go g.RunOperationLoop()
+		g.stopOperationLoop = true
 	}
     return err
 }
@@ -381,11 +383,12 @@ func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 /// executes the commands in series and stops if there is an error. The last
 /// ouput of the last successful command is returned
 func (g *GitVCS) RunOperationLoop() {
-	for {
+	fmt.Println("RunOperationLoop")
+	for !g.stopOperationLoop {
 		// get the operation from the queue
 		op := <-g.Operations
 
-		fmt.Println("RunOperationLoop - new operation")
+		fmt.Println("  RunOperationLoop - new operation")
 
 		// add to wait group so that it blocks other incoming operations
 		g.WG.Add(1)
@@ -433,8 +436,9 @@ func (g *GitVCS) RunOperationLoop() {
 func (g *GitVCS) ExecuteOperation(cmds []Command) (string, error, bytes.Buffer) {
 	// wait for operation queue to be available
 	g.WG.Wait()
-
+	
 	fmt.Println("ExecuteOperation")
+	fmt.Println(cmds[0])
 	// queue a new operation
 	var op Operation
 	op.Commands = cmds
