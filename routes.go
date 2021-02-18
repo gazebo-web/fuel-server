@@ -2633,6 +2633,4 @@ var routes = ign.Routes{
 		},
 		ign.SecureMethods{},
 	},
-
-
 } // routes

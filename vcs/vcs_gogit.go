@@ -1,6 +1,7 @@
 package vcs
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
@@ -13,7 +14,9 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -372,4 +375,76 @@ func (g *GoGitVCS) HasTag(tag string) (bool, error) {
 // Returns the number of revisions.
 func (g *GoGitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 	return getRevisionCount(ctx, g.Path, rev)
+}
+
+// get the number of revisions from given commit/revision
+// this is used in vcs_gogit.go
+func getRevisionCount(ctx context.Context, repoPath, rev string) (int, error) {
+
+	if err := ensureFolderExists(repoPath); err != nil {
+		return 0, err
+	}
+
+	rev = ensureRev(rev)
+
+	cmd := exec.Command("git", "-C", repoPath, "rev-list", "--count", rev)
+	var bs []byte
+	var err error
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	bs, err = cmd.Output()
+	var count int
+	if err != nil {
+		err = ign.WithStack(err)
+		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		count = 0
+	} else {
+		s := string(bs[:])
+		parsed, parseErr := strconv.Atoi(strings.Fields(s)[0])
+		if parseErr != nil {
+			parseErr = ign.WithStack(parseErr)
+			ign.LoggerFromContext(ctx).Info("Error while parsing revision count: " + fmt.Sprint(parseErr))
+		} else {
+			count = parsed
+		}
+	}
+	return count, err
+}
+
+
+// creates a zip with the repository files, at a given revision.
+// If revision (rev arg) is empty or "tip", then last commit from "HEAD"
+// will be used. If output is empty, then a zip file in the tmp folder
+// will be created.
+// Returns a string path pointing to the created zip file.
+func archive(ctx context.Context, repoPath, rev, output string) (*string, error) {
+	if err := ensureFolderExists(repoPath); err != nil {
+		return nil, err
+	}
+	rev = ensureRev(rev)
+
+	var folder, zipPath string
+	var err error
+
+	if output == "" {
+		folder, err = ioutil.TempDir("", "repo")
+		zipPath = filepath.Join(folder, rev+".os.Filezip")
+	} else {
+		zipPath = output
+	}
+	if err != nil {
+		return nil, ign.WithStack(err)
+	}
+	cmd := exec.Command("git", "-C", repoPath, "archive",
+		"--format=zip", "-o", zipPath, rev)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	_, err = cmd.Output()
+	if err != nil {
+		err = ign.WithStack(err)
+		ign.LoggerFromContext(ctx).Info("Error while running git archive process. Err: " +
+			fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		return nil, err
+	}
+	return &zipPath, nil
 }

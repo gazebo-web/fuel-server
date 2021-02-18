@@ -5,8 +5,8 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/reviews"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"reflect"
 	"net/http"
+	"reflect"
 )
 
 // ReviewList returns the list of reviews for models from a team/user. The returned value

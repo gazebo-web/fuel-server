@@ -110,13 +110,21 @@ func (g *GitVCS) Init(ctx context.Context) error {
 		return err
 	}
 	// Init the git repository
-	cmd := exec.Command("git", "init", g.Path)
+	/*cmd := exec.Command("git", "init", g.Path)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	err := cmd.Run()
+	err := cmd.Run()*/
+
+	// Create an operation with one cmd and execute it
+	var commands []Command
+	command := []string{"git", "init", g.Path}
+	commands = append(commands, command)
+	_, err, stderr := g.ExecuteOperation(commands);
+
 	if err != nil {
 		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " +
+			fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return err
 }
@@ -128,15 +136,27 @@ func (g *GitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (
 		return nil, err
 	}
 	rev = ensureRev(rev)
-	cmd := exec.Command("git", "-C", g.Path, "show", rev+":"+pathFromRoot)
+
+
+	/*cmd := exec.Command("git", "-C", g.Path, "show", rev+":"+pathFromRoot)
 	var bs []byte
 	var err error
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	bs, err = cmd.Output()
+	bs, err = cmd.Output()*/
+
+
+	// Create an operation with one cmd and execute it
+	var commands []Command
+	command := []string{"git", "-C", g.Path, "show", rev+":" + pathFromRoot}
+	commands = append(commands, command)
+	s, err, stderr := g.ExecuteOperation(commands);
+	bs := []byte(s)
+
 	if err != nil {
 		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " +
+			fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return &bs, err
 }
@@ -157,10 +177,20 @@ func (g *GitVCS) addAll(ctx context.Context) error {
 		return err
 	}
 	// add all files in repo folder, recursively
-	cmd := exec.Command("git", "-C", g.Path, "add", "-A")
+
+	/*cmd := exec.Command("git", "-C", g.Path, "add", "-A")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	err := cmd.Run()
+	err := cmd.Run()*/
+
+
+	// Create an operation with one cmd and execute it
+	var commands []Command
+	command := []string{"git", "-C", g.Path, "add", "-A"}
+	commands = append(commands, command)
+	_, err, stderr := g.ExecuteOperation(commands);
+
+
 	if err != nil {
 		err = ign.WithStack(err)
 		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
@@ -173,8 +203,16 @@ func (g *GitVCS) Commit(ctx context.Context, message string) error {
 	if err := ensureFolderExists(g.Path); err != nil {
 		return err
 	}
-	cmd := exec.Command("git", "-C", g.Path, "commit", "-m", message, "--allow-empty")
-	err := cmd.Run()
+	//cmd := exec.Command("git", "-C", g.Path, "commit", "-m", message, "--allow-empty")
+	//err := cmd.Run()
+
+
+	// Create an operation with one cmd and execute it
+	var commands []Command
+	command := []string{"git", "-C", g.Path, "commit", "-m", message, "--allow-empty"}
+	commands = append(commands, command)
+	_, err, _ := g.ExecuteOperation(commands);
+
 	if err != nil {
 		err = ign.WithStack(err)
 	}
@@ -186,16 +224,8 @@ func (g *GitVCS) Commit(ctx context.Context, message string) error {
 // If output is empty, then a zip file in the tmp folder will be created.
 // Returns a string path pointing to the created zip file.
 func (g *GitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
-	ign.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")
-	return archive(ctx, g.Path, rev, output)
-}
 
-// creates a zip with the repository files, at a given revision.
-// If revision (rev arg) is empty or "tip", then last commit from "HEAD"
-// will be used. If output is empty, then a zip file in the tmp folder
-// will be created.
-// Returns a string path pointing to the created zip file.
-func archive(ctx context.Context, repoPath, rev, output string) (*string, error) {
+    repoPath := g.Path
 	if err := ensureFolderExists(repoPath); err != nil {
 		return nil, err
 	}
@@ -213,11 +243,21 @@ func archive(ctx context.Context, repoPath, rev, output string) (*string, error)
 	if err != nil {
 		return nil, ign.WithStack(err)
 	}
-	cmd := exec.Command("git", "-C", repoPath, "archive",
-		"--format=zip", "-o", zipPath, rev)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	_, err = cmd.Output()
+
+
+	// cmd := exec.Command("git", "-C", repoPath, "archive",
+	//	"--format=zip", "-o", zipPath, rev)
+	//var stderr bytes.Buffer
+	//cmd.Stderr = &stderr
+	//_, err = cmd.Output()
+
+	// Create an operation with one cmd and execute it
+	var commands []Command
+	command := []string{"git", "-C", repoPath, "archive",
+		"--format=zip", "-o", zipPath, rev}
+	commands = append(commands, command)
+	_, err, stderr := g.ExecuteOperation(commands);
+
 	if err != nil {
 		err = ign.WithStack(err)
 		ign.LoggerFromContext(ctx).Info("Error while running git archive process. Err: " +
@@ -225,7 +265,10 @@ func archive(ctx context.Context, repoPath, rev, output string) (*string, error)
 		return nil, err
 	}
 	return &zipPath, nil
+
+	//return archive(ctx, g.Path, rev, output)
 }
+
 
 // ReplaceFiles - replaces all files from repo HEAD with the files from the given folder.
 // owner is an optional argument used to set the git commit user. If empty, then the default
@@ -239,8 +282,20 @@ func (g *GitVCS) CloneTo(ctx context.Context, target string) error {
 	if err := ensureFolderExists(g.Path); err != nil {
 		return err
 	}
-	if err := doLocalClone(ctx, g.Path, target); err != nil {
+	/*if err := doLocalClone(ctx, g.Path, target); err != nil {
 		return err
+	}*/
+
+	// Create an operation with one cmd and execute it
+	var commands []Command
+	command := []string{"git", "clone", "--local", g.Path, target}
+	commands = append(commands, command)
+	_, err, stderr := g.ExecuteOperation(commands);
+
+	if err != nil {
+		err = ign.WithStack(err)
+		ign.LoggerFromContext(ctx).Info("Error while cloning repo: " +
+			g.Path + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return nil
 }
@@ -250,19 +305,28 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 	if err := ensureFolderExists(g.Path); err != nil {
 		return err
 	}
-	cmd := exec.Command("git", "tag", "-a", tag, "-m", "ign-fuelserver created tag after cloning")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err := cmd.Run()
+
+	// Create an operation with one cmd and execute it
+	var commands []Command
+	command := []string{"git", "tag", "-a", tag, "-m", "ign-fuelserver created tag after cloning"}
+	commands = append(commands, command)
+	_, err, stderr := g.ExecuteOperation(commands);
+
+
+	//cmd := exec.Command("git", "tag", "-a", tag, "-m", "ign-fuelserver created tag after cloning")
+	//var stderr bytes.Buffer
+	//cmd.Stderr = &stderr
+	//err := cmd.Run()
 	if err != nil {
 		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while Tagging repo: " + g.Path + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		ign.LoggerFromContext(ctx).Info("Error while Tagging repo: " + 
+			g.Path + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return nil
 }
 
 // doLocalClone - makes a local clone of source into target
-func doLocalClone(ctx context.Context, source, target string) error {
+/*func doLocalClone(ctx context.Context, source, target string) error {
 	cmd := exec.Command("git", "clone", "--local", source, target)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -272,7 +336,7 @@ func doLocalClone(ctx context.Context, source, target string) error {
 		ign.LoggerFromContext(ctx).Info("Error while cloning git repo: " + source + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return err
-}
+}*/
 
 // RevisionCount - get the number of revisions up to a specific revision
 // If revision is empty, last commit from "master" branch will be used.
@@ -300,39 +364,6 @@ func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 		count = 0
 	} else {
-		parsed, parseErr := strconv.Atoi(strings.Fields(s)[0])
-		if parseErr != nil {
-			parseErr = ign.WithStack(parseErr)
-			ign.LoggerFromContext(ctx).Info("Error while parsing revision count: " + fmt.Sprint(parseErr))
-		} else {
-			count = parsed
-		}
-	}
-	return count, err
-}
-
-// get the number of revisions from given commit/revision
-func getRevisionCount(ctx context.Context, repoPath, rev string) (int, error) {
-
-	if err := ensureFolderExists(repoPath); err != nil {
-		return 0, err
-	}
-
-	rev = ensureRev(rev)
-
-	cmd := exec.Command("git", "-C", repoPath, "rev-list", "--count", rev)
-	var bs []byte
-	var err error
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	bs, err = cmd.Output()
-	var count int
-	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
-		count = 0
-	} else {
-		s := string(bs[:])
 		parsed, parseErr := strconv.Atoi(strings.Fields(s)[0])
 		if parseErr != nil {
 			parseErr = ign.WithStack(parseErr)
