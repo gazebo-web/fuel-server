@@ -284,12 +284,12 @@ func (g *GitVCS) CloneTo(ctx context.Context, target string) error {
 	if err := ensureFolderExists(g.Path); err != nil {
 		return err
 	}
-	/*if err := doLocalClone(ctx, g.Path, target); err != nil {
+	if err := doLocalClone(ctx, g.Path, target); err != nil {
 		return err
-	}*/
+	}
 
 	// Create an operation with one cmd and execute it
-	var commands []Command
+	/*var commands []Command
 	command := []string{"git", "clone", "--local", g.Path, target}
 	commands = append(commands, command)
 	_, err, stderr := g.ExecuteOperation(commands);
@@ -298,7 +298,7 @@ func (g *GitVCS) CloneTo(ctx context.Context, target string) error {
 		err = ign.WithStack(err)
 		ign.LoggerFromContext(ctx).Info("Error while cloning repo: " +
 			g.Path + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
-	}
+	}*/
 	return nil
 }
 
@@ -328,7 +328,7 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 }
 
 // doLocalClone - makes a local clone of source into target
-/*func doLocalClone(ctx context.Context, source, target string) error {
+func doLocalClone(ctx context.Context, source, target string) error {
 	cmd := exec.Command("git", "clone", "--local", source, target)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -338,7 +338,7 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 		ign.LoggerFromContext(ctx).Info("Error while cloning git repo: " + source + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return err
-}*/
+}
 
 // RevisionCount - get the number of revisions up to a specific revision
 // If revision is empty, last commit from "master" branch will be used.
