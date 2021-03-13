@@ -2672,4 +2672,50 @@ var routes = ign.Routes{
 			},
 		},
 	},
+
+	/////////////
+	// Reviews //
+	/////////////
+
+	// Route for all model reviews
+	ign.Route{
+		"ModelReviews",
+		"Information about all reviews",
+		"/models/reviews",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			// swagger:route GET /reviews reviews listReviews
+			//
+			// Get list of reviews for models.
+			//
+			// Get a list of reviews. reviews will be returned paginated,
+			// with pages of 20 reviews by default. The user can request a
+			// different page with query parameter 'page', and the page size
+			// can be defined with query parameter 'per_page'.
+			// The route supports the 'order' parameter, with values 'asc' and
+			// 'desc' (default: desc).
+			// It also supports the 'q' parameter to perform a fulltext search on reviews
+			// name, description and tags.
+			//
+			//   Produces:
+			//   - application/json
+			//   - application/x-protobuf
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: jsonReviews
+			ign.Method{
+				"GET",
+				"Get all reviews for models",
+				ign.FormatHandlers{
+					ign.FormatHandler{".json", ign.JSONResult(SearchHandler(ModelReviewList))},
+					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ModelReviewList))},
+					ign.FormatHandler{"", ign.JSONResult(SearchHandler(ModelReviewList))},
+				},
+			},
+		},
+		ign.SecureMethods{},
+	},
 } // routes
