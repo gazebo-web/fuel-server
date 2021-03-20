@@ -37,21 +37,18 @@ type WalkFn (func(path, parent string, isDir bool) error)
 
 // NewRepo creates a new GitVCS repository object.
 func (g GitVCS) NewRepo(dirpath string) VCS {
-	r := GitVCS{Path: dirpath, Operations: make(chan Operation, 1),
-		OperationResults: make(chan OperationResult, 1)}
+	//r := GitVCS{Path: dirpath, Operations: make(chan Operation, 1),
+	//	OperationResults: make(chan OperationResult, 1)}
+	r := GitVCS{Path: dirpath}
 	return &r
 }
 
 
 // CommndCb
-type CommandCallback func() (string, error)
-
-// Command is composed of a slice of strings
-type Command []string
+type CommandCallback func() (OperationResult)
 
 // Operation is a list of commands to be executed in series
 type Operation struct {
-	Commands []Command
 	CommandCb CommandCallback
 }
 
@@ -62,13 +59,29 @@ type OperationResult struct {
 	stderr bytes.Buffer
 }
 
-// GitVCS represents a local Git repo.
-type GitVCS struct {
-	Path string
+type OperationHandler struct {
 	Operations chan Operation
 	OperationResults chan OperationResult
 	WG sync.WaitGroup
 	stopOperationLoop bool
+	initialized bool
+}
+
+func (o *OperationHandler) Init() {
+	o.Operations = make(chan Operation, 1)
+	o.OperationResults = make(chan OperationResult, 1)
+	o.stopOperationLoop = false
+	o.initialized = true
+}
+
+// GitVCS represents a local Git repo.
+type GitVCS struct {
+	Path string
+	Handler OperationHandler
+	//Operations chan Operation
+	//OperationResults chan OperationResult
+	//WG sync.WaitGroup
+	//stopOperationLoop bool
 }
 
 func ensureFolderExists(dir string) error {
@@ -89,10 +102,10 @@ func ensureRev(rev string) string {
 // InitRepo - Inits the version control repository and commits all
 // files found. Git Path must exist.
 func (g *GitVCS) InitRepo(ctx context.Context) error {
-	go g.RunOperationLoop()
+	fmt.Println("init repo git =================================================")
 	err := g.initAndCommitAll(ctx, "Created repository")
 	if err != nil {
-		g.stopOperationLoop = true
+		g.Handler.stopOperationLoop = true
 	}
     return err
 }
@@ -142,17 +155,29 @@ func (g *GitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (
 	}
 	rev = ensureRev(rev)
 
-	// Create an operation with one cmd and execute it
-	var commands []Command
-	command := []string{"git", "-C", g.Path, "show", rev+":" + pathFromRoot}
-	commands = append(commands, command)
-	s, err, stderr := g.ExecuteOperation(commands);
-	bs := []byte(s)
+	// Create an cmd callback and execute it
+	var cb = func() (OperationResult) {
+		cmd := exec.Command("git", "-C", g.Path, "show", rev+":"+pathFromRoot)
+		var bs []byte
+		var err error
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		bs, err = cmd.Output()
+		var result OperationResult
+		result.output = string(bs[:])
+		result.err = err
+		result.stderr = stderr
+		return result
+	}
 
-	if err != nil {
-		err = ign.WithStack(err)
+	result := g.Handler.ExecuteOperation(cb);
+	
+	bs := []byte(result.output)
+	var err error
+	if result.err != nil {
+		err = ign.WithStack(result.err)
 		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " +
-			fmt.Sprint(err) + ". Stderr: " + stderr.String())
+			fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
 	}
 	return &bs, err
 }
@@ -172,17 +197,27 @@ func (g *GitVCS) addAll(ctx context.Context) error {
 	if err := ensureFolderExists(g.Path); err != nil {
 		return err
 	}
-	// add all files in repo folder, recursively
-	// Create an operation with one cmd and execute it
-	var commands []Command
-	command := []string{"git", "-C", g.Path, "add", "-A"}
-	commands = append(commands, command)
-	_, err, stderr := g.ExecuteOperation(commands);
 
-	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + 
-			fmt.Sprint(err) + ". Stderr: " + stderr.String())
+	// Create an cmd callback and execute it
+	var cb = func() (OperationResult) {
+		// add all files in repo folder, recursively
+		cmd := exec.Command("git", "-C", g.Path, "add", "-A")
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+
+		var result OperationResult
+		result.output = ""
+		result.err = err
+		result.stderr = stderr
+		return result
+	}
+	result := g.Handler.ExecuteOperation(cb);
+
+	var err error
+	if result.err != nil {
+		err = ign.WithStack(result.err)
+		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
 	}
 	return err
 }
@@ -193,13 +228,19 @@ func (g *GitVCS) Commit(ctx context.Context, message string) error {
 		return err
 	}
 
-	// Create an operation with one cmd and execute it
-	var commands []Command
-	command := []string{"git", "-C", g.Path, "commit", "-m", message, "--allow-empty"}
-	commands = append(commands, command)
-	_, err, _ := g.ExecuteOperation(commands);
+	// Create an cmd callback and execute it
+	var cb = func() (OperationResult) {
+		cmd := exec.Command("git", "-C", g.Path, "commit", "-m", message, "--allow-empty")
+		err := cmd.Run()
+		var result OperationResult
+		result.err = err
+		return result
+	}
 
-	if err != nil {
+	result := g.Handler.ExecuteOperation(cb);
+
+	var err error
+	if result.err != nil {
 		err = ign.WithStack(err)
 	}
 	return err
@@ -230,17 +271,25 @@ func (g *GitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
 		return nil, ign.WithStack(err)
 	}
 
-	// Create an operation with one cmd and execute it
-	var commands []Command
-	command := []string{"git", "-C", repoPath, "archive",
-		"--format=zip", "-o", zipPath, rev}
-	commands = append(commands, command)
-	_, err, stderr := g.ExecuteOperation(commands);
 
-	if err != nil {
-		err = ign.WithStack(err)
+	// Create an cmd callback and execute it
+	var cb = func() (OperationResult) {
+		cmd := exec.Command("git", "-C", repoPath, "archive",
+			"--format=zip", "-o", zipPath, rev)
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		_, err = cmd.Output()
+		var result OperationResult
+		result.err = err
+		return result
+	}
+
+	result := g.Handler.ExecuteOperation(cb);
+
+	if result.err != nil {
+		err = ign.WithStack(result.err)
 		ign.LoggerFromContext(ctx).Info("Error while running git archive process. Err: " +
-			fmt.Sprint(err) + ". Stderr: " + stderr.String())
+			fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
 		return nil, err
 	}
 	return &zipPath, nil
@@ -271,18 +320,27 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 		return err
 	}
 
-	// Create an operation with one cmd and execute it
-	var commands []Command
-	command := []string{"git", "tag", "-a", tag, "-m", "ign-fuelserver created tag after cloning"}
-	commands = append(commands, command)
-	_, err, stderr := g.ExecuteOperation(commands);
-
-	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while Tagging repo: " + 
-			g.Path + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+	// Create an cmd callback and execute it
+	var cb = func() (OperationResult) {
+		cmd := exec.Command("git", "tag", "-a", tag, "-m", "ign-fuelserver created tag after cloning")
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		var result OperationResult
+		result.output = ""
+		result.err = err
+		result.stderr = stderr
+		return result
 	}
-	return nil
+
+	result := g.Handler.ExecuteOperation(cb)
+
+	var err error
+	if result.err != nil {
+		err = ign.WithStack(result.err)
+		ign.LoggerFromContext(ctx).Info("Error while Tagging repo: " + g.Path + ". Err: " + fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
+	}
+	return err
 }
 
 // doLocalClone - makes a local clone of source into target
@@ -314,19 +372,32 @@ func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 
 	rev = ensureRev(rev)
 
-	// Create an operation with one cmd and execute it
-	var commands []Command
-	command := []string{"git", "-C", repoPath, "rev-list", "--count", rev}
-	commands = append(commands, command)
-	s, err, stderr := g.ExecuteOperation(commands);
+
+	// Create an cmd callback and execute it
+	var cb = func() (OperationResult) {
+		cmd := exec.Command("git", "-C", repoPath, "rev-list", "--count", rev)
+		var bs []byte
+		var err error
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		bs, err = cmd.Output()
+		var result OperationResult
+		result.output = string(bs[:])
+		result.err = err
+		result.stderr = stderr
+		return result
+	}
+
+	result := g.Handler.ExecuteOperation(cb)
 
 	var count int
-	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+	var err error
+	if result.err != nil {
+		err = ign.WithStack(result.err)
+		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
 		count = 0
 	} else {
-		parsed, parseErr := strconv.Atoi(strings.Fields(s)[0])
+		parsed, parseErr := strconv.Atoi(strings.Fields(result.output)[0])
 		if parseErr != nil {
 			parseErr = ign.WithStack(parseErr)
 			ign.LoggerFromContext(ctx).Info("Error while parsing revision count: " + fmt.Sprint(parseErr))
@@ -342,43 +413,55 @@ func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 /// at any one time. If the operation consists of multiple commands, it
 /// executes the commands in series and stops if there is an error. The last
 /// ouput of the last successful command is returned
-func (g *GitVCS) RunOperationLoop() {
-	for !g.stopOperationLoop {
+func (o *OperationHandler) RunOperationLoop() {
+	for !o.stopOperationLoop {
+		fmt.Println("RunOperationLoop")
 		// get the operation from the queue
-		op := <-g.Operations
-
+		op := <- o.Operations
+		fmt.Println("RunOperationLoop got op")
 		// add to wait group so that it blocks other incoming operations
-		g.WG.Add(1)
+		o.WG.Add(1)
 
-		/// execute the operation (list of commands)
-		var s string
+		/*var s string
 		var err error
 		var stderr bytes.Buffer
-		for _, command := range op.Commands {
-			cmd := exec.Command(command[0], command[1:]...)
+		if len(op.Commands) != 0 {
+			/// execute the operation (list of commands)
+			for _, command := range op.Commands {
+				cmd := exec.Command(command[0], command[1:]...)
 
-			var bs []byte
-			s = ""
-			stderr.Reset()
-			cmd.Stderr = &stderr
-			bs, err = cmd.Output()
-			if err != nil {
-				break
-			} else {
-				s = string(bs[:])
+				var bs []byte
+				s = ""
+				stderr.Reset()
+				cmd.Stderr = &stderr
+				bs, err = cmd.Output()
+				if err != nil {
+					break
+				} else {
+					s = string(bs[:])
+				}
 			}
+		} else if op.CommandCb != nil {
+            s, err, errMsg = op.CommandCb()
 		}
+
+
+		result := op.CommandCb()
+
 		// commands have been executed so now invoke callback and pass output
 		// or error to caller
 		var result OperationResult
 		result.output = s
 		result.err = err
 		result.stderr = stderr
-		g.OperationResults <- result
+		fmt.Println("RunOperationLoop output result")*/
+
+		result := op.CommandCb()
+		o.OperationResults <- result
 
 		// make sure to call done so it unblocks other operations.
 		// This allows a new operation to be put into the queue
-		g.WG.Done()
+		o.WG.Done()
 	}
 }
 
@@ -386,16 +469,30 @@ func (g *GitVCS) RunOperationLoop() {
 /// i.e.g one git command or a group of git commands. It first waits for the
 /// existing operation (if any) to finish before queueing the new input
 /// operation. When the operation is complete, it returns the output of the execution.
-func (g *GitVCS) ExecuteOperation(cmds []Command) (string, error, bytes.Buffer) {
-	// wait for operation queue to be available
-	g.WG.Wait()
-	
+func (o *OperationHandler) ExecuteOperation(cb CommandCallback) (OperationResult) {
+
+	if !o.initialized {
+		o.Init()
+		go o.RunOperationLoop()
+	}
+
+	fmt.Println("ExecuteOperation")
 	// queue a new operation
 	var op Operation
-	op.Commands = cmds
-	op.CommandCb = nil
-	g.Operations <- op
-
-	result := <-g.OperationResults
-	return result.output, result.err, result.stderr
+    if cb != nil {
+		op.CommandCb = cb
+	} else {
+		var result OperationResult
+		result.output = "Empty operation"
+		result.err = errors.New(result.output)
+		return result
+	}
+	fmt.Println("ExecuteOperation b4 wait")
+	// wait for operation queue to be available
+	o.WG.Wait()
+	fmt.Println("ExecuteOperation after wait")
+	o.Operations <- op
+	fmt.Println("ExecuteOperation after op")
+	result := <- o.OperationResults
+	return result
 }

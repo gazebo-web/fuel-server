@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -31,16 +30,16 @@ const (
 type GoGitVCS struct {
 	Path string
 	r    *git.Repository
-	Operations chan Operation
-	OperationResults chan OperationResult
-	WG sync.WaitGroup
-	stopOperationLoop bool
+	Handler OperationHandler
+	//Operations chan Operation
+	//OperationResults chan OperationResult
+	//WG sync.WaitGroup
+	//stopOperationLoop bool
 }
 
 // NewRepo creates a new GoGitVCS repository object.
 func (g GoGitVCS) NewRepo(dirpath string) VCS {
-	repo := GoGitVCS{Path: dirpath, Operations: make(chan Operation, 1),
-		OperationResults: make(chan OperationResult, 1)}
+	repo := GoGitVCS{Path: dirpath}
 	r, err := git.PlainOpen(dirpath)
 	if err == nil {
 		repo.r = r
@@ -51,9 +50,6 @@ func (g GoGitVCS) NewRepo(dirpath string) VCS {
 // InitRepo - Inits the version control repository and commits all
 // files found. Git Path must exist.
 func (g *GoGitVCS) InitRepo(ctx context.Context) error {
-	// run the operation queue
-	go g.RunOperationLoop()
-
 	// TODO, FIXME: For some reason that I quite don't understand,
 	// when the Git repo "init" is done using go-git, the newly created git
 	// repository ends in a state in which "git archive" does not work. The
@@ -67,7 +63,7 @@ func (g *GoGitVCS) InitRepo(ctx context.Context) error {
 	// fallback to git command implementation
 	r := GitVCS{}.NewRepo(g.Path)
 	if err := r.InitRepo(ctx); err != nil {
-		g.stopOperationLoop = true
+		g.Handler.stopOperationLoop = true
 		return err
 	}
 	// Go-Git'Open the repo
@@ -166,39 +162,47 @@ func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string)
 	}
 	rev = ensureRev(rev)
 
-	var cb = func() (string, error) {
-		var s string
+	var cb = func() (OperationResult) {
+		var result OperationResult
 
 		commit, err := g.getCommit(ctx, rev)
 		if err != nil {
-			return s, err
+			result.err = err;
+			return result
 		}
 		// retrieve the tree from the commit
 		f, err := commit.File(pathFromRoot)
 		if err != nil {
-			s = "Error while getting File. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path
-			return s, err
+			result.err = err
+			result.output = "Error while getting File. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path
+			return result
 		}
 		reader, err := f.Reader()
 		if err != nil {
-			s = "Error while getting file Reader. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path
-			return s, err
+			result.err = err
+			result.output = "Error while getting file Reader. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path
+			return result
 		}
 		var bs []byte
 		bs, err = ioutil.ReadAll(reader)
-		if err == nil {
-			s = string(bs[:])
+		if err != nil {
+			result.err = err
+			return result
 		}
-		return s, err
+		result.output = string(bs[:])
+		return result
 	}
 
-	s, err, _ := g.ExecuteOperation(nil, cb)
-	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info(s)
+	result := g.Handler.ExecuteOperation(cb)
+	// s, err := cb()
+
+	var err error
+	if result.err != nil {
+		err = ign.WithStack(result.err)
+		ign.LoggerFromContext(ctx).Info(result.output)
 		return nil, err
 	}
-	bs := []byte(s)
+	bs := []byte(result.output)
 	return &bs, err
 }
 
@@ -270,7 +274,47 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 // created.
 // Returns a string path pointing to the created zip file.
 func (g *GoGitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
-	return archive(ctx, g.Path, rev, output)
+    repoPath := g.Path
+	if err := ensureFolderExists(repoPath); err != nil {
+		return nil, err
+	}
+	rev = ensureRev(rev)
+
+	var folder, zipPath string
+	var err error
+
+	if output == "" {
+		folder, err = ioutil.TempDir("", "repo")
+		zipPath = filepath.Join(folder, rev+".os.Filezip")
+	} else {
+		zipPath = output
+	}
+	if err != nil {
+		return nil, ign.WithStack(err)
+	}
+
+
+	// Create an cmd callback and execute it
+	var cb = func() (OperationResult) {
+		cmd := exec.Command("git", "-C", repoPath, "archive",
+			"--format=zip", "-o", zipPath, rev)
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		_, err = cmd.Output()
+		var result OperationResult
+		result.err = err
+		return result
+	}
+
+	result := g.Handler.ExecuteOperation(cb);
+
+	if result.err != nil {
+		err = ign.WithStack(result.err)
+		ign.LoggerFromContext(ctx).Info("Error while running git archive process. Err: " +
+			fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
+		return nil, err
+	}
+	return &zipPath, nil
 }
 
 // ReplaceFiles - replaces all files from repo HEAD with the files from the given folder.
@@ -281,13 +325,14 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 		return err
 	}
 
-	var cb = func() (string, error) {
-		var s string
+	var cb = func() (OperationResult) {
+		var result OperationResult
 
 		// First, remove all files from master.
 		w, err := g.r.Worktree()
 		if err != nil {
-			return s, err
+			result.err = err
+			return result
 		}
 		removeFn := func(path, parentPath string, isDir bool) error {
 			if path == "/" || path == "/.gitignore" {
@@ -305,12 +350,14 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 			return nil
 		}
 		if err := g.Walk(ctx, "", true, removeFn); err != nil {
-			return s, err
+			result.err = err
+			return result
 		}
 
 		// Now, replace with files from given folder
 		if err := CopyDir(folder, g.Path); err != nil {
-			return s, err
+			result.err = err
+			return result
 		}
 
 		// Then, Add all files to git index
@@ -329,7 +376,8 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 			return nil
 		}
 		if err := filepath.Walk(folder, addFn); err != nil {
-			return s, err
+			result.err = err
+			return result
 		}
 
 		// Commit
@@ -345,17 +393,20 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 				When:  time.Now(),
 			},
 		})
-		return s, nil
+		result.err = err
+		return result
 	}
 
 	// Create an operation with a cmd cb and execute it
-	s, err, _ := g.ExecuteOperation(nil, cb)
+	result := g.Handler.ExecuteOperation(cb)
+	// s, err := cb()
 
-	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info(s)
+	var err error
+	if result.err != nil {
+		err = ign.WithStack(result.err)
+		ign.LoggerFromContext(ctx).Info(result.output)
 	}
-	return nil
+	return err
 }
 
 // CloneTo - makes a local clone of repo into given target.
@@ -371,34 +422,37 @@ func (g *GoGitVCS) Tag(ctx context.Context, tag string) error {
 		return err
 	}
 
-	var cb = func() (string, error) {
+	var cb = func() (OperationResult) {
+		var result OperationResult
 		// create new tag from head
 		headRef, err := g.r.Head()
 		if err != nil {
-			err = ign.WithStack(err)
-			s := "Error while tagging repo. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path
-			return s, err
+			result.err = err
+			result.output = "Error while tagging repo. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path
+			return result
 		}
 		completeTag := "refs/tags/" + tag
 		ref := plumbing.NewHashReference(plumbing.ReferenceName(completeTag), headRef.Hash())
 		err = g.r.Storer.SetReference(ref)
 		if err != nil {
-			err = ign.WithStack(err)
-			s := "Error while tagging repo. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path
-			return s, err
+			result.err = err
+			result.output = "Error while tagging repo. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path
+			return result
 		}
-		return "", nil
+		return result
     }
 
 	// Create an operation with a cmd cb and execute it
-	s, err, _ := g.ExecuteOperation(nil, cb)
+	result := g.Handler.ExecuteOperation(cb)
+	//s, err := cb()
 
-	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info(s)
+	var err error
+	if result.err != nil {
+		err = ign.WithStack(result.err)
+		ign.LoggerFromContext(ctx).Info(result.output)
 	}
 
-	return nil
+	return err
 }
 
 // HasTag - Checks for the existence of the given tag.
@@ -420,12 +474,56 @@ func (g *GoGitVCS) HasTag(tag string) (bool, error) {
 // If revision is empty, last commit from "master" branch will be used.
 // Returns the number of revisions.
 func (g *GoGitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
-	return getRevisionCount(ctx, g.Path, rev)
+
+	repoPath := g.Path
+	if err := ensureFolderExists(repoPath); err != nil {
+		return 0, err
+	}
+
+	var cb = func() (OperationResult) {
+		cmd := exec.Command("git", "-C", repoPath, "rev-list", "--count", rev)
+		var bs []byte
+		var err error
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		bs, err = cmd.Output()
+
+		var result OperationResult
+		if err == nil {
+			result.output = string(bs[:])
+		} else {
+			result.err = err
+			result.stderr = stderr
+		}
+		return result
+	}
+
+	result := g.Handler.ExecuteOperation(cb)
+	//s, err := cb()
+
+	var count int
+	var err error
+	if result.err != nil {
+		err = ign.WithStack(result.err)
+		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
+		count = 0
+	} else {
+		parsed, parseErr := strconv.Atoi(strings.Fields(result.output)[0])
+		if parseErr != nil {
+			parseErr = ign.WithStack(parseErr)
+			ign.LoggerFromContext(ctx).Info("Error while parsing revision count: " + fmt.Sprint(parseErr))
+		} else {
+			count = parsed
+		}
+	}
+	return count, err
+
+	// return getRevisionCount(ctx, g.Path, rev)
 }
 
 // get the number of revisions from given commit/revision
 // this is used in vcs_gogit.go
-func getRevisionCount(ctx context.Context, repoPath, rev string) (int, error) {
+/*func getRevisionCount(ctx context.Context, repoPath, rev string) (int, error) {
 
 	if err := ensureFolderExists(repoPath); err != nil {
 		return 0, err
@@ -456,7 +554,6 @@ func getRevisionCount(ctx context.Context, repoPath, rev string) (int, error) {
 	}
 	return count, err
 }
-
 
 // creates a zip with the repository files, at a given revision.
 // If revision (rev arg) is empty or "tip", then last commit from "HEAD"
@@ -493,80 +590,5 @@ func archive(ctx context.Context, repoPath, rev, output string) (*string, error)
 		return nil, err
 	}
 	return &zipPath, nil
-}
+}*/
 
-/// RunOperation is a go routine that monitors the channel for any new
-/// operations that need to be run. It allows only one operation running
-/// at any one time. If the operation consists of multiple commands, it
-/// executes the commands in series and stops if there is an error. The last
-/// ouput of the last successful command is returned
-func (g *GoGitVCS) RunOperationLoop() {
-	for !g.stopOperationLoop {
-		// get the operation from the queue
-		op := <-g.Operations
-
-		// add to wait group so that it blocks other incoming operations
-		g.WG.Add(1)
-
-		var s string
-		var err error
-		var stderr bytes.Buffer
-		if len(op.Commands) != 0 {
-			/// execute the operation (list of commands)
-			for _, command := range op.Commands {
-				cmd := exec.Command(command[0], command[1:]...)
-
-				var bs []byte
-				s = ""
-				stderr.Reset()
-				cmd.Stderr = &stderr
-				bs, err = cmd.Output()
-				if err != nil {
-					break
-				} else {
-					s = string(bs[:])
-				}
-			}
-		} else if op.CommandCb != nil {
-            s, err = op.CommandCb()
-		}
-
-
-		// commands have been executed so now invoke callback and pass output
-		// or error to caller
-		var result OperationResult
-		result.output = s
-		result.err = err
-		result.stderr = stderr
-		g.OperationResults <- result
-
-		// make sure to call done so it unblocks other operations.
-		// This allows a new operation to be put into the queue
-		g.WG.Done()
-	}
-}
-
-/// ExecuteOperation is a blocking call for executing a VCS operation,
-/// i.e.g one git command or a group of git commands. It first waits for the
-/// existing operation (if any) to finish before queueing the new input
-/// operation. When the operation is complete, it returns the output of the execution.
-func (g *GoGitVCS) ExecuteOperation(cmds []Command, cb CommandCallback) (string, error, bytes.Buffer) {
-	
-	// queue a new operation
-	var op Operation
-    if len(cmds) != 0 {
-		op.Commands = cmds
-	} else if cb != nil {
-		op.CommandCb = cb
-	} else {
-		s := "Empty operation"
-		var b bytes.Buffer
-		return s, errors.New(s), b
-	}
-
-	// wait for operation queue to be available
-	g.WG.Wait()
-	g.Operations <- op
-	result := <-g.OperationResults
-	return result.output, result.err, result.stderr
-}
