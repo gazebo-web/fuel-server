@@ -39,7 +39,8 @@ type GoGitVCS struct {
 
 // NewRepo creates a new GoGitVCS repository object.
 func (g GoGitVCS) NewRepo(dirpath string) VCS {
-	repo := GoGitVCS{Path: dirpath}
+	repo := GoGitVCS{Path: dirpath, Operations: make(chan Operation, 1),
+		OperationResults: make(chan OperationResult, 1)}
 	r, err := git.PlainOpen(dirpath)
 	if err == nil {
 		repo.r = r
@@ -164,28 +165,40 @@ func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string)
 		return nil, err
 	}
 	rev = ensureRev(rev)
-	commit, err := g.getCommit(ctx, rev)
-	if err != nil {
-		return nil, err
+
+	var cb = func() (string, error) {
+		var s string
+
+		commit, err := g.getCommit(ctx, rev)
+		if err != nil {
+			return s, err
+		}
+		// retrieve the tree from the commit
+		f, err := commit.File(pathFromRoot)
+		if err != nil {
+			s = "Error while getting File. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path
+			return s, err
+		}
+		reader, err := f.Reader()
+		if err != nil {
+			s = "Error while getting file Reader. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path
+			return s, err
+		}
+		var bs []byte
+		bs, err = ioutil.ReadAll(reader)
+		if err == nil {
+			s = string(bs[:])
+		}
+		return s, err
 	}
-	// retrieve the tree from the commit
-	f, err := commit.File(pathFromRoot)
+
+	s, err, _ := g.ExecuteOperation(nil, cb)
 	if err != nil {
 		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while getting File. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
+		ign.LoggerFromContext(ctx).Info(s)
 		return nil, err
 	}
-	reader, err := f.Reader()
-	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while getting file Reader. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
-		return nil, err
-	}
-	var bs []byte
-	bs, err = ioutil.ReadAll(reader)
-	if err != nil {
-		err = ign.WithStack(err)
-	}
+	bs := []byte(s)
 	return &bs, err
 }
 
@@ -336,7 +349,7 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 	}
 
 	// Create an operation with a cmd cb and execute it
-	s, err, _ := g.ExecuteOperation(nil, cb);
+	s, err, _ := g.ExecuteOperation(nil, cb)
 
 	if err != nil {
 		err = ign.WithStack(err)
@@ -378,7 +391,7 @@ func (g *GoGitVCS) Tag(ctx context.Context, tag string) error {
     }
 
 	// Create an operation with a cmd cb and execute it
-	s, err, _ := g.ExecuteOperation(nil, cb);
+	s, err, _ := g.ExecuteOperation(nil, cb)
 
 	if err != nil {
 		err = ign.WithStack(err)
@@ -394,6 +407,7 @@ func (g *GoGitVCS) HasTag(tag string) (bool, error) {
 	if err := g.assertValidRepo(); err != nil {
 		return false, err
 	}
+
 	completeTag := "refs/tags/" + tag
 	_, err := g.r.Storer.Reference(plumbing.ReferenceName(completeTag))
 	if err != nil {
