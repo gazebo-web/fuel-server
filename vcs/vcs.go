@@ -393,6 +393,7 @@ func (g *GitVCS) ExecuteOperation(cmds []Command) (string, error, bytes.Buffer) 
 	// queue a new operation
 	var op Operation
 	op.Commands = cmds
+	op.CommandCb = nil
 	g.Operations <- op
 
 	result := <-g.OperationResults
