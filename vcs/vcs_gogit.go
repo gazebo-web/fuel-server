@@ -267,69 +267,80 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 	if err := g.assertValidRepo(); err != nil {
 		return err
 	}
-	// First, remove all files from master.
-	w, err := g.r.Worktree()
-	if err != nil {
-		return ign.WithStack(err)
-	}
-	removeFn := func(path, parentPath string, isDir bool) error {
-		if path == "/" || path == "/.gitignore" {
-			// We don't remove the model root folder
-			return nil
+
+	var cb = func() (string, error) {
+		var s string
+
+		// First, remove all files from master.
+		w, err := g.r.Worktree()
+		if err != nil {
+			return s, err
 		}
-		// remove "/" (root) prefix from path
-		path = path[1:]
-		fullpath := filepath.Join(g.Path, path)
-		if _, err := os.Stat(fullpath); err == nil {
-			if _, err := w.Remove(path); err != nil {
-				return ign.WithStack(err)
+		removeFn := func(path, parentPath string, isDir bool) error {
+			if path == "/" || path == "/.gitignore" {
+				// We don't remove the model root folder
+				return nil
 			}
-		}
-		return nil
-	}
-	if err := g.Walk(ctx, "", true, removeFn); err != nil {
-		return err
-	}
-
-	// Now, replace with files from given folder
-	if err := CopyDir(folder, g.Path); err != nil {
-		return err
-	}
-
-	// Then, Add all files to git index
-	addFn := func(path string, f os.FileInfo, err error) error {
-		// remove repo base path
-		path = path[len(folder):]
-		if path == "" || strings.Contains(path, ".hg") ||
-			strings.Contains(path, ".git") || strings.Contains(path, ".gitignore") {
+			// remove "/" (root) prefix from path
+			path = path[1:]
+			fullpath := filepath.Join(g.Path, path)
+			if _, err := os.Stat(fullpath); err == nil {
+				if _, err := w.Remove(path); err != nil {
+					return err
+				}
+			}
 			return nil
 		}
-		// and trim "/" prefix
-		path = path[1:]
-		if _, err := w.Add(path); err != nil {
-			return ign.WithStack(err)
+		if err := g.Walk(ctx, "", true, removeFn); err != nil {
+			return s, err
 		}
-		return nil
-	}
-	if err := filepath.Walk(folder, addFn); err != nil {
-		return ign.WithStack(err)
+
+		// Now, replace with files from given folder
+		if err := CopyDir(folder, g.Path); err != nil {
+			return s, err
+		}
+
+		// Then, Add all files to git index
+		addFn := func(path string, f os.FileInfo, err error) error {
+			// remove repo base path
+			path = path[len(folder):]
+			if path == "" || strings.Contains(path, ".hg") ||
+				strings.Contains(path, ".git") || strings.Contains(path, ".gitignore") {
+				return nil
+			}
+			// and trim "/" prefix
+			path = path[1:]
+			if _, err := w.Add(path); err != nil {
+				return err
+			}
+			return nil
+		}
+		if err := filepath.Walk(folder, addFn); err != nil {
+			return s, err
+		}
+
+		// Commit
+		gitUser := owner
+		if gitUser == "" {
+			gitUser = gitName
+		}
+
+		_, err = w.Commit("ReplaceFiles - new version", &git.CommitOptions{
+			Author: &object.Signature{
+				Name:  gitUser,
+				Email: gitEmail,
+				When:  time.Now(),
+			},
+		})
+		return s, nil
 	}
 
-	// Commit
-	gitUser := owner
-	if gitUser == "" {
-		gitUser = gitName
-	}
+	// Create an operation with a cmd cb and execute it
+	s, err, _ := g.ExecuteOperation(nil, cb);
 
-	_, err = w.Commit("ReplaceFiles - new version", &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  gitUser,
-			Email: gitEmail,
-			When:  time.Now(),
-		},
-	})
 	if err != nil {
-		return ign.WithStack(err)
+		err = ign.WithStack(err)
+		ign.LoggerFromContext(ctx).Info(s)
 	}
 	return nil
 }
@@ -526,15 +537,22 @@ func (g *GoGitVCS) RunOperationLoop() {
 /// existing operation (if any) to finish before queueing the new input
 /// operation. When the operation is complete, it returns the output of the execution.
 func (g *GoGitVCS) ExecuteOperation(cmds []Command, cb CommandCallback) (string, error, bytes.Buffer) {
-	// wait for operation queue to be available
-	g.WG.Wait()
 	
 	// queue a new operation
 	var op Operation
-	op.Commands = cmds
-	op.CommandCb = cb
-	g.Operations <- op
+    if len(cmds) != 0 {
+		op.Commands = cmds
+	} else if cb != nil {
+		op.CommandCb = cb
+	} else {
+		s := "Empty operation"
+		var b bytes.Buffer
+		return s, errors.New(s), b
+	}
 
+	// wait for operation queue to be available
+	g.WG.Wait()
+	g.Operations <- op
 	result := <-g.OperationResults
 	return result.output, result.err, result.stderr
 }
