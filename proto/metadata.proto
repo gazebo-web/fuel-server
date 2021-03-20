@@ -1,0 +1,8 @@
+syntax = "proto2";
+package fuel;
+
+// swagger:model
+message Metadatum {
+  required string key = 1;
+  required string value = 2;
+}

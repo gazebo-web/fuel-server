@@ -6,6 +6,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
@@ -16,6 +17,28 @@ import (
 const (
 	models string = "models"
 )
+
+// ModelMetadatum is here so that world and model metadata are stored
+// in separate tables.
+//
+// swagger:model
+type ModelMetadatum struct {
+	// Override default GORM Model fields
+	ID        uint      `gorm:"primary_key" json:"-"`
+	CreatedAt time.Time `gorm:"type:timestamp(3) NULL"`
+	UpdatedAt time.Time
+
+	// ModelID is the ID of the resource to which this metadata is attached.
+	ModelID uint
+
+	// Pull in the common resources Metadatum.
+	commonres.Metadatum
+}
+
+// ModelMetadata is an array of ModelMetadatum
+//
+// swagger:model
+type ModelMetadata []ModelMetadatum
 
 // Model represents information about a simulation model
 //

@@ -256,11 +256,11 @@ func (ms *Service) ModelToProto(model *Model) *fuel.Model {
 
 	// Append metadata, if it exists
 	if len(model.Metadata) > 0 {
-		var metadata []*fuel.ModelMetadatum
+		var metadata []*fuel.Metadatum
 
 		// Convert DB representation to proto
 		for _, datum := range model.Metadata {
-			fuelDatum := fuel.ModelMetadatum{
+			fuelDatum := fuel.Metadatum{
 				Key:   proto.String(*datum.Key),
 				Value: proto.String(*datum.Value),
 			}
