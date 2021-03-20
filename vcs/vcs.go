@@ -42,12 +42,17 @@ func (g GitVCS) NewRepo(dirpath string) VCS {
 	return &r
 }
 
+
+// CommndCb
+type CommandCallback func() (string, error)
+
 // Command is composed of a slice of strings
 type Command []string
 
 // Operation is a list of commands to be executed in series
 type Operation struct {
 	Commands []Command
+	CommandCb CommandCallback
 }
 
 // OperationResult sotre the standard out and error msg of a command execution
@@ -239,8 +244,6 @@ func (g *GitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
 		return nil, err
 	}
 	return &zipPath, nil
-
-	//return archive(ctx, g.Path, rev, output)
 }
 
 
