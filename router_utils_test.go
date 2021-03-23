@@ -217,7 +217,7 @@ func (g *FailingVCS) GetFile(ctx context.Context, rev string, pathFromRoot strin
 func (g *FailingVCS) InitRepo(ctx context.Context) error {
 	return errors.New("error")
 }
-func (g *FailingVCS) ReplaceFiles(ctx context.Context, folder, owner string) error {
+func (g *FailingVCS) ReplaceFiles(ctx context.Context, folder, owner string, branch string) error {
 	return errors.New("error")
 }
 func (g *FailingVCS) Tag(ctx context.Context, tag string) error {
@@ -231,6 +231,9 @@ func (g *FailingVCS) Zip(ctx context.Context, rev, output string) (*string, erro
 }
 func (g *FailingVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 	return 0, errors.New("error")
+}
+func (g *FailingVCS) CreateBranch(ctx context.Context, branch string) error {
+	return errors.New("error")
 }
 
 // origVCSFactory is a private variable to backup original server's VCS repo

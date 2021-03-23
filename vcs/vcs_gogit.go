@@ -315,7 +315,7 @@ func (g *GoGitVCS) Zip(ctx context.Context, rev, output string) (*string, error)
 // ReplaceFiles - replaces all files from repo HEAD with the files from the given folder.
 // owner is an optional argument used to set the git commit user. If empty, then the default
 // git user will be used.
-func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error {
+func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string, branch string) error {
 	if err := g.assertValidRepo(); err != nil {
 		return err
 	}
@@ -323,12 +323,33 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 	var cb = func() (OperationResult) {
 		var result OperationResult
 
-		// First, remove all files from master.
+		headRef, err := g.r.Head()
+		if err != nil {
+			result.err = err
+			result.output = "Error while replacing files in repo. Err: " +
+				fmt.Sprint(err) + ". Repo: " + g.Path
+			return result
+		}
+
+
 		w, err := g.r.Worktree()
 		if err != nil {
 			result.err = err
 			return result
 		}
+
+		// checkout target branch
+		if len(branch) > 0  {
+			err = w.Checkout(&git.CheckoutOptions{
+				Branch: plumbing.ReferenceName(branch),
+			})
+			result.err = err
+			result.output = "Error while checking out branch when replacing files in repo. Err: " +
+				fmt.Sprint(err) + ". Repo: " + g.Path
+			return result
+		}
+
+		// First, remove all files from the current branch.
 		removeFn := func(path, parentPath string, isDir bool) error {
 			if path == "/" || path == "/.gitignore" {
 				// We don't remove the model root folder
@@ -388,13 +409,27 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 				When:  time.Now(),
 			},
 		})
+		if err != nil {
+			result.err = err
+			result.output = "Error while committing replaced files in repo. Err: " +
+				fmt.Sprint(err) + ". Repo: " + g.Path
+			return result
+		}
+
+
+		// checkout master/main branch before returning
+		if len(branch) > 0 {
+			err = w.Checkout(&git.CheckoutOptions{
+				Hash: headRef.Hash(),
+			})
+        }
+
 		result.err = err
 		return result
 	}
 
 	// Create an operation with a cmd cb and execute it
 	result := g.opHandler.ExecuteOperation(cb)
-	// s, err := cb()
 
 	var err error
 	if result.err != nil {
@@ -466,6 +501,62 @@ func (g *GoGitVCS) HasTag(tag string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// HasBranch - Checks for the existence of the given branch.
+// Return bool, and an error if something unexpected happened.
+func (g *GoGitVCS) HasBranch(branch string) (bool, error) {
+	if err := g.assertValidRepo(); err != nil {
+		return false, err
+	}
+
+	completeRef := "refs/heads/" + branch
+	_, err := g.r.Storer.Reference(plumbing.ReferenceName(completeRef))
+	if err != nil {
+		return false, nil
+	}
+	return true, nil
+}
+
+// Create a branch off of head in the the current repository.
+func (g *GoGitVCS) CreateBranch(ctx context.Context, branch string) error {
+	if err := ensureFolderExists(g.Path); err != nil {
+		return err
+	}
+
+	// Create an cmd callback and execute it
+	var cb = func() (OperationResult) {
+		var result OperationResult
+		// create new branch from head
+		headRef, err := g.r.Head()
+		if err != nil {
+			result.err = err
+			result.output = "Error while branching from repo. Err: " +
+				fmt.Sprint(err) + ". Repo: " + g.Path
+			return result
+		}
+		completeRef := "refs/heads/" + branch
+		ref := plumbing.NewHashReference(plumbing.ReferenceName(completeRef), headRef.Hash())
+		err = g.r.Storer.SetReference(ref)
+		if err != nil {
+			result.err = err
+			result.output = "Error while tagging repo. Err: " +
+				fmt.Sprint(err) + ". Repo: " + g.Path
+			return result
+		}
+		return result
+    }
+
+	// Create an operation with a cmd cb and execute it
+	result := g.opHandler.ExecuteOperation(cb)
+
+	var err error
+	if result.err != nil {
+		err = ign.WithStack(result.err)
+		ign.LoggerFromContext(ctx).Info(result.output)
+	}
+
+	return err
 }
 
 // RevisionCount - get the number of revisions up to a specific revision

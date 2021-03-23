@@ -502,7 +502,7 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 	if filesPath != nil {
 		// Replace ALL files with the new ones
 		repo := globals.VCSRepoFactory(ctx, *world.Location)
-		if err := repo.ReplaceFiles(ctx, *filesPath, *user.Username); err != nil {
+		if err := repo.ReplaceFiles(ctx, *filesPath, *user.Username, ""); err != nil {
 			return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
 		}
 		// update zip file and filesize

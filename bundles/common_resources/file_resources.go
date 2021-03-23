@@ -280,12 +280,12 @@ func GetZip(ctx context.Context, res Resource, subfolder string, version string)
 // CreateResourceRepo creates the VCS repository for a given resource
 // Returns the created VCS repository.
 func CreateResourceRepo(ctx context.Context, res Resource, filesPath string) (vcs.VCS, *ign.ErrMsg) {
-	// Create the world repository
+	// Create the resource repository
 	repo := globals.VCSRepoFactory(ctx, filesPath)
 	if err := repo.InitRepo(ctx); err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
 	}
-	// Tag the repo with the world's UUID
+	// Tag the repo with the resource's UUID
 	if err := repo.Tag(ctx, *res.GetUUID()); err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
 	}

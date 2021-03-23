@@ -248,7 +248,7 @@ func (s *Service) UpdateCollection(ctx context.Context, tx *gorm.DB, colOwner,
 	if filesPath != nil {
 		// Replace ALL files with the new ones
 		repo := globals.VCSRepoFactory(ctx, *col.GetLocation())
-		if err := repo.ReplaceFiles(ctx, *filesPath, *user.Username); err != nil {
+		if err := repo.ReplaceFiles(ctx, *filesPath, *user.Username, ""); err != nil {
 			return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
 		}
 	}

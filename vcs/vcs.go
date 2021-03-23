@@ -23,11 +23,12 @@ type VCS interface {
 	CloneTo(ctx context.Context, target string) error
 	GetFile(ctx context.Context, rev string, pathFromRoot string) (*[]byte, error)
 	InitRepo(ctx context.Context) error
-	ReplaceFiles(ctx context.Context, folder, owner string) error
+	ReplaceFiles(ctx context.Context, folder, owner string, branch string) error
 	RevisionCount(ctx context.Context, rev string) (int, error)
 	Tag(ctx context.Context, tag string) error
 	Walk(ctx context.Context, rev string, includeFolders bool, fn WalkFn) error
 	Zip(ctx context.Context, rev, output string) (*string, error)
+	CreateBranch(ctx context.Context, tag string) error
 }
 
 // WalkFn allows to process a repository file entry when using the Walk func.
@@ -293,7 +294,7 @@ func (g *GitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
 // ReplaceFiles - replaces all files from repo HEAD with the files from the given folder.
 // owner is an optional argument used to set the git commit user. If empty, then the default
 // git user will be used.
-func (g *GitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error {
+func (g *GitVCS) ReplaceFiles(ctx context.Context, folder, owner string, branch string) error {
 	return errors.New("GitVCS's ReplaceFiles function is not implemented yet")
 }
 
@@ -405,6 +406,13 @@ func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 	}
 	return count, err
 }
+
+// Create a branch off of head in the the current repository.
+func (g *GitVCS) CreateBranch(ctx context.Context, branch string) error {
+	// TODO: implement
+	return errors.New("GitVCS's CreateBranch function is not implemented yet")
+}
+
 
 /// RunOperation is a go routine that monitors the channel for any new
 /// operations that need to be run. It allows only one operation running

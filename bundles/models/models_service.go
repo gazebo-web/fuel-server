@@ -544,7 +544,7 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	if filesPath != nil {
 		// Replace ALL model files with the new ones
 		repo := globals.VCSRepoFactory(ctx, *model.Location)
-		if err := repo.ReplaceFiles(ctx, *filesPath, *user.Username); err != nil {
+		if err := repo.ReplaceFiles(ctx, *filesPath, *user.Username, ""); err != nil {
 			return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
 		}
 		// update model's zip and model's filesize
