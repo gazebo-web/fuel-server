@@ -422,7 +422,7 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string, branc
 			err = w.Checkout(&git.CheckoutOptions{
 				Hash: headRef.Hash(),
 			})
-        }
+		}
 
 		result.err = err
 		return result
@@ -531,7 +531,7 @@ func (g *GoGitVCS) CreateBranch(ctx context.Context, branch string) error {
 		headRef, err := g.r.Head()
 		if err != nil {
 			result.err = err
-			result.output = "Error while branching from repo. Err: " +
+			result.output = "Error while branching in repo. Err: " +
 				fmt.Sprint(err) + ". Repo: " + g.Path
 			return result
 		}
@@ -540,7 +540,7 @@ func (g *GoGitVCS) CreateBranch(ctx context.Context, branch string) error {
 		err = g.r.Storer.SetReference(ref)
 		if err != nil {
 			result.err = err
-			result.output = "Error while tagging repo. Err: " +
+			result.output = "Error while branching in repo. Err: " +
 				fmt.Sprint(err) + ". Repo: " + g.Path
 			return result
 		}
