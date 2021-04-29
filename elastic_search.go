@@ -12,6 +12,7 @@ import (
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
 	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 var fuelIndices = []string{"fuel_models", "fuel_worlds"}
 
 // ElasticSearchConfig is a configuration for an ElasticSearch server.
+// swagger:model
 type ElasticSearchConfig struct {
 	// ID is the primary key
 	ID uint `gorm:"primary_key" json:"id"`
@@ -48,7 +50,12 @@ type ElasticSearchConfig struct {
 	IsPrimary bool `json:"primary"`
 }
 
+// ElasticSearchConfigs is a list of ElasticSearchConfig
+// swagger:model
+type ElasticSearchConfigs []ElasticSearchConfig
+
 // AdminSearchRequest is a request to alter the ElasticSearchConfig
+// swagger:model
 type AdminSearchRequest struct {
 	// Address of the server. This must contain either "http" or "https".
 	Address string `json:"address"`
@@ -61,6 +68,12 @@ type AdminSearchRequest struct {
 
 	// True if this is the server to use by default.
 	Primary bool `json:"primary"`
+}
+
+// AdminSearchResponse contains a response to an AdminSearchRequest.
+// swagger:model
+type AdminSearchResponse struct {
+	Message string `json:"status"`
 }
 
 // DeleteElasticSearchHandler deletes an elasticsearch config
@@ -212,7 +225,7 @@ func ListElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Reques
 		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
 	}
 
-	var dbConfigs []ElasticSearchConfig
+	var dbConfigs ElasticSearchConfigs
 
 	tx.Find(&dbConfigs)
 
@@ -239,10 +252,7 @@ func ReconnectElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.R
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
 
-	type adminSearchResponse struct {
-		Message string `json:"status"`
-	}
-	response := adminSearchResponse{Message: "Reconnected"}
+	response := AdminSearchResponse{Message: "Reconnected"}
 	return response, nil
 }
 
@@ -267,11 +277,7 @@ func RebuildElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Req
 	models.ElasticSearchUpdateAll(r.Context(), tx)
 	worlds.ElasticSearchUpdateAll(r.Context(), tx)
 
-	type adminSearchResponse struct {
-		Message string `json:"status"`
-	}
-
-	response := adminSearchResponse{Message: "Rebuilt indices"}
+	response := AdminSearchResponse{Message: "Rebuilt indices"}
 
 	return response, nil
 }
@@ -295,10 +301,7 @@ func UpdateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 	models.ElasticSearchUpdateAll(r.Context(), tx)
 	worlds.ElasticSearchUpdateAll(r.Context(), tx)
 
-	type adminSearchResponse struct {
-		Message string `json:"status"`
-	}
-	response := adminSearchResponse{Message: "Updated indices"}
+	response := AdminSearchResponse{Message: "Updated indices"}
 
 	return response, nil
 }
@@ -788,21 +791,19 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 
 	var result interface{}
 
+	count := int64(0)
 	if index == "fuel_models" {
-		result = createModelResults(ctx, tx, elasticResult)
+		result, count = createModelResults(user, ctx, tx, elasticResult)
 	} else if index == "fuel_worlds" {
-		result = createWorldResults(ctx, tx, elasticResult)
+		result, count = createWorldResults(user, ctx, tx, elasticResult)
 	}
-
-	hits := elasticResult["hits"].(map[string]interface{})
-	totalHits := hits["total"].(map[string]interface{})
 
 	// Construct the pagination result
 	page := ign.PaginationResult{}
 	page.Page = pr.Page
 	page.PerPage = pr.PerPage
 	page.URL = pr.URL
-	page.QueryCount = int64(totalHits["value"].(float64))
+	page.QueryCount = int64(count)
 	page.PageFound = page.QueryCount > 0 || (page.Page == 1 && page.QueryCount == 0)
 
 	// Debug
@@ -810,7 +811,7 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 	return result, &page, nil
 }
 
-func createWorldResults(ctx context.Context, tx *gorm.DB, elasticResult map[string]interface{}) interface{} {
+func createWorldResults(user *users.User, ctx context.Context, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {
 	// Construct the set of models
 	worldsProto := fuel.Worlds{}
 	var resourceIDs []int64
@@ -831,24 +832,28 @@ func createWorldResults(ctx context.Context, tx *gorm.DB, elasticResult map[stri
 
 	// Get all the worlds from the DB and add them to the result
 	var foundWorlds []worlds.World
+	count := int64(0)
 	// \todo: Add categories to world, and add back in `.Preload("Categories")` to the following line.
 	if err := tx.Preload("Tags").Preload("License").Where(resourceIDs).Find(&foundWorlds).Error; err == nil {
 		for _, world := range foundWorlds {
 
-			// Encode world into a protobuf message and add it to the list.
-			fuelWorld := (&worlds.Service{}).WorldToProto(&world)
-			worldsProto.Worlds = append(worldsProto.Worlds, fuelWorld)
+			if ok, _ := users.CheckPermissions(tx, *world.UUID, user, *world.Private, permissions.Read); ok {
+				count++
+				// Encode world into a protobuf message and add it to the list.
+				fuelWorld := (&worlds.Service{}).WorldToProto(&world)
+				worldsProto.Worlds = append(worldsProto.Worlds, fuelWorld)
 
-			// Debug:
-			// fmt.Printf("* Fuel world ID=%s, %s\n",
-			// resourceID, hit.(map[string]interface{})["_source"])
+				// Debug:
+				// fmt.Printf("* Fuel world ID=%s, %s\n",
+				// resourceID, hit.(map[string]interface{})["_source"])
+			}
 		}
 	}
 
-	return worldsProto
+	return worldsProto, count
 }
 
-func createModelResults(ctx context.Context, tx *gorm.DB, elasticResult map[string]interface{}) interface{} {
+func createModelResults(user *users.User, ctx context.Context, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {
 	// Construct the set of models
 	modelsProto := fuel.Models{}
 	var resourceIDs []int64
@@ -870,17 +875,20 @@ func createModelResults(ctx context.Context, tx *gorm.DB, elasticResult map[stri
 
 	// Get all the models from the DB and add them to the result
 	var foundModels []models.Model
+	count := int64(0)
 	if err := tx.Where(resourceIDs).Preload("Tags").Preload("Categories").Preload("License").Find(&foundModels).Error; err == nil {
 		for _, model := range foundModels {
-			// Encode model into a protobuf message and add it to the list.
-			fuelModel := (&models.Service{}).ModelToProto(&model)
-			modelsProto.Models = append(modelsProto.Models, fuelModel)
-
-			// Debug:
-			// fmt.Printf("* Fuel model ID=%s, %s\n",
-			// resourceID, hit.(map[string]interface{})["_source"])
+			if ok, _ := users.CheckPermissions(tx, *model.UUID, user, *model.Private, permissions.Read); ok {
+				count++
+				// Encode model into a protobuf message and add it to the list.
+				fuelModel := (&models.Service{}).ModelToProto(&model)
+				modelsProto.Models = append(modelsProto.Models, fuelModel)
+				// Debug:
+				// fmt.Printf("* Fuel model ID=%s, %s\n",
+				// resourceID, hit.(map[string]interface{})["_source"])
+			}
 		}
 	}
 
-	return modelsProto
+	return modelsProto, count
 }

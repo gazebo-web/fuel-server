@@ -1,22 +1,21 @@
 package reviews
 
 import (
-	"time"
-
 	"github.com/golang/protobuf/proto"
 	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
+	"time"
 )
 
-// contains information to create a review for a model
+// contains information to create a model review
 type ModelReview struct {
-	// information in a review
+	// Review for a model
 	Review
 
-	// Model ID under review
+	// ModelID that is under review
 	ModelID *uint
 }
 
-// create a review for a model
+// CreateModelReview contains information for creating a review for a model
 type CreateModelReview struct {
 	// relay all fields from CreateReview struct
 	CreateReview
@@ -29,7 +28,7 @@ type CreateModelReview struct {
 //
 type ModelReviews []ModelReview
 
-// ReviewToProto creates a new 'fuel.Review' from the given review.
+// ToProto creates a new 'fuel.Review' from the given review.
 func (mr *ModelReview) ToProto() interface{} {
 	fuelReview := fuel.Review{
 		// Note: time.RFC3339 is the format expected by Go's JSON unmarshal
@@ -56,7 +55,7 @@ func (mr *ModelReview) ToProto() interface{} {
 	return &fuelModelReview
 }
 
-// NewReview creates a new Review struct
+// NewModelReview creates a new Review struct
 func NewModelReview(title, description, owner, branch, status *string, reviewers, approvals []string, modelID *uint) (ModelReview, error) {
 	createTime := time.Now()
 	updateTime := time.Now()

@@ -41,10 +41,10 @@ type Review struct {
 	// Status of the review
 	Status *string `json:"status,omitempty"`
 
-	// A list of reviewers for the review
+	// Reviewers for the review
 	Reviewers []string `gorm:"-" json:"reviewers,omitempty"`
 
-	// A list of approvals for the review
+	// Approvals for the review
 	Approvals []string `gorm:"-" json:"approvals,omitempty"`
 
 	// Private - True to make this a private resource

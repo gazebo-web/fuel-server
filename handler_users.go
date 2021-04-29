@@ -4,6 +4,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"net/http"
 )
@@ -50,6 +51,17 @@ func UserCreate(tx *gorm.DB, w http.ResponseWriter,
 // UserList returns a list with all users.
 func UserList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+
+	user, ok, errMsg := getUserFromJWT(tx, r)
+
+	if !ok && (errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
+		errMsg.ErrCode != ign.ErrorAuthNoUser) {
+		return nil, nil, &errMsg
+	}
+
+	if !globals.Permissions.IsSystemAdmin(*user.Username) {
+		return nil, nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+	}
 
 	return users.UserList(p, tx, user)
 }

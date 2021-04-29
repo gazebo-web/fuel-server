@@ -2,6 +2,7 @@ package worlds
 
 import (
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
@@ -11,6 +12,28 @@ import (
 const (
 	worlds string = "worlds"
 )
+
+// WorldMetadatum is here so that world and model metadata are stored
+// in separate tables.
+//
+// swagger:model
+type WorldMetadatum struct {
+	// Override default GORM Model fields
+	ID        uint      `gorm:"primary_key" json:"-"`
+	CreatedAt time.Time `gorm:"type:timestamp(3) NULL"`
+	UpdatedAt time.Time
+
+	// WorldID is the ID of the resource to which this metadata is attached.
+	WorldID uint
+
+	// Pull in the common resources Metadatum.
+	commonres.Metadatum
+}
+
+// WorldMetadata is an array of WorldMetadatum
+//
+// swagger:model
+type WorldMetadata []WorldMetadatum
 
 // World represents information about a simulation world.
 //
@@ -52,6 +75,9 @@ type World struct {
 
 	// Tags associated to this world
 	Tags models.Tags `gorm:"many2many:world_tags;" json:"tags,omitempty"`
+
+	// Metadata associated to this world
+	Metadata WorldMetadata `json:"metadata,omitempty"`
 
 	// Location of the world on disk
 	Location *string `json:"-"`
@@ -152,20 +178,20 @@ func GetWorldByName(tx *gorm.DB, name string, owner string) (*World, error) {
 // NewWorldAndUUID creates a World struct with a new UUID.
 func NewWorldAndUUID(name, desc, location, owner, creator *string,
 	lic license.License, permission int, tags models.Tags,
-	private bool) (World, error) {
+	private bool, metadata *WorldMetadata) (World, error) {
 
 	uuidStr, _, err := users.NewUUID(*owner, worlds)
 	if err != nil {
 		return World{}, err
 	}
 	return NewWorld(&uuidStr, name, desc, location, owner, creator, lic,
-		permission, tags, private)
+		permission, tags, private, metadata)
 }
 
 // NewWorld creates a new World struct
 func NewWorld(uuidStr, name, desc, location, owner, creator *string,
 	lic license.License, permission int, tags models.Tags,
-	private bool) (World, error) {
+	private bool, metadata *WorldMetadata) (World, error) {
 
 	// Override the generated location if we got a location as argument
 	var wPath string
@@ -180,6 +206,9 @@ func NewWorld(uuidStr, name, desc, location, owner, creator *string,
 		Description: desc, Location: &wPath, Likes: 0, Downloads: 0,
 		UploadDate: &uploadDate, ModifyDate: &modifyDate, Tags: tags,
 		License: lic, Permission: permission, Private: &private,
+	}
+	if metadata != nil {
+		w.Metadata = *metadata
 	}
 	return w, nil
 }
@@ -208,6 +237,8 @@ type CreateWorld struct {
 	File string `json:"file" validate:"omitempty,gt=0" form:"-"`
 	// Optional privacy/visibility setting.
 	Private *bool `json:"private" validate:"omitempty" form:"private"`
+	// Metadata associated to this world
+	Metadata *WorldMetadata `json:"metadata" form:"metadata"`
 }
 
 // CloneWorld encapsulates data required to clone a world
@@ -232,6 +263,8 @@ type UpdateWorld struct {
 	File string `json:"file" validate:"omitempty,gt=0" form:"-"`
 	// Optional privacy/visibility setting.
 	Private *bool `json:"private" validate:"omitempty" form:"private"`
+	// Metadata associated to this world
+	Metadata *WorldMetadata `json:"metadata" form:"metadata"`
 }
 
 // CreateReport encapsulates the data required to report a world

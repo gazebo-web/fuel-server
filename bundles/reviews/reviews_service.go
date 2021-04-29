@@ -2,7 +2,6 @@ package reviews
 
 import (
 	"fmt"
-	"strconv"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
@@ -10,6 +9,7 @@ import (
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	"strconv"	
 	"strings"
 )
 
@@ -118,7 +118,7 @@ type Protobuffer interface{
     ToProto() interface{}
 }
 
-// create a new modelReview
+// CreateModelReview creates a new model review
 func (ms *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator *users.User) (*ModelReview, *ign.ErrMsg) {
 	// set the owner
 	owner := cmr.CreateReview.Owner

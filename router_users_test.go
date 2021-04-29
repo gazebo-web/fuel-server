@@ -545,42 +545,125 @@ func TestUserPagination(t *testing.T) {
 	defer removeUserWithJWT(user3, jwt3, t)
 	addUserToOrg(user3, "member", orgName, t)
 
-	invpage := ign.NewErrorMessage(ign.ErrorInvalidPaginationRequest)
+	invUser := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	invJwt := ign.ErrMsg{
+		ErrCode:    ign.ErrorAuthNoUser,
+		StatusCode: http.StatusUnauthorized}
+
 	uri := "/1.0/users"
 	// map[string]string{testOrg:"owner",testOrg2:"owner"}
 	userListTestsData := []userListTest{
-		{uriTest{"no jwt - get all users with only public info", uri, nil, nil, false},
+		{uriTest{"no jwt - get all users with only public info", uri, nil, &invJwt, true},
 			"", []expResUser{
 				{user1, []string{}, false, nil},
 				{user2, []string{}, false, nil},
 				{user3, []string{}, false, nil},
 			}},
-		{uriTest{"no jwt - get pages of 1, page 1", uri, nil, nil, false}, "?per_page=1",
+		{uriTest{"no jwt - get pages of 1, page 1", uri, nil, &invJwt, true}, "?per_page=1",
 			[]expResUser{
 				{user1, []string{}, false, nil},
 			},
 		},
-		{uriTest{"no jwt - get pages of 1, page 2", uri, nil, nil, false}, "?per_page=1&page=2",
+		{uriTest{"no jwt - get pages of 1, page 2", uri, nil, &invJwt, true}, "?per_page=1&page=2",
 			[]expResUser{
 				{user2, []string{}, false, nil},
 			},
 		},
-		{uriTest{"org owner - get all users", uri, jwtDef, nil, false}, "", []expResUser{
+		{uriTest{"org owner - get all users", uri, jwtDef, invUser, false}, "", []expResUser{
 			{user1, []string{orgName}, true, map[string]string{orgName: "owner"}},
 			{user2, []string{}, false, nil},
 			{user3, []string{orgName}, true, map[string]string{orgName: "member"}},
 		}},
-		{uriTest{"org member - get all users", uri, newJWT(jwt3), nil, false}, "", []expResUser{
+		{uriTest{"org member - get all users", uri, newJWT(jwt3), invUser, false}, "", []expResUser{
 			{user1, []string{orgName}, false, nil},
 			{user2, []string{}, false, nil},
 			{user3, []string{orgName}, true, map[string]string{orgName: "member"}},
 		}},
-		{uriTest{"get page beyond limit", uri, nil,
+		{uriTest{"get page beyond limit", uri, nil, &invJwt, true}, "?page=3", nil},
+		{uriTest{"get invalid page", uri, nil, &invJwt, true}, "?page=invalid", nil},
+		{uriTest{"get invalid page #2", uri, nil, &invJwt, true}, "?page=-5", nil},
+		{uriTest{"get invalid page #3", uri, nil, &invJwt, true}, "?page=1.2", nil},
+	}
+
+	for _, test := range userListTestsData {
+		t.Run(test.testDesc, func(t *testing.T) {
+			jwt := getJWTToken(t, test.jwtGen)
+			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
+			expStatus := expEm.StatusCode
+			reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL + test.paginationQuery, Body: nil, SignedToken: jwt}
+			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			bslice := resp.BodyAsBytes
+			require.Equal(t, expStatus, resp.RespRecorder.Code)
+			if expStatus != http.StatusOK && !test.ignoreErrorBody {
+				igntest.AssertBackendErrorCode(t.Name()+" GET /users", bslice, expEm.ErrCode, t)
+			} else if expStatus == http.StatusOK {
+				var users users.UserResponses
+				assert.NoError(t, json.Unmarshal(*bslice, &users), "Unable to unmarshal list of users: %s", string(*bslice))
+				// compare got users vs expected users
+				require.Len(t, users, len(test.expUsers), "Got list does not have the expected count. Got: %d. Exp: %d", len(users), len(test.expUsers))
+				for i, eu := range test.expUsers {
+					assert.Equal(t, eu.username, users[i].Username,
+						"Got Username [%s] at index [%d] is different than expected Username [%s]",
+						users[i].Username, i, eu.username)
+					assert.ElementsMatch(t, eu.orgs, users[i].Organizations,
+						"Expected organization list is different at index [%d]", i)
+					if eu.hasEmail {
+						assert.NotEmpty(t, users[i].Email)
+					}
+					assert.Equal(t, eu.orgRoles, users[i].OrgRoles,
+						"Expected (organization, role) MAP is different at index [%d]", i)
+				}
+			}
+		})
+	}
+}
+
+// TestUserPaginationAdmin tests the GET /users route using an admin account.
+func TestUserPaginationAdmin(t *testing.T) {
+	// General test setup
+	setup()
+
+	jwt := os.Getenv("IGN_TEST_JWT")
+	jwtDef := newJWT(jwt)
+	admin := createSysAdminUser(t)
+	defer removeUser(admin, t)
+
+	// Note: need to use another JWT for new users
+	jwt2 := createValidJWTForIdentity("another-user", t)
+	user2 := createUserWithJWT(jwt2, t)
+	defer removeUserWithJWT(user2, jwt2, t)
+
+	// invUser := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	/*invJwt := ign.ErrMsg{
+	  ErrCode: ign.ErrorAuthNoUser,
+	  StatusCode: http.StatusUnauthorized}
+	*/
+
+	invpage := ign.NewErrorMessage(ign.ErrorInvalidPaginationRequest)
+
+	uri := "/1.0/users"
+	userListTestsData := []userListTest{
+		{uriTest{"admin - get all users with only public info", uri, jwtDef, nil, false},
+			"", []expResUser{
+				{admin, []string{}, false, map[string]string{}},
+				{user2, []string{}, false, map[string]string{}},
+			}},
+		{uriTest{"admin - get pages of 1, page 1", uri, jwtDef, nil, false}, "?per_page=1",
+			[]expResUser{
+				{admin, []string{}, false, map[string]string{}},
+			},
+		},
+		{uriTest{"admin - get pages of 1, page 2", uri, jwtDef, nil, false}, "?per_page=1&page=2",
+			[]expResUser{
+				{user2, []string{}, false, map[string]string{}},
+			},
+		},
+		{uriTest{"get page beyond limit", uri, jwtDef,
 			ign.NewErrorMessage(ign.ErrorPaginationPageNotFound), false}, "?page=3", nil,
 		},
-		{uriTest{"get invalid page", uri, nil, invpage, false}, "?page=invalid", nil},
-		{uriTest{"get invalid page #2", uri, nil, invpage, false}, "?page=-5", nil},
-		{uriTest{"get invalid page #3", uri, nil, invpage, false}, "?page=1.2", nil},
+		{uriTest{"get invalid page", uri, jwtDef, invpage, false}, "?page=invalid", nil},
+		{uriTest{"get invalid page #2", uri, jwtDef, invpage, false}, "?page=-5", nil},
+		{uriTest{"get invalid page #3", uri, jwtDef, invpage, false}, "?page=1.2", nil},
 	}
 
 	for _, test := range userListTestsData {
