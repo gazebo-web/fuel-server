@@ -85,7 +85,7 @@ func doCreateModel(tx *gorm.DB, cb createFn, w http.ResponseWriter, r *http.Requ
 }
 
 // extracted actual model creation process
-func modelFn (cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request)(*models.Model, *ign.ErrMsg) {
+func modelFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.Model, *ign.ErrMsg) {
 	owner := cm.Owner
 	if owner != "" {
 		// Ensure the passed in name exists before moving forward

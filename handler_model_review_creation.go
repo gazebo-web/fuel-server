@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/reviews"
@@ -22,7 +23,7 @@ func reviewFn(cmr reviews.CreateModelReview, tx *gorm.DB, jwtUser *users.User, w
 	return modelReview, nil
 }
 
-// Create a new model and a new review
+// ModelReviewCreate creates a new model and a new review
 func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {
@@ -55,6 +56,13 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 	if em := ParseStruct(&cmr, r, true); em != nil {
 		return nil, em
 	}
+
+	// A branch is required
+	if cmr.Branch == nil {
+		em := ign.NewErrorMessageWithArgs(ign.ErrorMissingField, nil, []string{"Missing branch field"})
+		return nil, em
+	}
+
 	// Create model review with the newly created model
 	// pass in newly created model id to create model review
 	cmr.ModelID = &model.ID
@@ -68,7 +76,7 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 	return modelReview, nil
 }
 
-// Create a new review for an existing model
+// ReviewCreate creates a new review for an existing model
 func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {
@@ -88,6 +96,23 @@ func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interfac
 	if em := ParseStruct(&cmr, r, true); em != nil {
 		return nil, em
 	}
+
+	// A branch is required
+	if cmr.Branch == nil {
+		em := ign.NewErrorMessageWithArgs(ign.ErrorMissingField, nil, []string{"Missing branch field"})
+		return nil, em
+	}
+
+	vars := mux.Vars(r)
+	owner := vars["username"]
+	modelName := vars["model"]
+	model, err := models.GetModelByName(tx, modelName, owner)
+	if err != nil {
+		// how do we know what class of error it returns?
+		errMsg := ign.ErrorMessage(ign.ErrorUnexpected)
+		return nil, &errMsg
+	}
+	cmr.ModelID = &model.ID
 
 	// create a new modelReview with prefilled modelID in cmr
 	modelReview, em := reviewFn(cmr, tx, jwtUser, w, r)
