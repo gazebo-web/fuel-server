@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/reviews"
@@ -88,6 +89,17 @@ func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interfac
 	if em := ParseStruct(&cmr, r, true); em != nil {
 		return nil, em
 	}
+
+	vars := mux.Vars(r)
+	owner := vars["username"]
+	modelName := vars["model"]
+	model, err := models.GetModelByName(tx, modelName, owner)
+	if err != nil {
+		// how do we know what class of error it returns?
+		errMsg := ign.ErrorMessage(ign.ErrorUnexpected)
+		return nil, &errMsg
+	}
+	cmr.ModelID = &model.ID
 
 	// create a new modelReview with prefilled modelID in cmr
 	modelReview, em := reviewFn(cmr, tx, jwtUser, w, r)

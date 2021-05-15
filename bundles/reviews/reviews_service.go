@@ -2,32 +2,32 @@ package reviews
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	"reflect"
-	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	"reflect"	
 	"strconv"	
 	"strings"
+	"github.com/jinzhu/gorm"
+	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 const noFullTextSearch = ":noft:"
 
 // Service is the main struct exported by this Reviews Service.
 // It was meant as a way to structure code and help future extensions.
-type Service struct{
+type Service struct {
 	ResourceType reflect.Type
 }
 
 // GetResourceInstance returns an instance of the type contained in ResourceType.
 func (s *Service) GetResourceInstance() interface{} {
-  return reflect.New(s.ResourceType).Elem().Interface()
+	return reflect.New(s.ResourceType).Elem().Interface()
 }
 
 // GetResourceSlice returns a slice of the type contained in ResourceType.
-func (s *Service) GetResourceSlice(len int, cap int) interface{} {
+func (s *Service) GetResourceSlicePtr(len int, cap int) interface{} {
 	resourceSlice := reflect.MakeSlice(reflect.SliceOf(s.ResourceType), len, cap)
 	rs := reflect.New(resourceSlice.Type())
 	rs.Elem().Set(resourceSlice)
@@ -40,7 +40,7 @@ func (s *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 	order, search string, user *users.User) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
 
 	resourceInstance := s.GetResourceInstance()
-	reviewList := s.GetResourceSlice(0, 0)
+	reviewList := s.GetResourceSlicePtr(0, 0)
 
 	// Create query
 	q := tx.Model(&resourceInstance)
@@ -93,9 +93,9 @@ func (s *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 	reviewsProto := make([]interface{}, reviewListValueLen)
 	for i := 0; i < reviewListValueLen; i++ {
 		// Get the item from the slice
-		review := reviewListValue.Index(i)
+		review := reflect.Indirect(reviewListValue).Index(i).Addr()
 		// Attempt to cast it
-		protoReview, ok := reflect.ValueOf(review).Interface().(Protobuffer)
+		protoReview, ok := review.Interface().(Protobuffer)
 		// If the review cannot be cast to the interface, just fail
 		if !ok {
 			em := ign.NewErrorMessage(ign.ErrorMarshalProto)
@@ -105,21 +105,21 @@ func (s *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 		reviewsProto[i] = protoReview.ToProto()
 	}
 
-	return &reviewsProto, paginationResult, nil
+	return reviewsProto, paginationResult, nil
 }
 
 // Protobuffer should be implemented by resources that have a protobuf
 // representation. It provides methods to convert to a protobuf representation.
-type Protobuffer interface{
-    // This method returns a protobuf representation of the object
+type Protobuffer interface {
+	// This method returns a protobuf representation of the object
 	// Note: consider using proto.Message interface instead of just an empty
 	// interface as ToProto return data type.
 	// https://godoc.org/github.com/golang/protobuf/proto#Message
-    ToProto() interface{}
+	ToProto() interface{}
 }
 
 // CreateModelReview creates a new model review
-func (ms *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator *users.User) (*ModelReview, *ign.ErrMsg) {
+func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator *users.User) (*ModelReview, *ign.ErrMsg) {
 	// set the owner
 	owner := cmr.CreateReview.Owner
 	if owner == "" {
@@ -135,6 +135,7 @@ func (ms *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator
 	modelReview, err := NewModelReview(&cmr.CreateReview.Title, &cmr.CreateReview.Description,
 		&owner, &cmr.CreateReview.Branch, &cmr.CreateReview.Status,
 		cmr.CreateReview.Reviewers, cmr.CreateReview.Approvals, cmr.ModelID)
+	modelReview.Creator = creator.Username
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
