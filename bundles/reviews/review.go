@@ -2,6 +2,7 @@ package reviews
 
 import (
 	"time"
+
 	"github.com/jinzhu/gorm"
 )
 
@@ -21,7 +22,7 @@ type Review struct {
 	UpdatedAt time.Time
 
 	// Creator contains the username of the User that created this model (usually
-  // got from the JWT)
+	// got from the JWT)
 	Creator *string `json:"creator,omitempty"`
 
 	// Title of the review (max 65,535 chars)
@@ -78,5 +79,5 @@ type CreateReview struct {
 	Status string `json:"status" form:"status"`
 	// The title of the review
 	// required: true
-	Title string `json:"title" validate:"required, noforwardslash,nopercent" form:"title"`
+	Title string `json:"title" validate:"required,noforwardslash,nopercent" form:"title"`
 }
