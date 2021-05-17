@@ -793,9 +793,9 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 
 	count := int64(0)
 	if index == "fuel_models" {
-		result, count = createModelResults(user, ctx, tx, elasticResult)
+		result, count = createModelResults(ctx, user, tx, elasticResult)
 	} else if index == "fuel_worlds" {
-		result, count = createWorldResults(user, ctx, tx, elasticResult)
+		result, count = createWorldResults(ctx, user, tx, elasticResult)
 	}
 
 	// Construct the pagination result
@@ -811,7 +811,7 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 	return result, &page, nil
 }
 
-func createWorldResults(user *users.User, ctx context.Context, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {
+func createWorldResults(ctx context.Context, user *users.User, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {
 	// Construct the set of models
 	worldsProto := fuel.Worlds{}
 	var resourceIDs []int64
@@ -853,7 +853,7 @@ func createWorldResults(user *users.User, ctx context.Context, tx *gorm.DB, elas
 	return worldsProto, count
 }
 
-func createModelResults(user *users.User, ctx context.Context, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {
+func createModelResults(ctx context.Context, user *users.User, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {
 	// Construct the set of models
 	modelsProto := fuel.Models{}
 	var resourceIDs []int64
