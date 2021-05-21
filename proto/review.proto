@@ -3,7 +3,7 @@ package fuel;
 
 import "model.proto";
 
-// swagger:review
+// swagger:model
 message Review {
   optional string createdAt = 1;
   optional string updatedAt = 2;
@@ -20,7 +20,7 @@ message Review {
   optional bool private = 11;
 }
 
-// swagger:review
+// swagger:model
 message Reviews {
   repeated Review reviews = 1;
 }

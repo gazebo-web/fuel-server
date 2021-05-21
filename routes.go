@@ -2684,7 +2684,7 @@ var routes = ign.Routes{
 		"/models/reviews",
 		ign.AuthHeadersOptional,
 		ign.Methods{
-			// swagger:route GET /reviews reviews listReviews
+			// swagger:route GET /models/reviews reviews listReviews
 			//
 			// Get list of reviews for models.
 			//
@@ -2717,7 +2717,7 @@ var routes = ign.Routes{
 			},
 		},
 		ign.SecureMethods{
-			// swagger:route POST /models/reviews review
+			// swagger:route POST /models/reviews reviews createModelAndReview
 			//
 			// Create a new model and a new review.
 			//
@@ -2731,9 +2731,6 @@ var routes = ign.Routes{
 		},
 	},
 
-	//////////////////
-	// Model Review //
-	//////////////////
 	// Route for a new review for an existing model
 	ign.Route{
 		"Review",
@@ -2744,7 +2741,7 @@ var routes = ign.Routes{
 			ign.Method{},
 		},
 		ign.SecureMethods{
-			// swagger:route POST {username}/models/{model}/reviews
+			// swagger:route POST /{username}/models/{model}/reviews reviews createModelReview
 			//
 			// Create a new review for an existing model.
 			//

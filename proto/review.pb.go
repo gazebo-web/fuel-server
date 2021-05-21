@@ -25,7 +25,7 @@ const (
 // of the legacy proto package is being used.
 const _ = proto.ProtoPackageIsVersion4
 
-// swagger:review
+// swagger:model
 type Review struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -153,7 +153,7 @@ func (x *Review) GetPrivate() bool {
 	return false
 }
 
-// swagger:review
+// swagger:model
 type Reviews struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

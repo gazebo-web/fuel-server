@@ -13,7 +13,7 @@ import (
 // A review contains changes for a resource such as a model or a world. It is
 // also known as a pull request.
 //
-// swagger:review dbReview
+// swagger:model dbReview
 type Review struct {
 	// ID of the review
 	// Overrides the default GORM Review fields

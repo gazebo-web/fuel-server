@@ -46,10 +46,7 @@
         ],
         "responses": {
           "200": {
-            "description": "ElasticSearchConfigs",
-            "schema": {
-              "$ref": "#/definitions/ElasticSearchConfigs"
-            }
+            "$ref": "#/responses/ElasticSearchConfigs"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -126,10 +123,7 @@
         ],
         "responses": {
           "200": {
-            "description": "ElasticSearchConfig",
-            "schema": {
-              "$ref": "#/definitions/ElasticSearchConfig"
-            }
+            "$ref": "#/responses/ElasticSearchConfig"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -166,10 +160,7 @@
         ],
         "responses": {
           "200": {
-            "description": "AdminSearchResponse",
-            "schema": {
-              "$ref": "#/definitions/AdminSearchResponse"
-            }
+            "$ref": "#/responses/AdminSearchResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -205,10 +196,7 @@
         ],
         "responses": {
           "200": {
-            "description": "AdminSearchResponse",
-            "schema": {
-              "$ref": "#/definitions/AdminSearchResponse"
-            }
+            "$ref": "#/responses/AdminSearchResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -245,10 +233,7 @@
         ],
         "responses": {
           "200": {
-            "description": "AdminSearchResponse",
-            "schema": {
-              "$ref": "#/definitions/AdminSearchResponse"
-            }
+            "$ref": "#/responses/AdminSearchResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -296,10 +281,7 @@
         ],
         "responses": {
           "200": {
-            "description": "ElasticSearchConfig",
-            "schema": {
-              "$ref": "#/definitions/ElasticSearchConfig"
-            }
+            "$ref": "#/responses/ElasticSearchConfig"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -387,10 +369,7 @@
         ],
         "responses": {
           "200": {
-            "description": "ElasticSearchConfig",
-            "schema": {
-              "$ref": "#/definitions/ElasticSearchConfig"
-            }
+            "$ref": "#/responses/ElasticSearchConfig"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -414,10 +393,7 @@
         "operationId": "listCollections",
         "responses": {
           "200": {
-            "description": "dbCollections",
-            "schema": {
-              "$ref": "#/definitions/dbCollections"
-            }
+            "$ref": "#/responses/dbCollections"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -442,10 +418,7 @@
         "operationId": "createCollection",
         "responses": {
           "200": {
-            "description": "dbCollection",
-            "schema": {
-              "$ref": "#/definitions/dbCollection"
-            }
+            "$ref": "#/responses/dbCollection"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -492,10 +465,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Licenses",
-            "schema": {
-              "$ref": "#/definitions/Licenses"
-            }
+            "$ref": "#/responses/Licenses"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -519,10 +489,7 @@
         "operationId": "loginUser",
         "responses": {
           "200": {
-            "description": "UserResponse",
-            "schema": {
-              "$ref": "#/definitions/UserResponse"
-            }
+            "$ref": "#/responses/UserResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -625,15 +592,44 @@
         ],
         "responses": {
           "200": {
-            "description": "dbModel",
-            "schema": {
-              "$ref": "#/definitions/dbModel"
-            }
+            "$ref": "#/responses/dbModel"
           },
           "default": {
             "$ref": "#/responses/fuelError"
           }
         }
+      }
+    },
+    "/models/reviews": {
+      "get": {
+        "description": "Get a list of reviews. reviews will be returned paginated,\nwith pages of 20 reviews by default. The user can request a\ndifferent page with query parameter 'page', and the page size\ncan be defined with query parameter 'per_page'.\nThe route supports the 'order' parameter, with values 'asc' and\n'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on reviews\nname, description and tags.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get list of reviews for models.",
+        "operationId": "listReviews",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/jsonReviews"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Create a new model and a new review.",
+        "operationId": "createModelAndReview"
       }
     },
     "/organizations": {
@@ -652,10 +648,7 @@
         "operationId": "listOrganizations",
         "responses": {
           "200": {
-            "description": "OrganizationResponses",
-            "schema": {
-              "$ref": "#/definitions/OrganizationResponses"
-            }
+            "$ref": "#/responses/OrganizationResponses"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -680,10 +673,7 @@
         "operationId": "createOrganization",
         "responses": {
           "200": {
-            "description": "OrganizationResponse",
-            "schema": {
-              "$ref": "#/definitions/OrganizationResponse"
-            }
+            "$ref": "#/responses/OrganizationResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -707,10 +697,7 @@
         "operationId": "singleOrganization",
         "responses": {
           "200": {
-            "description": "OrganizationResponse",
-            "schema": {
-              "$ref": "#/definitions/OrganizationResponse"
-            }
+            "$ref": "#/responses/OrganizationResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -732,10 +719,7 @@
         "operationId": "deleteOrganizations",
         "responses": {
           "200": {
-            "description": "OrganizationResponse",
-            "schema": {
-              "$ref": "#/definitions/OrganizationResponse"
-            }
+            "$ref": "#/responses/OrganizationResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -760,10 +744,7 @@
         "operationId": "organizationUpdate",
         "responses": {
           "200": {
-            "description": "OrganizationResponse",
-            "schema": {
-              "$ref": "#/definitions/OrganizationResponse"
-            }
+            "$ref": "#/responses/OrganizationResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -787,10 +768,7 @@
         "operationId": "orgTeams",
         "responses": {
           "200": {
-            "description": "TeamResponses",
-            "schema": {
-              "$ref": "#/definitions/TeamResponses"
-            }
+            "$ref": "#/responses/TeamResponses"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -815,10 +793,7 @@
         "operationId": "addTeamToOrganization",
         "responses": {
           "200": {
-            "description": "TeamResponse",
-            "schema": {
-              "$ref": "#/definitions/TeamResponse"
-            }
+            "$ref": "#/responses/TeamResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -842,10 +817,7 @@
         "operationId": "singleTeam",
         "responses": {
           "200": {
-            "description": "TeamResponse",
-            "schema": {
-              "$ref": "#/definitions/TeamResponse"
-            }
+            "$ref": "#/responses/TeamResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -867,10 +839,7 @@
         "operationId": "orgTeamDelete",
         "responses": {
           "200": {
-            "description": "TeamResponse",
-            "schema": {
-              "$ref": "#/definitions/TeamResponse"
-            }
+            "$ref": "#/responses/TeamResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -892,10 +861,7 @@
         "operationId": "orgTeamUpdate",
         "responses": {
           "200": {
-            "description": "TeamResponse",
-            "schema": {
-              "$ref": "#/definitions/TeamResponse"
-            }
+            "$ref": "#/responses/TeamResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -919,10 +885,7 @@
         "operationId": "orgUsers",
         "responses": {
           "200": {
-            "description": "UserResponses",
-            "schema": {
-              "$ref": "#/definitions/UserResponses"
-            }
+            "$ref": "#/responses/UserResponses"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -947,10 +910,7 @@
         "operationId": "addUserToOrganization",
         "responses": {
           "200": {
-            "description": "UserResponse",
-            "schema": {
-              "$ref": "#/definitions/UserResponse"
-            }
+            "$ref": "#/responses/UserResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -974,10 +934,7 @@
         "operationId": "orgUserDelete",
         "responses": {
           "200": {
-            "description": "UserResponse",
-            "schema": {
-              "$ref": "#/definitions/UserResponse"
-            }
+            "$ref": "#/responses/UserResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1001,10 +958,7 @@
         "operationId": "ownerProfile",
         "responses": {
           "200": {
-            "description": "OwnerProfile",
-            "schema": {
-              "$ref": "#/definitions/OwnerProfile"
-            }
+            "$ref": "#/responses/OwnerProfile"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1193,10 +1147,7 @@
         "operationId": "listParticipants",
         "responses": {
           "200": {
-            "description": "OrganizationResponses",
-            "schema": {
-              "$ref": "#/definitions/OrganizationResponses"
-            }
+            "$ref": "#/responses/OrganizationResponses"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1345,7 +1296,7 @@
     },
     "/users": {
       "get": {
-        "description": "Get the list of users. Users will be returned paginated,\nwith pages of 20 users by default. The user can request a\ndifferent page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page',\nwith a maximum of 100 items per page.",
+        "description": "Returns a paginated list of users,\nwith pages of 20 users by default. Only system administrators can\naccess this route. The administrator can request a\ndifferent page with query parameter 'page' (first page is value 1).\nThe page size can be controlled with query parameter 'per_page',\nwith a maximum of 100 items per page.",
         "produces": [
           "application/json"
         ],
@@ -1355,18 +1306,18 @@
         "tags": [
           "users"
         ],
-        "summary": "List users",
+        "summary": "Get a list of users. Access limited to administrators.",
         "operationId": "listUsers",
         "parameters": [
           {
-            "minimum": 1,
             "type": "integer",
-            "format": "int64",
-            "default": 1,
-            "x-go-name": "Page",
-            "description": "The page to return",
+            "description": "Request a specific page of users.",
             "name": "page",
-            "in": "query"
+            "in": "query",
+            "schema": {
+              "description": "Request a specific page of users.",
+              "type": "integer"
+            }
           },
           {
             "maximum": 100,
@@ -1378,14 +1329,22 @@
             "description": "Size of the pages",
             "name": "per_page",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "A personal access token.",
+            "name": "Private-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "description": "A personal access token.",
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "UserResponses",
-            "schema": {
-              "$ref": "#/definitions/UserResponses"
-            }
+            "$ref": "#/responses/UserResponses"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1422,10 +1381,7 @@
         ],
         "responses": {
           "200": {
-            "description": "UserResponse",
-            "schema": {
-              "$ref": "#/definitions/UserResponse"
-            }
+            "$ref": "#/responses/UserResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1458,10 +1414,7 @@
         ],
         "responses": {
           "200": {
-            "description": "UserResponse",
-            "schema": {
-              "$ref": "#/definitions/UserResponse"
-            }
+            "$ref": "#/responses/UserResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1506,10 +1459,7 @@
         "operationId": "updateUser",
         "responses": {
           "200": {
-            "description": "UserResponse",
-            "schema": {
-              "$ref": "#/definitions/UserResponse"
-            }
+            "$ref": "#/responses/UserResponse"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1603,10 +1553,7 @@
         "operationId": "createWorld",
         "responses": {
           "200": {
-            "description": "dbWorld",
-            "schema": {
-              "$ref": "#/definitions/dbWorld"
-            }
+            "$ref": "#/responses/dbWorld"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1630,10 +1577,7 @@
         "operationId": "listOwnerCollections",
         "responses": {
           "200": {
-            "description": "dbCollections",
-            "schema": {
-              "$ref": "#/definitions/dbCollections"
-            }
+            "$ref": "#/responses/dbCollections"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1657,10 +1601,7 @@
         "operationId": "singleOwnerCollection",
         "responses": {
           "200": {
-            "description": "dbCollection",
-            "schema": {
-              "$ref": "#/definitions/dbCollection"
-            }
+            "$ref": "#/responses/dbCollection"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1707,10 +1648,7 @@
         "operationId": "collectionUpdate",
         "responses": {
           "200": {
-            "description": "dbCollection",
-            "schema": {
-              "$ref": "#/definitions/dbCollection"
-            }
+            "$ref": "#/responses/dbCollection"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1760,10 +1698,7 @@
         "operationId": "collectionModels",
         "responses": {
           "200": {
-            "description": "dbCollectionAssets",
-            "schema": {
-              "$ref": "#/definitions/dbCollectionAssets"
-            }
+            "$ref": "#/responses/dbCollectionAssets"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -1866,10 +1801,7 @@
         "operationId": "collectionWorlds",
         "responses": {
           "200": {
-            "description": "dbCollectionAssets",
-            "schema": {
-              "$ref": "#/definitions/dbCollectionAssets"
-            }
+            "$ref": "#/responses/dbCollectionAssets"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -2209,10 +2141,7 @@
         "operationId": "modelCollections",
         "responses": {
           "200": {
-            "description": "dbCollections",
-            "schema": {
-              "$ref": "#/definitions/dbCollections"
-            }
+            "$ref": "#/responses/dbCollections"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -2294,6 +2223,15 @@
             "$ref": "#/responses/fuelError"
           }
         }
+      }
+    },
+    "/{username}/models/{model}/reviews": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Create a new review for an existing model.",
+        "operationId": "createModelReview"
       }
     },
     "/{username}/models/{model}/transfer": {
@@ -2486,10 +2424,7 @@
         "operationId": "singleOwnerWorld",
         "responses": {
           "200": {
-            "description": "World",
-            "schema": {
-              "$ref": "#/definitions/World"
-            }
+            "$ref": "#/responses/World"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -2528,10 +2463,7 @@
         "operationId": "worldUpdate",
         "responses": {
           "200": {
-            "description": "World",
-            "schema": {
-              "$ref": "#/definitions/World"
-            }
+            "$ref": "#/responses/World"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -2582,10 +2514,7 @@
         "operationId": "worldCollections",
         "responses": {
           "200": {
-            "description": "dbCollections",
-            "schema": {
-              "$ref": "#/definitions/dbCollections"
-            }
+            "$ref": "#/responses/dbCollections"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -2608,10 +2537,7 @@
         "operationId": "worldLikeCreate",
         "responses": {
           "200": {
-            "description": "World",
-            "schema": {
-              "$ref": "#/definitions/World"
-            }
+            "$ref": "#/responses/World"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -2632,10 +2558,7 @@
         "operationId": "worldUnlike",
         "responses": {
           "200": {
-            "description": "World",
-            "schema": {
-              "$ref": "#/definitions/World"
-            }
+            "$ref": "#/responses/World"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -2762,10 +2685,7 @@
         "operationId": "singleOwnerWorld",
         "responses": {
           "200": {
-            "description": "World",
-            "schema": {
-              "$ref": "#/definitions/World"
-            }
+            "$ref": "#/responses/World"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -2789,10 +2709,7 @@
         "operationId": "worldModelIncludes",
         "responses": {
           "200": {
-            "description": "ModelIncludes",
-            "schema": {
-              "$ref": "#/definitions/ModelIncludes"
-            }
+            "$ref": "#/responses/ModelIncludes"
           },
           "default": {
             "$ref": "#/responses/fuelError"
@@ -2802,157 +2719,6 @@
     }
   },
   "definitions": {
-    "AccessToken": {
-      "type": "object",
-      "title": "AccessToken is a single personal access token for a user.",
-      "properties": {
-        "created_at": {
-          "description": "CreatedAt is the time when the access token was created",
-          "type": "string",
-          "format": "date-time",
-          "x-go-name": "CreatedAt"
-        },
-        "expires": {
-          "description": "For future use, when we add in the ability to expire tokens.",
-          "type": "string",
-          "format": "date-time",
-          "x-go-name": "Expires"
-        },
-        "last_used": {
-          "description": "Last used time.",
-          "type": "string",
-          "format": "date-time",
-          "x-go-name": "LastUsed"
-        },
-        "name": {
-          "description": "Name is a string given to a token by the user. The name does not have to be unique.",
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "prefix": {
-          "description": "Prefix is the first set of characters in the token. The prefix is used to identify the user\nand help a user keep track of their tokens. We use 'latin1_general_cs` collation to enforce\ncase-senstive queries.",
-          "type": "string",
-          "x-go-name": "Prefix"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/ign-go"
-    },
-    "AccessTokens": {
-      "description": "AccessTokens is an array of AccessToken",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/AccessToken"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/ign-go"
-    },
-    "AdminSearchRequest": {
-      "description": "AdminSearchRequest is a request to alter the ElasticSearchConfig",
-      "type": "object",
-      "properties": {
-        "address": {
-          "description": "Address of the server. This must contain either \"http\" or \"https\".",
-          "type": "string",
-          "x-go-name": "Address"
-        },
-        "password": {
-          "description": "Password for basic authentication. Optional.",
-          "type": "string",
-          "x-go-name": "Password"
-        },
-        "primary": {
-          "description": "True if this is the server to use by default.",
-          "type": "boolean",
-          "x-go-name": "Primary"
-        },
-        "username": {
-          "description": "Username for basic authentication. Optional.",
-          "type": "string",
-          "x-go-name": "Username"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
-    },
-    "AdminSearchResponse": {
-      "type": "object",
-      "title": "AdminSearchResponse contains a response to an AdminSearchRequest.",
-      "properties": {
-        "status": {
-          "type": "string",
-          "x-go-name": "Message"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
-    },
-    "Categories": {
-      "description": "Categories is an array of Category",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/Category"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-    },
-    "Category": {
-      "description": "Category is a type of label used to group resources, such as models and\nworlds, together. A category consists of a name, ID, and parentID. The\nparentID field should refer to a parent category, and supports a hierarchy\nof categories.",
-      "type": "object",
-      "properties": {
-        "CreatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "DeletedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "ID": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "UpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "name": {
-          "description": "Name is the name of the category",
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "parent_id": {
-          "description": "ParentID is an optional parent ID.",
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "ParentID"
-        },
-        "slug": {
-          "description": "Slug is the human-friendly URL path to the category",
-          "type": "string",
-          "x-go-name": "Slug"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-    },
-    "CollectionAsset": {
-      "description": "It was implemented with a \"type\" to support adding new types easily.",
-      "type": "object",
-      "title": "CollectionAsset represents an association between a collection and a resource.",
-      "properties": {
-        "asset_name": {
-          "description": "The name of the related asset",
-          "type": "string",
-          "x-go-name": "AssetName"
-        },
-        "asset_owner": {
-          "description": "The owner of the related asset (org / user)",
-          "type": "string",
-          "x-go-name": "AssetOwner"
-        },
-        "type": {
-          "description": "The asset type (model | world).",
-          "type": "string",
-          "x-go-name": "Type"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
-    },
     "CreateModel": {
       "description": "CreateModel encapsulates data required to create a model",
       "type": "object",
@@ -3026,62 +2792,6 @@
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
     },
-    "ElasticSearchConfig": {
-      "type": "object",
-      "title": "ElasticSearchConfig is a configuration for an ElasticSearch server.",
-      "properties": {
-        "CreatedAt": {
-          "description": "CreatedAt is the time the entry was created.",
-          "type": "string",
-          "format": "date-time"
-        },
-        "DeletedAt": {
-          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index to help disambiguate\nwhen soft deleted rows are involved.",
-          "type": "string",
-          "format": "date-time"
-        },
-        "UpdatedAt": {
-          "description": "UpdatedAt is the time the entry was update.",
-          "type": "string",
-          "format": "date-time"
-        },
-        "address": {
-          "description": "Address of the server. This must contain either \"http\" or \"https\".",
-          "type": "string",
-          "x-go-name": "Address"
-        },
-        "id": {
-          "description": "ID is the primary key",
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "ID"
-        },
-        "password": {
-          "description": "Password for basic authentication. Optional.",
-          "type": "string",
-          "x-go-name": "Password"
-        },
-        "primary": {
-          "description": "True if this is the server to use by default.",
-          "type": "boolean",
-          "x-go-name": "IsPrimary"
-        },
-        "username": {
-          "description": "Username for basic authentication. Optional.",
-          "type": "string",
-          "x-go-name": "Username"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
-    },
-    "ElasticSearchConfigs": {
-      "description": "ElasticSearchConfigs is a list of ElasticSearchConfig",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/ElasticSearchConfig"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
-    },
     "ErrMsg": {
       "description": "ErrMsg is serialized as JSON, and returned if the request does not succeed\nTODO: consider making ErrMsg an 'error'",
       "type": "object",
@@ -3133,172 +2843,7 @@
       "title": "File represents an open file descriptor.",
       "x-go-package": "os"
     },
-    "FileTree": {
-      "type": "object",
-      "properties": {
-        "file_tree": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/FileTree_FileNode"
-          },
-          "x-go-name": "FileTree"
-        },
-        "name": {
-          "description": "resource name (eg. model or world name)",
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "owner": {
-          "description": "resource owner",
-          "type": "string",
-          "x-go-name": "Owner"
-        },
-        "version": {
-          "description": "resource version",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "Version"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
-    },
-    "FileTree_FileNode": {
-      "type": "object",
-      "properties": {
-        "children": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/FileTree_FileNode"
-          },
-          "x-go-name": "Children"
-        },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "path": {
-          "type": "string",
-          "x-go-name": "Path"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
-    },
-    "License": {
-      "description": "License is a license name and ID",
-      "type": "object",
-      "properties": {
-        "CreatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "DeletedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "ID": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "UpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "image_url": {
-          "type": "string",
-          "x-go-name": "ImageURL"
-        },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "url": {
-          "type": "string",
-          "x-go-name": "ContentURL"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
-    },
-    "Licenses": {
-      "description": "Licenses is an slice of License",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/License"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
-    },
-    "Model": {
-      "description": "Model base model definition, including fields `ID`, `CreatedAt`, `UpdatedAt`, `DeletedAt`, which could be embedded in your models\ntype User struct {\ngorm.Model\n}",
-      "type": "object",
-      "properties": {
-        "CreatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "DeletedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "ID": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "UpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "x-go-package": "github.com/jinzhu/gorm"
-    },
-    "ModelInclude": {
-      "description": "ModelInclude represents an external model \"included\" in a world\nIncludes are usually in the form of \"full urls\" or prefixed with \"model://\"",
-      "type": "object",
-      "properties": {
-        "model_name": {
-          "description": "The name of the model",
-          "type": "string",
-          "x-go-name": "ModelName"
-        },
-        "model_owner": {
-          "description": "The owner name of the model",
-          "type": "string",
-          "x-go-name": "ModelOwner"
-        },
-        "model_version": {
-          "description": "The version of the model",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "ModelVersion"
-        },
-        "type": {
-          "description": "The Include type, eg. full_url, model://, etc",
-          "type": "string",
-          "x-go-name": "IncludeType"
-        },
-        "world_version": {
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "WorldVersion"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
-    },
-    "ModelIncludes": {
-      "description": "ModelIncludes is a slice of ModelInclude",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/ModelInclude"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
-    },
-    "ModelMetadata": {
-      "description": "Metadata is an array of Metadatum",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/dbModel"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-    },
-    "ModelMetadatum": {
+    "Metadatum": {
       "type": "object",
       "properties": {
         "key": {
@@ -3312,320 +2857,16 @@
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
     },
-    "Models": {
+    "Model": {
       "type": "object",
       "properties": {
-        "models": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Model"
-          },
-          "x-go-name": "Models"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
-    },
-    "Organization": {
-      "description": "Organization consists of a group of users/teams",
-      "type": "object",
-      "properties": {
-        "CreatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "DeletedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "ID": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "UpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "description": {
-          "description": "Description of the organization",
-          "type": "string",
-          "x-go-name": "Description"
-        },
-        "email": {
-          "description": "Email",
-          "type": "string",
-          "x-go-name": "Email"
-        },
-        "name": {
-          "description": "Name of the organization\nName is unique in the Fuel community (including users)",
-          "type": "string",
-          "x-go-name": "Name"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-    },
-    "OrganizationResponse": {
-      "type": "object",
-      "title": "OrganizationResponse stores organization information used in REST responses.",
-      "properties": {
-        "description": {
-          "type": "string",
-          "x-go-name": "Description"
-        },
-        "email": {
-          "type": "string",
-          "x-go-name": "Email"
-        },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "private": {
-          "type": "boolean",
-          "x-go-name": "Private"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-    },
-    "OrganizationResponses": {
-      "description": "OrganizationResponses is a slice of OrganizationResponse",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/OrganizationResponse"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-    },
-    "OwnerProfile": {
-      "type": "object",
-      "title": "OwnerProfile stores information about a user OR an organization.",
-      "properties": {
-        "Org": {
-          "$ref": "#/definitions/OrganizationResponse"
-        },
-        "OwnerType": {
-          "description": "The type: 'users' or 'organizations'",
-          "type": "string"
-        },
-        "User": {
-          "$ref": "#/definitions/UserResponse"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-    },
-    "Tag": {
-      "description": "Tag is a string that can be used to mark other resources, such as models\nand worlds",
-      "type": "object",
-      "properties": {
-        "CreatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "DeletedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "ID": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "UpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-    },
-    "Tags": {
-      "description": "Tags is an array of Tag",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/Tag"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-    },
-    "TeamResponse": {
-      "type": "object",
-      "title": "TeamResponse represents a team for API responses.",
-      "properties": {
-        "description": {
-          "type": "string",
-          "x-go-name": "Description"
-        },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "usernames": {
+        "categories": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "x-go-name": "Usernames"
+          "x-go-name": "Categories"
         },
-        "visible": {
-          "type": "boolean",
-          "x-go-name": "Visible"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-    },
-    "TeamResponses": {
-      "description": "TeamResponses is a slice of TeamResponse",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/TeamResponse"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-    },
-    "User": {
-      "description": "User information",
-      "type": "object",
-      "properties": {
-        "AccessTokens": {
-          "$ref": "#/definitions/AccessTokens"
-        },
-        "CreatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "DeletedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "ID": {
-          "type": "integer",
-          "format": "uint64"
-        },
-        "UpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "downloaded_models": {
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "DownloadedModels"
-        },
-        "downloaded_worlds": {
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "DownloadedWorlds"
-        },
-        "email": {
-          "type": "string",
-          "x-go-name": "Email"
-        },
-        "exp_features": {
-          "description": "A comma separated list of features enabled for the user.",
-          "type": "string",
-          "x-go-name": "ExpFeatures"
-        },
-        "identity": {
-          "type": "string",
-          "x-go-name": "Identity"
-        },
-        "liked_models": {
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "LikedModels"
-        },
-        "liked_worlds": {
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "LikedWorlds"
-        },
-        "model_count": {
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "ModelCount"
-        },
-        "name": {
-          "description": "Person name",
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "org": {
-          "description": "DEPRECATED: Organization is an ignored field.",
-          "type": "string",
-          "x-go-name": "Organization"
-        },
-        "username": {
-          "description": "Username is unique in the Fuel community (including organizations)",
-          "type": "string",
-          "x-go-name": "Username"
-        },
-        "world_count": {
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "WorldCount"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-    },
-    "UserResponse": {
-      "type": "object",
-      "title": "UserResponse stores user information used in REST responses.",
-      "properties": {
-        "email": {
-          "description": "private",
-          "type": "string",
-          "x-go-name": "Email"
-        },
-        "exp_features": {
-          "description": "private",
-          "type": "string",
-          "x-go-name": "ExpFeatures"
-        },
-        "id": {
-          "description": "private",
-          "type": "integer",
-          "format": "uint64",
-          "x-go-name": "ID"
-        },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "orgRoles": {
-          "description": "private",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "x-go-name": "OrgRoles"
-        },
-        "orgs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "Organizations"
-        },
-        "sysAdmin": {
-          "description": "True if the user is a system administrator",
-          "type": "boolean",
-          "x-go-name": "SysAdmin"
-        },
-        "username": {
-          "type": "string",
-          "x-go-name": "Username"
-        }
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-    },
-    "UserResponses": {
-      "description": "UserResponses is a slice of UserResponse",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/UserResponse"
-      },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-    },
-    "World": {
-      "type": "object",
-      "properties": {
         "createdAt": {
           "type": "string",
           "x-go-name": "CreatedAt"
@@ -3674,6 +2915,13 @@
           "format": "int64",
           "x-go-name": "Likes"
         },
+        "metadata": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Metadatum"
+          },
+          "x-go-name": "Metadata"
+        },
         "modify_date": {
           "type": "string",
           "x-go-name": "ModifyDate"
@@ -3714,6 +2962,10 @@
           "type": "string",
           "x-go-name": "UploadDate"
         },
+        "url_name": {
+          "type": "string",
+          "x-go-name": "UrlName"
+        },
         "version": {
           "type": "integer",
           "format": "int64",
@@ -3722,18 +2974,43 @@
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
     },
-    "Worlds": {
+    "ModelMetadata": {
+      "description": "ModelMetadata is an array of ModelMetadatum",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ModelMetadatum"
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+    },
+    "ModelMetadatum": {
+      "description": "ModelMetadatum is here so that world and model metadata are stored\nin separate tables.",
       "type": "object",
       "properties": {
-        "worlds": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/World"
-          },
-          "x-go-name": "Worlds"
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ModelID": {
+          "description": "ModelID is the ID of the resource to which this metadata is attached.",
+          "type": "integer",
+          "format": "uint64"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "key": {
+          "description": "Key is the string containing the metadata key value.",
+          "type": "string",
+          "x-go-name": "Key"
+        },
+        "value": {
+          "description": "Value is the string containing the metadata value associated with the key.",
+          "type": "string",
+          "x-go-name": "Value"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
     },
     "createUserPayload": {
       "description": "TODO: use this struct to parse and validate input parameters hadler_users.go",
@@ -3766,272 +3043,6 @@
         }
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
-    },
-    "dbCollection": {
-      "description": "A collection has a name, owner and optional description.",
-      "type": "object",
-      "title": "Collection represents a collection of assets.",
-      "properties": {
-        "CreatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "DeletedAt": {
-          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index\nto help disambiguate when soft deleted rows are involved.",
-          "type": "string",
-          "format": "date-time"
-        },
-        "UpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "description": {
-          "description": "A description of the collection (max 65,535 chars)",
-          "type": "string",
-          "x-go-name": "Description"
-        },
-        "name": {
-          "description": "The name of the collection",
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "owner": {
-          "description": "The owner of this collection (must exist in UniqueOwners). Can be user or org.",
-          "type": "string",
-          "x-go-name": "Owner"
-        },
-        "private": {
-          "description": "Private - True to make this a private resource",
-          "type": "boolean",
-          "x-go-name": "Private"
-        },
-        "thumbnails": {
-          "description": "A list of thumbnail urls from the associated models/worlds.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "ThumbnailUrls"
-        }
-      },
-      "x-go-name": "Collection",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
-    },
-    "dbCollectionAssets": {
-      "description": "CollectionAssets is a list of Collection assets",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/CollectionAsset"
-      },
-      "x-go-name": "CollectionAssets",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
-    },
-    "dbCollections": {
-      "description": "Collections is an array of Collection",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/dbCollection"
-      },
-      "x-go-name": "Collections",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
-    },
-    "dbModel": {
-      "description": "A model contains information about a single simulation object, such\nas a robot, table, or structure.",
-      "type": "object",
-      "title": "Model represents information about a simulation model",
-      "properties": {
-        "CreatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "DeletedAt": {
-          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index to help disambiguate\nwhen soft deleted rows are involved.",
-          "type": "string",
-          "format": "date-time"
-        },
-        "UpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "categories": {
-          "$ref": "#/definitions/Categories"
-        },
-        "creator": {
-          "description": "The username of the User that created this model (usually got from the JWT)",
-          "type": "string",
-          "x-go-name": "Creator"
-        },
-        "description": {
-          "description": "A description of the model (max 65,535 chars)\nInteresting post about TEXT vs VARCHAR(30000) performance:\nhttps://nicj.net/mysql-text-vs-varchar-performance/",
-          "type": "string",
-          "x-go-name": "Description"
-        },
-        "downloads": {
-          "description": "Number of downloads",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "Downloads"
-        },
-        "filesize": {
-          "description": "Bytes of the model, when downloaded as a zip",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "Filesize"
-        },
-        "lic_id": {
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "LicenseID"
-        },
-        "license": {
-          "$ref": "#/definitions/License"
-        },
-        "likes": {
-          "description": "Number of likes",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "Likes"
-        },
-        "metadata": {
-          "$ref": "#/definitions/ModelMetadata"
-        },
-        "modify_date": {
-          "description": "Date and time the model was modified",
-          "type": "string",
-          "format": "date-time",
-          "x-go-name": "ModifyDate"
-        },
-        "name": {
-          "description": "The name of the model",
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "owner": {
-          "description": "The owner of this model (must exist in UniqueOwners). Can be user or org.",
-          "type": "string",
-          "x-go-name": "Owner"
-        },
-        "permission": {
-          "description": "Permission - 0: public, 1: owner, (future: team, others)",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "Permission"
-        },
-        "private": {
-          "description": "Private - True to make this a private resource",
-          "type": "boolean",
-          "x-go-name": "Private"
-        },
-        "tags": {
-          "$ref": "#/definitions/Tags"
-        },
-        "upload_date": {
-          "description": "Date and time the model was first uploaded",
-          "type": "string",
-          "format": "date-time",
-          "x-go-name": "UploadDate"
-        },
-        "url_name": {
-          "description": "Optional user friendly name to use in URLs",
-          "type": "string",
-          "x-go-name": "URLName"
-        }
-      },
-      "x-go-name": "Model",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-    },
-    "dbWorld": {
-      "type": "object",
-      "title": "World represents information about a simulation world.",
-      "properties": {
-        "CreatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "DeletedAt": {
-          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index\nto help disambiguate when soft deleted rows are involved.",
-          "type": "string",
-          "format": "date-time"
-        },
-        "UpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "creator": {
-          "description": "The username of the User that created this world (usually got from the JWT)",
-          "type": "string",
-          "x-go-name": "Creator"
-        },
-        "description": {
-          "description": "A description of the world (max 65,535 chars)\nInteresting post about TEXT vs VARCHAR(30000) performance:\nhttps://nicj.net/mysql-text-vs-varchar-performance/",
-          "type": "string",
-          "x-go-name": "Description"
-        },
-        "downloads": {
-          "description": "Number of downloads",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "Downloads"
-        },
-        "filesize": {
-          "description": "Bytes of the world, when downloaded as a zip",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "Filesize"
-        },
-        "lic_id": {
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "LicenseID"
-        },
-        "license": {
-          "$ref": "#/definitions/License"
-        },
-        "likes": {
-          "description": "Number of likes",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "Likes"
-        },
-        "modify_date": {
-          "description": "Modification Date and time",
-          "type": "string",
-          "format": "date-time",
-          "x-go-name": "ModifyDate"
-        },
-        "name": {
-          "description": "The name of the world",
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "owner": {
-          "description": "The user who created this world",
-          "type": "string",
-          "x-go-name": "Owner"
-        },
-        "permission": {
-          "description": "Permission - 0: public, 1: owner, (future: team, others)",
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "Permission"
-        },
-        "private": {
-          "description": "Private - True to make this a private resource",
-          "type": "boolean",
-          "x-go-name": "Private"
-        },
-        "tags": {
-          "$ref": "#/definitions/Tags"
-        },
-        "upload_date": {
-          "description": "Date and time the world was first uploaded",
-          "type": "string",
-          "format": "date-time",
-          "x-go-name": "UploadDate"
-        }
-      },
-      "x-go-name": "World",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
     }
   },
   "responses": {
