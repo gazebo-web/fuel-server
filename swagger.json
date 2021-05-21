@@ -2234,6 +2234,15 @@
         "operationId": "createModelReview"
       }
     },
+    "/{username}/models/{model}/reviews/{reviewId}": {
+      "patch": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Updates an existing review.",
+        "operationId": "updateReview"
+      }
+    },
     "/{username}/models/{model}/transfer": {
       "post": {
         "description": "Transfer a model",

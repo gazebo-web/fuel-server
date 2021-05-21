@@ -81,3 +81,12 @@ type CreateReview struct {
 	// required: true
 	Title string `json:"title" validate:"required,noforwardslash,nopercent" form:"title"`
 }
+
+type UpdateReview struct {
+	ID          uint
+	Title       *string
+	Description *string
+	Status      *string
+	Branch      *string
+	Private     *bool
+}

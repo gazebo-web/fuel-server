@@ -2,9 +2,10 @@ package reviews
 
 import (
 	"fmt"
-	"reflect"	
-	"strconv"	
+	"reflect"
+	"strconv"
 	"strings"
+
 	"github.com/jinzhu/gorm"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
@@ -158,4 +159,49 @@ func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator 
 	}
 
 	return &modelReview, nil
+}
+
+func (s *Service) GetReview(tx *gorm.DB, id uint) (*Review, error) {
+	var review Review
+	result := tx.First(&review, id)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &review, nil
+}
+
+// user: the user making the request
+func (s *Service) UpdateReview(tx *gorm.DB, updateReview UpdateReview, user *users.User) (*Review, *ign.ErrMsg) {
+	review, err := s.GetReview(tx, updateReview.ID)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, err)
+	}
+	// TODO: Reviews doesn't have a UUID so we can't use `globals.Permissions` to check
+	// for authorization.
+	if review.Owner != user.Username {
+		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+	}
+
+	if updateReview.Branch != nil {
+		review.Branch = updateReview.Branch
+	}
+	if updateReview.Description != nil {
+		review.Description = updateReview.Description
+	}
+	if updateReview.Private != nil {
+		review.Private = updateReview.Private
+	}
+	if updateReview.Status != nil {
+		review.Status = updateReview.Status
+	}
+	if updateReview.Title != nil {
+		review.Title = updateReview.Title
+	}
+
+	err = tx.Save(review).Error
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+	}
+
+	return review, nil
 }

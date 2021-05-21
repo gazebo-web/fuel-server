@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
@@ -108,4 +109,37 @@ func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interfac
 	}
 
 	return modelReview, nil
+}
+
+func ReviewUpdate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
+	if err := r.ParseMultipartForm(0); err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+	}
+	// Delete temporary files from r.ParseMultipartForm(0)
+	defer r.MultipartForm.RemoveAll()
+
+	user, ok, errMsg := getUserFromJWT(tx, r)
+	if !ok {
+		return nil, &errMsg
+	}
+
+	vars := mux.Vars(r)
+	var updateReview reviews.UpdateReview
+	if err := ParseStruct(&updateReview, r, true); err != nil {
+		return nil, err
+	}
+	reviewId, err := strconv.ParseUint(vars["id"], 10, 0)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
+	}
+	updateReview.ID = uint(reviewId)
+
+	s := reviews.Service{}
+	review, ignerr := s.UpdateReview(tx, updateReview, user)
+	if err != nil {
+		return nil, ignerr
+	}
+
+	return review, nil
 }

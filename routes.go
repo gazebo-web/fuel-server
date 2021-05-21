@@ -2754,4 +2754,27 @@ var routes = ign.Routes{
 			},
 		},
 	},
+
+	ign.Route{
+		"Review",
+		"Update an existing review",
+		"/{username}/models/{model}/reviews/{reviewId}",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			ign.Method{},
+		},
+		ign.SecureMethods{
+			// swagger:route PATCH /{username}/models/{model}/reviews/{reviewId} reviews updateReview
+			//
+			// Updates an existing review.
+			//
+			ign.Method{
+				"PATCH",
+				"Update a review for a model",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(ReviewUpdate)},
+				},
+			},
+		},
+	},
 } // routes
