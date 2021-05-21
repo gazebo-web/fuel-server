@@ -16,10 +16,10 @@ import (
 // swagger:model dbReview
 type Review struct {
 	// ID of the review
-	// Overrides the default GORM Review fields
-	ID        uint      `gorm:"primary_key" json:"-"`
+	// Overrides the default GORM Model fields
+	ID        uint      `gorm:"primary_key"`
 	CreatedAt time.Time `gorm:"type:timestamp(3) NULL"`
-	UpdatedAt time.Time
+	UpdatedAt time.Time `gorm:"type:timestamp(3) NULL"`
 
 	// Creator contains the username of the User that created this model (usually
 	// got from the JWT)
