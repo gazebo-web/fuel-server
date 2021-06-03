@@ -798,13 +798,19 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 		result, count = createWorldResults(ctx, user, tx, elasticResult)
 	}
 
+	// Get the total number of results.
+	totalCount := int64(elasticResult["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64))
+
 	// Construct the pagination result
 	page := ign.PaginationResult{}
 	page.Page = pr.Page
 	page.PerPage = pr.PerPage
 	page.URL = pr.URL
-	page.QueryCount = int64(count)
-	page.PageFound = page.QueryCount > 0 || (page.Page == 1 && page.QueryCount == 0)
+	page.QueryCount = totalCount
+	page.PageFound = count > 0 || (page.Page == 1 && count == 0)
+
+	// Write the pagination headers
+	ign.WritePaginationHeaders(page, w, r)
 
 	// Debug
 	// fmt.Printf("--- End of ElasticSearch ---\n")
