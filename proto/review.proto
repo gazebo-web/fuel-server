@@ -1,8 +1,6 @@
 syntax = "proto2";
 package fuel;
 
-import "model.proto";
-
 // swagger:model
 message Review {
   optional string createdAt = 1;

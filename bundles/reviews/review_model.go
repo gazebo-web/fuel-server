@@ -48,11 +48,11 @@ func (mr *ModelReview) ToProto() interface{} {
 		Private:     mr.Review.Private,
 	}
 
-	modelID := uint64(*mr.ModelID)
+	modelReviewID := uint64(mr.ModelReviewID)
 
 	fuelModelReview := fuel.ModelReview{
-		Review:  &fuelReview,
-		ModelId: &modelID,
+		Review:        &fuelReview,
+		ModelReviewID: &modelReviewID,
 	}
 
 	return &fuelModelReview
