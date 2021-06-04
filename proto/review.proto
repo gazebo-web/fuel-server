@@ -27,11 +27,9 @@ message Reviews {
 
 message ModelReview {
   required Review review = 1;
-  required uint64 model_id = 2;
+  required uint64 modelReviewID = 2;
 }
 
 message ModelReviews {
   repeated ModelReview modelReviews = 1;
 }
-
-

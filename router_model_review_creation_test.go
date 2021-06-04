@@ -113,4 +113,47 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 		[]igntest.FileDesc{},
 		t,
 	)
+
+	t.Run("get newly created review", func(t *testing.T) {
+		reqArgs := igntest.RequestArgs{
+			Method:      "GET",
+			Route:       "/1.0/models/reviews",
+			SignedToken: &jwt,
+		}
+		resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
+
+		body := *resp.BodyAsBytes
+		respJSON := make([]map[string]interface{}, 0, 0)
+		json.Unmarshal(body, &respJSON)
+		assert.Len(t, respJSON, 1)
+		review := respJSON[0]["review"].(map[string]interface{})
+		assert.NotNil(t, review)
+		assert.Equal(t, review["title"], "test title")
+	})
+
+	t.Run("able to create multiple reviews for a model", func(t *testing.T) {
+		createResourceWithArgs(
+			"TestModelReviewCreateExistingModel",
+			fmt.Sprintf("/1.0/%s/models/%s/reviews", user, "model1"),
+			&jwt,
+			map[string]string{"title": "test title2", "branch": "test branch", "modelId": "0"},
+			[]igntest.FileDesc{},
+			t,
+		)
+
+		reqArgs := igntest.RequestArgs{
+			Method:      "GET",
+			Route:       "/1.0/models/reviews",
+			SignedToken: &jwt,
+		}
+		resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
+
+		body := *resp.BodyAsBytes
+		respJSON := make([]map[string]interface{}, 0, 0)
+		json.Unmarshal(body, &respJSON)
+		assert.Len(t, respJSON, 2)
+		review := respJSON[1]["review"].(map[string]interface{})
+		assert.NotNil(t, review)
+		assert.Equal(t, review["title"], "test title2")
+	})
 }

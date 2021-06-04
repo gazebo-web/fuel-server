@@ -34,7 +34,7 @@ type Review struct {
 	Description *string `gorm:"type:text" json:"description,omitempty"`
 
 	// Owner of this review
-	Owner *string `gorm:"unique_index:idx_reviewname_owner" json:"owner,omitempty"`
+	Owner *string `json:"owner,omitempty"`
 
 	// Branch associated with this review
 	Branch *string `json:"branch,omitempty"`

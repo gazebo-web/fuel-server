@@ -13,9 +13,9 @@ type ModelReview struct {
 	Review
 
 	// ModelID that is under review
-	ModelID *uint `gorm:"unique_index:idx_modelreview_id"`
+	ModelID *uint `gorm:"unique_index:idx_modelreview_id" json:"-"`
 
-	ModelReviewID uint `gorm:"unique_index:idx_modelreview_id"`
+	ModelReviewID uint `gorm:"unique_index:idx_modelreview_id;auto_increment"`
 }
 
 // CreateModelReview contains information for creating a review for a model
