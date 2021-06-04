@@ -83,7 +83,6 @@ type CreateReview struct {
 }
 
 type UpdateReview struct {
-	ID          uint
 	Title       *string
 	Description *string
 	Status      *string

@@ -160,8 +160,9 @@ func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator 
 	return &modelReview, nil
 }
 
-func (s *Service) GetReview(tx *gorm.DB, id uint) (*ModelReview, error) {
-	var review ModelReview
+func (s *Service) GetReview(tx *gorm.DB, modelID uint, modelReviewID uint) (*ModelReview, error) {
+	review := ModelReview{ModelID: &modelID, ModelReviewID: modelReviewID}
+	// var review ModelReview
 	result := tx.Model(&review).First(&review)
 	if result.Error != nil {
 		return nil, result.Error
@@ -170,8 +171,10 @@ func (s *Service) GetReview(tx *gorm.DB, id uint) (*ModelReview, error) {
 }
 
 // user: the user making the request
-func (s *Service) UpdateReview(tx *gorm.DB, updateReview UpdateReview, user *users.User) (*ModelReview, *ign.ErrMsg) {
-	review, err := s.GetReview(tx, updateReview.ID)
+func (s *Service) UpdateReview(
+	tx *gorm.DB, modelID uint, modelReviewID uint, updateReview UpdateReview, user *users.User,
+) (*ModelReview, *ign.ErrMsg) {
+	review, err := s.GetReview(tx, modelID, modelReviewID)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, err)
 	}

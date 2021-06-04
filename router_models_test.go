@@ -344,10 +344,10 @@ func runSubtestWithModelSearchTestData(t *testing.T, test resourceSearchTest) {
 	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	assert.Equal(t, expStatus, resp.RespRecorder.Code)
+	var models []fuel.Model
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
 		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
-		var models []fuel.Model
 		assert.NoError(t, json.Unmarshal(*bslice, &models), "Unable to get all models: %s", string(*bslice))
 		require.Len(t, models, test.expCount, "There should be %d Models. Got: %d", test.expCount, len(models))
 		if test.expCount > 0 {

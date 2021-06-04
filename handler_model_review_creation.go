@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -125,18 +126,36 @@ func ReviewUpdate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interfac
 	}
 
 	vars := mux.Vars(r)
+
+	owner, ok := vars["username"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
+	}
+
+	modelName, ok := vars["model"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
+	}
+
+	ms := models.Service{}
+	model, ignErr := ms.GetModel(tx, owner, modelName, user)
+	if ignErr != nil {
+		return nil, ignErr
+	}
+
+	modelReviewID_, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
+	}
+	modelReviewID := uint(modelReviewID_)
+
 	var updateReview reviews.UpdateReview
 	if err := ParseStruct(&updateReview, r, true); err != nil {
 		return nil, err
 	}
-	reviewId, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
-	}
-	updateReview.ID = uint(reviewId)
 
 	s := reviews.Service{}
-	review, ignerr := s.UpdateReview(tx, updateReview, user)
+	review, ignerr := s.UpdateReview(tx, model.ID, modelReviewID, updateReview, user)
 	if ignerr != nil {
 		return nil, ignerr
 	}

@@ -1,9 +1,10 @@
 package reviews
 
 import (
-	"github.com/golang/protobuf/proto"
-	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"time"
+
+	"github.com/golang/protobuf/proto"
+	fuel "gitlab.com/ignitionrobotics/web/fuelserver/proto"
 )
 
 // ModelReview contains information to create a review for a model
@@ -12,7 +13,9 @@ type ModelReview struct {
 	Review
 
 	// ModelID that is under review
-	ModelID *uint
+	ModelID *uint `gorm:"unique_index:idx_modelreview_id"`
+
+	ModelReviewID uint `gorm:"unique_index:idx_modelreview_id"`
 }
 
 // CreateModelReview contains information for creating a review for a model
