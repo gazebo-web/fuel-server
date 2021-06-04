@@ -109,7 +109,7 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 		"TestModelReviewCreateExistingModel",
 		fmt.Sprintf("/1.0/%s/models/%s/reviews", user, "model1"),
 		&jwt,
-		map[string]string{"title": "test title", "branch": "test branch", "modelId": "0"},
+		map[string]string{"title": "test title", "branch": "test branch"},
 		[]igntest.FileDesc{},
 		t,
 	)
@@ -136,7 +136,7 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 			"TestModelReviewCreateExistingModel",
 			fmt.Sprintf("/1.0/%s/models/%s/reviews", user, "model1"),
 			&jwt,
-			map[string]string{"title": "test title2", "branch": "test branch", "modelId": "0"},
+			map[string]string{"title": "test title2", "branch": "test branch"},
 			[]igntest.FileDesc{},
 			t,
 		)
@@ -152,8 +152,31 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 		respJSON := make([]map[string]interface{}, 0, 0)
 		json.Unmarshal(body, &respJSON)
 		assert.Len(t, respJSON, 2)
-		review := respJSON[1]["review"].(map[string]interface{})
+	})
+
+	t.Run("reviews for other models start at ID 1", func(t *testing.T) {
+		createResourceWithArgs(
+			"TestModelReviewCreateExistingModel",
+			fmt.Sprintf("/1.0/%s/models/%s/reviews", user, "model2"),
+			&jwt,
+			map[string]string{"title": "test title3", "branch": "test branch"},
+			[]igntest.FileDesc{},
+			t,
+		)
+
+		reqArgs := igntest.RequestArgs{
+			Method:      "GET",
+			Route:       "/1.0/models/reviews",
+			SignedToken: &jwt,
+		}
+		resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
+
+		body := *resp.BodyAsBytes
+		respJSON := make([]map[string]interface{}, 0, 0)
+		json.Unmarshal(body, &respJSON)
+		assert.Len(t, respJSON, 1)
+		review := respJSON[0]["review"].(map[string]interface{})
 		assert.NotNil(t, review)
-		assert.Equal(t, review["title"], "test title2")
+		assert.Equal(t, review["title"], "test title3")
 	})
 }
