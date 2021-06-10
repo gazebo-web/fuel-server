@@ -3,6 +3,7 @@ package reviews
 import (
 	"time"
 
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	fuel "gitlab.com/ignitionrobotics/web/fuelserver/proto"
 	"google.golang.org/protobuf/proto"
 )
@@ -16,6 +17,9 @@ type ModelReview struct {
 	ModelID *uint `gorm:"unique_index:idx_modelreview_id;not null" json:"-"`
 
 	ModelReviewID *uint `gorm:"unique_index:idx_modelreview_id;not null"`
+
+	// Unique identifier used for casbin permissions
+	UUID *string `json:"-"`
 }
 
 // CreateModelReview contains information for creating a review for a model
@@ -61,14 +65,33 @@ func (mr *ModelReview) ToProto() interface{} {
 }
 
 // NewModelReview creates a new Review struct
-func NewModelReview(title, description, owner, branch, status *string, reviewers, approvals []string, modelID *uint) (ModelReview, error) {
+func NewModelReview(title,
+	description,
+	owner,
+	branch,
+	status *string,
+	reviewers,
+	approvals []string,
+	modelID *uint,
+	modelReviewID *uint,
+) (ModelReview, error) {
 	createTime := time.Now()
 	updateTime := time.Now()
+
+	uuidStr, _, err := users.NewUUID(*owner, "modelReviews")
+	if err != nil {
+		return ModelReview{}, err
+	}
 
 	review := Review{CreatedAt: createTime, UpdatedAt: updateTime, Title: title,
 		Description: description, Owner: owner, Branch: branch,
 		Status: status, Reviewers: reviewers, Approvals: approvals}
 
-	modelReview := ModelReview{Review: review, ModelID: modelID}
+	modelReview := ModelReview{
+		Review:        review,
+		ModelID:       modelID,
+		ModelReviewID: modelReviewID,
+		UUID:          &uuidStr,
+	}
 	return modelReview, nil
 }

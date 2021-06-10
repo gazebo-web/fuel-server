@@ -17,6 +17,9 @@ func TestModelReviewCRUD(t *testing.T) {
 	jwt := os.Getenv("IGN_TEST_JWT")
 	user := createUserWithJWT(jwt, t)
 	defer removeUserWithJWT(user, jwt, t)
+	jwt2 := createValidJWTForIdentity(user+"_2", t)
+	user2 := createUserWithJWT(jwt2, t)
+	defer removeUserWithJWT(user2, jwt2, t)
 
 	t.Run("create new model review", func(t *testing.T) {
 		extraParams := map[string]string{
@@ -69,12 +72,26 @@ func TestModelReviewCRUD(t *testing.T) {
 		resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
 
 		body := *resp.BodyAsBytes
-		respJSON := make([]map[string]interface{}, 0, 0)
+		respJSON := make([]map[string]interface{}, 0)
 		json.Unmarshal(body, &respJSON)
 		assert.Len(t, respJSON, 1)
 		review := respJSON[0]["review"].(map[string]interface{})
 		assert.NotNil(t, review)
 		assert.Equal(t, review["title"], "test title")
+	})
+
+	t.Run("users without permission cannot see the new review", func(t *testing.T) {
+		reqArgs := igntest.RequestArgs{
+			Method:      "GET",
+			Route:       "/1.0/models/reviews",
+			SignedToken: &jwt2,
+		}
+		resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
+
+		body := *resp.BodyAsBytes
+		respJSON := make([]map[string]interface{}, 0)
+		json.Unmarshal(body, &respJSON)
+		assert.Len(t, respJSON, 0)
 	})
 
 	t.Run("update review", func(t *testing.T) {
@@ -85,7 +102,7 @@ func TestModelReviewCRUD(t *testing.T) {
 			fmt.Sprintf("/1.0/%s/models/test/reviews/1", user),
 			&jwt,
 			map[string]string{
-				"Status": "asjdlkasjdaksldj",
+				"Status": "test status",
 			},
 			[]igntest.FileDesc{},
 		)
@@ -93,7 +110,23 @@ func TestModelReviewCRUD(t *testing.T) {
 		assert.Equal(t, http.StatusOK, respCode)
 		var respJson map[string]interface{}
 		json.Unmarshal(*respBody, &respJson)
-		assert.Equal(t, "asjdlkasjdaksldj", respJson["status"])
+		assert.Equal(t, "test status", respJson["status"])
+	})
+
+	t.Run("user without permission cannot update the review", func(t *testing.T) {
+		respCode, _, ok := igntest.SendMultipartMethod(
+			"update review",
+			t,
+			"PATCH",
+			fmt.Sprintf("/1.0/%s/models/test/reviews/1", user),
+			&jwt2,
+			map[string]string{
+				"Status": "test status 2",
+			},
+			[]igntest.FileDesc{},
+		)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusUnauthorized, respCode)
 	})
 }
 
@@ -123,7 +156,7 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 		resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
 
 		body := *resp.BodyAsBytes
-		respJSON := make([]map[string]interface{}, 0, 0)
+		respJSON := make([]map[string]interface{}, 0)
 		json.Unmarshal(body, &respJSON)
 		assert.Len(t, respJSON, 1)
 		review := respJSON[0]["review"].(map[string]interface{})
@@ -149,7 +182,7 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 		resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
 
 		body := *resp.BodyAsBytes
-		respJSON := make([]map[string]interface{}, 0, 0)
+		respJSON := make([]map[string]interface{}, 0)
 		json.Unmarshal(body, &respJSON)
 		assert.Len(t, respJSON, 2)
 	})

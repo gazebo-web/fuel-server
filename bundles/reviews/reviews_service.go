@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/jinzhu/gorm"
@@ -146,20 +145,19 @@ func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator 
 		}
 	}
 
-	// create the ModelReview struct
-	modelReview, err := NewModelReview(&cmr.CreateReview.Title, &cmr.CreateReview.Description,
-		&owner, &cmr.CreateReview.Branch, &cmr.CreateReview.Status,
-		cmr.CreateReview.Reviewers, cmr.CreateReview.Approvals, cmr.ModelID)
-	modelReview.Creator = creator.Username
+	modelReviewID, err := newModelReviewID(tx, cmr.ModelID)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
 
-	modelReviewId, err := newModelReviewID(tx, modelReview.ModelID)
+	// create the ModelReview struct
+	modelReview, err := NewModelReview(&cmr.CreateReview.Title, &cmr.CreateReview.Description,
+		&owner, &cmr.CreateReview.Branch, &cmr.CreateReview.Status,
+		cmr.CreateReview.Reviewers, cmr.CreateReview.Approvals, cmr.ModelID, modelReviewID)
+	modelReview.Creator = creator.Username
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
-	modelReview.ModelReviewID = modelReviewId
 
 	// create model review in the DB
 	if err := tx.Create(&modelReview).Error; err != nil {
@@ -168,12 +166,11 @@ func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator 
 
 	// read and write permissions
 	// convert ID to string
-	modelIDStr := strconv.FormatUint(uint64(*modelReview.ModelID), 10)
-	_, err = globals.Permissions.AddPermission(owner, modelIDStr, permissions.Read)
+	_, err = globals.Permissions.AddPermission(owner, *modelReview.UUID, permissions.Read)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
-	_, err = globals.Permissions.AddPermission(owner, modelIDStr, permissions.Write)
+	_, err = globals.Permissions.AddPermission(owner, *modelReview.UUID, permissions.Write)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
 	}
@@ -201,7 +198,11 @@ func (s *Service) UpdateReview(
 	}
 	// TODO: Reviews doesn't have a UUID so we can't use `globals.Permissions` to check
 	// for authorization.
-	if *review.Owner != *user.Username {
+	ok, ignErr := globals.Permissions.IsAuthorized(*user.Username, *review.UUID, permissions.Write)
+	if err != nil {
+		return nil, ignErr
+	}
+	if !ok {
 		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
 	}
 
