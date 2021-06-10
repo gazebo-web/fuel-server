@@ -23,6 +23,7 @@ message Reviews {
   repeated Review reviews = 1;
 }
 
+// swagger:model
 message ModelReview {
   required Review review = 1;
   required uint64 modelReviewID = 2;

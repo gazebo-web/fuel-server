@@ -201,6 +201,7 @@ func (x *Reviews) GetReviews() []*Review {
 	return nil
 }
 
+// swagger:model
 type ModelReview struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

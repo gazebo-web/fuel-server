@@ -2705,7 +2705,7 @@ var routes = ign.Routes{
 			//
 			//   Responses:
 			//     default: fuelError
-			//     200: jsonReviews
+			//     200: Review
 			ign.Method{
 				"GET",
 				"Get all reviews for models",
@@ -2721,6 +2721,19 @@ var routes = ign.Routes{
 			//
 			// Create a new model and a new review.
 			//
+			//   Parameters:
+			//   + name: model
+			//     in: body
+			//     type: CreateModel
+			//
+			// 	 Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: ModelReview
 			ign.Method{
 				"POST",
 				"Post a review and a new model",
@@ -2745,6 +2758,23 @@ var routes = ign.Routes{
 			//
 			// Create a new review for an existing model.
 			//
+			//   Parameters:
+			//   + name: username
+			//     in: path
+			//   + name: model
+			//     in: path
+			//   + name: review
+			//     in: body
+			//     type: CreateReview
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: ModelReview
 			ign.Method{
 				"POST",
 				"Post a review for a model",
@@ -2768,6 +2798,25 @@ var routes = ign.Routes{
 			//
 			// Updates an existing review.
 			//
+			//   Parameters:
+			//   + name: username
+			//     in: path
+			//   + name: model
+			//     in: path
+			//   + name: reviewId
+			//     in: path
+			//   + name: review
+			//     in: body
+			//     type: CreateReview
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: Review
 			ign.Method{
 				"PATCH",
 				"Update a review for a model",

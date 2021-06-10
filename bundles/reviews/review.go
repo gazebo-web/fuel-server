@@ -61,6 +61,7 @@ func QueryForReviews(q *gorm.DB) *gorm.DB {
 	return q.Model(&Review{}).Order("id")
 }
 
+// swagger:model
 // CreateReview encapulates data required to create a review
 type CreateReview struct {
 	// Optional Owner of the model. Must be a user or an org

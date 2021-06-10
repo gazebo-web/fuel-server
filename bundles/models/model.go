@@ -6,7 +6,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
+	commonres "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
@@ -204,6 +204,7 @@ func NewModel(uuidStr, name, urlName, desc, location, owner, creator *string, li
 	return model, nil
 }
 
+// swagger:model
 // CreateModel encapsulates data required to create a model
 type CreateModel struct {
 	// The name of the Model
