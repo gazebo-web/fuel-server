@@ -1,6 +1,7 @@
 package reviews
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -118,6 +119,20 @@ type Protobuffer interface {
 	ToProto() interface{}
 }
 
+func newModelReviewID(tx *gorm.DB, modelID *uint) (*uint, error) {
+	var modelReview ModelReview
+	var modelReviewID uint
+	if err := tx.Order("model_review_id desc").First(&modelReview, "model_id = ?", *modelID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			modelReviewID = 1
+			return &modelReviewID, nil
+		}
+		return nil, err
+	}
+	modelReviewID = *modelReview.ModelReviewID + 1
+	return &modelReviewID, nil
+}
+
 // CreateModelReview creates a new model review
 func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator *users.User) (*ModelReview, *ign.ErrMsg) {
 	// set the owner
@@ -140,6 +155,12 @@ func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator 
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
 	}
 
+	modelReviewId, err := newModelReviewID(tx, modelReview.ModelID)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+	}
+	modelReview.ModelReviewID = modelReviewId
+
 	// create model review in the DB
 	if err := tx.Create(&modelReview).Error; err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
@@ -160,7 +181,7 @@ func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator 
 	return &modelReview, nil
 }
 
-func (s *Service) GetReview(tx *gorm.DB, modelID uint, modelReviewID uint) (*ModelReview, error) {
+func (s *Service) GetReview(tx *gorm.DB, modelID uint, modelReviewID *uint) (*ModelReview, error) {
 	review := ModelReview{ModelID: &modelID, ModelReviewID: modelReviewID}
 	// var review ModelReview
 	result := tx.Model(&review).First(&review)
@@ -172,7 +193,7 @@ func (s *Service) GetReview(tx *gorm.DB, modelID uint, modelReviewID uint) (*Mod
 
 // user: the user making the request
 func (s *Service) UpdateReview(
-	tx *gorm.DB, modelID uint, modelReviewID uint, updateReview UpdateReview, user *users.User,
+	tx *gorm.DB, modelID uint, modelReviewID *uint, updateReview UpdateReview, user *users.User,
 ) (*ModelReview, *ign.ErrMsg) {
 	review, err := s.GetReview(tx, modelID, modelReviewID)
 	if err != nil {

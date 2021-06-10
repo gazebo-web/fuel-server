@@ -3,8 +3,8 @@ package reviews
 import (
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	fuel "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // ModelReview contains information to create a review for a model
@@ -13,9 +13,9 @@ type ModelReview struct {
 	Review
 
 	// ModelID that is under review
-	ModelID *uint `gorm:"unique_index:idx_modelreview_id" json:"-"`
+	ModelID *uint `gorm:"unique_index:idx_modelreview_id;not null" json:"-"`
 
-	ModelReviewID uint `gorm:"unique_index:idx_modelreview_id;auto_increment"`
+	ModelReviewID *uint `gorm:"unique_index:idx_modelreview_id;not null"`
 }
 
 // CreateModelReview contains information for creating a review for a model
@@ -24,7 +24,9 @@ type CreateModelReview struct {
 	CreateReview
 
 	// Model ID under review
-	ModelID *uint
+	ModelID *uint `json:"-"`
+
+	ModelReviewID *uint `json:"-"`
 }
 
 // ModelReviews is an array of ModelReview
@@ -48,7 +50,7 @@ func (mr *ModelReview) ToProto() interface{} {
 		Private:     mr.Review.Private,
 	}
 
-	modelReviewID := uint64(mr.ModelReviewID)
+	modelReviewID := uint64(*mr.ModelReviewID)
 
 	fuelModelReview := fuel.ModelReview{
 		Review:        &fuelReview,

@@ -172,11 +172,18 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 		resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
 
 		body := *resp.BodyAsBytes
-		respJSON := make([]map[string]interface{}, 0, 0)
+		respJSON := make([]map[string]interface{}, 0)
 		json.Unmarshal(body, &respJSON)
-		assert.Len(t, respJSON, 1)
-		review := respJSON[0]["review"].(map[string]interface{})
-		assert.NotNil(t, review)
-		assert.Equal(t, review["title"], "test title3")
+		assert.Len(t, respJSON, 3)
+		var newResult *map[string]interface{}
+		for _, item := range respJSON {
+			review := item["review"].(map[string]interface{})
+			if review["title"] == "test title3" {
+				newResult = &item
+				break
+			}
+		}
+		assert.NotNil(t, newResult)
+		assert.Equal(t, 1, int((*newResult)["modelReviewID"].(float64)))
 	})
 }

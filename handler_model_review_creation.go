@@ -155,7 +155,7 @@ func ReviewUpdate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interfac
 	}
 
 	s := reviews.Service{}
-	review, ignerr := s.UpdateReview(tx, model.ID, modelReviewID, updateReview, user)
+	review, ignerr := s.UpdateReview(tx, model.ID, &modelReviewID, updateReview, user)
 	if ignerr != nil {
 		return nil, ignerr
 	}
