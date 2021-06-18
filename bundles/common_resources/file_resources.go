@@ -362,6 +362,21 @@ func QueryForResourceVisibility(tx, q *gorm.DB, owner *string, user *users.User)
 	return q
 }
 
+// QueryForModelReviews returns a list of reviews for a selected model using modelID
+// requested by the user
+func QueryForModelReview(q *gorm.DB, user *users.User, modelID uint) *gorm.DB {
+	// user has already been checked visibility
+	if user == nil {
+		// if no user is specified, return public resource
+		// or private resource request has permission
+		q = q.Where("private = ?", 0)
+	} else {
+		// get all matched reviews
+		q = q.Where("model_id = ?", modelID)
+	}
+	return q
+}
+
 // MoveResource will move a resource's on-disk location from sourceOwner to destOwner.
 func MoveResource(resource Resource, destOwner string) *ign.ErrMsg {
 	searchStr := "/" + *resource.GetOwner() + "/"

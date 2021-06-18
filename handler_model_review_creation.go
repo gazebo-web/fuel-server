@@ -23,7 +23,7 @@ func reviewFn(cmr reviews.CreateModelReview, tx *gorm.DB, jwtUser *users.User, w
 	return modelReview, nil
 }
 
-// Create a new model and a new review
+// ModelReviewCreate creates a new model and a new review
 func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {
@@ -69,7 +69,7 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 	return modelReview, nil
 }
 
-// Create a new review for an existing model
+// ReviewCreate creates a new review for an existing model
 func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {

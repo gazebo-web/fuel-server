@@ -2,8 +2,8 @@ package reviews
 
 import (
 	"fmt"
-	"reflect"	
-	"strconv"	
+	"reflect"
+	"strconv"
 	"strings"
 	"github.com/jinzhu/gorm"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
@@ -37,7 +37,7 @@ func (s *Service) GetResourceSlicePtr(len int, cap int) interface{} {
 // ReviewList returns a paginated list of reviews.
 // This function returns a list of Reviews that can then be mashalled into json or protobuf.
 func (s *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *string,
-	order, search string, user *users.User) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+	order, search string, modelID *uint, user *users.User) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
 
 	resourceInstance := s.GetResourceInstance()
 	reviewList := s.GetResourceSlicePtr(0, 0)
@@ -54,6 +54,11 @@ func (s *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 	// filter resources based on privacy setting
 	// We need filter resource based on review privacy setting
 	q = res.QueryForResourceVisibility(tx, q, owner, user)
+
+	// filter resources based on modelID, if exist
+	if modelID != nil {
+		q = res.QueryForModelReview(q, user, *modelID)
+	}
 
 	// todo(anyone) check if search works
 	// If a search criteria was defined, then also apply a fulltext search on "review's description"
