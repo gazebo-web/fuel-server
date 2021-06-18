@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/jinzhu/gorm"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
@@ -221,6 +222,8 @@ func (s *Service) UpdateReview(
 	if updateReview.Title != nil {
 		review.Title = updateReview.Title
 	}
+
+	review.UpdatedAt = time.Now()
 
 	err = tx.Save(review).Error
 	if err != nil {
