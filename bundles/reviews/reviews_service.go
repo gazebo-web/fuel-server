@@ -9,6 +9,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
 	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
@@ -179,28 +180,37 @@ func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator 
 	return &modelReview, nil
 }
 
-func (s *Service) GetReview(tx *gorm.DB, modelID uint, modelReviewID *uint) (*ModelReview, error) {
-	review := ModelReview{ModelID: &modelID, ModelReviewID: modelReviewID}
+func (s *Service) GetReview(
+	tx *gorm.DB,
+	user *users.User,
+	modelOwner string,
+	modelName string,
+	modelReviewID uint,
+) (*ModelReview, *ign.ErrMsg) {
+	ms := models.Service{}
+	model, ignErr := ms.GetModel(tx, modelOwner, modelName, user)
+	if ignErr != nil {
+		return nil, ignErr
+	}
+
+	review := ModelReview{ModelID: &model.ID, ModelReviewID: &modelReviewID}
 	// var review ModelReview
 	result := tx.Model(&review).First(&review)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, result.Error)
 	}
 	return &review, nil
 }
 
 // user: the user making the request
 func (s *Service) UpdateReview(
-	tx *gorm.DB, modelID uint, modelReviewID *uint, updateReview UpdateReview, user *users.User,
+	tx *gorm.DB,
+	user *users.User,
+	review *ModelReview,
+	updateReview *UpdateReview,
 ) (*ModelReview, *ign.ErrMsg) {
-	review, err := s.GetReview(tx, modelID, modelReviewID)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, err)
-	}
-	// TODO: Reviews doesn't have a UUID so we can't use `globals.Permissions` to check
-	// for authorization.
 	ok, ignErr := globals.Permissions.IsAuthorized(*user.Username, *review.UUID, permissions.Write)
-	if err != nil {
+	if ignErr != nil {
 		return nil, ignErr
 	}
 	if !ok {
@@ -225,7 +235,7 @@ func (s *Service) UpdateReview(
 
 	review.UpdatedAt = time.Now()
 
-	err = tx.Save(review).Error
+	err := tx.Save(review).Error
 	if err != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 	}
