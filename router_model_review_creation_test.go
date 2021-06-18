@@ -131,22 +131,6 @@ func TestModelReviewCRUD(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, http.StatusUnauthorized, respCode)
 	})
-
-	t.Run("post new comment on a review", func(t *testing.T) {
-		comment := comments.PostComment{Body: "test comment"}
-		body := bytes.Buffer{}
-		json.NewEncoder(&body).Encode(comment)
-		resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
-			Method:      "POST",
-			Route:       fmt.Sprintf("/1.0/%s/models/test/reviews/1/comments", user),
-			Body:        &body,
-			SignedToken: &jwt,
-		}, http.StatusOK, ctJSON, t)
-		var reviewComment reviews.ModelReviewComment
-		assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComment))
-		assert.Equal(t, "test comment", *reviewComment.Body)
-		assert.Equal(t, user, *reviewComment.Owner)
-	})
 }
 
 func TestModelReviewCreateExistingModel(t *testing.T) {
@@ -237,5 +221,42 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 		}
 		assert.NotNil(t, newResult)
 		assert.Equal(t, 1, int((*newResult)["modelReviewID"].(float64)))
+	})
+
+	t.Run("post new comment on a review", func(t *testing.T) {
+		{
+			comment := comments.PostComment{Body: "test comment"}
+			body := bytes.Buffer{}
+			json.NewEncoder(&body).Encode(comment)
+			resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+				Method:      "POST",
+				Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments", user),
+				Body:        &body,
+				SignedToken: &jwt,
+			}, http.StatusOK, ctJSON, t)
+			var reviewComment reviews.ModelReviewComment
+			assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComment))
+			assert.Equal(t, uint(1), reviewComment.InstanceID)
+			assert.Equal(t, "test comment", *reviewComment.Body)
+			assert.Equal(t, user, *reviewComment.Owner)
+		}
+
+		// test posting multiple comments
+		{
+			comment := comments.PostComment{Body: "test comment 2"}
+			body := bytes.Buffer{}
+			json.NewEncoder(&body).Encode(comment)
+			resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+				Method:      "POST",
+				Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments", user),
+				Body:        &body,
+				SignedToken: &jwt,
+			}, http.StatusOK, ctJSON, t)
+			var reviewComment reviews.ModelReviewComment
+			assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComment))
+			assert.Equal(t, uint(2), reviewComment.InstanceID)
+			assert.Equal(t, "test comment 2", *reviewComment.Body)
+			assert.Equal(t, user, *reviewComment.Owner)
+		}
 	})
 }

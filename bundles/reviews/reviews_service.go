@@ -249,10 +249,27 @@ func (s *Service) UpdateReview(
 	return review, nil
 }
 
+func newModelReviewCommentInstanceID(tx *gorm.DB, modelReviewID uint) (uint, error) {
+	var modelReviewComment ModelReviewComment
+	if err := tx.Order("instance_id desc").First(&modelReviewComment, "model_review_id = ?", modelReviewID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 1, nil
+		}
+		return 0, err
+	}
+	return modelReviewComment.InstanceID + 1, nil
+}
+
 func AddComment(tx *gorm.DB, owner *string, pc *comments.PostComment, reviewID uint) (*ModelReviewComment, *ign.ErrMsg) {
+	instanceID, err := newModelReviewCommentInstanceID(tx, reviewID)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+	}
+
 	likes := 0
 	rc := ModelReviewComment{
 		ModelReviewID: reviewID,
+		InstanceID:    instanceID,
 		Comment: comments.Comment{
 			Body:      &pc.Body,
 			UpdatedAt: time.Now(),
