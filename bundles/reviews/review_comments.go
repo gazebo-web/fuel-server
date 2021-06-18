@@ -5,9 +5,9 @@ import (
 )
 
 // swagger:model
-type ReviewComment struct {
+type ModelReviewComment struct {
 	comments.Comment
 
-	// Review that this comment is bound to
-	ReviewID uint `json:"reviewId"`
+	// Review that this comment is bound to, this refers to `ModelReview.ID`, not `ModelReview.ModelReviewID`
+	ModelReviewID uint `json:"-"`
 }

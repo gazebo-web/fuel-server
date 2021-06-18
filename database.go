@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"github.com/gosimple/slug"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/gosimple/slug"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
@@ -77,6 +78,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&worlds.ModelInclude{},
 			&worlds.WorldMetadatum{},
 			&reviews.ModelReview{},
+			&reviews.ModelReviewComment{},
 			globals.Permissions.DBTable(),
 
 			// SubT tables
@@ -108,6 +110,8 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 		db.Model(&reviews.ModelReviews{}).RemoveForeignKey("creator", "users(username)")
 		db.Model(&reviews.ModelReview{}).RemoveForeignKey("model_id", "models(id)")
 
+		db.Model(&reviews.ModelReviewComment{}).RemoveForeignKey("model_review_id", "model_reviews(id)")
+
 		db.Model(&worlds.WorldReport{}).RemoveForeignKey("world", "worlds(world)")
 
 		db.Model(&collections.Collection{}).RemoveForeignKey("owner", "unique_owners(name)")
@@ -130,6 +134,7 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 
 			// Fuel tables
 			&reviews.ModelReview{},
+			&reviews.ModelReviewComment{},
 			&license.License{},
 			&models.ModelMetadatum{},
 			&models.ModelReport{},
@@ -283,6 +288,8 @@ func DBAddCustomIndexes(ctx context.Context, db *gorm.DB) {
 	db.Model(&reviews.ModelReview{}).AddForeignKey("owner", "unique_owners(name)", "RESTRICT", "RESTRICT")
 	db.Model(&reviews.ModelReview{}).AddForeignKey("creator", "users(username)", "RESTRICT", "RESTRICT")
 	db.Model(&reviews.ModelReview{}).AddForeignKey("model_id", "models(id)", "RESTRICT", "RESTRICT")
+
+	db.Model(&reviews.ModelReviewComment{}).AddForeignKey("model_review_id", "model_reviews(id)", "CASCADE", "CASCADE")
 
 	db.Model(&collections.Collection{}).AddForeignKey("owner", "unique_owners(name)", "RESTRICT", "RESTRICT")
 	db.Model(&collections.Collection{}).AddForeignKey("creator", "users(username)", "RESTRICT", "RESTRICT")

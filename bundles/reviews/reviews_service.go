@@ -249,10 +249,10 @@ func (s *Service) UpdateReview(
 	return review, nil
 }
 
-func AddComment(tx *gorm.DB, owner *string, pc *comments.PostComment, reviewID uint) (*ReviewComment, *ign.ErrMsg) {
+func AddComment(tx *gorm.DB, owner *string, pc *comments.PostComment, reviewID uint) (*ModelReviewComment, *ign.ErrMsg) {
 	likes := 0
-	rc := ReviewComment{
-		ReviewID: reviewID,
+	rc := ModelReviewComment{
+		ModelReviewID: reviewID,
 		Comment: comments.Comment{
 			Body:      &pc.Body,
 			UpdatedAt: time.Now(),
@@ -261,7 +261,7 @@ func AddComment(tx *gorm.DB, owner *string, pc *comments.PostComment, reviewID u
 			Likes:     &likes,
 		},
 	}
-	if result := tx.Create(rc); result.Error != nil {
+	if result := tx.Create(&rc); result.Error != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, result.Error)
 	}
 	return &rc, nil

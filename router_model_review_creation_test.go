@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/comments"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/reviews"
 	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 )
 
@@ -135,12 +136,16 @@ func TestModelReviewCRUD(t *testing.T) {
 		comment := comments.PostComment{Body: "test comment"}
 		body := bytes.Buffer{}
 		json.NewEncoder(&body).Encode(comment)
-		igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+		resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
 			Method:      "POST",
 			Route:       fmt.Sprintf("/1.0/%s/models/test/reviews/1/comments", user),
 			Body:        &body,
 			SignedToken: &jwt,
 		}, http.StatusOK, ctJSON, t)
+		var reviewComment reviews.ModelReviewComment
+		assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComment))
+		assert.Equal(t, "test comment", *reviewComment.Body)
+		assert.Equal(t, user, *reviewComment.Owner)
 	})
 }
 
