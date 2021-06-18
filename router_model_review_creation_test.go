@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/comments"
 	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 )
 
@@ -127,6 +129,18 @@ func TestModelReviewCRUD(t *testing.T) {
 		)
 		assert.True(t, ok)
 		assert.Equal(t, http.StatusUnauthorized, respCode)
+	})
+
+	t.Run("post new comment on a review", func(t *testing.T) {
+		comment := comments.PostComment{Body: "test comment"}
+		body := bytes.Buffer{}
+		json.NewEncoder(&body).Encode(comment)
+		igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "POST",
+			Route:       fmt.Sprintf("/1.0/%s/models/test/reviews/1/comments", user),
+			Body:        &body,
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
 	})
 }
 

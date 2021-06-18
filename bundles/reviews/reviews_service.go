@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/comments"
 	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
@@ -246,4 +247,22 @@ func (s *Service) UpdateReview(
 	}
 
 	return review, nil
+}
+
+func AddComment(tx *gorm.DB, owner *string, pc *comments.PostComment, reviewID uint) (*ReviewComment, *ign.ErrMsg) {
+	likes := 0
+	rc := ReviewComment{
+		ReviewID: reviewID,
+		Comment: comments.Comment{
+			Body:      &pc.Body,
+			UpdatedAt: time.Now(),
+			CreatedAt: time.Now(),
+			Owner:     owner,
+			Likes:     &likes,
+		},
+	}
+	if result := tx.Create(rc); result.Error != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, result.Error)
+	}
+	return &rc, nil
 }

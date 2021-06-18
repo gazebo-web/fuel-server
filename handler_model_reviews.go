@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"reflect"
 
@@ -8,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/comments"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/reviews"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
@@ -64,4 +66,46 @@ func UserModelReview(p *ign.PaginationRequest, owner *string, order, search stri
 	// convert from uint64 to uint
 	modelID := uint(id)
 	return ms.ReviewList(p, tx, owner, order, search, &modelID, user)
+}
+
+func PostReviewComment(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	user, ok, errMsg := getUserFromJWT(tx, r)
+	if !ok {
+		return nil, &errMsg
+	}
+
+	vars := mux.Vars(r)
+
+	modelOwner, ok := vars["username"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
+	}
+
+	modelName, ok := vars["model"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
+	}
+
+	modelReviewID_, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
+	}
+	modelReviewID := uint(modelReviewID_)
+
+	s := reviews.Service{}
+	review, ignErr := s.GetReview(tx, user, modelOwner, modelName, modelReviewID)
+	if ignErr != nil {
+		return nil, ignErr
+	}
+
+	var pc comments.PostComment
+	if em := ParseStruct(&pc, r, false); em != nil {
+		return nil, em
+	}
+
+	rc, ignErr := reviews.AddComment(tx, user.Username, &pc, review.ID)
+	if ignErr != nil {
+		return nil, ignErr
+	}
+	return &rc, nil
 }
