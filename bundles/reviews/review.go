@@ -2,7 +2,6 @@ package reviews
 
 import (
 	"time"
-
 	"github.com/jinzhu/gorm"
 )
 
