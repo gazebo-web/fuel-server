@@ -52,7 +52,6 @@ type Review struct {
 }
 
 // Reviews is an array of Review
-//
 type Reviews []Review
 
 // QueryForReviews returns a gorm query configured to query Reviews
@@ -62,21 +61,21 @@ func QueryForReviews(q *gorm.DB) *gorm.DB {
 
 // CreateReview encapulates data required to create a review
 type CreateReview struct {
-	// Optional Owner of the model. Must be a user or an org
+	// Owner of the model. Must be a user or an org
 	// If not set, the current user will be used as the owner
 	Owner string `json:"owner" form:"owner"`
-	// A list of reviewers for the review
+	// Reviewers for the review
 	Reviewers []string `json:"reviewers" validate:"omitempty" form:"reviewers"`
-	// a list of approved reviewers
+	// Approvals for the review
 	Approvals []string `json:"approvals" validate:"omitempty" form:"approvals"`
 	// Description of the review
 	Description string `json:"description" form:"description"`
-	// The branch associated with the review
+	// Branch associated with the review
 	// required: true
 	Branch string `json:"branch" validate:"required" form:"branch"`
-	// The status of the review
+	// Status of the review
 	Status string `json:"status" form:"status"`
-	// The title of the review
+	// Title of the review
 	// required: true
 	Title string `json:"title" validate:"required,noforwardslash,nopercent" form:"title"`
 }
