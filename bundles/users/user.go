@@ -60,6 +60,9 @@ type User struct {
 
 	// AccessTokens are personal access tokens granted to a user by a user.
 	AccessTokens ign.AccessTokens
+
+  // Account information for the user.
+  AccountInfo AccountInfo
 }
 
 // Users is an slice of User
@@ -95,6 +98,17 @@ type UpdateUserInput struct {
 	// Optional email
 	Email       *string `json:"email" validate:"omitempty,email"`
 	ExpFeatures *string `json:"exp_features,omitempty" validate:"omitempty,expfeatures,max=255"`
+}
+
+type AccountInfo struct {
+	gorm.Model
+
+	// UserID is the ID of the user to which this account is attached.
+	UserID uint
+
+  // CloudsimCredit represents the amount of cloudsim time the user has
+  // available.
+  CloudsimCredit float32
 }
 
 // IsEmpty returns true is the struct is empty.

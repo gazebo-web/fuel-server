@@ -1873,6 +1873,33 @@ var routes = ign.Routes{
 		ign.SecureMethods{},
 	},
 
+	// Routes to get and manage account info.
+	ign.Route{
+		"AccountInfo",
+		"Routes to get and manage account info.",
+		"/users/{username}/accountinfo",
+		ign.AuthHeadersRequired,
+		ign.Methods{},
+		ign.SecureMethods{
+			// swagger:route GET /users/{username}/accountinfo users getAccountInfo
+			//
+			// Get the account info for a user.
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			ign.Method{
+				"GET",
+				"Get a user's account info",
+				// Format handlers
+				ign.FormatHandlers{
+          ign.FormatHandler{"", ign.JSONResult(NameHandler("username", true, AccountInfo))},
+        },
+			},
+		},
+	},
 	//////////////
 	// Licenses //
 	//////////////

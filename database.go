@@ -60,6 +60,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&models.ModelMetadatum{},
 			&models.Tag{},
 			&ign.AccessToken{},
+			&users.AccountInfo{},
 			&users.UniqueOwner{},
 			&users.User{},
 			&users.Organization{},

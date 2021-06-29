@@ -194,3 +194,24 @@ func AccessTokenCreate(username string, jwtUser *users.User, tx *gorm.DB, w http
 
 	return users.AccessTokenCreate(jwtUser, tx, accessTokenCreateInfo)
 }
+
+// AccountInfo returns account information for a user.
+// You can request this method with the following cURL request:
+//    curl -k -X GET http://localhost:8000/1.0/users/{username}/accountinfo --header 'Private-token:<your-private-token-here>'
+func AccountInfo(username string, jwtUser *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+
+	// Extract the user from the request.
+	jwtUser, ok, errMsg := getUserFromJWT(tx, r)
+	if !ok {
+		return nil, &errMsg
+	}
+
+  // Make sure the jwt username matches the username in the route, or the
+  // jwt user is an admin.
+  if *jwtUser.Username != username && !globals.Permissions.IsSystemAdmin(*jwtUser.Username) {
+    return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+}
+  accountInfo, em := users.GetAccountInfo(tx, username)
+  return accountInfo, em
+}

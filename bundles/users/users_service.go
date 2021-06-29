@@ -406,3 +406,31 @@ func AccessTokenCreate(jwtUser *User, tx *gorm.DB, accessTokenCreateRequest ign.
 	tx.Model(jwtUser).Association("AccessTokens").Append(saltedToken)
 	return newToken, nil
 }
+
+func GetAccountInfo(tx *gorm.DB, username string) (*AccountInfo, *ign.ErrMsg) {
+  var user User
+	if tx.Where("username = ?", username).Preload("AccountInfo").First(&user); tx.Error != nil && !tx.RecordNotFound() {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, tx.Error)
+	}
+  return &user.AccountInfo, nil
+}
+
+func SetAccountCredit(tx *gorm.DB, username string, credit float32) (*AccountInfo, *ign.ErrMsg) {
+  var user User
+	if tx.Where("username = ?", username).Preload("AccountInfo").First(&user); tx.Error != nil && !tx.RecordNotFound() {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, tx.Error)
+	}
+  user.AccountInfo.CloudsimCredit = credit
+  tx.Save(&user)
+  return &user.AccountInfo, nil
+}
+
+func AdjustAccountCredit(tx *gorm.DB, username string, creditIncrease float32) (*AccountInfo, *ign.ErrMsg) {
+  var user User
+	if tx.Where("username = ?", username).Preload("AccountInfo").First(&user); tx.Error != nil && !tx.RecordNotFound() {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, tx.Error)
+	}
+  user.AccountInfo.CloudsimCredit += creditIncrease
+  tx.Save(&user)
+  return &user.AccountInfo, nil
+}
