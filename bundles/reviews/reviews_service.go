@@ -266,20 +266,21 @@ func AddComment(tx *gorm.DB, owner *string, pc *comments.PostComment, reviewID u
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 	}
 
-	likes := 0
+	comment, err := comments.NewComment(*owner, pc.Body)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+	}
 	rc := ModelReviewComment{
 		ModelReviewID: reviewID,
 		InstanceID:    instanceID,
-		Comment: comments.Comment{
-			Body:      &pc.Body,
-			UpdatedAt: time.Now(),
-			CreatedAt: time.Now(),
-			Owner:     owner,
-			Likes:     &likes,
-		},
+		Comment:       comment,
 	}
 	if result := tx.Create(&rc); result.Error != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, result.Error)
+	}
+
+	if _, err := globals.Permissions.AddPermission(*owner, *comment.UUID, permissions.Write); err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 	}
 	return &rc, nil
 }
