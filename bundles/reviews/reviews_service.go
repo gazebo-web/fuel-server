@@ -284,3 +284,27 @@ func AddComment(tx *gorm.DB, owner *string, pc *comments.PostComment, reviewID u
 	}
 	return &rc, nil
 }
+
+func GetReviewCommentsList(
+	p *ign.PaginationRequest,
+	reviewID uint, // the db ID, NOT the instance ID
+	tx *gorm.DB,
+) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+	q := tx.Where("model_review_id = ?", reviewID)
+	if q.Error != nil {
+		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorPaginationPageNotFound, q.Error)
+	}
+
+	// assume that comments have the same visibility as the review, so no need to check permissions.
+
+	var reviewComments []ModelReviewComment
+	paginationResult, err := ign.PaginateQuery(tx, &reviewComments, *p)
+	if err != nil {
+		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+	}
+	if !paginationResult.PageFound {
+		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+	}
+
+	return reviewComments, paginationResult, nil
+}

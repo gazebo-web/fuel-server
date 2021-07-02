@@ -109,3 +109,37 @@ func PostReviewComment(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 	}
 	return &rc, nil
 }
+
+func GetReviewCommentsList(
+	p *ign.PaginationRequest,
+	user *users.User,
+	tx *gorm.DB,
+	w http.ResponseWriter,
+	r *http.Request,
+) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+	vars := mux.Vars(r)
+
+	modelOwner, ok := vars["username"]
+	if !ok {
+		return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
+	}
+
+	modelName, ok := vars["model"]
+	if !ok {
+		return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
+	}
+
+	modelReviewID_, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	if err != nil {
+		return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
+	}
+	modelReviewID := uint(modelReviewID_)
+
+	s := reviews.Service{}
+	review, ignErr := s.GetReview(tx, user, modelOwner, modelName, modelReviewID)
+	if ignErr != nil {
+		return nil, nil, ignErr
+	}
+
+	return reviews.GetReviewCommentsList(p, review.ID, tx)
+}

@@ -2888,12 +2888,51 @@ var routes = ign.Routes{
 			//
 			//   Responses:
 			//     default: fuelError
-			//     200: ReviewComment
+			//     200: ModelReviewComment
 			ign.Method{
 				"POST",
 				"Post a new comment on a review",
 				ign.FormatHandlers{
 					ign.FormatHandler{"", ign.JSONResult(PostReviewComment)},
+				},
+			},
+		},
+	},
+
+	ign.Route{
+		"Review",
+		"Get comments for a review",
+		"/{username}/models/{model}/reviews/{reviewId}/comments",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			ign.Method{},
+		},
+		ign.SecureMethods{
+			// swagger:route GET /{username}/models/{model}/reviews/{reviewId}/comments reviews getReviewComments
+			//
+			// Get comments of a review.
+			//
+			//   Parameters:
+			//   + name: username
+			//     in: path
+			//   + name: model
+			//     in: path
+			//   + name: reviewId
+			//     in: path
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: []ModelReviewComment
+			ign.Method{
+				"GET",
+				"Get comments of a review",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(PaginationHandler(GetReviewCommentsList))},
 				},
 			},
 		},

@@ -638,7 +638,7 @@
     },
     "/models/reviews": {
       "get": {
-        "description": "Get a list of reviews. reviews will be returned paginated,\nwith pages of 20 reviews by default. The user can request a\ndifferent page with query parameter 'page', and the page size\ncan be defined with query parameter 'per_page'.\nThe route supports the 'order' parameter, with values 'asc' and\n'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on reviews\nname, description and tags.",
+        "description": "Get a list of reviews. reviews will be returned paginated,\nwith pages of 20 reviews by default. The user can request a\ndifferent page with query parameter 'page', and the page size\ncan be defined with query parameter 'per_page'.s\nThe route supports the 'order' parameter, with values 'asc' and\n'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on reviews\nname, description and tags.",
         "produces": [
           "application/json",
           "application/x-protobuf"
@@ -650,7 +650,7 @@
           "reviews"
         ],
         "summary": "Get list of reviews for models.",
-        "operationId": "listReviews",
+        "operationId": "listModelReviews",
         "responses": {
           "200": {
             "description": "Review",
@@ -2371,6 +2371,29 @@
       }
     },
     "/{username}/models/{model}/reviews": {
+      "get": {
+        "description": "Get a list of reviews. reviews will be returned paginated,\nwith pages of 20 reviews by default. The user can request a\ndifferent page with query parameter 'page', and the page size\ncan be defined with query parameter 'per_page'.\nThe route supports the 'order' parameter, with values 'asc' and\n'desc' (default: desc).\nIt also supports the 'q' parameter to perform a fulltext search on reviews\nname, description and tags.",
+        "produces": [
+          "application/json",
+          "application/x-protobuf"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get list of reviews for a model.",
+        "operationId": "listUserModelReviews",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/jsonReviews"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
       "post": {
         "produces": [
           "application/json"
@@ -2456,6 +2479,96 @@
             "description": "Review",
             "schema": {
               "$ref": "#/definitions/Review"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
+    "/{username}/models/{model}/reviews/{reviewId}/comments": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get comments of a review.",
+        "operationId": "getReviewComments",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path"
+          },
+          {
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "name": "reviewId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ModelReviewComment",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ModelReviewComment"
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Post a new comment on a review.",
+        "operationId": "commentReview",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path"
+          },
+          {
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "name": "reviewId",
+            "in": "path"
+          },
+          {
+            "type": "object",
+            "name": "comment",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "$ref": "#/definitions/PostComment"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ModelReviewComment",
+            "schema": {
+              "$ref": "#/definitions/ModelReviewComment"
             }
           },
           "default": {
@@ -3121,6 +3234,36 @@
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
     },
+    "Comment": {
+      "type": "object",
+      "properties": {
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "body": {
+          "description": "Main body of the comment",
+          "type": "string",
+          "x-go-name": "Body"
+        },
+        "likes": {
+          "description": "Number of likes",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Likes"
+        },
+        "owner": {
+          "description": "User that submitted the comment",
+          "type": "string",
+          "x-go-name": "Owner"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/comments"
+    },
     "CreateModel": {
       "type": "object",
       "required": [
@@ -3151,6 +3294,9 @@
           "format": "int64",
           "minimum": 1,
           "x-go-name": "License"
+        },
+        "metadata": {
+          "$ref": "#/definitions/ModelMetadata"
         },
         "name": {
           "description": "The name of the Model",
@@ -3198,7 +3344,7 @@
       ],
       "properties": {
         "approvals": {
-          "description": "a list of approved reviewers",
+          "description": "Approvals for the review",
           "type": "array",
           "items": {
             "type": "string"
@@ -3206,7 +3352,7 @@
           "x-go-name": "Approvals"
         },
         "branch": {
-          "description": "The branch associated with the review",
+          "description": "Branch associated with the review",
           "type": "string",
           "x-go-name": "Branch"
         },
@@ -3216,12 +3362,12 @@
           "x-go-name": "Description"
         },
         "owner": {
-          "description": "Optional Owner of the model. Must be a user or an org\nIf not set, the current user will be used as the owner",
+          "description": "Owner of the model. Must be a user or an org\nIf not set, the current user will be used as the owner",
           "type": "string",
           "x-go-name": "Owner"
         },
         "reviewers": {
-          "description": "A list of reviewers for the review",
+          "description": "Reviewers for the review",
           "type": "array",
           "items": {
             "type": "string"
@@ -3229,12 +3375,12 @@
           "x-go-name": "Reviewers"
         },
         "status": {
-          "description": "The status of the review",
+          "description": "Status of the review",
           "type": "string",
           "x-go-name": "Status"
         },
         "title": {
-          "description": "The title of the review",
+          "description": "Title of the review",
           "type": "string",
           "x-go-name": "Title"
         }
@@ -3579,6 +3725,42 @@
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
     },
+    "ModelReviewComment": {
+      "type": "object",
+      "properties": {
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "body": {
+          "description": "Main body of the comment",
+          "type": "string",
+          "x-go-name": "Body"
+        },
+        "id": {
+          "description": "locally defined comment id for each review",
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "InstanceID"
+        },
+        "likes": {
+          "description": "Number of likes",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Likes"
+        },
+        "owner": {
+          "description": "User that submitted the comment",
+          "type": "string",
+          "x-go-name": "Owner"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/reviews"
+    },
     "Models": {
       "type": "object",
       "properties": {
@@ -3677,6 +3859,16 @@
         }
       },
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+    },
+    "PostComment": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "x-go-name": "Body"
+        }
+      },
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/comments"
     },
     "Review": {
       "type": "object",
@@ -4217,22 +4409,109 @@
       "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
     },
     "dbModel": {
+      "description": "A model contains information about a single simulation object, such\nas a robot, table, or structure.",
       "type": "object",
-      "title": "Metadatum contains a key-value pair for a resources.",
+      "title": "Model represents information about a simulation model",
       "properties": {
-        "key": {
-          "description": "Key is the string containing the metadata key value.",
+        "CreatedAt": {
           "type": "string",
-          "x-go-name": "Key"
+          "format": "date-time"
         },
-        "value": {
-          "description": "Value is the string containing the metadata value associated with the key.",
+        "DeletedAt": {
+          "description": "Added 2 milliseconds to DeletedAt field, and added it to the unique index to help disambiguate\nwhen soft deleted rows are involved.",
           "type": "string",
-          "x-go-name": "Value"
+          "format": "date-time"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "categories": {
+          "$ref": "#/definitions/Categories"
+        },
+        "creator": {
+          "description": "The username of the User that created this model (usually got from the JWT)",
+          "type": "string",
+          "x-go-name": "Creator"
+        },
+        "description": {
+          "description": "A description of the model (max 65,535 chars)\nInteresting post about TEXT vs VARCHAR(30000) performance:\nhttps://nicj.net/mysql-text-vs-varchar-performance/",
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "downloads": {
+          "description": "Number of downloads",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Downloads"
+        },
+        "filesize": {
+          "description": "Bytes of the model, when downloaded as a zip",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Filesize"
+        },
+        "lic_id": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "LicenseID"
+        },
+        "license": {
+          "$ref": "#/definitions/License"
+        },
+        "likes": {
+          "description": "Number of likes",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Likes"
+        },
+        "metadata": {
+          "$ref": "#/definitions/ModelMetadata"
+        },
+        "modify_date": {
+          "description": "Date and time the model was modified",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "ModifyDate"
+        },
+        "name": {
+          "description": "The name of the model",
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "owner": {
+          "description": "The owner of this model (must exist in UniqueOwners). Can be user or org.",
+          "type": "string",
+          "x-go-name": "Owner"
+        },
+        "permission": {
+          "description": "Permission - 0: public, 1: owner, (future: team, others)",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Permission"
+        },
+        "private": {
+          "description": "Private - True to make this a private resource",
+          "type": "boolean",
+          "x-go-name": "Private"
+        },
+        "tags": {
+          "$ref": "#/definitions/Tags"
+        },
+        "upload_date": {
+          "description": "Date and time the model was first uploaded",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "UploadDate"
+        },
+        "url_name": {
+          "description": "Optional user friendly name to use in URLs",
+          "type": "string",
+          "x-go-name": "URLName"
         }
       },
-      "x-go-name": "Metadatum",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
+      "x-go-name": "Model",
+      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
     },
     "dbReview": {
       "description": "A review contains changes for a resource such as a model or a world. It is\nalso known as a pull request.",

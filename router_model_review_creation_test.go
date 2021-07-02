@@ -259,4 +259,15 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 			assert.Equal(t, user, *reviewComment.Owner)
 		}
 	})
+
+	t.Run("get comments of a review", func(t *testing.T) {
+		resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "GET",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+		var reviewComments []reviews.ModelReviewComment
+		assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComments))
+		assert.Len(t, reviewComments, 2)
+	})
 }
