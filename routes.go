@@ -2981,4 +2981,45 @@ var routes = ign.Routes{
 			},
 		},
 	},
+
+	ign.Route{
+		"Review",
+		"Delete a review comment",
+		"/{username}/models/{model}/reviews/{reviewId}/comments/{commentId}",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			ign.Method{},
+		},
+		ign.SecureMethods{
+			// swagger:route DELETE /{username}/models/{model}/reviews/{reviewId}/comments/{commentId} reviews DeleteReviewComment
+			//
+			// Delete a review comment.
+			//
+			//   Parameters:
+			//   + name: username
+			//     in: path
+			//   + name: model
+			//     in: path
+			//   + name: reviewId
+			//     in: path
+			//   + name: commentId
+			//     in: path
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: nil
+			ign.Method{
+				"DELETE",
+				"Delete a review comment",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(DeleteReviewComment)},
+				},
+			},
+		},
+	},
 } // routes

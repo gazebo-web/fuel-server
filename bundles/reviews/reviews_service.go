@@ -314,7 +314,7 @@ func GetReviewComment(
 	modelOwner string,
 	modelName string,
 	modelReviewID uint,
-	instanceID uint,
+	commentInstID uint,
 ) (*ModelReviewComment, *ign.ErrMsg) {
 	s := Service{}
 	review, ignErr := s.GetReview(tx, user, modelOwner, modelName, modelReviewID)
@@ -322,7 +322,7 @@ func GetReviewComment(
 		return nil, ignErr
 	}
 	var comment ModelReviewComment
-	if result := tx.First(&comment, "model_review_id = ? AND instance_id = ?", review.ID, instanceID); result.Error != nil {
+	if result := tx.First(&comment, "model_review_id = ? AND instance_id = ?", review.ID, commentInstID); result.Error != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, result.Error)
 	}
 	return &comment, nil
@@ -334,10 +334,10 @@ func UpdateReviewCommentBody(
 	modelOwner string,
 	modelName string,
 	modelReviewID uint,
-	instanceID uint,
+	commentInstID uint,
 	body string, // new body
 ) (*ModelReviewComment, *ign.ErrMsg) {
-	comment, ignErr := GetReviewComment(tx, user, modelOwner, modelName, modelReviewID, instanceID)
+	comment, ignErr := GetReviewComment(tx, user, modelOwner, modelName, modelReviewID, commentInstID)
 	if ignErr != nil {
 		return nil, ignErr
 	}
@@ -357,4 +357,31 @@ func UpdateReviewCommentBody(
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, result.Error)
 	}
 	return comment, nil
+}
+
+func DeleteReviewComment(
+	tx *gorm.DB,
+	user *users.User,
+	modelOwner string,
+	modelName string,
+	modelReviewID uint,
+	commentInstID uint,
+) *ign.ErrMsg {
+	comment, ignErr := GetReviewComment(tx, user, modelOwner, modelName, modelReviewID, commentInstID)
+	if ignErr != nil {
+		return ignErr
+	}
+
+	ok, ignErr := globals.Permissions.IsAuthorized(*user.Username, *comment.UUID, permissions.Write)
+	if ignErr != nil {
+		return ignErr
+	}
+	if !ok {
+		return ign.NewErrorMessage(ign.ErrorUnauthorized)
+	}
+
+	if result := tx.Delete(comment); result.Error != nil {
+		return ign.NewErrorMessageWithBase(ign.ErrorDbDelete, result.Error)
+	}
+	return nil
 }

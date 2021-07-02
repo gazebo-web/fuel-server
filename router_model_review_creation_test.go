@@ -301,4 +301,30 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 			SignedToken: &jwt2,
 		}, http.StatusUnauthorized, ctTextPlain, t)
 	})
+
+	t.Run("cannot delete a review comment you do not own", func(t *testing.T) {
+		igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "DELETE",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments/1", user),
+			SignedToken: &jwt2,
+		}, http.StatusUnauthorized, ctTextPlain, t)
+	})
+
+	t.Run("delete a review comment", func(t *testing.T) {
+		igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "DELETE",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments/1", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+
+		resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "GET",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+		var reviewComments []reviews.ModelReviewComment
+		assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComments))
+		assert.Len(t, reviewComments, 1)
+		assert.Equal(t, uint(2), reviewComments[0].InstanceID)
+	})
 }
