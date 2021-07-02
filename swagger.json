@@ -2577,6 +2577,98 @@
         }
       }
     },
+    "/{username}/models/{model}/reviews/{reviewId}/comments/{commentId}": {
+      "put": {
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Update a review comment.",
+        "operationId": "PutReviewComment",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path"
+          },
+          {
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "name": "reviewId",
+            "in": "path"
+          },
+          {
+            "name": "commentId",
+            "in": "path"
+          },
+          {
+            "type": "object",
+            "name": "commentBody",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "$ref": "#/definitions/PostComment"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ModelReviewComment",
+            "schema": {
+              "$ref": "#/definitions/ModelReviewComment"
+            }
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      },
+      "delete": {
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "https"
+        ],
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Delete a review comment.",
+        "operationId": "DeleteReviewComment",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path"
+          },
+          {
+            "name": "model",
+            "in": "path"
+          },
+          {
+            "name": "reviewId",
+            "in": "path"
+          },
+          {
+            "name": "commentId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/nil"
+          },
+          "default": {
+            "$ref": "#/responses/fuelError"
+          }
+        }
+      }
+    },
     "/{username}/models/{model}/transfer": {
       "post": {
         "description": "Transfer a model",

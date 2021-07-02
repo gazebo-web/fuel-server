@@ -2859,48 +2859,6 @@ var routes = ign.Routes{
 
 	ign.Route{
 		"Review",
-		"Post a new comment on a review",
-		"/{username}/models/{model}/reviews/{reviewId}/comments",
-		ign.AuthHeadersOptional,
-		ign.Methods{
-			ign.Method{},
-		},
-		ign.SecureMethods{
-			// swagger:route POST /{username}/models/{model}/reviews/{reviewId}/comments reviews commentReview
-			//
-			// Post a new comment on a review.
-			//
-			//   Parameters:
-			//   + name: username
-			//     in: path
-			//   + name: model
-			//     in: path
-			//   + name: reviewId
-			//     in: path
-			//   + name: comment
-			//     in: body
-			//     type: PostComment
-			//
-			//   Produces:
-			//   - application/json
-			//
-			//   Schemes: https
-			//
-			//   Responses:
-			//     default: fuelError
-			//     200: ModelReviewComment
-			ign.Method{
-				"POST",
-				"Post a new comment on a review",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(PostReviewComment)},
-				},
-			},
-		},
-	},
-
-	ign.Route{
-		"Review",
 		"Get comments for a review",
 		"/{username}/models/{model}/reviews/{reviewId}/comments",
 		ign.AuthHeadersOptional,
@@ -2940,13 +2898,44 @@ var routes = ign.Routes{
 
 	ign.Route{
 		"Review",
-		"Update a review comment",
+		"Handles operations on review comments",
 		"/{username}/models/{model}/reviews/{reviewId}/comments/{commentId}",
 		ign.AuthHeadersOptional,
 		ign.Methods{
 			ign.Method{},
 		},
 		ign.SecureMethods{
+			// swagger:route POST /{username}/models/{model}/reviews/{reviewId}/comments reviews commentReview
+			//
+			// Post a new comment on a review.
+			//
+			//   Parameters:
+			//   + name: username
+			//     in: path
+			//   + name: model
+			//     in: path
+			//   + name: reviewId
+			//     in: path
+			//   + name: comment
+			//     in: body
+			//     type: PostComment
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: ModelReviewComment
+			ign.Method{
+				"POST",
+				"Post a new comment on a review",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(PostReviewComment)},
+				},
+			},
+
 			// swagger:route PUT /{username}/models/{model}/reviews/{reviewId}/comments/{commentId} reviews PutReviewComment
 			//
 			// Update a review comment.
@@ -2979,18 +2968,7 @@ var routes = ign.Routes{
 					ign.FormatHandler{"", ign.JSONResult(PutReviewComment)},
 				},
 			},
-		},
-	},
 
-	ign.Route{
-		"Review",
-		"Delete a review comment",
-		"/{username}/models/{model}/reviews/{reviewId}/comments/{commentId}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
-			ign.Method{},
-		},
-		ign.SecureMethods{
 			// swagger:route DELETE /{username}/models/{model}/reviews/{reviewId}/comments/{commentId} reviews DeleteReviewComment
 			//
 			// Delete a review comment.
