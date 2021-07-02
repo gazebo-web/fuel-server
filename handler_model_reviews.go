@@ -15,6 +15,56 @@ import (
 	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
+type reviewRoutePathParams struct {
+	user              *users.User
+	modelOwner        string
+	modelName         string
+	modelReviewInstID uint
+	commentInstID     uint
+}
+
+func parseReviewRouteParams(tx *gorm.DB, r *http.Request) (*reviewRoutePathParams, *ign.ErrMsg) {
+	user, ok, errMsg := getUserFromJWT(tx, r)
+	if !ok {
+		return nil, &errMsg
+	}
+
+	vars := mux.Vars(r)
+
+	modelOwner, ok := vars["username"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
+	}
+
+	modelName, ok := vars["model"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
+	}
+
+	modelReviewInstIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
+	}
+	modelReviewInstID := uint(modelReviewInstIDStr)
+
+	commentInstID := uint(0)
+	if _, ok := vars["commentId"]; ok {
+		commentIDInstStr, err := strconv.ParseUint(vars["commentId"], 10, 0)
+		if err != nil {
+			return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"commentId"})
+		}
+		commentInstID = uint(commentIDInstStr)
+	}
+
+	return &reviewRoutePathParams{
+		user:              user,
+		modelOwner:        modelOwner,
+		modelName:         modelName,
+		modelReviewInstID: modelReviewInstID,
+		commentInstID:     commentInstID,
+	}, nil
+}
+
 // ModelReviewList returns the list of reviews for models from a team/user
 // The returned value will be of type "fuel.ModelReviews"
 // It follows the func signature defined by type "searchHandler".
@@ -69,31 +119,13 @@ func UserModelReview(p *ign.PaginationRequest, owner *string, order, search stri
 }
 
 func PostReviewComment(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
-	user, ok, errMsg := getUserFromJWT(tx, r)
-	if !ok {
-		return nil, &errMsg
+	p, ignErr := parseReviewRouteParams(tx, r)
+	if ignErr != nil {
+		return nil, ignErr
 	}
-
-	vars := mux.Vars(r)
-
-	modelOwner, ok := vars["username"]
-	if !ok {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
-	}
-
-	modelName, ok := vars["model"]
-	if !ok {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
-	}
-
-	modelReviewID_, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
-	}
-	modelReviewID := uint(modelReviewID_)
 
 	s := reviews.Service{}
-	review, ignErr := s.GetReview(tx, user, modelOwner, modelName, modelReviewID)
+	review, ignErr := s.GetReview(tx, p.user, p.modelOwner, p.modelName, p.modelReviewInstID)
 	if ignErr != nil {
 		return nil, ignErr
 	}
@@ -103,7 +135,7 @@ func PostReviewComment(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 		return nil, em
 	}
 
-	rc, ignErr := reviews.AddComment(tx, user.Username, &pc, review.ID)
+	rc, ignErr := reviews.AddComment(tx, p.user.Username, &pc, review.ID)
 	if ignErr != nil {
 		return nil, ignErr
 	}
@@ -117,26 +149,13 @@ func GetReviewCommentsList(
 	w http.ResponseWriter,
 	r *http.Request,
 ) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
-	vars := mux.Vars(r)
-
-	modelOwner, ok := vars["username"]
-	if !ok {
-		return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
+	params, ignErr := parseReviewRouteParams(tx, r)
+	if ignErr != nil {
+		return nil, nil, ignErr
 	}
-
-	modelName, ok := vars["model"]
-	if !ok {
-		return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
-	}
-
-	modelReviewID_, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
-	}
-	modelReviewID := uint(modelReviewID_)
 
 	s := reviews.Service{}
-	review, ignErr := s.GetReview(tx, user, modelOwner, modelName, modelReviewID)
+	review, ignErr := s.GetReview(tx, user, params.modelOwner, params.modelName, params.modelReviewInstID)
 	if ignErr != nil {
 		return nil, nil, ignErr
 	}
@@ -145,143 +164,47 @@ func GetReviewCommentsList(
 }
 
 func PutReviewComment(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
-	user, ok, errMsg := getUserFromJWT(tx, r)
-	if !ok {
-		return nil, &errMsg
+	p, ignErr := parseReviewRouteParams(tx, r)
+	if ignErr != nil {
+		return nil, ignErr
 	}
-
-	vars := mux.Vars(r)
-
-	modelOwner, ok := vars["username"]
-	if !ok {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
-	}
-
-	modelName, ok := vars["model"]
-	if !ok {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
-	}
-
-	modelReviewIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
-	}
-	modelReviewID := uint(modelReviewIDStr)
-
-	commentIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"commentId"})
-	}
-	commentID := uint(commentIDStr)
 
 	var pc comments.PostComment
 	if em := ParseStruct(&pc, r, false); em != nil {
 		return nil, em
 	}
 
-	return reviews.UpdateReviewCommentBody(tx, user, modelOwner, modelName, modelReviewID, commentID, pc.Body)
+	return reviews.UpdateReviewCommentBody(tx, p.user, p.modelOwner, p.modelName, p.modelReviewInstID, p.commentInstID, pc.Body)
 }
 
 func DeleteReviewComment(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
-	user, ok, errMsg := getUserFromJWT(tx, r)
-	if !ok {
-		return nil, &errMsg
+	p, ignErr := parseReviewRouteParams(tx, r)
+	if ignErr != nil {
+		return nil, ignErr
 	}
 
-	vars := mux.Vars(r)
-
-	modelOwner, ok := vars["username"]
-	if !ok {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
-	}
-
-	modelName, ok := vars["model"]
-	if !ok {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
-	}
-
-	modelReviewIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
-	}
-	modelReviewID := uint(modelReviewIDStr)
-
-	commentIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"commentId"})
-	}
-	commentID := uint(commentIDStr)
-
-	return nil, reviews.DeleteReviewComment(tx, user, modelOwner, modelName, modelReviewID, commentID)
+	return nil, reviews.DeleteReviewComment(tx, p.user, p.modelOwner, p.modelName, p.modelReviewInstID, p.commentInstID)
 }
 
 func PostReviewCommentLike(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
-	user, ok, errMsg := getUserFromJWT(tx, r)
-	if !ok {
-		return nil, &errMsg
+	p, ignErr := parseReviewRouteParams(tx, r)
+	if ignErr != nil {
+		return nil, ignErr
 	}
 
-	vars := mux.Vars(r)
-
-	modelOwner, ok := vars["username"]
-	if !ok {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
-	}
-
-	modelName, ok := vars["model"]
-	if !ok {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
-	}
-
-	modelReviewIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
-	}
-	modelReviewID := uint(modelReviewIDStr)
-
-	commentIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"commentId"})
-	}
-	commentID := uint(commentIDStr)
-
-	if ignErr := reviews.LikeReviewComment(tx, user, modelOwner, modelName, modelReviewID, commentID); ignErr != nil {
+	if ignErr := reviews.LikeReviewComment(tx, p.user, p.modelOwner, p.modelName, p.modelReviewInstID, p.commentInstID); ignErr != nil {
 		return nil, ignErr
 	}
 	return nil, nil
 }
 
 func DeleteReviewCommentLike(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
-	user, ok, errMsg := getUserFromJWT(tx, r)
-	if !ok {
-		return nil, &errMsg
+	p, ignErr := parseReviewRouteParams(tx, r)
+	if ignErr != nil {
+		return nil, ignErr
 	}
 
-	vars := mux.Vars(r)
-
-	modelOwner, ok := vars["username"]
-	if !ok {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
-	}
-
-	modelName, ok := vars["model"]
-	if !ok {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
-	}
-
-	modelReviewIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
-	}
-	modelReviewID := uint(modelReviewIDStr)
-
-	commentIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
-	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"commentId"})
-	}
-	commentID := uint(commentIDStr)
-
-	if ignErr := reviews.UnlikeReviewComment(tx, user, modelOwner, modelName, modelReviewID, commentID); ignErr != nil {
+	if ignErr := reviews.UnlikeReviewComment(tx, p.user, p.modelOwner, p.modelName, p.modelReviewInstID, p.commentInstID); ignErr != nil {
 		return nil, ignErr
 	}
 	return nil, nil
