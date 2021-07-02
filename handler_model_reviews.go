@@ -143,3 +143,41 @@ func GetReviewCommentsList(
 
 	return reviews.GetReviewCommentsList(p, review.ID, tx)
 }
+
+func PutReviewComment(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	user, ok, errMsg := getUserFromJWT(tx, r)
+	if !ok {
+		return nil, &errMsg
+	}
+
+	vars := mux.Vars(r)
+
+	modelOwner, ok := vars["username"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
+	}
+
+	modelName, ok := vars["model"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
+	}
+
+	modelReviewIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
+	}
+	modelReviewID := uint(modelReviewIDStr)
+
+	commentIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"commentId"})
+	}
+	commentID := uint(commentIDStr)
+
+	var pc comments.PostComment
+	if em := ParseStruct(&pc, r, false); em != nil {
+		return nil, em
+	}
+
+	return reviews.UpdateReviewCommentBody(tx, user, modelOwner, modelName, modelReviewID, commentID, pc.Body)
+}

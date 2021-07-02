@@ -2937,4 +2937,48 @@ var routes = ign.Routes{
 			},
 		},
 	},
+
+	ign.Route{
+		"Review",
+		"Update a review comment",
+		"/{username}/models/{model}/reviews/{reviewId}/comments/{commentId}",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			ign.Method{},
+		},
+		ign.SecureMethods{
+			// swagger:route PUT /{username}/models/{model}/reviews/{reviewId}/comments/{commentId} reviews PutReviewComment
+			//
+			// Update a review comment.
+			//
+			//   Parameters:
+			//   + name: username
+			//     in: path
+			//   + name: model
+			//     in: path
+			//   + name: reviewId
+			//     in: path
+			//   + name: commentId
+			//     in: path
+			//   + name: commentBody
+			//     in: body
+			//     type: PostComment
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: ModelReviewComment
+			ign.Method{
+				"PUT",
+				"Update a review comment",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(PutReviewComment)},
+				},
+			},
+		},
+	},
 } // routes

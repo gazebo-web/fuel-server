@@ -139,6 +139,9 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 	jwt := os.Getenv("IGN_TEST_JWT")
 	user := createUserWithJWT(jwt, t)
 	defer removeUserWithJWT(user, jwt, t)
+	jwt2 := createValidJWTForIdentity(user+"_2", t)
+	user2 := createUserWithJWT(jwt2, t)
+	defer removeUserWithJWT(user2, jwt2, t)
 	createThreeTestModels(t, &jwt)
 
 	createResourceWithArgs(
@@ -269,5 +272,33 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 		var reviewComments []reviews.ModelReviewComment
 		assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComments))
 		assert.Len(t, reviewComments, 2)
+	})
+
+	t.Run("update a review comment", func(t *testing.T) {
+		comment := comments.PostComment{Body: "new comment"}
+		body := bytes.Buffer{}
+		json.NewEncoder(&body).Encode(comment)
+		resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "PUT",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments/1", user),
+			Body:        &body,
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+		var reviewComment reviews.ModelReviewComment
+		assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComment))
+		assert.Equal(t, uint(1), reviewComment.InstanceID)
+		assert.Equal(t, "new comment", *reviewComment.Body)
+	})
+
+	t.Run("cannot update a review comment you do not own", func(t *testing.T) {
+		comment := comments.PostComment{Body: "new comment"}
+		body := bytes.Buffer{}
+		json.NewEncoder(&body).Encode(comment)
+		igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "PUT",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments/1", user),
+			Body:        &body,
+			SignedToken: &jwt2,
+		}, http.StatusUnauthorized, ctTextPlain, t)
 	})
 }

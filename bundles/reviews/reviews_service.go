@@ -200,7 +200,6 @@ func (s *Service) GetReview(
 	}
 
 	review := ModelReview{ModelID: &model.ID, ModelReviewID: &modelReviewID}
-	// var review ModelReview
 	result := tx.Model(&review).First(&review)
 	if result.Error != nil {
 		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, result.Error)
@@ -307,4 +306,55 @@ func GetReviewCommentsList(
 	}
 
 	return reviewComments, paginationResult, nil
+}
+
+func GetReviewComment(
+	tx *gorm.DB,
+	user *users.User,
+	modelOwner string,
+	modelName string,
+	modelReviewID uint,
+	instanceID uint,
+) (*ModelReviewComment, *ign.ErrMsg) {
+	s := Service{}
+	review, ignErr := s.GetReview(tx, user, modelOwner, modelName, modelReviewID)
+	if ignErr != nil {
+		return nil, ignErr
+	}
+	var comment ModelReviewComment
+	if result := tx.First(&comment, "model_review_id = ? AND instance_id = ?", review.ID, instanceID); result.Error != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, result.Error)
+	}
+	return &comment, nil
+}
+
+func UpdateReviewCommentBody(
+	tx *gorm.DB,
+	user *users.User,
+	modelOwner string,
+	modelName string,
+	modelReviewID uint,
+	instanceID uint,
+	body string, // new body
+) (*ModelReviewComment, *ign.ErrMsg) {
+	comment, ignErr := GetReviewComment(tx, user, modelOwner, modelName, modelReviewID, instanceID)
+	if ignErr != nil {
+		return nil, ignErr
+	}
+
+	ok, ignErr := globals.Permissions.IsAuthorized(*user.Username, *comment.UUID, permissions.Write)
+	if ignErr != nil {
+		return nil, ignErr
+	}
+	if !ok {
+		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+	}
+
+	comment.Body = &body
+	comment.UpdatedAt = time.Now()
+
+	if result := tx.Save(comment); result.Error != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, result.Error)
+	}
+	return comment, nil
 }
