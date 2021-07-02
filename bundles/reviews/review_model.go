@@ -3,9 +3,9 @@ package reviews
 import (
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	fuel "gitlab.com/ignitionrobotics/web/fuelserver/proto"
-	"google.golang.org/protobuf/proto"
 )
 
 // ModelReview contains information to create a review for a model
@@ -34,7 +34,6 @@ type CreateModelReview struct {
 }
 
 // ModelReviews is an array of ModelReview
-//
 type ModelReviews []ModelReview
 
 // ToProto creates a new 'fuel.Review' from the given review.
