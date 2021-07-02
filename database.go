@@ -17,6 +17,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/comments"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/reviews"
@@ -79,6 +80,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&worlds.WorldMetadatum{},
 			&reviews.ModelReview{},
 			&reviews.ModelReviewComment{},
+			&comments.CommentLike{},
 			globals.Permissions.DBTable(),
 
 			// SubT tables
@@ -112,6 +114,9 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 
 		db.Model(&reviews.ModelReviewComment{}).RemoveForeignKey("model_review_id", "model_reviews(id)")
 
+		db.Model(&comments.CommentLike{}).RemoveForeignKey("user_id", "users(id)")
+		db.Model(&comments.CommentLike{}).RemoveForeignKey("comment_id", "model_review_comment(id)")
+
 		db.Model(&worlds.WorldReport{}).RemoveForeignKey("world", "worlds(world)")
 
 		db.Model(&collections.Collection{}).RemoveForeignKey("owner", "unique_owners(name)")
@@ -135,6 +140,7 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 			// Fuel tables
 			&reviews.ModelReview{},
 			&reviews.ModelReviewComment{},
+			&comments.CommentLike{},
 			&license.License{},
 			&models.ModelMetadatum{},
 			&models.ModelReport{},
@@ -290,6 +296,9 @@ func DBAddCustomIndexes(ctx context.Context, db *gorm.DB) {
 	db.Model(&reviews.ModelReview{}).AddForeignKey("model_id", "models(id)", "RESTRICT", "RESTRICT")
 
 	db.Model(&reviews.ModelReviewComment{}).AddForeignKey("model_review_id", "model_reviews(id)", "CASCADE", "CASCADE")
+
+	db.Model(&comments.CommentLike{}).AddForeignKey("user_id", "user(id)", "CASCADE", "CASCADE")
+	db.Model(&comments.CommentLike{}).AddForeignKey("comment_id", "model_review_comment(id)", "CASCADE", "CASCADE")
 
 	db.Model(&collections.Collection{}).AddForeignKey("owner", "unique_owners(name)", "RESTRICT", "RESTRICT")
 	db.Model(&collections.Collection{}).AddForeignKey("creator", "users(username)", "RESTRICT", "RESTRICT")

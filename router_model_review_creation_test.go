@@ -302,6 +302,78 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 		}, http.StatusUnauthorized, ctTextPlain, t)
 	})
 
+	t.Run("like a review comment", func(t *testing.T) {
+		igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "POST",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments/1/like", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+
+		resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "GET",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+		var reviewComments []reviews.ModelReviewComment
+		assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComments))
+		assert.Len(t, reviewComments, 2)
+		assert.Equal(t, 1, *reviewComments[0].Likes)
+	})
+
+	t.Run("liking comment again does not do anything", func(t *testing.T) {
+		igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "POST",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments/1/like", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+
+		resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "GET",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+		var reviewComments []reviews.ModelReviewComment
+		assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComments))
+		assert.Len(t, reviewComments, 2)
+		assert.Equal(t, 1, *reviewComments[0].Likes)
+	})
+
+	t.Run("unlike a review comment", func(t *testing.T) {
+		igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "DELETE",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments/1/like", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+
+		resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "GET",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+		var reviewComments []reviews.ModelReviewComment
+		assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComments))
+		assert.Len(t, reviewComments, 2)
+		assert.Equal(t, 0, *reviewComments[0].Likes)
+	})
+
+	t.Run("unlike a review comment not liked does not do anything", func(t *testing.T) {
+		igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "DELETE",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments/1/like", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+
+		resp := igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
+			Method:      "GET",
+			Route:       fmt.Sprintf("/1.0/%s/models/model1/reviews/1/comments", user),
+			SignedToken: &jwt,
+		}, http.StatusOK, ctJSON, t)
+		var reviewComments []reviews.ModelReviewComment
+		assert.NoError(t, json.NewDecoder(bytes.NewReader(*resp.BodyAsBytes)).Decode(&reviewComments))
+		assert.Len(t, reviewComments, 2)
+		assert.Equal(t, 0, *reviewComments[0].Likes)
+	})
+
 	t.Run("cannot delete a review comment you do not own", func(t *testing.T) {
 		igntest.AssertRouteMultipleArgsStruct(igntest.RequestArgs{
 			Method:      "DELETE",

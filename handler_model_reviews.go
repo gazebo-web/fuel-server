@@ -214,3 +214,75 @@ func DeleteReviewComment(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (i
 
 	return nil, reviews.DeleteReviewComment(tx, user, modelOwner, modelName, modelReviewID, commentID)
 }
+
+func PostReviewCommentLike(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	user, ok, errMsg := getUserFromJWT(tx, r)
+	if !ok {
+		return nil, &errMsg
+	}
+
+	vars := mux.Vars(r)
+
+	modelOwner, ok := vars["username"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
+	}
+
+	modelName, ok := vars["model"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
+	}
+
+	modelReviewIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
+	}
+	modelReviewID := uint(modelReviewIDStr)
+
+	commentIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"commentId"})
+	}
+	commentID := uint(commentIDStr)
+
+	if ignErr := reviews.LikeReviewComment(tx, user, modelOwner, modelName, modelReviewID, commentID); ignErr != nil {
+		return nil, ignErr
+	}
+	return nil, nil
+}
+
+func DeleteReviewCommentLike(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	user, ok, errMsg := getUserFromJWT(tx, r)
+	if !ok {
+		return nil, &errMsg
+	}
+
+	vars := mux.Vars(r)
+
+	modelOwner, ok := vars["username"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorOwnerNotInRequest, errors.New(""), []string{"username"})
+	}
+
+	modelName, ok := vars["model"]
+	if !ok {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
+	}
+
+	modelReviewIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
+	}
+	modelReviewID := uint(modelReviewIDStr)
+
+	commentIDStr, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	if err != nil {
+		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"commentId"})
+	}
+	commentID := uint(commentIDStr)
+
+	if ignErr := reviews.UnlikeReviewComment(tx, user, modelOwner, modelName, modelReviewID, commentID); ignErr != nil {
+		return nil, ignErr
+	}
+	return nil, nil
+}

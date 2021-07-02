@@ -2893,18 +2893,7 @@ var routes = ign.Routes{
 					ign.FormatHandler{"", ign.JSONResult(PaginationHandler(GetReviewCommentsList))},
 				},
 			},
-		},
-	},
 
-	ign.Route{
-		"Review",
-		"Handles operations on review comments",
-		"/{username}/models/{model}/reviews/{reviewId}/comments/{commentId}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
-			ign.Method{},
-		},
-		ign.SecureMethods{
 			// swagger:route POST /{username}/models/{model}/reviews/{reviewId}/comments reviews commentReview
 			//
 			// Post a new comment on a review.
@@ -2935,7 +2924,18 @@ var routes = ign.Routes{
 					ign.FormatHandler{"", ign.JSONResult(PostReviewComment)},
 				},
 			},
+		},
+	},
 
+	ign.Route{
+		"Review",
+		"Handles operations on review comments",
+		"/{username}/models/{model}/reviews/{reviewId}/comments/{commentId}",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			ign.Method{},
+		},
+		ign.SecureMethods{
 			// swagger:route PUT /{username}/models/{model}/reviews/{reviewId}/comments/{commentId} reviews PutReviewComment
 			//
 			// Update a review comment.
@@ -2996,6 +2996,77 @@ var routes = ign.Routes{
 				"Delete a review comment",
 				ign.FormatHandlers{
 					ign.FormatHandler{"", ign.JSONResult(DeleteReviewComment)},
+				},
+			},
+		},
+	},
+
+	ign.Route{
+		"Review",
+		"Handle likes of a review comment",
+		"/{username}/models/{model}/reviews/{reviewId}/comments/{commentId}/like",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			ign.Method{},
+		},
+		ign.SecureMethods{
+			// swagger:route POST /{username}/models/{model}/reviews/{reviewId}/comments/{commentId}/like reviews PostReviewCommentLike
+			//
+			// Like a comment.
+			//
+			//   Parameters:
+			//   + name: username
+			//     in: path
+			//   + name: model
+			//     in: path
+			//   + name: reviewId
+			//     in: path
+			//   + name: commentId
+			//     in: path
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: nil
+			ign.Method{
+				"POST",
+				"Like a comment",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(PostReviewCommentLike)},
+				},
+			},
+
+			// swagger:route DELETE /{username}/models/{model}/reviews/{reviewId}/comments/{commentId}/like reviews DeleteReviewCommentLike
+			//
+			// Unlike a comment.
+			//
+			//   Parameters:
+			//   + name: username
+			//     in: path
+			//   + name: model
+			//     in: path
+			//   + name: reviewId
+			//     in: path
+			//   + name: commentId
+			//     in: path
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: nil
+			ign.Method{
+				"DELETE",
+				"Unlike a comment",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(DeleteReviewCommentLike)},
 				},
 			},
 		},

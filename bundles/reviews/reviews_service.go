@@ -385,3 +385,79 @@ func DeleteReviewComment(
 	}
 	return nil
 }
+
+func LikeReviewComment(
+	tx *gorm.DB,
+	user *users.User,
+	modelOwner string,
+	modelName string,
+	modelReviewID uint,
+	commentInstID uint,
+) *ign.ErrMsg {
+	comment, ignErr := GetReviewComment(tx, user, modelOwner, modelName, modelReviewID, commentInstID)
+	if ignErr != nil {
+		return ignErr
+	}
+
+	// FIXME: inefficient but I can't figure out a database agnostic way to do "insert or ignore" with gorm
+	var commentLike comments.CommentLike
+	result := tx.First(&commentLike, "user_id = ? AND comment_id = ?", user.ID, comment.ID)
+	if result.Error != nil {
+		if result.RecordNotFound() {
+			commentLike = comments.CommentLike{
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				UserID:    &user.ID,
+				CommentID: &comment.ID,
+			}
+			if createResult := tx.Create(&commentLike); createResult.Error != nil {
+				return ign.NewErrorMessageWithBase(ign.ErrorDbSave, createResult.Error)
+			}
+
+			*comment.Likes++
+			if result := tx.Save(comment); result.Error != nil {
+				return ign.NewErrorMessageWithBase(ign.ErrorDbSave, result.Error)
+			}
+		} else {
+			return ign.NewErrorMessageWithBase(ign.ErrorDbSave, result.Error)
+		}
+	}
+
+	return nil
+}
+
+func UnlikeReviewComment(
+	tx *gorm.DB,
+	user *users.User,
+	modelOwner string,
+	modelName string,
+	modelReviewID uint,
+	commentInstID uint,
+) *ign.ErrMsg {
+	comment, ignErr := GetReviewComment(tx, user, modelOwner, modelName, modelReviewID, commentInstID)
+	if ignErr != nil {
+		return ignErr
+	}
+
+	// FIXME: inefficient but I can't figure out a database agnostic way to do "delete or ignore" with gorm
+	var commentLike comments.CommentLike
+	result := tx.First(&commentLike, "user_id = ? AND comment_id = ?", user.ID, comment.ID)
+	if result.Error != nil {
+		if result.RecordNotFound() {
+			return nil
+		} else {
+			return ign.NewErrorMessageWithBase(ign.ErrorDbDelete, result.Error)
+		}
+	}
+
+	if result := tx.Delete(commentLike); result.Error != nil {
+		return ign.NewErrorMessageWithBase(ign.ErrorDbDelete, result.Error)
+	}
+
+	*comment.Likes--
+	if result := tx.Save(comment); result.Error != nil {
+		return ign.NewErrorMessageWithBase(ign.ErrorDbDelete, result.Error)
+	}
+
+	return nil
+}
