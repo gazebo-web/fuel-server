@@ -84,7 +84,7 @@ integration:
   dependencies:
     - build
   script:
-    - zip -r artifact.zip * .ebextensions -x bin/\* -x vendor/\*
+    - zip -r artifact.zip * .ebextensions .platform -x bin/\* -x vendor/\*
     - python beanstalk_deploy.py
   environment:
     name: integration
@@ -99,7 +99,7 @@ staging:
   dependencies:
     - build
   script:
-    - zip -r artifact.zip * .ebextensions -x bin/\* -x vendor/\*
+    - zip -r artifact.zip * .ebextensions .platform -x bin/\* -x vendor/\*
     - python beanstalk_deploy.py
   environment:
     name: staging
@@ -114,7 +114,7 @@ production:
   dependencies:
     - build
   script:
-    - zip -r artifact.zip * .ebextensions -x bin/\* -x vendor/\*
+    - zip -r artifact.zip * .ebextensions .platform -x bin/\* -x vendor/\*
     - python beanstalk_deploy.py
   environment:
     name: production
