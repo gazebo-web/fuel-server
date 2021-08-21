@@ -25,8 +25,8 @@ const (
 
 // GoGitVCS represents a local Git repo.
 type GoGitVCS struct {
-	Path string
-	r    *git.Repository
+	Path      string
+	r         *git.Repository
 	opHandler OperationHandler
 }
 
@@ -155,12 +155,12 @@ func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string)
 	}
 	rev = ensureRev(rev)
 
-	var cb = func() (OperationResult) {
+	var cb = func() OperationResult {
 		var result OperationResult
 
 		commit, err := g.getCommit(ctx, rev)
 		if err != nil {
-			result.err = err;
+			result.err = err
 			return result
 		}
 		// retrieve the tree from the commit
@@ -278,7 +278,7 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 		return err
 	}
 
-	var cb = func() (OperationResult) {
+	var cb = func() OperationResult {
 		var result OperationResult
 
 		// First, remove all files from master.
@@ -376,7 +376,7 @@ func (g *GoGitVCS) Tag(ctx context.Context, tag string) error {
 	}
 
 	// Create an cmd callback and execute it
-	var cb = func() (OperationResult) {
+	var cb = func() OperationResult {
 		var result OperationResult
 		// create new tag from head
 		headRef, err := g.r.Head()
@@ -396,7 +396,7 @@ func (g *GoGitVCS) Tag(ctx context.Context, tag string) error {
 			return result
 		}
 		return result
-    }
+	}
 
 	// Create an operation with a cmd cb and execute it
 	result := g.opHandler.ExecuteOperation(cb)
@@ -432,4 +432,3 @@ func (g *GoGitVCS) HasTag(tag string) (bool, error) {
 func (g *GoGitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 	return getRevisionCount(ctx, g.Path, rev, &g.opHandler)
 }
-

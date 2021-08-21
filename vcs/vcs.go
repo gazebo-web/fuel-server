@@ -41,9 +41,8 @@ func (g GitVCS) NewRepo(dirpath string) VCS {
 	return &r
 }
 
-
 // CommndCallback is a command function used in the Operation struct
-type CommandCallback func() (OperationResult)
+type CommandCallback func() OperationResult
 
 // Operation is a list of commands to be executed in series
 type Operation struct {
@@ -53,7 +52,7 @@ type Operation struct {
 // OperationResult stores the standard out and error msg of a command execution
 type OperationResult struct {
 	output string
-	err	error
+	err    error
 	stderr bytes.Buffer
 }
 
@@ -61,11 +60,11 @@ type OperationResult struct {
 // an operation, including an operation channel, results channel and the states
 // of the operation.
 type OperationHandler struct {
-	Operations chan Operation
-	OperationResults chan OperationResult
-	WG sync.WaitGroup
+	Operations        chan Operation
+	OperationResults  chan OperationResult
+	WG                sync.WaitGroup
 	stopOperationLoop bool
-	initialized bool
+	initialized       bool
 }
 
 // Init creates the operation channels and initializes the operatation states
@@ -78,7 +77,7 @@ func (o *OperationHandler) Init() {
 
 // GitVCS represents a local Git repo.
 type GitVCS struct {
-	Path string
+	Path      string
 	opHandler OperationHandler
 }
 
@@ -104,7 +103,7 @@ func (g *GitVCS) InitRepo(ctx context.Context) error {
 	if err != nil {
 		g.opHandler.stopOperationLoop = true
 	}
-    return err
+	return err
 }
 
 // initAndCommitAll - Inits the version control repository and commits all
@@ -153,7 +152,7 @@ func (g *GitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (
 	rev = ensureRev(rev)
 
 	// Create an cmd callback and execute it
-	var cb = func() (OperationResult) {
+	var cb = func() OperationResult {
 		cmd := exec.Command("git", "-C", g.Path, "show", rev+":"+pathFromRoot)
 		var bs []byte
 		var err error
@@ -167,8 +166,8 @@ func (g *GitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (
 		return result
 	}
 
-	result := g.opHandler.ExecuteOperation(cb);
-	
+	result := g.opHandler.ExecuteOperation(cb)
+
 	bs := []byte(result.output)
 	var err error
 	if result.err != nil {
@@ -196,7 +195,7 @@ func (g *GitVCS) addAll(ctx context.Context) error {
 	}
 
 	// Create an cmd callback and execute it
-	var cb = func() (OperationResult) {
+	var cb = func() OperationResult {
 		// add all files in repo folder, recursively
 		cmd := exec.Command("git", "-C", g.Path, "add", "-A")
 		var stderr bytes.Buffer
@@ -209,13 +208,13 @@ func (g *GitVCS) addAll(ctx context.Context) error {
 		result.stderr = stderr
 		return result
 	}
-	result := g.opHandler.ExecuteOperation(cb);
+	result := g.opHandler.ExecuteOperation(cb)
 
 	var err error
 	if result.err != nil {
 		err = ign.WithStack(result.err)
 		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " +
-			 fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
+			fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
 	}
 	return err
 }
@@ -227,7 +226,7 @@ func (g *GitVCS) Commit(ctx context.Context, message string) error {
 	}
 
 	// Create an cmd callback and execute it
-	var cb = func() (OperationResult) {
+	var cb = func() OperationResult {
 		cmd := exec.Command("git", "-C", g.Path, "commit", "-m", message, "--allow-empty")
 		err := cmd.Run()
 		var result OperationResult
@@ -235,7 +234,7 @@ func (g *GitVCS) Commit(ctx context.Context, message string) error {
 		return result
 	}
 
-	result := g.opHandler.ExecuteOperation(cb);
+	result := g.opHandler.ExecuteOperation(cb)
 
 	var err error
 	if result.err != nil {
@@ -277,9 +276,8 @@ func archive(ctx context.Context, repoPath, rev, output string, opHandler *Opera
 		return nil, ign.WithStack(err)
 	}
 
-
 	// Create an cmd callback and execute it
-	var cb = func() (OperationResult) {
+	var cb = func() OperationResult {
 		cmd := exec.Command("git", "-C", repoPath, "archive",
 			"--format=zip", "-o", zipPath, rev)
 		var stderr bytes.Buffer
@@ -290,7 +288,7 @@ func archive(ctx context.Context, repoPath, rev, output string, opHandler *Opera
 		return result
 	}
 
-	result := opHandler.ExecuteOperation(cb);
+	result := opHandler.ExecuteOperation(cb)
 
 	if result.err != nil {
 		err = ign.WithStack(result.err)
@@ -326,7 +324,7 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 	}
 
 	// Create an cmd callback and execute it
-	var cb = func() (OperationResult) {
+	var cb = func() OperationResult {
 		cmd := exec.Command("git", "tag", "-a", tag, "-m", "ign-fuelserver created tag after cloning")
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
@@ -344,7 +342,7 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 	if result.err != nil {
 		err = ign.WithStack(result.err)
 		ign.LoggerFromContext(ctx).Info("Error while Tagging repo: " + g.Path +
-			 ". Err: " + fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
+			". Err: " + fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
 	}
 	return err
 }
@@ -352,7 +350,7 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 // doLocalClone - makes a local clone of source into target
 func doLocalClone(ctx context.Context, source, target string) error {
 	// A clone command does not need to be queued so use exec.Command directly
-    // instead of creating an Operation
+	// instead of creating an Operation
 	cmd := exec.Command("git", "clone", "--local", source, target)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -381,9 +379,8 @@ func getRevisionCount(ctx context.Context, repoPath, rev string, opHandler *Oper
 
 	rev = ensureRev(rev)
 
-
 	// Create an cmd callback and execute it
-	var cb = func() (OperationResult) {
+	var cb = func() OperationResult {
 		cmd := exec.Command("git", "-C", repoPath, "rev-list", "--count", rev)
 		var bs []byte
 		var err error
@@ -410,7 +407,7 @@ func getRevisionCount(ctx context.Context, repoPath, rev string, opHandler *Oper
 		parsed, parseErr := strconv.Atoi(strings.Fields(result.output)[0])
 		if parseErr != nil {
 			parseErr = ign.WithStack(parseErr)
-			ign.LoggerFromContext(ctx).Info("Error while parsing revision count: " + 
+			ign.LoggerFromContext(ctx).Info("Error while parsing revision count: " +
 				fmt.Sprint(parseErr))
 		} else {
 			count = parsed
@@ -427,7 +424,7 @@ func getRevisionCount(ctx context.Context, repoPath, rev string, opHandler *Oper
 func (o *OperationHandler) RunOperationLoop() {
 	for !o.stopOperationLoop {
 		// get the operation from the queue
-		op := <- o.Operations
+		op := <-o.Operations
 		// add to wait group so that it blocks other incoming operations
 		o.WG.Add(1)
 
@@ -445,7 +442,7 @@ func (o *OperationHandler) RunOperationLoop() {
 /// for the existing operation (if any) to finish before queueing the new input
 /// operation. When the operation is complete, it returns the output of the
 /// execution.
-func (o *OperationHandler) ExecuteOperation(cb CommandCallback) (OperationResult) {
+func (o *OperationHandler) ExecuteOperation(cb CommandCallback) OperationResult {
 
 	if !o.initialized {
 		o.Init()
@@ -465,6 +462,6 @@ func (o *OperationHandler) ExecuteOperation(cb CommandCallback) (OperationResult
 	// wait for operation queue to be available
 	o.WG.Wait()
 	o.Operations <- op
-	result := <- o.OperationResults
+	result := <-o.OperationResults
 	return result
 }
