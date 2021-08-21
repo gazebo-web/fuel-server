@@ -1,7 +1,6 @@
 package vcs
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
@@ -14,9 +13,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -270,46 +267,7 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 // created.
 // Returns a string path pointing to the created zip file.
 func (g *GoGitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
-    repoPath := g.Path
-	if err := ensureFolderExists(repoPath); err != nil {
-		return nil, err
-	}
-	rev = ensureRev(rev)
-
-	var folder, zipPath string
-	var err error
-
-	if output == "" {
-		folder, err = ioutil.TempDir("", "repo")
-		zipPath = filepath.Join(folder, rev+".os.Filezip")
-	} else {
-		zipPath = output
-	}
-	if err != nil {
-		return nil, ign.WithStack(err)
-	}
-
-	// Create an cmd callback and execute it
-	var cb = func() (OperationResult) {
-		cmd := exec.Command("git", "-C", repoPath, "archive",
-			"--format=zip", "-o", zipPath, rev)
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		_, err = cmd.Output()
-		var result OperationResult
-		result.err = err
-		return result
-	}
-
-	result := g.opHandler.ExecuteOperation(cb);
-
-	if result.err != nil {
-		err = ign.WithStack(result.err)
-		ign.LoggerFromContext(ctx).Info("Error while running git archive process. Err: " +
-			fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
-		return nil, err
-	}
-	return &zipPath, nil
+	return archive(ctx, g.Path, rev, output, &g.opHandler)
 }
 
 // ReplaceFiles - replaces all files from repo HEAD with the files from the given folder.
@@ -472,50 +430,6 @@ func (g *GoGitVCS) HasTag(tag string) (bool, error) {
 // If revision is empty, last commit from "master" branch will be used.
 // Returns the number of revisions.
 func (g *GoGitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
-
-	repoPath := g.Path
-	if err := ensureFolderExists(repoPath); err != nil {
-		return 0, err
-	}
-
-	// Create an cmd callback and execute it
-	var cb = func() (OperationResult) {
-		cmd := exec.Command("git", "-C", repoPath, "rev-list", "--count", rev)
-		var bs []byte
-		var err error
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		bs, err = cmd.Output()
-
-		var result OperationResult
-		if err == nil {
-			result.output = string(bs[:])
-		} else {
-			result.err = err
-			result.stderr = stderr
-		}
-		return result
-	}
-
-	result := g.opHandler.ExecuteOperation(cb)
-
-	var count int
-	var err error
-	if result.err != nil {
-		err = ign.WithStack(result.err)
-		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " +
-			 fmt.Sprint(result.err) + ". Stderr: " + result.stderr.String())
-		count = 0
-	} else {
-		parsed, parseErr := strconv.Atoi(strings.Fields(result.output)[0])
-		if parseErr != nil {
-			parseErr = ign.WithStack(parseErr)
-			ign.LoggerFromContext(ctx).Info("Error while parsing revision count: " +
-				 fmt.Sprint(parseErr))
-		} else {
-			count = parsed
-		}
-	}
-	return count, err
+	return getRevisionCount(ctx, g.Path, rev, &g.opHandler)
 }
 

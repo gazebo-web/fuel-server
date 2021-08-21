@@ -42,7 +42,7 @@ func (g GitVCS) NewRepo(dirpath string) VCS {
 }
 
 
-// CommndCb
+// CommndCallback is a command function used in the Operation struct
 type CommandCallback func() (OperationResult)
 
 // Operation is a list of commands to be executed in series
@@ -50,13 +50,16 @@ type Operation struct {
 	CommandCb CommandCallback
 }
 
-// OperationResult sotre the standard out and error msg of a command execution
+// OperationResult stores the standard out and error msg of a command execution
 type OperationResult struct {
 	output string
 	err	error
 	stderr bytes.Buffer
 }
 
+// OperationHandler is a struct that contains other structs needed to execute
+// an operation, including an operation channel, results channel and the states
+// of the operation.
 type OperationHandler struct {
 	Operations chan Operation
 	OperationResults chan OperationResult
@@ -65,6 +68,7 @@ type OperationHandler struct {
 	initialized bool
 }
 
+// Init creates the operation channels and initializes the operatation states
 func (o *OperationHandler) Init() {
 	o.Operations = make(chan Operation, 1)
 	o.OperationResults = make(chan OperationResult, 1)
@@ -245,8 +249,16 @@ func (g *GitVCS) Commit(ctx context.Context, message string) error {
 // If output is empty, then a zip file in the tmp folder will be created.
 // Returns a string path pointing to the created zip file.
 func (g *GitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
+	return archive(ctx, g.Path, rev, output, &g.opHandler)
+}
 
-    repoPath := g.Path
+// archive creates a zip with the repository files, at a given revision.
+// If revision (rev arg) is empty or "tip", then last commit from "HEAD"
+// will be used. If output is empty, then a zip file in the tmp folder
+// will be created.
+// Returns a string path pointing to the created zip file.
+func archive(ctx context.Context, repoPath, rev, output string, opHandler *OperationHandler) (*string, error) {
+
 	if err := ensureFolderExists(repoPath); err != nil {
 		return nil, err
 	}
@@ -278,7 +290,7 @@ func (g *GitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
 		return result
 	}
 
-	result := g.opHandler.ExecuteOperation(cb);
+	result := opHandler.ExecuteOperation(cb);
 
 	if result.err != nil {
 		err = ign.WithStack(result.err)
@@ -288,7 +300,6 @@ func (g *GitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
 	}
 	return &zipPath, nil
 }
-
 
 // ReplaceFiles - replaces all files from repo HEAD with the files from the given folder.
 // owner is an optional argument used to set the git commit user. If empty, then the default
@@ -359,9 +370,11 @@ func doLocalClone(ctx context.Context, source, target string) error {
 // Returns the number of revisions.
 func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 	ign.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")
+	return getRevisionCount(ctx, g.Path, rev, &g.opHandler)
+}
 
-	repoPath := g.Path
-
+// getRevisionCount returns the number of revisions from given commit/revision
+func getRevisionCount(ctx context.Context, repoPath, rev string, opHandler *OperationHandler) (int, error) {
 	if err := ensureFolderExists(repoPath); err != nil {
 		return 0, err
 	}
@@ -384,7 +397,7 @@ func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 		return result
 	}
 
-	result := g.opHandler.ExecuteOperation(cb)
+	result := opHandler.ExecuteOperation(cb)
 
 	var count int
 	var err error
@@ -406,7 +419,7 @@ func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 	return count, err
 }
 
-/// RunOperation is a go routine that monitors the channel for any new
+/// RunOperationLoop is a go routine that monitors the channel for any new
 /// operations that need to be run. It allows only one operation running
 /// at any one time. If the operation consists of multiple commands, it
 /// executes the commands in series and stops if there is an error. The last
@@ -428,7 +441,7 @@ func (o *OperationHandler) RunOperationLoop() {
 }
 
 /// ExecuteOperation is a blocking call for executing a VCS operation,
-/// i.e. a callback funciton containing a group of git commands. It first waits
+/// i.e. a callback function containing a group of git commands. It first waits
 /// for the existing operation (if any) to finish before queueing the new input
 /// operation. When the operation is complete, it returns the output of the
 /// execution.
@@ -441,7 +454,7 @@ func (o *OperationHandler) ExecuteOperation(cb CommandCallback) (OperationResult
 
 	// queue a new operation
 	var op Operation
-    if cb != nil {
+	if cb != nil {
 		op.CommandCb = cb
 	} else {
 		var result OperationResult
