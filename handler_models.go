@@ -282,3 +282,19 @@ func ReportModelCreate(owner, name string, user *users.User, tx *gorm.DB,
 
 	return nil, nil
 }
+
+// ModelHTMLHandler receives the result of a NameOwnerHandler and uses its result to populate a
+// HTML template.
+func ModelHTMLHandler(handler ign.HandlerWithResult) ign.Handler {
+	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) *ign.ErrMsg {
+		fuelModel, em := handler(tx, w, r)
+		if em != nil {
+			return em
+		}
+		template := "templates/resources/fuel_resource.gohtml"
+		content, _ := ign.ParseHTMLTemplate(template, fuelModel)
+		b := []byte(content)
+		w.Write(b)
+		return nil
+	}
+}
