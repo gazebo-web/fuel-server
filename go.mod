@@ -46,7 +46,7 @@ require (
 	github.com/src-d/gcfg v1.4.0
 	github.com/stretchr/testify v1.5.1
 	github.com/xanzy/ssh-agent v0.2.1
-	gitlab.com/ignitionrobotics/web/ign-go v0.0.0-20200804201637-78fc7e089169
+	gitlab.com/ignitionrobotics/web/ign-go v0.0.0-20210826202853-d8738275b874
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/net v0.0.0-20200625001655-4c5254603344
