@@ -1,9 +1,7 @@
 syntax = "proto2";
 package fuel;
 
-import "model.proto";
-
-// swagger:review
+// swagger:model
 message Review {
   enum ReviewStatus {
     Open = 0;
@@ -26,18 +24,18 @@ message Review {
   optional bool private = 11;
 }
 
-// swagger:review
+// swagger:model
 message Reviews {
   repeated Review reviews = 1;
 }
 
+// swagger:model
 message ModelReview {
   required Review review = 1;
   required uint64 model_id = 2;
+  required uint64 instanceId = 3;
 }
 
 message ModelReviews {
   repeated ModelReview modelReviews = 1;
 }
-
-

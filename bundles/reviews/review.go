@@ -1,8 +1,9 @@
 package reviews
 
 import (
-	"github.com/jinzhu/gorm"
 	"time"
+
+	"github.com/jinzhu/gorm"
 )
 
 type ReviewStatus int
@@ -23,13 +24,13 @@ const (
 // A review contains changes for a resource such as a model or a world. It is
 // also known as a pull request.
 //
-// swagger:review dbReview
+// swagger:model dbReview
 type Review struct {
 	// ID of the review
-	// Overrides the default GORM Review fields
+	// Overrides the default GORM Model fields
 	ID        uint      `gorm:"primary_key" json:"-"`
 	CreatedAt time.Time `gorm:"type:timestamp(3) NULL"`
-	UpdatedAt time.Time
+	UpdatedAt time.Time `gorm:"type:timestamp(3) NULL"`
 
 	// Creator contains the username of the User that created this model (usually
 	// got from the JWT)
@@ -70,6 +71,7 @@ func QueryForReviews(q *gorm.DB) *gorm.DB {
 	return q.Model(&Review{}).Order("id")
 }
 
+// swagger:model
 // CreateReview encapulates data required to create a review
 type CreateReview struct {
 	// Owner of the model. Must be a user or an org
@@ -82,10 +84,19 @@ type CreateReview struct {
 	// Description of the review
 	Description string `json:"description" form:"description"`
 	// Branch associated with the review
-	Branch *string `json:"branch" validate:"omitempty" form:"branch"`
+	// required: true
+	Branch *string `json:"branch" validate:"required" form:"branch"`
 	// Status of the review
 	Status ReviewStatus `json:"status" form:"status"`
 	// Title of the review
 	// required: true
 	Title string `json:"title" validate:"required,noforwardslash,nopercent" form:"title"`
+}
+
+type UpdateReview struct {
+	Title       *string
+	Description *string
+	Status      *ReviewStatus
+	Branch      *string
+	Private     *bool
 }

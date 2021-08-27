@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	fuel "gitlab.com/ignitionrobotics/web/fuelserver/proto"
 )
 
@@ -14,7 +15,12 @@ type ModelReview struct {
 	Review
 
 	// ModelID that is under review
-	ModelID *uint
+	ModelID *uint `gorm:"unique_index:idx_modelreview_id;not null" json:"-"`
+
+	InstanceID *uint `gorm:"unique_index:idx_modelreview_id;not null"`
+
+	// Unique identifier used for casbin permissions
+	UUID *string `json:"-"`
 }
 
 // CreateModelReview contains information for creating a review for a model
@@ -23,7 +29,9 @@ type CreateModelReview struct {
 	CreateReview
 
 	// Model ID under review
-	ModelID *uint
+	ModelID *uint `json:"-"`
+
+	InstanceID *uint `json:"-"`
 }
 
 // ModelReviews is an array of ModelReview
@@ -62,25 +70,47 @@ func (mr *ModelReview) ToProto() interface{} {
 	fuelReview.Status = &status
 
 	modelID := uint64(*mr.ModelID)
+	instanceID := uint64(*mr.InstanceID)
 
 	fuelModelReview := fuel.ModelReview{
-		Review:  &fuelReview,
-		ModelId: &modelID,
+		Review:     &fuelReview,
+		ModelId:    &modelID,
+		InstanceId: &instanceID,
 	}
 
 	return &fuelModelReview
 }
 
 // NewModelReview creates a new Review struct
-func NewModelReview(title, description, owner, branch *string, status ReviewStatus, reviewers, approvals []string, modelID *uint) (ModelReview, error) {
+func NewModelReview(
+	title,
+	description,
+	owner,
+	branch *string,
+	status ReviewStatus,
+	reviewers,
+	approvals []string,
+	modelID *uint,
+	instanceID *uint,
+) (ModelReview, error) {
 	createTime := time.Now()
 	updateTime := time.Now()
+
+	uuidStr, _, err := users.NewUUID(*owner, "modelReviews")
+	if err != nil {
+		return ModelReview{}, err
+	}
 
 	review := Review{CreatedAt: createTime, UpdatedAt: updateTime, Title: title,
 		Description: description, Owner: owner, Branch: branch,
 		Status: status, Reviewers: reviewers, Approvals: approvals}
 
-	modelReview := ModelReview{Review: review, ModelID: modelID}
+	modelReview := ModelReview{
+		Review:     review,
+		ModelID:    modelID,
+		InstanceID: instanceID,
+		UUID:       &uuidStr,
+	}
 	return modelReview, nil
 }
 

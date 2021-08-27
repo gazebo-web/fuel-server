@@ -3,14 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/jinzhu/gorm"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // createFn is a callback func that "creation handlers" will pass to doCreateModel.

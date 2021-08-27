@@ -1,14 +1,15 @@
 package main
 
 import (
+	"net/http"
+	"reflect"
+
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/reviews"
 	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
-	"net/http"
-	"reflect"
 )
 
 // ModelReviewList returns the list of reviews for models from a team/user

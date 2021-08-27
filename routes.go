@@ -2705,7 +2705,7 @@ var routes = ign.Routes{
 			//
 			//   Responses:
 			//     default: fuelError
-			//     200: jsonReviews
+			//     200: Review
 			ign.Method{
 				"GET",
 				"Get all reviews for models",
@@ -2717,10 +2717,23 @@ var routes = ign.Routes{
 			},
 		},
 		ign.SecureMethods{
-			// swagger:route POST /models/reviews reviews createModelReview
+			// swagger:route POST /models/reviews reviews createModelAndReview
 			//
 			// Create a new model and a new review.
 			//
+			//   Parameters:
+			//   + name: model
+			//     in: body
+			//     type: CreateModel
+			//
+			// 	 Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: ModelReview
 			ign.Method{
 				"POST",
 				"Post a review and a new model",
@@ -2731,6 +2744,7 @@ var routes = ign.Routes{
 		},
 	},
 
+	// Route for a new review for an existing model
 	ign.Route{
 		"Review",
 		"Information about reviews for a model",
@@ -2770,15 +2784,74 @@ var routes = ign.Routes{
 			},
 		},
 		ign.SecureMethods{
-			// swagger:route POST /{username}/models/{model}/reviews reviews createUserModelReview
+			// swagger:route POST /{username}/models/{model}/reviews reviews createModelReview
 			//
 			// Create a new review for an existing model.
 			//
+			//   Parameters:
+			//   + name: username
+			//     in: path
+			//   + name: model
+			//     in: path
+			//   + name: review
+			//     in: body
+			//     type: CreateReview
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: ModelReview
 			ign.Method{
 				"POST",
 				"Post a review for a model",
 				ign.FormatHandlers{
 					ign.FormatHandler{"", ign.JSONResult(ReviewCreate)},
+				},
+			},
+		},
+	},
+
+	ign.Route{
+		"Review",
+		"Update an existing review",
+		"/{username}/models/{model}/reviews/{reviewId}",
+		ign.AuthHeadersOptional,
+		ign.Methods{
+			ign.Method{},
+		},
+		ign.SecureMethods{
+			// swagger:route PATCH /{username}/models/{model}/reviews/{reviewId} reviews updateReview
+			//
+			// Updates an existing review.
+			//
+			//   Parameters:
+			//   + name: username
+			//     in: path
+			//   + name: model
+			//     in: path
+			//   + name: reviewId
+			//     in: path
+			//   + name: review
+			//     in: body
+			//     type: CreateReview
+			//
+			//   Produces:
+			//   - application/json
+			//
+			//   Schemes: https
+			//
+			//   Responses:
+			//     default: fuelError
+			//     200: Review
+			ign.Method{
+				"PATCH",
+				"Update a review for a model",
+				ign.FormatHandlers{
+					ign.FormatHandler{"", ign.JSONResult(ReviewUpdate)},
 				},
 			},
 		},

@@ -351,7 +351,7 @@ func runSubtestWithModelSearchTestData(t *testing.T, test resourceSearchTest) {
 		assert.NoError(t, json.Unmarshal(*bslice, &models), "Unable to get all models: %s", string(*bslice))
 		require.Len(t, models, test.expCount, "There should be %d Models. Got: %d", test.expCount, len(models))
 		if test.expCount > 0 {
-			firstModel := models[0]
+			firstModel := &models[0]
 			exp := test.expFirstName
 			assert.Equal(t, exp, *firstModel.Name, "Model name [%s] is not the expected one [%s]", *firstModel.Name, exp)
 		}
