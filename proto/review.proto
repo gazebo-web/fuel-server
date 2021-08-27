@@ -33,7 +33,7 @@ message Reviews {
 message ModelReview {
   required Review review = 1;
   required uint64 model_id = 2;
-  required uint64 instanceId = 3;
+  required uint64 reviewID = 3;
 }
 
 message ModelReviews {

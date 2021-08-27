@@ -51,7 +51,7 @@ type Review struct {
 	Branch *string `json:"branch,omitempty"`
 
 	// Status of the review
-	Status ReviewStatus `json:"status,omitempty"`
+	Status ReviewStatus `json:"status"`
 
 	// Reviewers for the review
 	Reviewers []string `gorm:"-" json:"reviewers,omitempty"`

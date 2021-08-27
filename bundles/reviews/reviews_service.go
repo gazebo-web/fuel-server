@@ -126,18 +126,18 @@ type Protobuffer interface {
 	ToProto() interface{}
 }
 
-func newInstanceID(tx *gorm.DB, modelID *uint) (*uint, error) {
+func newReviewID(tx *gorm.DB, modelID *uint) (*uint, error) {
 	var modelReview ModelReview
-	var instanceID uint
-	if err := tx.Order("model_review_id desc").First(&modelReview, "model_id = ?", *modelID).Error; err != nil {
+	var reviewID uint
+	if err := tx.Order("review_id desc").First(&modelReview, "model_id = ?", *modelID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			instanceID = 1
-			return &instanceID, nil
+			reviewID = 1
+			return &reviewID, nil
 		}
 		return nil, err
 	}
-	instanceID = *modelReview.InstanceID + 1
-	return &instanceID, nil
+	reviewID = *modelReview.ReviewID + 1
+	return &reviewID, nil
 }
 
 // CreateModelReview creates a new model review
@@ -153,18 +153,18 @@ func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator 
 		}
 	}
 
-	instanceID, err := newInstanceID(tx, cmr.ModelID)
+	reviewID, err := newReviewID(tx, cmr.ModelID)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 	}
 
 	// create the ModelReview struct
 	modelReview, err := NewModelReview(&cmr.CreateReview.Title, &cmr.CreateReview.Description,
 		&owner, cmr.CreateReview.Branch, cmr.CreateReview.Status,
-		cmr.CreateReview.Reviewers, cmr.CreateReview.Approvals, cmr.ModelID, instanceID)
+		cmr.CreateReview.Reviewers, cmr.CreateReview.Approvals, cmr.ModelID, reviewID)
 	modelReview.Creator = creator.Username
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
 	}
 
 	// create model review in the DB
@@ -191,7 +191,7 @@ func (s *Service) GetReview(
 	user *users.User,
 	modelOwner string,
 	modelName string,
-	instanceID uint,
+	reviewID uint,
 ) (*ModelReview, *ign.ErrMsg) {
 	ms := models.Service{}
 	model, ignErr := ms.GetModel(tx, modelOwner, modelName, user)
@@ -199,7 +199,7 @@ func (s *Service) GetReview(
 		return nil, ignErr
 	}
 
-	review := ModelReview{ModelID: &model.ID, InstanceID: &instanceID}
+	review := ModelReview{ModelID: &model.ID, ReviewID: &reviewID}
 	// var review ModelReview
 	result := tx.Model(&review).First(&review)
 	if result.Error != nil {

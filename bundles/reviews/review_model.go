@@ -17,7 +17,7 @@ type ModelReview struct {
 	// ModelID that is under review
 	ModelID *uint `gorm:"unique_index:idx_modelreview_id;not null" json:"-"`
 
-	InstanceID *uint `gorm:"unique_index:idx_modelreview_id;not null"`
+	ReviewID *uint `gorm:"unique_index:idx_modelreview_id;not null"`
 
 	// Unique identifier used for casbin permissions
 	UUID *string `json:"-"`
@@ -31,7 +31,7 @@ type CreateModelReview struct {
 	// Model ID under review
 	ModelID *uint `json:"-"`
 
-	InstanceID *uint `json:"-"`
+	ReviewID *uint `json:"-"`
 }
 
 // ModelReviews is an array of ModelReview
@@ -70,12 +70,12 @@ func (mr *ModelReview) ToProto() interface{} {
 	fuelReview.Status = &status
 
 	modelID := uint64(*mr.ModelID)
-	instanceID := uint64(*mr.InstanceID)
+	reviewID := uint64(*mr.ReviewID)
 
 	fuelModelReview := fuel.ModelReview{
-		Review:     &fuelReview,
-		ModelId:    &modelID,
-		InstanceId: &instanceID,
+		Review:   &fuelReview,
+		ModelId:  &modelID,
+		ReviewID: &reviewID,
 	}
 
 	return &fuelModelReview
@@ -91,7 +91,7 @@ func NewModelReview(
 	reviewers,
 	approvals []string,
 	modelID *uint,
-	instanceID *uint,
+	reviewID *uint,
 ) (ModelReview, error) {
 	createTime := time.Now()
 	updateTime := time.Now()
@@ -106,10 +106,10 @@ func NewModelReview(
 		Status: status, Reviewers: reviewers, Approvals: approvals}
 
 	modelReview := ModelReview{
-		Review:     review,
-		ModelID:    modelID,
-		InstanceID: instanceID,
-		UUID:       &uuidStr,
+		Review:   review,
+		ModelID:  modelID,
+		ReviewID: reviewID,
+		UUID:     &uuidStr,
 	}
 	return modelReview, nil
 }

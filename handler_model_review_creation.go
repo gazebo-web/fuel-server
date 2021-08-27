@@ -150,11 +150,11 @@ func ReviewUpdate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interfac
 		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDNotInRequest, errors.New(""), []string{"model"})
 	}
 
-	modelReviewID_, err := strconv.ParseUint(vars["reviewId"], 10, 0)
+	reviewID_, err := strconv.ParseUint(vars["reviewId"], 10, 0)
 	if err != nil {
 		return nil, ign.NewErrorMessageWithArgs(ign.ErrorIDWrongFormat, err, []string{"reviewId"})
 	}
-	modelReviewID := uint(modelReviewID_)
+	reviewID := uint(reviewID_)
 
 	var updateReview reviews.UpdateReview
 	if err := ParseStruct(&updateReview, r, true); err != nil {
@@ -162,7 +162,7 @@ func ReviewUpdate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interfac
 	}
 
 	s := reviews.Service{}
-	review, ignErr := s.GetReview(tx, user, owner, modelName, modelReviewID)
+	review, ignErr := s.GetReview(tx, user, owner, modelName, reviewID)
 	if ignErr != nil {
 		return nil, ignErr
 	}

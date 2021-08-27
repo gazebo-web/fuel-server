@@ -102,7 +102,7 @@ func TestModelReviewCRUD(t *testing.T) {
 			fmt.Sprintf("/1.0/%s/models/test/reviews/1", user),
 			&jwt,
 			map[string]string{
-				"Status": "test status",
+				"Title": "new title",
 			},
 			[]igntest.FileDesc{},
 		)
@@ -110,7 +110,8 @@ func TestModelReviewCRUD(t *testing.T) {
 		assert.Equal(t, http.StatusOK, respCode)
 		var respJson map[string]interface{}
 		json.Unmarshal(*respBody, &respJson)
-		assert.Equal(t, "test status", respJson["status"])
+		fmt.Println(respJson["status"])
+		assert.Equal(t, "new title", respJson["title"])
 	})
 
 	t.Run("user without permission cannot update the review", func(t *testing.T) {
@@ -121,7 +122,7 @@ func TestModelReviewCRUD(t *testing.T) {
 			fmt.Sprintf("/1.0/%s/models/test/reviews/1", user),
 			&jwt2,
 			map[string]string{
-				"Status": "test status 2",
+				"Title": "new title",
 			},
 			[]igntest.FileDesc{},
 		)
@@ -217,6 +218,6 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 			}
 		}
 		assert.NotNil(t, newResult)
-		assert.Equal(t, 1, int((*newResult)["modelReviewID"].(float64)))
+		assert.Equal(t, 1, int((*newResult)["reviewID"].(float64)))
 	})
 }
