@@ -316,6 +316,7 @@ var routes = ign.Routes{
 				ign.FormatHandlers{
 					ign.FormatHandler{".json", ign.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
 					ign.FormatHandler{".proto", ign.ProtoResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
+					ign.FormatHandler{".html", ModelHTMLHandler(NameOwnerHandler("model", false, ModelOwnerIndex))},
 					ign.FormatHandler{".zip", ign.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionZip)))},
 					ign.FormatHandler{"", ign.IsBotHandler(
 						ModelHTMLHandler(NameOwnerHandler("model", false, ModelOwnerIndex)),
