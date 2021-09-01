@@ -8,6 +8,11 @@
   <title>Ignition Robotics</title>
   <meta name="description" content="Ignition Robotics App">
   <meta http-equiv="Refresh" content="0; URL=https://app.ignitionrobotics.org/{{ .Owner }}/fuel/models/{{ .Name }}">
+  <meta name="og:title" content="{{ .Name }}">
+  <meta property="og:type" content="website">
+  <meta name="og:url" content="https://app.ignitionrobotics.org/{{ .Owner }}/fuel/models/{{ .Name }}">
+  <meta name="twitter:title" content="{{ .Name }}">
+  <meta name="twitter:image:alt" content="{{ .Name }}">
 
   {{ if .Description }}
   <meta name="og:description" content="{{ .Description }}">
@@ -20,18 +25,12 @@
   {{ if .ThumbnailUrl }}
   <meta name="og:image" content="https://fuel.ignitionrobotics.org/1.0{{ .ThumbnailUrl }}">
   <meta name="twitter:image" content="https://fuel.ignitionrobotics.org/1.0{{ .ThumbnailUrl }}">
+  <meta name="twitter:card" content="summary_large_image">
   {{ else }}
-  <meta name="og:image" content="Ignition Robotics App">
-  <meta name="twitter:image" content="Ignition Robotics App">
-  {{ end }}
-
-  <meta name="og:title" content="{{ .Name }}">
-  <meta property="og:type" content="website">
-  <meta name="og:url" content="https://app.ignitionrobotics.org/fuel/{{ .Owner }}/models/{{ .Name }}">
-
-  <meta name="twitter:title" content="{{ .Name }}">
+  <meta name="og:image" content="https://app.ignitionrobotics.org/assets/images/ignition_icon_color.png">
+  <meta name="twitter:image" content="https://app.ignitionrobotics.org/assets/images/ignition_icon_color.png">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:image:alt" content="{{ .Name }}">
+  {{ end }}
 </head>
 <body>
 </body>
