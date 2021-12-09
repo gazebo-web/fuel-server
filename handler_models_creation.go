@@ -84,6 +84,42 @@ func doCreateModel(tx *gorm.DB, cb createFn, w http.ResponseWriter, r *http.Requ
 	return model, nil
 }
 
+// extracted actual model creation process
+func modelFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.Model, *ign.ErrMsg) {
+	owner := cm.Owner
+	if owner != "" {
+		// Ensure the passed in name exists before moving forward
+		_, em := users.OwnerByName(tx, owner, true)
+		if em != nil {
+			return nil, em
+		}
+	} else {
+		owner = *jwtUser.Username
+	}
+
+	// Get a new UUID and model folder
+	uuidStr, modelPath, err := users.NewUUID(owner, "models")
+	if err != nil {
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+	}
+
+	// move files from multipart form into new model's folder
+	_, em := populateTmpDir(r, true, modelPath)
+	if em != nil {
+		os.Remove(modelPath)
+		return nil, em
+	}
+
+	// Create the model via the Models Service
+	ms := &models.Service{}
+	model, em := ms.CreateModel(r.Context(), tx, cm, uuidStr, modelPath, jwtUser)
+	if em != nil {
+		os.Remove(modelPath)
+		return nil, em
+	}
+	return model, nil
+}
+
 // ModelCreate creates a new model based on input form. It return a model.Model or an error.
 // You can request this method with the following cURL request:
 //    curl -k -X POST -F name=my_model -F license=1
@@ -106,42 +142,42 @@ func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 	}
 	cm.Metadata = parseMetadata(r)
 
-	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.Model, *ign.ErrMsg) {
-		owner := cm.Owner
-		if owner != "" {
-			// Ensure the passed in name exists before moving forward
-			_, em := users.OwnerByName(tx, owner, true)
-			if em != nil {
-				return nil, em
-			}
-		} else {
-			owner = *jwtUser.Username
-		}
-
-		// Get a new UUID and model folder
-		uuidStr, modelPath, err := users.NewUUID(owner, "models")
-		if err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
-		}
-
-		// move files from multipart form into new model's folder
-		_, em := populateTmpDir(r, true, modelPath)
-		if em != nil {
-			os.Remove(modelPath)
-			return nil, em
-		}
-
-		// Create the model via the Models Service
-		ms := &models.Service{}
-		model, em := ms.CreateModel(r.Context(), tx, cm, uuidStr, modelPath, jwtUser)
-		if em != nil {
-			os.Remove(modelPath)
-			return nil, em
-		}
-		return model, nil
+	// Extract the creator of the new model from the request.
+	jwtUser, ok, errMsg := getUserFromJWT(tx, r)
+	if !ok {
+		return nil, &errMsg
 	}
 
-	return doCreateModel(tx, createFn, w, r)
+	// invoke the actual model callback function
+	model, em := modelFn(cm, tx, jwtUser, w, r)
+	if em != nil {
+		return nil, em
+	}
+
+	// commit the DB transaction
+	// Note: we commit the TX here on purpose, to be able to detect DB errors
+	// before writing "data" to ResponseWriter. Once you write data (not headers)
+	// into it the status code is set to 200 (OK).
+	if err := tx.Commit().Error; err != nil {
+		os.Remove(*model.Location)
+		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
+	}
+
+	infoStr := "A new model has been created:" +
+		"\n\t name: " + *model.Name +
+		"\n\t owner: " + *model.Owner +
+		"\n\t creator: " + *model.Creator +
+		"\n\t uuid: " + *model.UUID +
+		"\n\t location: " + *model.Location +
+		"\n\t UploadDate: " + model.UploadDate.UTC().Format(time.RFC3339) +
+		"\n\t Tags:"
+	for _, t := range model.Tags {
+		infoStr += *t.Name
+	}
+
+	ign.LoggerFromRequest(r).Info(infoStr)
+	// TODO: we should NOT be returning the DB model (including ID) to users.
+	return model, nil
 }
 
 // ModelClone clones a model. Cloning a model means internally creating a new repository
