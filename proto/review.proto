@@ -5,6 +5,12 @@ import "model.proto";
 
 // swagger:review
 message Review {
+  enum ReviewStatus {
+    Open = 0;
+    Merged = 1;
+    Closed = 2;
+  }
+
   optional string createdAt = 1;
   optional string updatedAt = 2;
 
@@ -13,7 +19,7 @@ message Review {
   optional string title = 5;
   optional string description = 6;
   optional string branch = 7;
-  optional string status = 8;
+  optional ReviewStatus status = 8;
 
   repeated string reviewers = 9;
   repeated string approvals = 10;

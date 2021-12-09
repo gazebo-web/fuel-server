@@ -278,30 +278,34 @@ func (s *Service) RegistrationList(pr *ign.PaginationRequest, tx *gorm.DB, comp 
 	return &regs, pagination, nil
 }
 
-// ParticipantsList returns a list of paginated participants (organizations).
+// ParticipantsList returns a list of paginated participants (organizations and users).
 func (s *Service) ParticipantsList(pr *ign.PaginationRequest, tx *gorm.DB, comp string,
 	reqUser *users.User) (*users.OrganizationResponses, *ign.PaginationResult, *ign.ErrMsg) {
 
-	// Create JOIN query (it will be joined with the Organizations query)
-	q := tx.Joins("JOIN competition_participants AS cp ON organizations.name = cp.owner")
-	q = q.Where("cp.competition = ? && cp.deleted_at IS NULL", comp)
-	q = q.Order("cp.created_at")
+	q := tx.Model(&users.OrganizationResponse{})
+	q = q.Table("competition_participants")
+	q = q.Select("owner as name, private, case when us.email is null then orgs.email else us.email end as email")
+	q = q.Joins("left join users as us on us.username = competition_participants.owner")
+	q = q.Joins("left join organizations as orgs on orgs.name = competition_participants.owner")
 
 	// If reqUser belongs to the main competition group, then can see all participants.
 	// Otherwise, only those participants the reqUser belongs to.
-	subtAdmin := false
 	if ok, _ := globals.Permissions.IsAuthorized(*reqUser.Username, comp, p.Read); !ok {
 		// filter resources based on privacy setting
 		q = res.QueryForResourceVisibility(tx, q, nil, reqUser)
-	} else {
-		// if requestor is also an Admin of the competition (or the global SystemAdmin)
-		// then she can also see Participant's private data.
-		if ok, _ := globals.Permissions.IsAuthorized(*reqUser.Username, comp, p.Write); ok {
-			subtAdmin = true
-		}
 	}
 
-	return (&users.OrganizationService{}).OrganizationList(pr, q, reqUser, subtAdmin)
+	var responses users.OrganizationResponses
+
+	pagination, err := ign.PaginateQuery(q, &responses, *pr)
+	if err != nil {
+		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+	}
+	if !pagination.PageFound {
+		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+	}
+
+	return (*users.OrganizationResponses)(&responses), pagination, nil
 }
 
 // filterLeaderboard filters the results of a leaderboard query based on an array of values.
