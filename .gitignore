@@ -9,6 +9,6 @@ vendor/
 .vgenable
 .idea/
 .vscode/
-fuelserver
+fuel-server
 *.orig
 *.swp
