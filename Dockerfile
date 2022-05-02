@@ -4,14 +4,14 @@
 FROM golang:1.14.2
 
 RUN apt-get update && apt-get install -y nano vim &&  \
-  git config --global user.name "ign-fuelserver"  &&  \
-  git config --global user.email "ign-fuelserver@test.org"
+  git config --global user.name "gz-fuelserver"  &&  \
+  git config --global user.email "gz-fuelserver@test.org"
 
-COPY . /root/ign-fuelserver
-WORKDIR /root/ign-fuelserver
+COPY . /root/gz-fuelserver
+WORKDIR /root/gz-fuelserver
 
 # Build app
 RUN go build
-CMD ["./fuelserver"]
+CMD ["./fuel-server"]
 
 EXPOSE 8000

@@ -77,7 +77,7 @@ def create_new_version():
         return False
 
     try:
-        if response['ResponseMetadata']['HTTPStatusCode'] is 200:
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             return True
         else:
             print(response)
