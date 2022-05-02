@@ -2870,7 +2870,7 @@
           "x-go-name": "Username"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
+      "x-go-package": "github.com/gazebo-web/fuel-server"
     },
     "AdminSearchResponse": {
       "type": "object",
@@ -2881,7 +2881,7 @@
           "x-go-name": "Message"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
+      "x-go-package": "github.com/gazebo-web/fuel-server"
     },
     "Categories": {
       "description": "Categories is an array of Category",
@@ -2889,7 +2889,7 @@
       "items": {
         "$ref": "#/definitions/Category"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/category"
     },
     "Category": {
       "description": "Category is a type of label used to group resources, such as models and\nworlds, together. A category consists of a name, ID, and parentID. The\nparentID field should refer to a parent category, and supports a hierarchy\nof categories.",
@@ -2928,7 +2928,7 @@
           "x-go-name": "Slug"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/category"
     },
     "CollectionAsset": {
       "description": "It was implemented with a \"type\" to support adding new types easily.",
@@ -2951,7 +2951,7 @@
           "x-go-name": "Type"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/collections"
     },
     "CreateModel": {
       "description": "CreateModel encapsulates data required to create a model",
@@ -3024,7 +3024,7 @@
           "x-go-name": "URLName"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/models"
     },
     "ElasticSearchConfig": {
       "type": "object",
@@ -3072,7 +3072,7 @@
           "x-go-name": "Username"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
+      "x-go-package": "github.com/gazebo-web/fuel-server"
     },
     "ElasticSearchConfigs": {
       "description": "ElasticSearchConfigs is a list of ElasticSearchConfig",
@@ -3080,7 +3080,7 @@
       "items": {
         "$ref": "#/definitions/ElasticSearchConfig"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
+      "x-go-package": "github.com/gazebo-web/fuel-server"
     },
     "ErrMsg": {
       "description": "ErrMsg is serialized as JSON, and returned if the request does not succeed\nTODO: consider making ErrMsg an 'error'",
@@ -3160,7 +3160,7 @@
           "x-go-name": "Version"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+      "x-go-package": "github.com/gazebo-web/fuel-server/proto"
     },
     "FileTree_FileNode": {
       "type": "object",
@@ -3181,7 +3181,7 @@
           "x-go-name": "Path"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+      "x-go-package": "github.com/gazebo-web/fuel-server/proto"
     },
     "License": {
       "description": "License is a license name and ID",
@@ -3216,7 +3216,7 @@
           "x-go-name": "ContentURL"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/license"
     },
     "Licenses": {
       "description": "Licenses is an slice of License",
@@ -3224,7 +3224,7 @@
       "items": {
         "$ref": "#/definitions/License"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/license"
     },
     "Model": {
       "description": "Model base model definition, including fields `ID`, `CreatedAt`, `UpdatedAt`, `DeletedAt`, which could be embedded in your models\ntype User struct {\ngorm.Model\n}",
@@ -3280,7 +3280,7 @@
           "x-go-name": "WorldVersion"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/worlds"
     },
     "ModelIncludes": {
       "description": "ModelIncludes is a slice of ModelInclude",
@@ -3288,7 +3288,7 @@
       "items": {
         "$ref": "#/definitions/ModelInclude"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/worlds"
     },
     "ModelMetadata": {
       "description": "Metadata is an array of Metadatum",
@@ -3296,7 +3296,7 @@
       "items": {
         "$ref": "#/definitions/dbModel"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/models"
     },
     "ModelMetadatum": {
       "type": "object",
@@ -3310,7 +3310,7 @@
           "x-go-name": "Value"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+      "x-go-package": "github.com/gazebo-web/fuel-server/proto"
     },
     "Models": {
       "type": "object",
@@ -3323,7 +3323,7 @@
           "x-go-name": "Models"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+      "x-go-package": "github.com/gazebo-web/fuel-server/proto"
     },
     "Organization": {
       "description": "Organization consists of a group of users/teams",
@@ -3361,7 +3361,7 @@
           "x-go-name": "Name"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/users"
     },
     "OrganizationResponse": {
       "type": "object",
@@ -3384,7 +3384,7 @@
           "x-go-name": "Private"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/users"
     },
     "OrganizationResponses": {
       "description": "OrganizationResponses is a slice of OrganizationResponse",
@@ -3392,7 +3392,7 @@
       "items": {
         "$ref": "#/definitions/OrganizationResponse"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/users"
     },
     "OwnerProfile": {
       "type": "object",
@@ -3409,7 +3409,7 @@
           "$ref": "#/definitions/UserResponse"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/users"
     },
     "Tag": {
       "description": "Tag is a string that can be used to mark other resources, such as models\nand worlds",
@@ -3436,7 +3436,7 @@
           "x-go-name": "Name"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/models"
     },
     "Tags": {
       "description": "Tags is an array of Tag",
@@ -3444,7 +3444,7 @@
       "items": {
         "$ref": "#/definitions/Tag"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/models"
     },
     "TeamResponse": {
       "type": "object",
@@ -3470,7 +3470,7 @@
           "x-go-name": "Visible"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/users"
     },
     "TeamResponses": {
       "description": "TeamResponses is a slice of TeamResponse",
@@ -3478,7 +3478,7 @@
       "items": {
         "$ref": "#/definitions/TeamResponse"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/users"
     },
     "User": {
       "description": "User information",
@@ -3562,7 +3562,7 @@
           "x-go-name": "WorldCount"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/users"
     },
     "UserResponse": {
       "type": "object",
@@ -3613,7 +3613,7 @@
           "x-go-name": "Username"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/users"
     },
     "UserResponses": {
       "description": "UserResponses is a slice of UserResponse",
@@ -3621,7 +3621,7 @@
       "items": {
         "$ref": "#/definitions/UserResponse"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/users"
     },
     "World": {
       "type": "object",
@@ -3720,7 +3720,7 @@
           "x-go-name": "Version"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+      "x-go-package": "github.com/gazebo-web/fuel-server/proto"
     },
     "Worlds": {
       "type": "object",
@@ -3733,7 +3733,7 @@
           "x-go-name": "Worlds"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+      "x-go-package": "github.com/gazebo-web/fuel-server/proto"
     },
     "createUserPayload": {
       "description": "TODO: use this struct to parse and validate input parameters hadler_users.go",
@@ -3765,7 +3765,7 @@
           "x-go-name": "Username"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver"
+      "x-go-package": "github.com/gazebo-web/fuel-server"
     },
     "dbCollection": {
       "description": "A collection has a name, owner and optional description.",
@@ -3815,7 +3815,7 @@
         }
       },
       "x-go-name": "Collection",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/collections"
     },
     "dbCollectionAssets": {
       "description": "CollectionAssets is a list of Collection assets",
@@ -3824,7 +3824,7 @@
         "$ref": "#/definitions/CollectionAsset"
       },
       "x-go-name": "CollectionAssets",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/collections"
     },
     "dbCollections": {
       "description": "Collections is an array of Collection",
@@ -3833,7 +3833,7 @@
         "$ref": "#/definitions/dbCollection"
       },
       "x-go-name": "Collections",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/collections"
     },
     "dbModel": {
       "description": "A model contains information about a single simulation object, such\nas a robot, table, or structure.",
@@ -3938,7 +3938,7 @@
         }
       },
       "x-go-name": "Model",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/models"
     },
     "dbWorld": {
       "type": "object",
@@ -4031,7 +4031,7 @@
         }
       },
       "x-go-name": "World",
-      "x-go-package": "gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
+      "x-go-package": "github.com/gazebo-web/fuel-server/bundles/worlds"
     }
   },
   "responses": {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/gosimple/slug"
 	"github.com/jinzhu/gorm"
-	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
+	dtos "github.com/gazebo-web/fuel-server/bundles/category/dtos"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 

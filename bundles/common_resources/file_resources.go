@@ -11,11 +11,11 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
-	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
-	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
+	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/fuel-server/globals"
+	"github.com/gazebo-web/fuel-server/permissions"
+	"github.com/gazebo-web/fuel-server/proto"
+	"github.com/gazebo-web/fuel-server/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 

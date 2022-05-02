@@ -14,10 +14,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	fuel "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+	"github.com/gazebo-web/fuel-server/bundles/models"
+	"github.com/gazebo-web/fuel-server/bundles/worlds"
+	"github.com/gazebo-web/fuel-server/globals"
+	fuel "github.com/gazebo-web/fuel-server/proto"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 )

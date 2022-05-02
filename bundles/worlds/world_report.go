@@ -1,6 +1,6 @@
 package worlds
 
-import "gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
+import "github.com/gazebo-web/fuel-server/bundles/generics"
 
 // WorldReport contains information about a world's user report.
 type WorldReport struct {

@@ -3,8 +3,8 @@ package users
 import (
 	"context"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	"github.com/gazebo-web/fuel-server/globals"
+	"github.com/gazebo-web/fuel-server/permissions"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"os"
 	"path"

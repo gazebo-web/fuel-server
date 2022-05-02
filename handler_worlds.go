@@ -11,10 +11,10 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/collections"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/worlds"
+	"github.com/gazebo-web/fuel-server/bundles/collections"
+	"github.com/gazebo-web/fuel-server/bundles/generics"
+	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/fuel-server/bundles/worlds"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 

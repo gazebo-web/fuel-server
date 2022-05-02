@@ -4,9 +4,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gosimple/slug"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-	dtos "gitlab.com/ignitionrobotics/web/fuelserver/bundles/category/dtos"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"github.com/gazebo-web/fuel-server/bundles/category"
+	dtos "github.com/gazebo-web/fuel-server/bundles/category/dtos"
+	"github.com/gazebo-web/fuel-server/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"net/http"
 )

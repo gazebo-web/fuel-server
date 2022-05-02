@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	"github.com/gazebo-web/fuel-server/bundles/common_resources"
+	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/fuel-server/globals"
+	"github.com/gazebo-web/fuel-server/permissions"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"net/http"
 )

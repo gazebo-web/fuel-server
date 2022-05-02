@@ -1,9 +1,9 @@
-// Package main Ignition Fuel Server REST API
+// Package main Fuel Server REST API
 //
-// This package provides a REST API to the Ignition Fuel server.
+// This package provides a REST API to the Fuel server.
 //
 // Schemes: https
-// Host: fuel.ignitionrobotics.org
+// Host: fuel.gazebosim.org
 // BasePath: /1.0
 // Version: 0.1.0
 // License: Apache 2.0
@@ -21,7 +21,7 @@ package main
 //     type: apiKey
 //     name: authorization
 //     in: header
-//     description: Ignition Fuel token
+//     description: Fuel token
 //   auth0:
 //     type: apiKey
 //     name: authorization
@@ -33,11 +33,11 @@ package main
 import (
 	"context"
 	"github.com/go-playground/form"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/subt"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	"gitlab.com/ignitionrobotics/web/fuelserver/migrate"
-	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
-	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
+	"github.com/gazebo-web/fuel-server/bundles/subt"
+	"github.com/gazebo-web/fuel-server/globals"
+	"github.com/gazebo-web/fuel-server/migrate"
+	"github.com/gazebo-web/fuel-server/permissions"
+	"github.com/gazebo-web/fuel-server/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"

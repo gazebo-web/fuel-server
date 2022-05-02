@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/go-playground/form"
-	"gitlab.com/ignitionrobotics/web/fuelserver/permissions"
-	"gitlab.com/ignitionrobotics/web/fuelserver/vcs"
+	"github.com/gazebo-web/fuel-server/permissions"
+	"github.com/gazebo-web/fuel-server/vcs"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gopkg.in/go-playground/validator.v9"
 )

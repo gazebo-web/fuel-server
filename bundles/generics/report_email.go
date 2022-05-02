@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"github.com/gazebo-web/fuel-server/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 

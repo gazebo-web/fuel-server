@@ -1,7 +1,7 @@
 package models
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/generics"
+	"github.com/gazebo-web/fuel-server/bundles/generics"
 )
 
 // ModelReport contains information about a model's user report

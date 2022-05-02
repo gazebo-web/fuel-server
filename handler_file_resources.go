@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"github.com/gazebo-web/fuel-server/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"net/http"
 	"path/filepath"

@@ -5,9 +5,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/reviews"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"github.com/gazebo-web/fuel-server/bundles/models"
+	"github.com/gazebo-web/fuel-server/bundles/reviews"
+	"github.com/gazebo-web/fuel-server/bundles/users"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 

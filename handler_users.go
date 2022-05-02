@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/fuel-server/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"net/http"
 )

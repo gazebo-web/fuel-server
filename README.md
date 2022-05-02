@@ -18,7 +18,7 @@
 1. Download the server code
 
     ```
-    git clone https://gitlab.com/ignitionrobotics/web/fuelserver
+    git clone https://github.com/gazebo-web/fuel-server
     ```
 
 1. Build and install fuelserver
@@ -144,7 +144,7 @@
 
         Build all ign-fuelserver packages and programs:
 
-            go install gitlab.com/ignitionrobotics/web/fuelserver/...
+            go install github.com/gazebo-web/fuel-server/...
 
         Note: the token generator should be installed to your go path's `bin` directory. By default if no GO environment variables are set, it should be `~/go`
 
@@ -357,7 +357,7 @@ In general we will try to follow Go naming conventions. In addition, these are o
 1. Run the linter
 
     ```
-    $GOPATH/bin/golint $(go list gitlab.com/ignitionrobotics/web/fuelserver/...) | grep -v .pb.go
+    $GOPATH/bin/golint $(go list github.com/gazebo-web/fuel-server/...) | grep -v .pb.go
     ```
 
 Note you can create this bash script:
@@ -365,7 +365,7 @@ Note you can create this bash script:
 ```
 #!/bin/bash
 go get -u golang.org/x/lint/golint
-$GOPATH/bin/golint $(go list gitlab.com/ignitionrobotics/web/fuelserver/...) | grep -v .pb.go
+$GOPATH/bin/golint $(go list github.com/gazebo-web/fuel-server/...) | grep -v .pb.go
 ```
 
 
@@ -386,7 +386,7 @@ run (from the proto folder):
 1. Run test suite with coverage enabled
 
     ```
-    go test -cover gitlab.com/ignitionrobotics/web/fuelserver
+    go test -cover github.com/gazebo-web/fuel-server
     ```
 
 1. Tip. Add this function to your ~/.bashrc
@@ -495,7 +495,7 @@ route information.
    to display the API documentation.
 
     ```
-    ./bin/swagger generate spec -o ./src/gitlab.com/ignitionrobotics/web/fuelserver/swagger.json -b ./src/gitlab.com/ignitionrobotics/web/fuelserver/ -m
+    ./bin/swagger generate spec -o ./src/github.com/gazebo-web/fuel-server/swagger.json -b ./src/github.com/gazebo-web/fuel-server/ -m
     ```
 
 1. Commit and push your changes to the repository.

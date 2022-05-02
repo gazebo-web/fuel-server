@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
+	"github.com/gazebo-web/fuel-server/bundles/license"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 	"net/http"

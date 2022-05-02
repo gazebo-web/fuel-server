@@ -1,7 +1,7 @@
 package generator
 
 // TO build this token-generator command (from go_ws/src):
-// $ go install gitlab.com/ignitionrobotics/web/fuelserver/cmd/token-generator
+// $ go install github.com/gazebo-web/fuel-server/cmd/token-generator
 
 // Import this file's dependencies
 import (

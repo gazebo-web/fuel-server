@@ -1,8 +1,8 @@
 package main
 
 import (
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-	"gitlab.com/ignitionrobotics/web/fuelserver/proto"
+	"github.com/gazebo-web/fuel-server/bundles/models"
+	"github.com/gazebo-web/fuel-server/proto"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"os"
 )

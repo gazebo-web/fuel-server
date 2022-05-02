@@ -3,7 +3,7 @@ package users
 import (
 	"context"
 	"github.com/satori/go.uuid"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"github.com/gazebo-web/fuel-server/globals"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 	"os"
 	"path"

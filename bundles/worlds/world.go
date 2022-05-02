@@ -2,10 +2,10 @@ package worlds
 
 import (
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/models"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
+	"github.com/gazebo-web/fuel-server/bundles/common_resources"
+	"github.com/gazebo-web/fuel-server/bundles/license"
+	"github.com/gazebo-web/fuel-server/bundles/models"
+	"github.com/gazebo-web/fuel-server/bundles/users"
 	"time"
 )
 

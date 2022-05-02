@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/jinzhu/gorm"
-	res "gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
-	p "gitlab.com/ignitionrobotics/web/fuelserver/permissions"
+	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
+	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/fuel-server/globals"
+	p "github.com/gazebo-web/fuel-server/permissions"
 	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 

@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/category"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/common_resources"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/license"
-	"gitlab.com/ignitionrobotics/web/fuelserver/bundles/users"
-	"gitlab.com/ignitionrobotics/web/fuelserver/globals"
+	"github.com/gazebo-web/fuel-server/bundles/category"
+	"github.com/gazebo-web/fuel-server/bundles/common_resources"
+	"github.com/gazebo-web/fuel-server/bundles/license"
+	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/fuel-server/globals"
 )
 
 // TODO: move DB related functions to a DB Accessor. Inject the db accessor to the models service.

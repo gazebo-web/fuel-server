@@ -1,4 +1,4 @@
-module gitlab.com/ignitionrobotics/web/fuelserver
+module github.com/gazebo-web/fuel-server
 
 go 1.14
 

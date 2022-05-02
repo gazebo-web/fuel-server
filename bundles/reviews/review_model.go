@@ -5,7 +5,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
-	fuel "gitlab.com/ignitionrobotics/web/fuelserver/proto"
+	fuel "github.com/gazebo-web/fuel-server/proto"
 )
 
 // ModelReview contains information to create a review for a model
