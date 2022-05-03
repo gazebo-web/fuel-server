@@ -4,8 +4,8 @@
   ],
   "swagger": "2.0",
   "info": {
-    "description": "This package provides a REST API to the Ignition Fuel server.",
-    "title": "Ignition Fuel Server REST API",
+    "description": "This package provides a REST API to the Fuel server.",
+    "title": "Fuel Server REST API",
     "contact": {
       "email": "info@openrobotics.org"
     },
@@ -14,7 +14,7 @@
     },
     "version": "0.1.0"
   },
-  "host": "fuel.ignitionrobotics.org",
+  "host": "fuel.gazebosim.org",
   "basePath": "/1.0",
   "paths": {
     "/admin/search": {
