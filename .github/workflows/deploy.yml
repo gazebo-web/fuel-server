@@ -51,6 +51,9 @@ jobs:
           --description "commit-sha-${{ github.sha }}"
 
       - name: Deploy new ElasticBeanstalk Application Version
+        # Add the `always` in case the application version from the previous
+        # step already exists, which would cause a failure.
+        if: always()
         run: aws elasticbeanstalk update-environment --environment-name gz-fuel-server-staging --version-label "ver-${{ github.sha }}"
 
 
