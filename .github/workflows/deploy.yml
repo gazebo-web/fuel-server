@@ -1,0 +1,99 @@
+name: deploy
+
+# Controls when the workflow will run
+on:
+  push:
+    branches: [ staging, production ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  staging-deploy:
+    if: github.ref == 'refs/heads/staging'
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    environment: aws
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+
+      - name: Build
+        run: go build -v ./...
+
+        # - name: Test
+        #   run: go test -v ./...
+
+      - name: Generate deployment package
+        run: zip -r deploy_package.zip . -x '*.git*'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: "us-east-1"
+
+      - name: Upload package to S3 bucket
+        run: aws s3 cp deploy_package.zip s3://fuel.gazebosim.org/
+
+      - name: Create new ElasticBeanstalk Application Version
+        run: |
+          aws elasticbeanstalk create-application-version \
+          --application-name gz-fuel-server \
+          --source-bundle S3Bucket="fuel.gazebosim.org",S3Key="deploy_package.zip" \
+          --version-label "ver-${{ github.sha }}" \
+          --description "commit-sha-${{ github.sha }}"
+
+      - name: Deploy new ElasticBeanstalk Application Version
+        run: aws elasticbeanstalk update-environment --environment-name gz-fuel-server-staging --version-label "ver-${{ github.sha }}"
+
+
+  production-deploy:
+    if: github.ref == 'refs/heads/production'
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+
+      - name: Build
+        run: go build -v ./...
+
+        # - name: Test
+        #   run: go test -v ./...
+
+      - name: Generate deployment package
+        run: zip -r deploy_package.zip . -x '*.git*'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: "us-east-1"
+
+      - name: Upload package to S3 bucket
+        run: aws s3 cp deploy_package.zip s3://fuel.gazebosim.org/
+
+      - name: Create new ElasticBeanstalk Application Version
+        run: |
+          aws elasticbeanstalk create-application-version \
+          --application-name gz-fuel-server \
+          --source-bundle S3Bucket="fuel.gazebosim.org",S3Key="deploy_package.zip" \
+          --version-label "ver-${{ github.sha }}" \
+          --description "commit-sha-${{ github.sha }}"
+
+      - name: Deploy new ElasticBeanstalk Application Version
+        run: aws elasticbeanstalk update-environment --environment-name gz-fuel-server-production --version-label "ver-${{ github.sha }}"
