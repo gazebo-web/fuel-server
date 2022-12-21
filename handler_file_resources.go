@@ -7,10 +7,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
-	"github.com/gazebo-web/fuel-server/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -19,13 +19,13 @@ import (
 
 type getFileService interface {
 	GetFile(ctx context.Context, tx *gorm.DB, owner, name, path, version string,
-		user *users.User) (*[]byte, int, *ign.ErrMsg)
+		user *users.User) (*[]byte, int, *gz.ErrMsg)
 }
 
 // IndividualFileDownload is used to download a single file from a service
 // that implements the GetFileService interface.
 func IndividualFileDownload(s getFileService, owner, name string, jwtUser *users.User,
-	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Extract the path from the request.
 	path := mux.Vars(r)["path"]
@@ -34,7 +34,7 @@ func IndividualFileDownload(s getFileService, owner, name string, jwtUser *users
 	version, valid := mux.Vars(r)["version"]
 	// If version does not exist
 	if !valid {
-		return nil, ign.NewErrorMessage(ign.ErrorVersionNotFound)
+		return nil, gz.NewErrorMessage(gz.ErrorVersionNotFound)
 	}
 
 	// Remove request header to always serve fresh

@@ -3,10 +3,10 @@ package globals
 import (
 	"context"
 	"github.com/elastic/go-elasticsearch/v8"
-	"github.com/go-playground/form"
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/vcs"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/go-playground/form"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -16,7 +16,7 @@ import (
 /// Define global variables here
 
 // Server encapsulates database, router, and auth0
-var Server *ign.Server
+var Server *gz.Server
 
 // APIVersion is route api version.
 // See also routes and routers

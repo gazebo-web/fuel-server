@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
 	"github.com/stretchr/testify/assert"
-	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 )
 
 func TestModelReviewCreateNewModel(t *testing.T) {
@@ -34,7 +34,7 @@ func TestModelReviewCreateNewModel(t *testing.T) {
 		"branch": "test branch",
 	}
 
-	okModelFiles := []igntest.FileDesc{
+	okModelFiles := []gztest.FileDesc{
 		{Path: "model.config", Contents: constModelConfigFileContents},
 		{Path: "model.sdf", Contents: constModelSDFFileContents},
 	}
@@ -56,12 +56,12 @@ func TestModelReviewCreateNewModel(t *testing.T) {
 		1, "test", ""}
 	runSubtestWithModelSearchTestData(t, modelSearchTest)
 
-	reqArgs := igntest.RequestArgs{
+	reqArgs := gztest.RequestArgs{
 		Method:      "GET",
 		Route:       uri,
 		SignedToken: &jwt,
 	}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
 
 	body := *resp.BodyAsBytes
 	respJSON := make([]map[string]interface{}, 0, 0)
@@ -85,7 +85,7 @@ func TestModelReviewCreateExistingModel(t *testing.T) {
 		fmt.Sprintf("/1.0/%s/models/%s/reviews", user, "model1"),
 		&jwt,
 		map[string]string{"title": "test title", "branch": "test branch", "modelId": "0"},
-		[]igntest.FileDesc{},
+		[]gztest.FileDesc{},
 		t,
 	)
 }

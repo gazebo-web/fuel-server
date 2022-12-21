@@ -1,8 +1,8 @@
 package models
 
 import (
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"strings"
 )
 
@@ -63,7 +63,7 @@ func TagsToStrSlice(tags Tags) []string {
 // StrToTags -- convenient function to convert from user provided tags, as a
 // comma-separated string to a slice of Tag objects, backed at DB.
 func StrToTags(tx *gorm.DB, tagsStr string) (*Tags, error) {
-	userTags := ign.StrToSlice(tagsStr)
+	userTags := gz.StrToSlice(tagsStr)
 	if err := CreateTags(tx, userTags); err != nil {
 		return nil, err
 	}

@@ -32,13 +32,14 @@ package main
 // Import this file's dependencies
 import (
 	"context"
-	"github.com/go-playground/form"
 	"github.com/gazebo-web/fuel-server/bundles/subt"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/migrate"
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/vcs"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/go-playground/form"
+
 	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
 	"log"
@@ -51,35 +52,35 @@ import (
 // Impl note: we move this as a constant as it is used by tests.
 const sysAdminForTest = "rootfortests"
 
-/////////////////////////////////////////////////
-/// Initialize this package
-///
-/// Environment variables:
-///    IGN_DB_USERNAME  : Mysql username
-///    IGN_DB_PASSWORD  : Mysql password
-///    IGN_DB_ADDRESS   : Mysql address (host:port)
-///    IGN_DB_NAME      : Mysql database name (such as "fuel")
-///    IGN_FUEL_RESOURCE_DIR : Directory with all resources (models, worlds)
-///    AUTH0_RSA256_PUBLIC_KEY   : Auth0 public RSA 256 key
+// ///////////////////////////////////////////////
+// / Initialize this package
+// /
+// / Environment variables:
+// /    IGN_DB_USERNAME  : Mysql username
+// /    IGN_DB_PASSWORD  : Mysql password
+// /    IGN_DB_ADDRESS   : Mysql address (host:port)
+// /    IGN_DB_NAME      : Mysql database name (such as "fuel")
+// /    IGN_FUEL_RESOURCE_DIR : Directory with all resources (models, worlds)
+// /    AUTH0_RSA256_PUBLIC_KEY   : Auth0 public RSA 256 key
 func init() {
 	var err error
 	var popPath string
 	var isGoTest bool
 	var auth0RsaPublickey string
 
-	verbosity := ign.VerbosityWarning
-	if verbStr, verr := ign.ReadEnvVar("IGN_FUEL_VERBOSITY"); verr == nil {
+	verbosity := gz.VerbosityWarning
+	if verbStr, verr := gz.ReadEnvVar("IGN_FUEL_VERBOSITY"); verr == nil {
 		verbosity, _ = strconv.Atoi(verbStr)
 	}
 
-	logStd := ign.ReadStdLogEnvVar()
-	logger := ign.NewLogger("init", logStd, verbosity)
-	logCtx := ign.NewContextWithLogger(context.Background(), logger)
+	logStd := gz.ReadStdLogEnvVar()
+	logger := gz.NewLogger("init", logStd, verbosity)
+	logCtx := gz.NewContextWithLogger(context.Background(), logger)
 
 	isGoTest = strings.Contains(strings.ToLower(os.Args[0]), "test")
 
 	// Get the root resource directory.
-	if globals.ResourceDir, err = ign.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil {
+	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil {
 		log.Fatal("Missing IGN_FUEL_RESOURCE_DIR env variable. Resources will not be available. Quitting.")
 	}
 
@@ -92,15 +93,15 @@ func init() {
 	}
 
 	// Get the auth0 credentials.
-	if auth0RsaPublickey, err = ign.ReadEnvVar("AUTH0_RSA256_PUBLIC_KEY"); err != nil {
+	if auth0RsaPublickey, err = gz.ReadEnvVar("AUTH0_RSA256_PUBLIC_KEY"); err != nil {
 		logger.Info("Missing AUTH0_RSA256_PUBLIC_KEY env variable. Authentication will not work.")
 	}
 
-	globals.Server, err = ign.Init(auth0RsaPublickey, "", nil)
+	globals.Server, err = gz.Init(auth0RsaPublickey, "", nil)
 	// Create the main Router and set it to the server.
 	// Note: here it is the place to define multiple APIs
 	s := globals.Server
-	mainRouter := ign.NewRouter()
+	mainRouter := gz.NewRouter()
 	apiPrefix := "/" + globals.APIVersion
 	r := mainRouter.PathPrefix(apiPrefix).Subrouter()
 	s.ConfigureRouterWithRoutes(apiPrefix, r, routes)
@@ -131,8 +132,8 @@ func init() {
 
 	globals.Server.SetRouter(mainRouter)
 
-	globals.FlagsEmailRecipient, _ = ign.ReadEnvVar("IGN_FLAGS_EMAIL_TO")
-	globals.FlagsEmailSender, _ = ign.ReadEnvVar("IGN_FLAGS_EMAIL_FROM")
+	globals.FlagsEmailRecipient, _ = gz.ReadEnvVar("IGN_FLAGS_EMAIL_TO")
+	globals.FlagsEmailSender, _ = gz.ReadEnvVar("IGN_FLAGS_EMAIL_FROM")
 	globals.Validate = initValidator()
 	globals.FormDecoder = form.NewDecoder()
 
@@ -152,7 +153,7 @@ func init() {
 	}
 
 	globals.MaxCategoriesPerModel = 2
-	if value, err := ign.ReadEnvVar("IGN_MAX_MODEL_CATEGORIES"); err == nil {
+	if value, err := gz.ReadEnvVar("IGN_MAX_MODEL_CATEGORIES"); err == nil {
 		if convertedValue, err := strconv.Atoi(value); err == nil {
 			globals.MaxCategoriesPerModel = convertedValue
 		}
@@ -164,7 +165,7 @@ func init() {
 	if isGoTest {
 		sysAdmin = sysAdminForTest
 	} else {
-		sysAdmin, _ = ign.ReadEnvVar("IGN_FUEL_SYSTEM_ADMIN")
+		sysAdmin, _ = gz.ReadEnvVar("IGN_FUEL_SYSTEM_ADMIN")
 	}
 	if sysAdmin == "" {
 		logger.Info("No IGN_FUEL_SYSTEM_ADMIN enivironment variable set. " +
@@ -191,7 +192,7 @@ func init() {
 		DBAddDefaultData(logCtx, globals.Server.Db)
 
 		// Note: we populate DB with info only if not running `go test`
-		if popPath, _ = ign.ReadEnvVar("IGN_POPULATE_PATH"); !isGoTest && popPath != "" {
+		if popPath, _ = gz.ReadEnvVar("IGN_POPULATE_PATH"); !isGoTest && popPath != "" {
 			logger.Info("Using IGN_POPULATE_PATH with value: ", popPath)
 			DBPopulate(logCtx, popPath, globals.Server.Db, true)
 		}
@@ -205,7 +206,7 @@ func init() {
 		useAwsInTests := false
 		awsBucketEnvVar := "AWS_BUCKET_PREFIX"
 		if isGoTest {
-			useStr, err := ign.ReadEnvVar("AWS_BUCKET_USE_IN_TESTS")
+			useStr, err := gz.ReadEnvVar("AWS_BUCKET_USE_IN_TESTS")
 			if err == nil {
 				flag, err2 := strconv.ParseBool(useStr)
 				if err2 == nil {
@@ -217,7 +218,7 @@ func init() {
 			}
 		}
 		if !isGoTest || useAwsInTests {
-			p, err := ign.ReadEnvVar(awsBucketEnvVar)
+			p, err := gz.ReadEnvVar(awsBucketEnvVar)
 			if err != nil {
 				panic("error reading " + awsBucketEnvVar)
 			}
@@ -250,7 +251,7 @@ func initValidator() *validator.Validate {
 	return validate
 }
 
-/////////////////////////////////////////////////
+// ///////////////////////////////////////////////
 // Run the router and server
 func main() {
 	globals.Server.Run()

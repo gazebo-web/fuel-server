@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	dtos "github.com/gazebo-web/fuel-server/bundles/category/dtos"
-	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"os"
 	"testing"
@@ -31,7 +31,7 @@ func TestCategoriesPost(t *testing.T) {
 	buffer := bytes.NewBuffer(body)
 
 	t.Run("User should not create categories", func(t *testing.T) {
-		_, ok := igntest.AssertRouteMultipleArgs("POST", uri, buffer, http.StatusUnauthorized, nil, "text/plain; charset=utf-8", t)
+		_, ok := gztest.AssertRouteMultipleArgs("POST", uri, buffer, http.StatusUnauthorized, nil, "text/plain; charset=utf-8", t)
 		assert.True(t, ok)
 	})
 }
@@ -60,7 +60,7 @@ func TestCategoriesPostAdmin(t *testing.T) {
 
 	result := category.Service{}
 	t.Run("Admin should create categories", func(t *testing.T) {
-		bslice, ok := igntest.AssertRouteMultipleArgs("POST", uri, buffer, http.StatusOK, &jwt, "application/json", t)
+		bslice, ok := gztest.AssertRouteMultipleArgs("POST", uri, buffer, http.StatusOK, &jwt, "application/json", t)
 		assert.True(t, ok)
 		assert.NoError(t, json.Unmarshal(*bslice, &result))
 	})
@@ -89,7 +89,7 @@ func TestCategoriesErrorPostAdminDuplicated(t *testing.T) {
 	buffer := bytes.NewBuffer(body)
 
 	t.Run("Admin should not create categories that already exist", func(t *testing.T) {
-		_, ok := igntest.AssertRouteMultipleArgs("POST", uri, buffer, http.StatusConflict, &jwt, "text/plain; charset=utf-8", t)
+		_, ok := gztest.AssertRouteMultipleArgs("POST", uri, buffer, http.StatusConflict, &jwt, "text/plain; charset=utf-8", t)
 		assert.True(t, ok)
 	})
 }
@@ -99,7 +99,7 @@ func TestCategoriesGetAll(t *testing.T) {
 	uri := "/1.0/categories"
 	var cats []category.Category
 	t.Run("Anyone should get the list of categories", func(t *testing.T) {
-		result, ok := igntest.AssertRoute("GET", uri, http.StatusOK, t)
+		result, ok := gztest.AssertRoute("GET", uri, http.StatusOK, t)
 		assert.True(t, ok)
 		assert.NoError(t, json.Unmarshal(*result, &cats))
 		assert.True(t, len(cats) > 0)
@@ -125,7 +125,7 @@ func TestCategoriesPatch(t *testing.T) {
 	buffer := bytes.NewBuffer(body)
 
 	t.Run("User should not update a category", func(t *testing.T) {
-		_, ok := igntest.AssertRouteMultipleArgs("PATCH", uri, buffer, http.StatusUnauthorized, nil, "text/plain; charset=utf-8", t)
+		_, ok := gztest.AssertRouteMultipleArgs("PATCH", uri, buffer, http.StatusUnauthorized, nil, "text/plain; charset=utf-8", t)
 		assert.True(t, ok)
 	})
 }
@@ -154,7 +154,7 @@ func TestCategoriesPatchAdmin(t *testing.T) {
 
 	result := category.Category{}
 	t.Run("Admin should update a category", func(t *testing.T) {
-		bslice, ok := igntest.AssertRouteMultipleArgs("PATCH", uri, buffer, http.StatusOK, &jwt, "application/json", t)
+		bslice, ok := gztest.AssertRouteMultipleArgs("PATCH", uri, buffer, http.StatusOK, &jwt, "application/json", t)
 		assert.True(t, ok)
 		assert.NoError(t, json.Unmarshal(*bslice, &result))
 	})
@@ -165,7 +165,7 @@ func TestCategoriesDelete(t *testing.T) {
 	uri := "/1.0/categories/electronics"
 
 	t.Run("User should not remove a category", func(t *testing.T) {
-		_, ok := igntest.AssertRouteMultipleArgs("DELETE", uri, nil, http.StatusUnauthorized, nil, "text/plain; charset=utf-8", t)
+		_, ok := gztest.AssertRouteMultipleArgs("DELETE", uri, nil, http.StatusUnauthorized, nil, "text/plain; charset=utf-8", t)
 		assert.True(t, ok)
 	})
 }
@@ -183,7 +183,7 @@ func TestCategoriesDeleteAdmin(t *testing.T) {
 		count, _, ok := getCategoriesWithCount(t)
 		assert.True(t, ok)
 
-		bslice, ok := igntest.AssertRouteMultipleArgs("DELETE", uri, nil, http.StatusOK, &jwt, "application/json", t)
+		bslice, ok := gztest.AssertRouteMultipleArgs("DELETE", uri, nil, http.StatusOK, &jwt, "application/json", t)
 		assert.NoError(t, json.Unmarshal(*bslice, &result))
 		assert.True(t, ok)
 
@@ -204,7 +204,7 @@ func TestCategoriesDeleteAdminRemoveParentId(t *testing.T) {
 
 	t.Run("Admin should remove a category and the child categories parent ID should be removed", func(t *testing.T) {
 
-		bslice, ok := igntest.AssertRouteMultipleArgs("DELETE", uri, nil, http.StatusOK, &jwt, "application/json", t)
+		bslice, ok := gztest.AssertRouteMultipleArgs("DELETE", uri, nil, http.StatusOK, &jwt, "application/json", t)
 		assert.NoError(t, json.Unmarshal(*bslice, &result))
 		assert.True(t, ok)
 
@@ -224,7 +224,7 @@ func TestCategoriesDeleteAdminRemoveParentId(t *testing.T) {
 func getCategoriesWithCount(t *testing.T) (count int, bslice *[]byte, ok bool) {
 	uri := "/1.0/categories"
 	categories := category.Categories{}
-	bslice, ok = igntest.AssertRoute("GET", uri, http.StatusOK, t)
+	bslice, ok = gztest.AssertRoute("GET", uri, http.StatusOK, t)
 	ok = assert.NoError(t, json.Unmarshal(*bslice, &categories))
 	count = len(categories)
 	return

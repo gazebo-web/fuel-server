@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/fuel-server/globals"
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/go-playground/form"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
-	"github.com/gazebo-web/fuel-server/bundles/users"
-	"github.com/gazebo-web/fuel-server/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gopkg.in/go-playground/validator.v9"
 	"io"
 	"mime/multipart"
@@ -18,9 +18,9 @@ import (
 	"strings"
 )
 
-// NoResult is a middleware that adapts a ign.HandlerWithResult into a ign.Handler.
-func NoResult(handler ign.HandlerWithResult) ign.Handler {
-	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) *ign.ErrMsg {
+// NoResult is a middleware that adapts a gz.HandlerWithResult into a gz.Handler.
+func NoResult(handler gz.HandlerWithResult) gz.Handler {
+	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) *gz.ErrMsg {
 		_, em := handler(tx, w, r)
 		return em
 	}
@@ -35,9 +35,9 @@ func NoResult(handler ign.HandlerWithResult) ign.Handler {
 // search: the search query in the router (eg. q=)
 // user: the user requesting the operation (based on JWT).
 // Returns: The searchFnHandler is expected to return paginated results.
-type searchFnHandler func(p *ign.PaginationRequest, owner *string, order,
+type searchFnHandler func(p *gz.PaginationRequest, owner *string, order,
 	search string, user *users.User, tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg)
+	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg)
 
 // SearchHandler is a middleware handler that wraps a searchFnHandler and
 // invokes it with the following extra arguments:
@@ -47,10 +47,10 @@ type searchFnHandler func(p *ign.PaginationRequest, owner *string, order,
 // - user: the user requesting the operation. Got from the JWT.
 // It returns the list of resources from an owner, and also writes the pagination
 // headers into the HTTP response.
-func SearchHandler(handler searchFnHandler) ign.HandlerWithResult {
-	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+func SearchHandler(handler searchFnHandler) gz.HandlerWithResult {
+	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 		// Prepare pagination
-		pr, errMsg := ign.NewPaginationRequest(r)
+		pr, errMsg := gz.NewPaginationRequest(r)
 		if errMsg != nil {
 			return nil, errMsg
 		}
@@ -58,8 +58,8 @@ func SearchHandler(handler searchFnHandler) ign.HandlerWithResult {
 		// Get JWT user
 		// it is ok for user to be nil
 		user, ok, em2 := getUserFromJWT(tx, r)
-		if !ok && (em2.ErrCode != ign.ErrorAuthJWTInvalid &&
-			errMsg.ErrCode != ign.ErrorAuthNoUser) {
+		if !ok && (em2.ErrCode != gz.ErrorAuthJWTInvalid &&
+			errMsg.ErrCode != gz.ErrorAuthNoUser) {
 			return nil, &em2
 		}
 
@@ -72,8 +72,8 @@ func SearchHandler(handler searchFnHandler) ign.HandlerWithResult {
 		}
 
 		var list interface{}
-		var pagination *ign.PaginationResult
-		var eMsg *ign.ErrMsg
+		var pagination *gz.PaginationResult
+		var eMsg *gz.ErrMsg
 
 		// Assume that we will need to use the backup search.
 		backupSearch := true
@@ -104,15 +104,15 @@ func SearchHandler(handler searchFnHandler) ign.HandlerWithResult {
 		}
 
 		if pagination != nil {
-			ign.WritePaginationHeaders(*pagination, w, r)
+			gz.WritePaginationHeaders(*pagination, w, r)
 		}
 
 		return list, nil
 	}
 }
 
-type pagHandler func(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg)
+type pagHandler func(p *gz.PaginationRequest, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg)
 
 // PaginationHandlerWithUser is a middleware handler that wraps a pageHandler
 // function and invokes it with the following extra arguments:
@@ -122,19 +122,19 @@ type pagHandler func(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
 // represent a valid user. Otherwise will pass 'nil' to the inner handler.
 // It returns the list of resources from an owner, and also writes the pagination
 // headers into the HTTP response.
-func PaginationHandlerWithUser(handler pagHandler, failIfNoUser bool) ign.HandlerWithResult {
-	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+func PaginationHandlerWithUser(handler pagHandler, failIfNoUser bool) gz.HandlerWithResult {
+	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 		// Prepare pagination
-		pr, em := ign.NewPaginationRequest(r)
+		pr, em := gz.NewPaginationRequest(r)
 		if em != nil {
 			return nil, em
 		}
 
 		// Get JWT user
 		user, ok, errMsg := getUserFromJWT(tx, r)
-		if !ok && (failIfNoUser || (errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
-			errMsg.ErrCode != ign.ErrorAuthNoUser)) {
+		if !ok && (failIfNoUser || (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
+			errMsg.ErrCode != gz.ErrorAuthNoUser)) {
 			return nil, &errMsg
 		}
 
@@ -143,7 +143,7 @@ func PaginationHandlerWithUser(handler pagHandler, failIfNoUser bool) ign.Handle
 			return nil, em
 		}
 
-		ign.WritePaginationHeaders(*pagination, w, r)
+		gz.WritePaginationHeaders(*pagination, w, r)
 		return list, nil
 	}
 }
@@ -154,12 +154,12 @@ func PaginationHandlerWithUser(handler pagHandler, failIfNoUser bool) ign.Handle
 // - user: the user requesting the operation. Got from the JWT.
 // It returns the list of resources from an owner, and also writes the pagination
 // headers into the HTTP response.
-func PaginationHandler(handler pagHandler) ign.HandlerWithResult {
+func PaginationHandler(handler pagHandler) gz.HandlerWithResult {
 	return PaginationHandlerWithUser(handler, false)
 }
 
 type nameAndOwner func(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg)
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg)
 
 // NameOwnerHandler is a middleware handler that wraps a nameAndOwner function and
 // invokes it with the following extra arguments:
@@ -170,14 +170,14 @@ type nameAndOwner func(owner, name string, user *users.User, tx *gorm.DB,
 // is invalid or does not exist in DB. Otherwise, if false, the user will be nil.
 // It returns the result from invoking the inner handler.
 func NameOwnerHandler(nameArg string, failIfNoUser bool,
-	handler nameAndOwner) ign.HandlerWithResult {
+	handler nameAndOwner) gz.HandlerWithResult {
 
-	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 		// Extract the user associated with the JWT, if any.
 		user, ok, errMsg := getUserFromJWT(tx, r)
-		if !ok && ((errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
-			errMsg.ErrCode != ign.ErrorAuthNoUser) || failIfNoUser) {
+		if !ok && ((errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
+			errMsg.ErrCode != gz.ErrorAuthNoUser) || failIfNoUser) {
 			return nil, &errMsg
 		}
 
@@ -197,7 +197,7 @@ func NameOwnerHandler(nameArg string, failIfNoUser bool,
 // readOwnerNameParams is a helper function that reads the owner's name,
 // and resource name from the url.
 func readOwnerNameParams(nameArg string, tx *gorm.DB,
-	r *http.Request) (name, owner string, em *ign.ErrMsg) {
+	r *http.Request) (name, owner string, em *gz.ErrMsg) {
 
 	// Get the parameters
 	params := mux.Vars(r)
@@ -207,9 +207,9 @@ func readOwnerNameParams(nameArg string, tx *gorm.DB,
 	uniqueOwner, valid, em = readOwner(tx, r, "username", true)
 	// If the owner does not exist
 	if !valid {
-		if em.ErrCode == ign.ErrorUserNotInRequest {
+		if em.ErrCode == gz.ErrorUserNotInRequest {
 			// override the error if user not present in request
-			em = ign.NewErrorMessage(ign.ErrorOwnerNotInRequest)
+			em = gz.NewErrorMessage(gz.ErrorOwnerNotInRequest)
 		}
 		return
 	}
@@ -218,7 +218,7 @@ func readOwnerNameParams(nameArg string, tx *gorm.DB,
 	name, valid = params[nameArg]
 	// If the name does not exist
 	if !valid {
-		em = ign.NewErrorMessage(ign.ErrorNameWrongFormat)
+		em = gz.NewErrorMessage(gz.ErrorNameWrongFormat)
 		return
 	}
 
@@ -231,10 +231,10 @@ func readOwnerNameParams(nameArg string, tx *gorm.DB,
 // parameters used to get a list of resources.
 // The order parameter can be asc or desc.
 // The q parameter is the search query.
-func readListParams(r *http.Request, tx *gorm.DB) (owner *string, order, search string, valid bool, em *ign.ErrMsg) {
+func readListParams(r *http.Request, tx *gorm.DB) (owner *string, order, search string, valid bool, em *gz.ErrMsg) {
 	// Get the requested owner, if any
 	owner, valid, em = readOwner(tx, r, "username", true)
-	if !valid && em.ErrCode != ign.ErrorUserNotInRequest {
+	if !valid && em.ErrCode != gz.ErrorUserNotInRequest {
 		// Return the error if it's different than ErrorUserNotInRequest
 		return
 	}
@@ -253,7 +253,7 @@ func readListParams(r *http.Request, tx *gorm.DB) (owner *string, order, search 
 }
 
 type nameFn func(name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg)
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg)
 
 // NameHandler is a middleware handler that wraps a nameFn function and
 // invokes it with the following extra arguments:
@@ -263,13 +263,13 @@ type nameFn func(name string, user *users.User, tx *gorm.DB,
 // is invalid or does not exist in DB. Otherwise, if false, the user will be nil.
 // It returns the result from invoking the inner handler.
 func NameHandler(nameArg string, failIfNoUser bool,
-	handler nameFn) ign.HandlerWithResult {
+	handler nameFn) gz.HandlerWithResult {
 
-	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 		// Extract the user associated with the JWT, if any.
 		user, ok, errMsg := getUserFromJWT(tx, r)
-		if !ok && ((errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
-			errMsg.ErrCode != ign.ErrorAuthNoUser) || failIfNoUser) {
+		if !ok && ((errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
+			errMsg.ErrCode != gz.ErrorAuthNoUser) || failIfNoUser) {
 			return nil, &errMsg
 		}
 
@@ -278,7 +278,7 @@ func NameHandler(nameArg string, failIfNoUser bool,
 		name, valid := params[nameArg]
 		// If the name does not exist
 		if !valid {
-			return nil, ign.NewErrorMessage(ign.ErrorNameWrongFormat)
+			return nil, gz.NewErrorMessage(gz.ErrorNameWrongFormat)
 		}
 
 		result, em := handler(name, user, tx, w, r)
@@ -292,7 +292,7 @@ func NameHandler(nameArg string, failIfNoUser bool,
 // readUser returns the owner name based on the URI requested.
 // param[in] The params key to look for.
 // deleted[in] Whether to include deleted users in the search query.
-func readOwner(tx *gorm.DB, r *http.Request, param string, deleted bool) (*string, bool, *ign.ErrMsg) {
+func readOwner(tx *gorm.DB, r *http.Request, param string, deleted bool) (*string, bool, *gz.ErrMsg) {
 
 	// Extract the owner from the request.
 	params := mux.Vars(r)
@@ -300,7 +300,7 @@ func readOwner(tx *gorm.DB, r *http.Request, param string, deleted bool) (*strin
 	name, present := params[param]
 	// If the "owner" key does not exist
 	if !present {
-		return nil, false, ign.NewErrorMessage(ign.ErrorUserNotInRequest)
+		return nil, false, gz.NewErrorMessage(gz.ErrorUserNotInRequest)
 	}
 
 	owner, em := users.OwnerByName(tx, name, deleted)
@@ -308,7 +308,7 @@ func readOwner(tx *gorm.DB, r *http.Request, param string, deleted bool) (*strin
 		return nil, false, em
 	}
 
-	errMsg := ign.ErrorMessageOK()
+	errMsg := gz.ErrorMessageOK()
 	return owner.Name, true, &errMsg
 }
 
@@ -316,16 +316,16 @@ func readOwner(tx *gorm.DB, r *http.Request, param string, deleted bool) (*strin
 // into the given struct. It uses the isForm bool to know if the values comes
 // as "request.Form" values or as "request.Body".
 // It also calls validator to validate the struct fields.
-func ParseStruct(s interface{}, r *http.Request, isForm bool) *ign.ErrMsg {
+func ParseStruct(s interface{}, r *http.Request, isForm bool) *gz.ErrMsg {
 	// TODO: stop using globals. Move to own packages.
 	if isForm {
 		if errs := globals.FormDecoder.Decode(s, r.Form); errs != nil {
-			return ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, errs,
+			return gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, errs,
 				getDecodeErrorsExtraInfo(errs))
 		}
 	} else {
 		if err := json.NewDecoder(r.Body).Decode(s); err != nil {
-			return ign.NewErrorMessageWithBase(ign.ErrorUnmarshalJSON, err)
+			return gz.NewErrorMessageWithBase(gz.ErrorUnmarshalJSON, err)
 		}
 	}
 	// Validate struct values
@@ -336,9 +336,9 @@ func ParseStruct(s interface{}, r *http.Request, isForm bool) *ign.ErrMsg {
 }
 
 // ValidateStruct Validate struct values using golang validator.v9
-func ValidateStruct(s interface{}) *ign.ErrMsg {
+func ValidateStruct(s interface{}) *gz.ErrMsg {
 	if errs := globals.Validate.Struct(s); errs != nil {
-		return ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, errs,
+		return gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, errs,
 			getValidationErrorsExtraInfo(errs))
 	}
 	return nil
@@ -367,35 +367,35 @@ func getValidationErrorsExtraInfo(err error) []string {
 // getUserFromJWT returns the User associated to the http request's JWT token.
 // This function can return ErrorAuthJWTInvalid if the token cannot be
 // read, or ErrorAuthNoUser no user with such identity exists in the DB.
-func getUserFromJWT(tx *gorm.DB, r *http.Request) (*users.User, bool, ign.ErrMsg) {
+func getUserFromJWT(tx *gorm.DB, r *http.Request) (*users.User, bool, gz.ErrMsg) {
 	var user *users.User
 
 	// Check if a Private-Token is used, which will supercede a JWT token.
 	if token := r.Header.Get("Private-Token"); len(token) > 0 {
-		var accessToken *ign.AccessToken
-		var err *ign.ErrMsg
-		if accessToken, err = ign.ValidateAccessToken(token, tx); err != nil {
-			return nil, false, ign.ErrorMessage(ign.ErrorUnauthorized)
+		var accessToken *gz.AccessToken
+		var err *gz.ErrMsg
+		if accessToken, err = gz.ValidateAccessToken(token, tx); err != nil {
+			return nil, false, gz.ErrorMessage(gz.ErrorUnauthorized)
 		}
 
 		user = new(users.User)
 		if err := tx.Where("id = ?", accessToken.UserID).First(user).Error; err != nil {
-			return nil, false, *ign.NewErrorMessage(ign.ErrorUnauthorized)
+			return nil, false, *gz.NewErrorMessage(gz.ErrorUnauthorized)
 		}
 	} else {
-		identity, valid := ign.GetUserIdentity(r)
+		identity, valid := gz.GetUserIdentity(r)
 		if !valid {
-			return nil, false, ign.ErrorMessage(ign.ErrorAuthJWTInvalid)
+			return nil, false, gz.ErrorMessage(gz.ErrorAuthJWTInvalid)
 		}
 
-		var em *ign.ErrMsg
+		var em *gz.ErrMsg
 		user, em = users.ByIdentity(tx, identity, false)
 		if em != nil {
 			return nil, false, *em
 		}
 	}
 
-	errMsg := ign.ErrorMessageOK()
+	errMsg := gz.ErrorMessageOK()
 	return user, true, errMsg
 }
 
@@ -433,12 +433,12 @@ var invalidFileNames = []string{".git", ".gitconfig", ".gitignore", ".hg",
 // within a sigle root folder and rmDir argument is true, then that outer folder
 // will be removed, leaving all children files at the root level.
 // Returns the given dirpath, or an ErrMsg.
-func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *ign.ErrMsg) {
+func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.ErrMsg) {
 	// The "file" Form field contains the multiple files.
 	files := getRequestFiles(r)
 	fLen := len(files)
 	if fLen == 0 {
-		return "", ign.NewErrorMessage(ign.ErrorFormMissingFiles)
+		return "", gz.NewErrorMessage(gz.ErrorFormMissingFiles)
 	}
 
 	// First check if all files are in the same root dir and if we should rm it.
@@ -463,13 +463,13 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *ign.E
 		file, err := fh.Open()
 		defer file.Close()
 		if err != nil {
-			return "", ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 		}
 		fn := fh.Filename
 		// If file path includes any of the items from the list of invalid names,
 		// then error
 		if pathIncludesAny(fn, invalidFileNames) {
-			return "", ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, err, []string{fn})
+			return "", gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, err, []string{fn})
 		}
 		// Need to remove outer dir?
 		if rmDir {
@@ -480,19 +480,19 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *ign.E
 		fileFullPath := filepath.Join(dirpath, fn)
 		// Sanity check: check for duplicate file entries
 		if _, err := os.Stat(fileFullPath); err == nil {
-			return "", ign.NewErrorMessageWithArgs(ign.ErrorFormDuplicateFile, err, []string{fileFullPath})
+			return "", gz.NewErrorMessageWithArgs(gz.ErrorFormDuplicateFile, err, []string{fileFullPath})
 		}
 		if err := os.MkdirAll(filepath.Dir(fileFullPath), 0711); err != nil {
-			return "", ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+			return "", gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 		}
 		dest, err := os.Create(fileFullPath)
 		defer dest.Close()
 		if err != nil {
-			return "", ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 		}
 		// Now copy contents
 		if _, err := io.Copy(dest, file); err != nil {
-			return "", ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 		}
 	}
 

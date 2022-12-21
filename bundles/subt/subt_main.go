@@ -2,9 +2,9 @@ package subt
 
 import (
 	"context"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
 	"log"
 )
 
@@ -31,7 +31,7 @@ func Initialize(ctx context.Context, db *gorm.DB) {
 				Identity:     &identity,
 				Organization: &org}
 			if _, err := users.CreateUser(ctx, db, &u, false); err != nil {
-				ign.LoggerFromContext(ctx).Error("Error creating subt default user", err)
+				gz.LoggerFromContext(ctx).Error("Error creating subt default user", err)
 				log.Fatal("Error creating subt default user", err)
 			}
 		}

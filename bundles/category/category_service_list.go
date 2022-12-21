@@ -1,19 +1,19 @@
 package category
 
 import (
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // List returns a list of categories.
-func (cs *Service) List(tx *gorm.DB) (*Categories, *ign.ErrMsg) {
+func (cs *Service) List(tx *gorm.DB) (*Categories, *gz.ErrMsg) {
 	// Get the categories
 	var categories Categories
 
 	q := tx.Model(&Category{})
 
 	if err := q.Find(&categories).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	return &categories, nil
 }

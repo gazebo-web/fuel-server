@@ -2,7 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+
 	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
 	"log"
@@ -88,7 +89,7 @@ func notIncludePercent(fl validator.FieldLevel) bool {
 // expFeatures whitelist.
 // If the input is empty, the validation will be OK too.
 func isExpFeatures(fl validator.FieldLevel) bool {
-	features := ign.StrToSlice(fl.Field().String())
+	features := gz.StrToSlice(fl.Field().String())
 	if len(features) == 0 {
 		return true
 	}

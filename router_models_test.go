@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,13 +14,12 @@ import (
 	"testing"
 
 	mocket "github.com/Selvatico/go-mocket"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/globals"
 	fuel "github.com/gazebo-web/fuel-server/proto"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Tests for models related routes
@@ -57,10 +57,10 @@ type uriTest struct {
 	URL string
 	// an optional JWT definition (can contain a plain jwt or a claims map)
 	jwtGen *testJWT
-	// optional expected ign.ErrMsg response. If the test case represents an error case
+	// optional expected gz.ErrMsg response. If the test case represents an error case
 	// in such case, content type text/plain will be used
-	expErrMsg *ign.ErrMsg
-	// in case of error response, whether to parse the response body to get an ign.ErrMsg struct
+	expErrMsg *gz.ErrMsg
+	// in case of error response, whether to parse the response body to get an gz.ErrMsg struct
 	ignoreErrorBody bool
 }
 
@@ -88,7 +88,7 @@ func createTestModelWithOwner(t *testing.T, jwt *string, modelName, owner string
 		"permission":  "0",
 		"private":     strconv.FormatBool(private),
 	}
-	var withThumbnails = []igntest.FileDesc{
+	var withThumbnails = []gztest.FileDesc{
 		{"model.config", constModelConfigFileContents},
 		{"thumbnails/model.sdf", constModelSDFFileContents},
 	}
@@ -109,13 +109,13 @@ func createThreeTestModels(t *testing.T, jwt *string) {
 		"license":     "1",
 		"permission":  "0",
 	}
-	var withThumbnails = []igntest.FileDesc{
+	var withThumbnails = []gztest.FileDesc{
 		{"model.config", constModelConfigFileContents},
 		{"thumbnails/model.sdf", constModelSDFFileContents},
 	}
 	// These model files are within a singleroot folder to always test the server
 	// being able to handle single folder uploads.
-	var modelFiles = []igntest.FileDesc{
+	var modelFiles = []gztest.FileDesc{
 		{"singleroot/model.config", constModelConfigFileContents},
 		{"singleroot/model.sdf", constModelSDFFileContents},
 		{"singleroot/subfolder/test.txt", "test string"},
@@ -209,9 +209,9 @@ func TestGetModels(t *testing.T) {
 			"</1.0/models?order=asc&page=3&per_page=1>; rel=\"next\", </1.0/models?order=asc&page=3&per_page=1>; rel=\"last\", </1.0/models?order=asc&page=1&per_page=1>; rel=\"first\", </1.0/models?order=asc&page=1&per_page=1>; rel=\"prev\""},
 		{uriTest{"get page #3", uri + "?order=desc&per_page=1&page=3", nil, nil, false}, 1, "model1",
 			"</1.0/models?order=desc&page=1&per_page=1>; rel=\"first\", </1.0/models?order=desc&page=2&per_page=1>; rel=\"prev\""},
-		{uriTest{"invalid page", uri + "?per_page=1&page=7", nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound), false}, 0, "", ""},
+		{uriTest{"invalid page", uri + "?per_page=1&page=7", nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound), false}, 0, "", ""},
 		// LIKED MODELS
-		{uriTest{"liked models with non-existent user", "/1.0/invaliduser/likes/models", nil, ign.NewErrorMessage(ign.ErrorUserUnknown), false}, 0, "", ""},
+		{uriTest{"liked models with non-existent user", "/1.0/invaliduser/likes/models", nil, gz.NewErrorMessage(gz.ErrorUserUnknown), false}, 0, "", ""},
 		{uriTest{"liked models OK but empty", likedURI, nil, nil, false}, 0, "", ""},
 	}
 
@@ -254,7 +254,7 @@ func TestGetModels(t *testing.T) {
 	defer removeUserWithJWT(testUser3, jwt3, t)
 
 	m2Likes := "/1.0/" + testUser2 + "/models/model2/likes"
-	igntest.AssertRouteMultipleArgs("POST", m2Likes, nil, http.StatusOK, &jwt3, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("POST", m2Likes, nil, http.StatusOK, &jwt3, "text/plain; charset=utf-8", t)
 
 	user2ModelsTestsData := []resourceSearchTest{
 		{uriTest{"all user2 models", "/1.0/" + testUser2 + "/models", nil, nil, false}, 3, "model3", ""},
@@ -340,12 +340,12 @@ func runSubtestWithModelSearchTestData(t *testing.T, test resourceSearchTest) {
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	assert.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var models []fuel.Model
 		assert.NoError(t, json.Unmarshal(*bslice, &models), "Unable to get all models: %s", string(*bslice))
@@ -410,30 +410,30 @@ func TestModelLikeCreateAndDelete(t *testing.T) {
 	jwt4 := createValidJWTForIdentity("unexistent-user", t)
 
 	modelLikeTestData := []modelLikeTest{
-		{uriTest{"like no jwt", m1URI + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
-		{uriTest{"invalid jwt", m1URI + "/likes", newJWT("invalid"), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
-		{uriTest{"non-existent user jwt", m1URI + "/likes", newJWT(jwt4), ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, "POST", "", "", 0},
-		{uriTest{"non-existent model", modelURL(username, "non-existent-model", "") + "/likes", defaultJWT, ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "POST", "", "", 0},
+		{uriTest{"like no jwt", m1URI + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"invalid jwt", m1URI + "/likes", newJWT("invalid"), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"non-existent user jwt", m1URI + "/likes", newJWT(jwt4), gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, "POST", "", "", 0},
+		{uriTest{"non-existent model", modelURL(username, "non-existent-model", "") + "/likes", defaultJWT, gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "POST", "", "", 0},
 		{uriTest{"valid public asset like from another user ", m1URI + "/likes", newJWT(jwt3), nil, false}, "POST", username, "model1", 1},
-		{uriTest{"user cannot like model twice", m1URI + "/likes", newJWT(jwt3), ign.NewErrorMessage(ign.ErrorDbSave), false}, "POST", "", "", 0},
-		{uriTest{"cannot like user private asset with no jwt", puModel + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
-		{uriTest{"cannot like user private asset with another jwt", puModel + "/likes", newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
-		{uriTest{"cannot like org private asset with no jwt", orgModel + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"user cannot like model twice", m1URI + "/likes", newJWT(jwt3), gz.NewErrorMessage(gz.ErrorDbSave), false}, "POST", "", "", 0},
+		{uriTest{"cannot like user private asset with no jwt", puModel + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"cannot like user private asset with another jwt", puModel + "/likes", newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"cannot like org private asset with no jwt", orgModel + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
 		{uriTest{"valid private org asset like by member", orgModel + "/likes", newJWT(jwt2), nil, false}, "POST", testOrg, "org_private", 1},
-		{uriTest{"cannot like org private asset by non member", orgModel + "/likes", newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"cannot like org private asset by non member", orgModel + "/likes", newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
 		// DELETE tests
-		{uriTest{"unlike no jwt", m1URI + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
-		{uriTest{"unlike invalid jwt", m1URI + "/likes", newJWT("invalid"), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
-		{uriTest{"unlike with non-existent user jwt", m1URI + "/likes", newJWT(jwt4), ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, "DELETE", "", "", 0},
-		{uriTest{"unlike non-existent model", modelURL(username, "non-existent-model", "") + "/likes", defaultJWT, ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "DELETE", "", "", 0},
+		{uriTest{"unlike no jwt", m1URI + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"unlike invalid jwt", m1URI + "/likes", newJWT("invalid"), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"unlike with non-existent user jwt", m1URI + "/likes", newJWT(jwt4), gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, "DELETE", "", "", 0},
+		{uriTest{"unlike non-existent model", modelURL(username, "non-existent-model", "") + "/likes", defaultJWT, gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "DELETE", "", "", 0},
 		{uriTest{"valid public asset unlike", m1URI + "/likes", newJWT(jwt3), nil, false}, "DELETE", username, "model1", 0},
 		{uriTest{"valid public asset unlike twice", m1URI + "/likes", newJWT(jwt3), nil, false}, "DELETE", username, "model1", 0},
 		{uriTest{"valid unlike of model with no likes", modelURL(username, "model2", "") + "/likes", defaultJWT, nil, false}, "DELETE", username, "model2", 0},
-		{uriTest{"cannot unlike user private asset with no jwt", puModel + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
-		{uriTest{"cannot unlike user private asset with another jwt", puModel + "/likes", newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
-		{uriTest{"cannot unlike org private asset with no jwt", orgModel + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"cannot unlike user private asset with no jwt", puModel + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"cannot unlike user private asset with another jwt", puModel + "/likes", newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"cannot unlike org private asset with no jwt", orgModel + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
 		{uriTest{"valid unlike of private org asset by member", orgModel + "/likes", newJWT(jwt2), nil, false}, "DELETE", testOrg, "org_private", 0},
-		{uriTest{"cannot unlike org private asset by non member", orgModel + "/likes", newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"cannot unlike org private asset by non member", orgModel + "/likes", newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
 	}
 
 	for _, test := range modelLikeTestData {
@@ -441,12 +441,12 @@ func TestModelLikeCreateAndDelete(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctTextPlain)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: test.method, Route: test.URL, Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: test.method, Route: test.URL, Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			require.Equal(t, expStatus, resp.RespRecorder.Code)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" "+test.method, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" "+test.method, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				// Verify that the response contains the new number of likes
 				likesCounter, err := strconv.Atoi(string(*bslice))
@@ -479,28 +479,28 @@ func TestModelLikeCreateDbMock(t *testing.T) {
 
 	// Test bad connection at Begin() tx
 	SetGlobalDB(NewFailAtBeginConn())
-	expErr := ign.ErrorMessage(ign.ErrorNoDatabase)
+	expErr := gz.ErrorMessage(gz.ErrorNoDatabase)
 	// Try to like the model with a valid a JWT token.
-	bslice, _ := igntest.AssertRouteMultipleArgs("POST", uri, nil, expErr.StatusCode, &myJWT, "text/plain; charset=utf-8", t)
-	igntest.AssertBackendErrorCode("TestModelLikeCreateDbMock", bslice, expErr.ErrCode, t)
+	bslice, _ := gztest.AssertRouteMultipleArgs("POST", uri, nil, expErr.StatusCode, &myJWT, "text/plain; charset=utf-8", t)
+	gztest.AssertBackendErrorCode("TestModelLikeCreateDbMock", bslice, expErr.ErrCode, t)
 
 	// Test failure at TX commit
 	SetGlobalDB(mockDb)
 	SetupMockCountModelLikes()
 	SetupMockBadCommit()
 	mocket.Catcher.NewMock().WithQuery("SELECT count(*) FROM \"model_likes\"  WHERE").WithRowsNum(1).WithReply([]map[string]interface{}{{"count": "1"}})
-	expErr = ign.ErrorMessage(ign.ErrorDbSave)
-	bslice, _ = igntest.AssertRouteMultipleArgs("POST", uri, nil, expErr.StatusCode, &myJWT, "text/plain; charset=utf-8", t)
-	igntest.AssertBackendErrorCode("TestModelLikeCreateDbMock", bslice, expErr.ErrCode, t)
+	expErr = gz.ErrorMessage(gz.ErrorDbSave)
+	bslice, _ = gztest.AssertRouteMultipleArgs("POST", uri, nil, expErr.StatusCode, &myJWT, "text/plain; charset=utf-8", t)
+	gztest.AssertBackendErrorCode("TestModelLikeCreateDbMock", bslice, expErr.ErrCode, t)
 
 	// Test failure when updateModelLikeCounter returns error
 	SetupCommonMockResponses("test user")
 	ClearMockBadCommit()
 	// Make the Count DB query fail
 	mocket.Catcher.NewMock().WithQuery("SELECT count(*) FROM \"model_likes\"  WHERE").WithQueryException()
-	expErr = ign.ErrorMessage(ign.ErrorDbSave)
-	bslice, _ = igntest.AssertRouteMultipleArgs("POST", uri, nil, expErr.StatusCode, &myJWT, "text/plain; charset=utf-8", t)
-	igntest.AssertBackendErrorCode("TestModelLikeCreateDbMock", bslice, expErr.ErrCode, t)
+	expErr = gz.ErrorMessage(gz.ErrorDbSave)
+	bslice, _ = gztest.AssertRouteMultipleArgs("POST", uri, nil, expErr.StatusCode, &myJWT, "text/plain; charset=utf-8", t)
+	gztest.AssertBackendErrorCode("TestModelLikeCreateDbMock", bslice, expErr.ErrCode, t)
 }
 
 // TestAPIModel checks the route that describes the model API
@@ -510,11 +510,11 @@ func TestAPIModel(t *testing.T) {
 
 	code := http.StatusOK
 	if globals.Server.Db == nil {
-		code = ign.ErrorMessage(ign.ErrorNoDatabase).StatusCode
+		code = gz.ErrorMessage(gz.ErrorNoDatabase).StatusCode
 	}
 
 	uri := "/1.0/models"
-	igntest.AssertRoute("OPTIONS", uri, code, t)
+	gztest.AssertRoute("OPTIONS", uri, code, t)
 }
 
 // modelIndexTest defines a TestGetOwnerModel test case.
@@ -583,13 +583,13 @@ func TestGetOwnerModel(t *testing.T) {
 	modelIndexTestData := []modelIndexTest{
 		{uriTest{"get model", modelURL(testUser, "model1", ""), nil, nil, false}, testUser, "model1", expTags, expThumbURL},
 		{uriTest{"get model with no thumbnails", modelURL(testUser, "model2", ""), nil, nil, false}, testUser, "model2", expTags, ""},
-		{uriTest{"invalid name", modelURL(testUser, "invalidname", ""), nil, ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "", "", nil, ""},
+		{uriTest{"invalid name", modelURL(testUser, "invalidname", ""), nil, gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "", "", nil, ""},
 		{uriTest{"get model with special char", modelURL(testUser, modelSpecialCharName, ""), nil, nil, false}, testUser, modelSpecialCharName, expTags, expSpecialCharThumbURL},
 		{uriTest{"get private org model by org owner", modelURL(testOrg, "private", ""), defaultJWT, nil, false}, testOrg, "private", expTags, expPrivateThumbURL},
 		{uriTest{"get private org model by admin", modelURL(testOrg, "private", ""), newJWT(jwt4), nil, false}, testOrg, "private", expTags, expPrivateThumbURL},
 		{uriTest{"get private org model by member", modelURL(testOrg, "private", ""), newJWT(jwt2), nil, false}, testOrg, "private", expTags, expPrivateThumbURL},
-		{uriTest{"get private org model by non member", modelURL(testOrg, "private", ""), newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "", "", nil, ""},
-		{uriTest{"get private user model with another jwt ", modelURL(testUser, "user_private", ""), newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "", "", nil, ""},
+		{uriTest{"get private org model by non member", modelURL(testOrg, "private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "", "", nil, ""},
+		{uriTest{"get private user model with another jwt ", modelURL(testUser, "user_private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "", "", nil, ""},
 	}
 
 	for _, test := range modelIndexTestData {
@@ -612,12 +612,12 @@ func runSubtestWithModelIndexTestData(t *testing.T, test modelIndexTest) {
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var gotModel fuel.Model
 		assert.NoError(t, json.Unmarshal(*bslice, &gotModel), "Unable to unmarshal the model: %s", string(*bslice))
@@ -629,7 +629,7 @@ func runSubtestWithModelIndexTestData(t *testing.T, test modelIndexTest) {
 		model := getOwnerModelFromDb(t, test.expOwner, test.expName)
 		assertFuelModel(&gotModel, model, t)
 		actualTags := models.TagsToStrSlice(model.Tags)
-		assert.True(t, ign.SameElements(test.expTags, actualTags), "Returned Tags are not the expected. Expected: %v. Got: %v", test.expTags, actualTags)
+		assert.True(t, gz.SameElements(test.expTags, actualTags), "Returned Tags are not the expected. Expected: %v. Got: %v", test.expTags, actualTags)
 		// check expected thumbnails
 		if test.expThumbURL == "" {
 			assert.Nil(t, gotModel.ThumbnailUrl)
@@ -698,17 +698,17 @@ func TestGetModelAsZip(t *testing.T) {
 		{uriTest{"/owner/models/name style", modelURL(testUser, *model.Name, ""), &testJWT{jwt: &myJWT}, nil, false}, testUser, *model.Name, 1, files, 1, testUser},
 		{uriTest{"with explicit model version", modelURL(testUser, *model.Name, "1"), &testJWT{jwt: &myJWT}, nil, false}, testUser, *model.Name, 1, files, 2, testUser},
 		{uriTest{"with no JWT", modelURL(testUser, *model.Name, "tip"), nil, nil, false}, testUser, *model.Name, 1, files, 3, ""},
-		{uriTest{"invalid (negative) version", modelURL(testUser, *model.Name, "-4"), nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, files, 3, ""},
-		{uriTest{"invalid (alpha) version", modelURL(testUser, *model.Name, "a"), nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, files, 3, ""},
-		{uriTest{"0 version", modelURL(testUser, *model.Name, "0"), nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, files, 3, ""},
-		{uriTest{"version not found", modelURL(testUser, *model.Name, "5"), nil, ign.NewErrorMessage(ign.ErrorVersionNotFound), false}, testUser, *model.Name, 1, files, 3, ""},
+		{uriTest{"invalid (negative) version", modelURL(testUser, *model.Name, "-4"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, files, 3, ""},
+		{uriTest{"invalid (alpha) version", modelURL(testUser, *model.Name, "a"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, files, 3, ""},
+		{uriTest{"0 version", modelURL(testUser, *model.Name, "0"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, files, 3, ""},
+		{uriTest{"version not found", modelURL(testUser, *model.Name, "5"), nil, gz.NewErrorMessage(gz.ErrorVersionNotFound), false}, testUser, *model.Name, 1, files, 3, ""},
 		{uriTest{"get private org model by org owner", modelURL(testOrg, "private", ""), &testJWT{jwt: &myJWT}, nil, false}, testOrg, "private", 1, files, 1, testUser},
 		{uriTest{"get private org model by admin", modelURL(testOrg, "private", ""), newJWT(jwt4), nil, false}, testOrg, "private", 1, files, 2, user4},
 		{uriTest{"get private org model by member", modelURL(testOrg, "private", ""), newJWT(jwt2), nil, false}, testOrg, "private", 1, files, 3, user2},
-		{uriTest{"get private org model by non member", modelURL(testOrg, "private", ""), newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
-		{uriTest{"get private org model with no jwt", modelURL(testOrg, "private", ""), nil, ign.NewErrorMessage(ign.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
-		{uriTest{"get private user model with no jwt", modelURL(testUser, "user_private", ""), nil, ign.NewErrorMessage(ign.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
-		{uriTest{"get private user model with another jwt", modelURL(testUser, "user_private", ""), newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
+		{uriTest{"get private org model by non member", modelURL(testOrg, "private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
+		{uriTest{"get private org model with no jwt", modelURL(testOrg, "private", ""), nil, gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
+		{uriTest{"get private user model with no jwt", modelURL(testUser, "user_private", ""), nil, gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
+		{uriTest{"get private user model with another jwt", modelURL(testUser, "user_private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
 	}
 
 	for _, test := range modelDownloadAsZipTestsData {
@@ -716,12 +716,12 @@ func TestGetModelAsZip(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctZip)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL + ".zip", Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL + ".zip", Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			assert.Equal(t, expStatus, resp.RespRecorder.Code)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				assert.True(t, resp.Ok, "Model Zip Download request didn't succeed")
 				ensureIgnResourceVersionHeader(resp.RespRecorder, test.ignVersionHeader, t)
@@ -779,15 +779,15 @@ func TestReportModelCreate(t *testing.T) {
 
 	// Try to report a non-existent model.
 	testURI := fmt.Sprintf("%s/report", modelURL(testUser, "non-existent-model", ""))
-	expErr := ign.ErrorMessage(ign.ErrorNameNotFound)
+	expErr := gz.ErrorMessage(gz.ErrorNameNotFound)
 
-	_, bslice, _ := igntest.SendMultipartPOST(t.Name(), t, testURI, nil, body, nil)
-	igntest.AssertBackendErrorCode(t.Name(), bslice, expErr.ErrCode, t)
+	_, bslice, _ := gztest.SendMultipartPOST(t.Name(), t, testURI, nil, body, nil)
+	gztest.AssertBackendErrorCode(t.Name(), bslice, expErr.ErrCode, t)
 
-	_, bslice, _ = igntest.SendMultipartPOST(t.Name(), t, testURI, &jwt, body, nil)
-	igntest.AssertBackendErrorCode(t.Name(), bslice, expErr.ErrCode, t)
+	_, bslice, _ = gztest.SendMultipartPOST(t.Name(), t, testURI, &jwt, body, nil)
+	gztest.AssertBackendErrorCode(t.Name(), bslice, expErr.ErrCode, t)
 
 	// Try to report the model
-	igntest.SendMultipartPOST("ReportModelCreate", t, uri, nil, body, nil)
-	igntest.SendMultipartPOST("ReportModelCreate", t, uri, &jwt, body, nil)
+	gztest.SendMultipartPOST("ReportModelCreate", t, uri, nil, body, nil)
+	gztest.SendMultipartPOST("ReportModelCreate", t, uri, &jwt, body, nil)
 }

@@ -5,13 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	p "github.com/gazebo-web/fuel-server/permissions"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
+	"github.com/satori/go.uuid"
 	"io"
 	"time"
 )
@@ -31,10 +31,10 @@ type BucketServer interface {
 	GetPresignedURL(ctx context.Context, bucket, fPath string) (*string, error)
 }
 
-func (s *LogService) getLogFileFromDB(tx *gorm.DB, id uint) (*LogFile, *ign.ErrMsg) {
+func (s *LogService) getLogFileFromDB(tx *gorm.DB, id uint) (*LogFile, *gz.ErrMsg) {
 	var lf LogFile
 	if err := tx.First(&lf, id).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNameNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNameNotFound, err)
 	}
 	return &lf, nil
 }
@@ -42,7 +42,7 @@ func (s *LogService) getLogFileFromDB(tx *gorm.DB, id uint) (*LogFile, *ign.ErrM
 // CreateLog submits a new (pending) log file.
 // user argument is the active user requesting the operation.
 func (s *LogService) CreateLog(ctx context.Context, tx *gorm.DB, f io.Reader,
-	filename, comp string, ls *LogSubmission, user *users.User) (*LogFile, *ign.ErrMsg) {
+	filename, comp string, ls *LogSubmission, user *users.User) (*LogFile, *gz.ErrMsg) {
 
 	// Verify and set the owner
 	owner := ls.Owner
@@ -71,7 +71,7 @@ func (s *LogService) CreateLog(ctx context.Context, tx *gorm.DB, f io.Reader,
 		Comments: &ls.Description, Status: &pending,
 	}
 	if err := tx.Create(&log).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	path := fmt.Sprintf("%s/%d-%s", owner, log.ID, filename)
@@ -80,7 +80,7 @@ func (s *LogService) CreateLog(ctx context.Context, tx *gorm.DB, f io.Reader,
 
 	_, err := BucketServerImpl.Upload(ctx, f, comp, path)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// Set read permissions to owner (eg, the team) as well as Competition
@@ -88,17 +88,17 @@ func (s *LogService) CreateLog(ctx context.Context, tx *gorm.DB, f io.Reader,
 	// The Write permission will be only for admins of Competition.
 	lfName := log.name()
 	if _, em := globals.Permissions.AddPermission(comp, lfName, p.Read); em != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, em)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, em)
 	}
 	if _, em := globals.Permissions.AddPermission(owner, lfName, p.Read); em != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, em)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, em)
 	}
 
 	sendMail(fmt.Sprintf("LogFile uploaded by participant [%s]", owner), &log)
 	return &log, nil
 }
 
-func sendMail(subject string, objsToMarshal ...interface{}) *ign.ErrMsg {
+func sendMail(subject string, objsToMarshal ...interface{}) *gz.ErrMsg {
 	sender := globals.FlagsEmailSender
 	recipient := globals.FlagsEmailRecipient
 	if sender == "" || recipient == "" {
@@ -110,16 +110,16 @@ func sendMail(subject string, objsToMarshal ...interface{}) *ign.ErrMsg {
 	for _, o := range objsToMarshal {
 		b, err := json.MarshalIndent(o, "", "  ")
 		if err != nil {
-			return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+			return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 		}
 		bs.Write(b)
 		bs.WriteString("\n\n")
 	}
 
 	// send email
-	err := ign.SendEmail(sender, recipient, subject, bs.String())
+	err := gz.SendEmail(sender, recipient, subject, bs.String())
 	if err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	return nil
@@ -128,7 +128,7 @@ func sendMail(subject string, objsToMarshal ...interface{}) *ign.ErrMsg {
 // UpdateLogFile updates a log file. Eg. sets score and status.
 // user argument is the active user requesting the operation.
 func (s *LogService) UpdateLogFile(ctx context.Context, tx *gorm.DB, comp string,
-	id uint, su *SubmissionUpdate, user *users.User) (*LogFile, *ign.ErrMsg) {
+	id uint, su *SubmissionUpdate, user *users.User) (*LogFile, *gz.ErrMsg) {
 
 	// Only admins of the competition can update submissions for that competition.
 	if ok, em := globals.Permissions.IsAuthorized(*user.Username, comp, p.Write); !ok {
@@ -141,7 +141,7 @@ func (s *LogService) UpdateLogFile(ctx context.Context, tx *gorm.DB, comp string
 		return nil, em
 	}
 	if *log.Competition != comp {
-		return nil, ign.NewErrorMessage(ign.ErrorNameNotFound)
+		return nil, gz.NewErrorMessage(gz.ErrorNameNotFound)
 	}
 
 	now := time.Now()
@@ -159,7 +159,7 @@ func (s *LogService) UpdateLogFile(ctx context.Context, tx *gorm.DB, comp string
 // GetLogFileForDownload returns an URL (for downloading) a log file.
 // user argument is the active user requesting the operation.
 func (s *LogService) GetLogFileForDownload(ctx context.Context, tx *gorm.DB,
-	comp string, id uint, user *users.User) (*string, *ign.ErrMsg) {
+	comp string, id uint, user *users.User) (*string, *gz.ErrMsg) {
 
 	log, em := s.getLogFileFromDB(tx, id)
 	if em != nil {
@@ -172,7 +172,7 @@ func (s *LogService) GetLogFileForDownload(ctx context.Context, tx *gorm.DB,
 
 	url, err := BucketServerImpl.GetPresignedURL(ctx, comp, *log.Location)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	return url, nil
@@ -181,7 +181,7 @@ func (s *LogService) GetLogFileForDownload(ctx context.Context, tx *gorm.DB,
 // GetLogFile returns a single log file record.
 // user argument is the active user requesting the operation.
 func (s *LogService) GetLogFile(ctx context.Context, tx *gorm.DB,
-	comp string, id uint, user *users.User) (*LogFile, *ign.ErrMsg) {
+	comp string, id uint, user *users.User) (*LogFile, *gz.ErrMsg) {
 
 	log, em := s.getLogFileFromDB(tx, id)
 	if em != nil {
@@ -199,11 +199,11 @@ func (s *LogService) GetLogFile(ctx context.Context, tx *gorm.DB,
 // user argument is the active user requesting the operation.
 // Returns the removed log file
 func (s *LogService) RemoveLogFile(ctx context.Context, tx *gorm.DB, comp string,
-	id uint, user *users.User) (*LogFile, *ign.ErrMsg) {
+	id uint, user *users.User) (*LogFile, *gz.ErrMsg) {
 
 	// Only system admins can delete log files
 	if ok := globals.Permissions.IsSystemAdmin(*user.Username); !ok {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	log, em := s.getLogFileFromDB(tx, id)
@@ -211,17 +211,17 @@ func (s *LogService) RemoveLogFile(ctx context.Context, tx *gorm.DB, comp string
 		return nil, em
 	}
 	if *log.Competition != comp {
-		return nil, ign.NewErrorMessage(ign.ErrorNameNotFound)
+		return nil, gz.NewErrorMessage(gz.ErrorNameNotFound)
 	}
 
 	err := BucketServerImpl.RemoveFile(ctx, comp, *log.Location)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	// if successfully removed from bucket server, then remove from DB
 	if err := tx.Delete(log).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	return log, nil
@@ -230,8 +230,8 @@ func (s *LogService) RemoveLogFile(ctx context.Context, tx *gorm.DB, comp string
 // LogFileList returns a list of paginated log files.
 // Members of the submitting team can see the list of log files they submitted.
 // Members of the organizing group (eg. SubT) can see all log files.
-func (s *LogService) LogFileList(pr *ign.PaginationRequest, tx *gorm.DB, comp string,
-	owner *string, status SubmissionStatus, reqUser *users.User) (*LogFiles, *ign.PaginationResult, *ign.ErrMsg) {
+func (s *LogService) LogFileList(pr *gz.PaginationRequest, tx *gorm.DB, comp string,
+	owner *string, status SubmissionStatus, reqUser *users.User) (*LogFiles, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Create the DB query
 	q := tx.Model(&LogFile{}).Order("id desc", true)
@@ -245,12 +245,12 @@ func (s *LogService) LogFileList(pr *ign.PaginationRequest, tx *gorm.DB, comp st
 	}
 
 	var logs LogFiles
-	pagination, err := ign.PaginateQuery(q, &logs, *pr)
+	pagination, err := gz.PaginateQuery(q, &logs, *pr)
 	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 	}
 	if !pagination.PageFound {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 	}
 
 	return &logs, pagination, nil

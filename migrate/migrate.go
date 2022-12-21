@@ -2,7 +2,6 @@ package migrate
 
 import (
 	"context"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/models"
@@ -12,7 +11,8 @@ import (
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/vcs"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
 	"log"
 	"os"
 	"path/filepath"
@@ -52,7 +52,7 @@ func CollectionsSetDefaultLocation(ctx context.Context, db *gorm.DB) {
 // RecomputeZipFileSizes updates all models and worlds and set them with the
 // latest zip's file size.
 func RecomputeZipFileSizes(ctx context.Context, db *gorm.DB) {
-	migrate, _ := ign.ReadEnvVar("IGN_FUEL_MIGRATE_RESET_ZIP_FILESIZE")
+	migrate, _ := gz.ReadEnvVar("IGN_FUEL_MIGRATE_RESET_ZIP_FILESIZE")
 	if value, err := strconv.ParseBool(migrate); err != nil || !value {
 		if err != nil {
 			log.Printf("Error parsing IGN_FUEL_MIGRATE_RESET_ZIP_FILESIZE. Got value: %s. Error: %s", migrate, err)
@@ -135,7 +135,7 @@ func RecomputeZipFileSizes(ctx context.Context, db *gorm.DB) {
 // (and their worlds counterparts).
 // NOTE: This script is expected to be run just once on each server.
 func RecomputeDownloadsAndLikes(ctx context.Context, db *gorm.DB) {
-	migrate, _ := ign.ReadEnvVar("IGN_FUEL_MIGRATE_RESET_LIKE_AND_DOWNLOADS")
+	migrate, _ := gz.ReadEnvVar("IGN_FUEL_MIGRATE_RESET_LIKE_AND_DOWNLOADS")
 	if value, err := strconv.ParseBool(migrate); err != nil || !value {
 		if err != nil {
 			log.Printf("Error parsing IGN_FUEL_MIGRATE_RESET_LIKE_AND_DOWNLOADS. Got value: %s. Error: %s", migrate, err)
@@ -184,7 +184,7 @@ func MakeResourcesPublicWhenNotSet(ctx context.Context, db *gorm.DB) {
 // and Worlds.
 // NOTE: This script is expected to be run just once on each server.
 func CasbinPermissions(ctx context.Context, db *gorm.DB) {
-	migrate, _ := ign.ReadEnvVar("IGN_FUEL_MIGRATE_CASBIN")
+	migrate, _ := gz.ReadEnvVar("IGN_FUEL_MIGRATE_CASBIN")
 	if value, err := strconv.ParseBool(migrate); err != nil || !value {
 		if err != nil {
 			log.Printf("Error parsing IGN_FUEL_MIGRATE_CASBIN. Got value: %s. Error: %s", migrate, err)
@@ -230,7 +230,7 @@ func CasbinPermissions(ctx context.Context, db *gorm.DB) {
 // env var is set with value 'true'.
 // NOTE: This script is expected to be run just once on each server.
 func ToUniqueNamesWithForeignKeys(ctx context.Context, db *gorm.DB) {
-	migrate, _ := ign.ReadEnvVar("IGN_FUEL_MIGRATE_UNIQUEOWNERS_TABLE")
+	migrate, _ := gz.ReadEnvVar("IGN_FUEL_MIGRATE_UNIQUEOWNERS_TABLE")
 	if value, err := strconv.ParseBool(migrate); err != nil || !value {
 		if err != nil {
 			log.Printf("Error parsing IGN_FUEL_MIGRATE_UNIQUEOWNERS_TABLE. Got value: %s. Error: %s", migrate, err)
@@ -300,7 +300,7 @@ func ToUniqueNamesWithForeignKeys(ctx context.Context, db *gorm.DB) {
 // NOTE: This script is expected to be run just once on each server.
 func ToModelGitRepositories(ctx context.Context) {
 	// Do we need to run migration logic?
-	migrate, _ := ign.ReadEnvVar("IGN_FUEL_MIGRATE_MODEL_REPOSITORIES")
+	migrate, _ := gz.ReadEnvVar("IGN_FUEL_MIGRATE_MODEL_REPOSITORIES")
 	if value, err := strconv.ParseBool(migrate); err != nil || !value {
 		if err != nil {
 			log.Printf("Error parsing IGN_FUEL_MIGRATE_MODEL_REPOSITORIES. Got value: %s. Error: %s", migrate, err)
@@ -332,7 +332,7 @@ func ToModelGitRepositories(ctx context.Context) {
 			// Convert it to "git".
 			log.Println("Switching to GIT: " + path)
 			if err := repo.InitRepo(ctx); err != nil {
-				ign.LoggerFromContext(ctx).Error("Error migrating to GIT. Path " + path)
+				gz.LoggerFromContext(ctx).Error("Error migrating to GIT. Path " + path)
 				panic("Error migrating to GIT. Path " + path)
 			}
 			needsTag = true
@@ -342,7 +342,7 @@ func ToModelGitRepositories(ctx context.Context) {
 		if !needsTag {
 			hasTag, err := repo.(*vcs.GoGitVCS).HasTag(theUUID)
 			if err != nil {
-				ign.LoggerFromContext(ctx).Error("Error while checking for UUID Tag existence. Path " + path)
+				gz.LoggerFromContext(ctx).Error("Error while checking for UUID Tag existence. Path " + path)
 				panic("Error while checking for UUID Tag existence. Path " + path)
 			}
 			log.Println("Found UUID tag?", hasTag)
@@ -354,7 +354,7 @@ func ToModelGitRepositories(ctx context.Context) {
 			// Also tag the repo with the UUID. The UUID is the last segment of the path
 			log.Println("Tagging repo with its UUID: " + path)
 			if err := repo.Tag(ctx, theUUID); err != nil {
-				ign.LoggerFromContext(ctx).Error("Error while tagging GIT repo. Path " + path)
+				gz.LoggerFromContext(ctx).Error("Error while tagging GIT repo. Path " + path)
 				panic("Error while tagging GIT repo. Path " + path)
 			}
 		}
@@ -365,7 +365,7 @@ func ToModelGitRepositories(ctx context.Context) {
 
 	// Run the walk function
 	if err := filepath.Walk(root, migrateFn); err != nil {
-		ign.LoggerFromContext(ctx).Error("Error while migrating model repositories", err)
+		gz.LoggerFromContext(ctx).Error("Error while migrating model repositories", err)
 		panic("Error while migrating model repositories")
 	}
 }

@@ -1,8 +1,8 @@
 package license
 
 import (
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // License is a license name and ID
@@ -30,19 +30,19 @@ func ByID(tx *gorm.DB, id int) (*License, error) {
 }
 
 // List returns a paginated list of licenses.
-func List(p *ign.PaginationRequest, tx *gorm.DB) (*Licenses, *ign.PaginationResult, *ign.ErrMsg) {
+func List(p *gz.PaginationRequest, tx *gorm.DB) (*Licenses, *gz.PaginationResult, *gz.ErrMsg) {
 	// Get the licenses
 	var licenses Licenses
 
 	// Create the DB query
 	q := tx.Model(&License{})
 
-	pagination, err := ign.PaginateQuery(q, &licenses, *p)
+	pagination, err := gz.PaginateQuery(q, &licenses, *p)
 	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 	}
 	if !pagination.PageFound {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 	}
 	return &licenses, pagination, nil
 }

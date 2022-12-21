@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gosimple/slug"
 	"io/ioutil"
 	"log"
@@ -12,8 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
 	"github.com/gazebo-web/fuel-server/bundles/license"
@@ -23,7 +22,8 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
 	"github.com/gazebo-web/fuel-server/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jinzhu/gorm"
 )
 
 // DBAlterTables gives the option to alter database tables before migrating data
@@ -32,7 +32,7 @@ func DBAlterTables(ctx context.Context, db *gorm.DB) {
 	// ALTER SubT Competition_Participants table, to change the Primary Key from 'owner' to 'id'. (if needed)
 	found, err := indexIsPresent(db, "competition_participants", "idx_active_owner")
 	if err != nil {
-		ign.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
+		gz.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
 		log.Fatal("Error with DB while checking index", err)
 		return
 	}
@@ -59,7 +59,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&category.Category{},
 			&models.ModelMetadatum{},
 			&models.Tag{},
-			&ign.AccessToken{},
+			&gz.AccessToken{},
 			&users.UniqueOwner{},
 			&users.User{},
 			&users.Organization{},
@@ -290,7 +290,7 @@ func DBAddCustomIndexes(ctx context.Context, db *gorm.DB) {
 	// First add indexes for Models
 	found, err := indexIsPresent(db, "models", "models_fultext")
 	if err != nil {
-		ign.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
+		gz.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
 		log.Fatal("Error with DB while checking index", err)
 		return
 	}
@@ -303,7 +303,7 @@ func DBAddCustomIndexes(ctx context.Context, db *gorm.DB) {
 	// Now add indexes for Worlds
 	found, err = indexIsPresent(db, "worlds", "worlds_fulltext")
 	if err != nil {
-		ign.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
+		gz.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
 		log.Fatal("Error with DB while checking index", err)
 		return
 	}
@@ -314,7 +314,7 @@ func DBAddCustomIndexes(ctx context.Context, db *gorm.DB) {
 	// Now add indexes for Collections
 	found, err = indexIsPresent(db, "collections", "collections_fulltext")
 	if err != nil {
-		ign.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
+		gz.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
 		log.Fatal("Error with DB while checking index", err)
 		return
 	}
@@ -324,7 +324,7 @@ func DBAddCustomIndexes(ctx context.Context, db *gorm.DB) {
 	// Now add indexes for ModelReviews
 	found, err = indexIsPresent(db, "model_reviews", "model_reviews_fulltext")
 	if err != nil {
-		ign.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
+		gz.LoggerFromContext(ctx).Critical("Error with DB while checking index", err)
 		log.Fatal("Error with DB while checking index", err)
 		return
 	}
@@ -382,7 +382,7 @@ func DBPopulate(ctx context.Context, path string, db *gorm.DB, onlyWhenEmpty boo
 				Identity:     &identity,
 				Organization: &org}
 			if _, err := users.CreateUser(ctx, db, &u, false); err != nil {
-				ign.LoggerFromContext(ctx).Error("Error creating anonymous user", err)
+				gz.LoggerFromContext(ctx).Error("Error creating anonymous user", err)
 				log.Fatal("Error creating anonymous user", err)
 			}
 		}

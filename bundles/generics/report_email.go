@@ -2,15 +2,15 @@ package generics
 
 import (
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"net/http"
 	"time"
 
 	"github.com/gazebo-web/fuel-server/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // SendReportEmail sends an alert to admins about a resource report
-func SendReportEmail(name, owner, category, reason string, r *http.Request) (interface{}, *ign.ErrMsg) {
+func SendReportEmail(name, owner, category, reason string, r *http.Request) (interface{}, *gz.ErrMsg) {
 	sender := globals.FlagsEmailSender
 	recipient := globals.FlagsEmailRecipient
 
@@ -44,7 +44,7 @@ func SendReportEmail(name, owner, category, reason string, r *http.Request) (int
 
 	logLine := fmt.Sprintf("[REPORT] Resource: %s. Reason: %s. Time: %s.", link, reason, time.Now())
 
-	ign.LoggerFromRequest(r).Info(logLine)
+	gz.LoggerFromRequest(r).Info(logLine)
 
 	err := SendEmail(&recipient, &sender, subject, templateFilename, templateData)
 
@@ -57,7 +57,7 @@ func SendReportEmail(name, owner, category, reason string, r *http.Request) (int
 
 // SendEmail sends a generic email from HTML template
 func SendEmail(recipient *string, sender *string, subject string, templateFilename string,
-	templateData interface{}) *ign.ErrMsg {
+	templateData interface{}) *gz.ErrMsg {
 
 	if recipient == nil {
 		recipient = &globals.FlagsEmailRecipient
@@ -73,15 +73,15 @@ func SendEmail(recipient *string, sender *string, subject string, templateFilena
 	}
 
 	// Prepare the template
-	content, err := ign.ParseHTMLTemplate(templateFilename, templateData)
+	content, err := gz.ParseHTMLTemplate(templateFilename, templateData)
 	if err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	// Send the email
-	err = ign.SendEmail(*sender, *recipient, subject, content)
+	err = gz.SendEmail(*sender, *recipient, subject, content)
 	if err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	return nil

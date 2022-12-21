@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/reviews"
 	"github.com/gazebo-web/fuel-server/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	"net/http"
 	"reflect"
 )
@@ -15,14 +15,16 @@ import (
 // The returned value will be of type "fuel.ModelReviews"
 // It follows the func signature defined by type "searchHandler".
 // You can request this method with the following curl request:
-//     curl -k -X GET --url https://localhost:4430/1.0/models/reviews
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/models/reviews
+//
 // or  curl -k -X GET --url https://localhost:4430/1.0/models/reviews.proto
 // or  curl -k -X GET --url https://localhost:4430/1.0/models/reviews.json
 // or  curl -k -X GET --url https://localhost:4430/1.0/{username}/reviews with all the
 // above format variants.
-func ModelReviewList(p *ign.PaginationRequest, owner *string, order, search string,
+func ModelReviewList(p *gz.PaginationRequest, owner *string, order, search string,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Note that the `Service`'s `ResourceType` field is being configured with a specific review type.
 	// The `review.Service` methods will have to make use of the `ResourceType` field to generically create return values.
@@ -36,10 +38,11 @@ func ModelReviewList(p *ign.PaginationRequest, owner *string, order, search stri
 // The returned value will be of type "fuel.ModelReviews"
 // It follows the func signature defined by type "searchHandler".
 // You can request this method with the following curl request:
-//     curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model}
-func UserModelReview(p *ign.PaginationRequest, owner *string, order, search string,
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model}
+func UserModelReview(p *gz.PaginationRequest, owner *string, order, search string,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Note that the `Service`'s `ResourceType` field is being configured with a specific review type.
 	// The `review.Service` methods will have to make use of the `ResourceType` field to generically create return values.
@@ -54,7 +57,7 @@ func UserModelReview(p *ign.PaginationRequest, owner *string, order, search stri
 	// Get the model record
 	model, err := models.GetModelByName(tx, modelName, *owner)
 	if err != nil {
-		em := ign.NewErrorMessage(ign.ErrorNameNotFound)
+		em := gz.NewErrorMessage(gz.ErrorNameNotFound)
 		return nil, nil, em
 	}
 

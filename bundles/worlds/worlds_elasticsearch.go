@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
 	"strconv"
 	"strings"
 )
@@ -28,7 +28,7 @@ type worldElastic struct {
 	Creator     string `json:"creator"`
 }
 
-//ElasticSearchRemoveWorld removes a world from elastic search
+// ElasticSearchRemoveWorld removes a world from elastic search
 func ElasticSearchRemoveWorld(ctx context.Context, world *World) {
 	if globals.ElasticSearch == nil {
 		return
@@ -44,7 +44,7 @@ func ElasticSearchRemoveWorld(ctx context.Context, world *World) {
 	// Perform the request with the client.
 	_, err := req.Do(context.Background(), globals.ElasticSearch)
 	if err != nil {
-		ign.LoggerFromContext(ctx).Critical("Error getting response:", err)
+		gz.LoggerFromContext(ctx).Critical("Error getting response:", err)
 	}
 }
 
@@ -98,20 +98,20 @@ func ElasticSearchUpdateWorld(ctx context.Context, world World) {
 	// Perform the request with the client.
 	add, err := req.Do(context.Background(), globals.ElasticSearch)
 	if err != nil {
-		ign.LoggerFromContext(ctx).Critical("Error getting response:", err)
+		gz.LoggerFromContext(ctx).Critical("Error getting response:", err)
 	}
 	defer add.Body.Close()
 
 	if add.IsError() {
-		ign.LoggerFromContext(ctx).Error("[", add.Status(), "] Error indexing document ID:", world.ID)
+		gz.LoggerFromContext(ctx).Error("[", add.Status(), "] Error indexing document ID:", world.ID)
 	} else {
 		// Deserialize the response into a map.
 		var r map[string]interface{}
 		if err := json.NewDecoder(add.Body).Decode(&r); err != nil {
-			ign.LoggerFromContext(ctx).Error("Error parsing the response body:", err)
+			gz.LoggerFromContext(ctx).Error("Error parsing the response body:", err)
 		} else {
 			// Print the response status and indexed document version.
-			ign.LoggerFromContext(ctx).Debug("[", add.Status(), "] ", r["result"], "; version:", int(r["_version"].(float64)))
+			gz.LoggerFromContext(ctx).Debug("[", add.Status(), "] ", r["result"], "; version:", int(r["_version"].(float64)))
 		}
 	}
 }

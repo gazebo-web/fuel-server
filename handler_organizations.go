@@ -1,21 +1,22 @@
 package main
 
 import (
+	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
-	"github.com/gazebo-web/fuel-server/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"net/http"
 )
 
 // OrganizationCreate creates a new organization
 // You can request this method with the following cURL request:
-//  curl -k -H "Content-Type: application/json" -X POST -d '{"name":"OSRF",
-//    "description":"non-profit", "email":"myemail@org.org"}'
-//    https://localhost:4430/1.0/organizations
-//    --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
+//	curl -k -H "Content-Type: application/json" -X POST -d '{"name":"OSRF",
+//	  "description":"non-profit", "email":"myemail@org.org"}'
+//	  https://localhost:4430/1.0/organizations
+//	  --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
 func OrganizationCreate(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	var organization users.CreateOrganization
 	if em := ParseStruct(&organization, r, false); em != nil {
@@ -35,7 +36,7 @@ func OrganizationCreate(tx *gorm.DB, w http.ResponseWriter,
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return response, nil
@@ -43,17 +44,18 @@ func OrganizationCreate(tx *gorm.DB, w http.ResponseWriter,
 
 // OrganizationList returns a list with all organizations.
 // You can request this method with the following cURL request:
-//   curl -k -X GET --url https://localhost:4430/1.0/organizations
-//     --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
-func OrganizationList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/organizations
+//	  --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+func OrganizationList(p *gz.PaginationRequest, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	return (&users.OrganizationService{}).OrganizationList(p, tx, user, false)
 }
 
 // OrganizationUserList returns a paginated list with the users of an organization.
-func OrganizationUserList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+func OrganizationUserList(p *gz.PaginationRequest, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	orgName, em := getName(tx, r)
 	if em != nil {
@@ -65,12 +67,15 @@ func OrganizationUserList(p *ign.PaginationRequest, user *users.User, tx *gorm.D
 
 // OrganizationIndex returns a single organization
 // You can request this method with the following cURL request:
-//   curl -k -X GET --url https://localhost:4430/1.0/organizations/{name}
-//     --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/organizations/{name}
+//	  --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
 // Or you can use the following request for retrieving only the public data:
-//   curl -k -X GET --url https://localhost:4430/1.0/organizations/{name}
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/organizations/{name}
 func OrganizationIndex(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	orgSvc := &users.OrganizationService{}
 	org, errMsg := orgSvc.GetOrganization(r.Context(), tx, orgName, false)
@@ -84,10 +89,11 @@ func OrganizationIndex(orgName string, jwtUser *users.User, tx *gorm.DB,
 
 // OrganizationRemove deletes an organization.
 // You can request this method with the following cURL request:
-//   curl -k -X DELETE --url https://localhost:4430/1.0/organizations/{name}
-//     --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
+//	curl -k -X DELETE --url https://localhost:4430/1.0/organizations/{name}
+//	  --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
 func OrganizationRemove(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	orgSvc := &users.OrganizationService{}
 	response, em := orgSvc.RemoveOrganization(r.Context(), tx, orgName, jwtUser)
@@ -96,54 +102,55 @@ func OrganizationRemove(orgName string, jwtUser *users.User, tx *gorm.DB,
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	return response, nil
 }
 
 // getName returns the value of the "name" parameter from the HTTP route.
-// Returns an ign.ErrMsg if not present
-func getName(tx *gorm.DB, r *http.Request) (*string, *ign.ErrMsg) {
+// Returns an gz.ErrMsg if not present
+func getName(tx *gorm.DB, r *http.Request) (*string, *gz.ErrMsg) {
 	// Extract the organization name from the request.
 	params := mux.Vars(r)
 	// Get the organization
 	orgName, present := params["name"]
 	// If the key does not exist
 	if !present {
-		return nil, ign.NewErrorMessage(ign.ErrorUserNotInRequest)
+		return nil, gz.NewErrorMessage(gz.ErrorUserNotInRequest)
 	}
 
 	return &orgName, nil
 }
 
 // getTeamName returns the value of the "teamname" parameter from the HTTP route.
-// Returns an ign.ErrMsg if not present
-func getTeamName(r *http.Request) (string, *ign.ErrMsg) {
+// Returns an gz.ErrMsg if not present
+func getTeamName(r *http.Request) (string, *gz.ErrMsg) {
 	// get team name from request
 	params := mux.Vars(r)
 	teamName, present := params["teamname"]
 	// If the key does not exist
 	if !present {
-		return "", ign.NewErrorMessage(ign.ErrorIDNotInRequest)
+		return "", gz.NewErrorMessage(gz.ErrorIDNotInRequest)
 	}
 	return teamName, nil
 }
 
 // OrganizationUpdate modifies an existing organization.
 // You can request this method with the following cURL request:
-//    curl -k -X PATCH -d '{"description":"New Description"}'
-//      https://localhost:4430/1.0/organizations/{name} -H "Content-Type: application/json"
-//      -H 'Authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
+//	curl -k -X PATCH -d '{"description":"New Description"}'
+//	  https://localhost:4430/1.0/organizations/{name} -H "Content-Type: application/json"
+//	  -H 'Authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
 func OrganizationUpdate(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	var uo users.UpdateOrganization
 	if em := ParseStruct(&uo, r, false); em != nil {
 		return nil, em
 	}
 	if uo.IsEmpty() {
-		return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+		return nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue)
 	}
 
 	orgSvc := &users.OrganizationService{}
@@ -154,13 +161,13 @@ func OrganizationUpdate(orgName string, jwtUser *users.User, tx *gorm.DB,
 
 	// Commit the DB transaction.
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	infoStr := "Organization has been updated:" +
 		"\n\t name: " + *org.Name +
 		"\n\t description: " + *org.Description
-	ign.LoggerFromRequest(r).Info(infoStr)
+	gz.LoggerFromRequest(r).Info(infoStr)
 
 	// If the user can update the org, then it can see its private info
 	response := (&users.OrganizationService{}).CreateOrganizationResponse(org, jwtUser, false)
@@ -169,13 +176,15 @@ func OrganizationUpdate(orgName string, jwtUser *users.User, tx *gorm.DB,
 
 // OrganizationUserCreate adds a user to an organization with a given role.
 // You can request this method with the following cURL request:
-//    curl -k -X POST https://localhost:4430/1.0/organizations/{orgName}/users
-//      -H "Content-Type: application/json"
-//      -d '{"username":"theUserToAdd", "role":"owner|admin|member"}'
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X POST https://localhost:4430/1.0/organizations/{orgName}/users
+//	  -H "Content-Type: application/json"
+//	  -d '{"username":"theUserToAdd", "role":"owner|admin|member"}'
+//	  --header 'authorization: Bearer <your-jwt-token-here>'
+//
 // It returns the added user
 func OrganizationUserCreate(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	var orgUser users.AddUserToOrgInput
 	if em := ParseStruct(&orgUser, r, false); em != nil {
@@ -192,7 +201,7 @@ func OrganizationUserCreate(orgName string, jwtUser *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return resp, nil
@@ -200,18 +209,20 @@ func OrganizationUserCreate(orgName string, jwtUser *users.User, tx *gorm.DB,
 
 // OrganizationUserRemove removes a user from an organization.
 // You can request this method with the following cURL request:
-//    curl -k -X DELETE https://localhost:4430/1.0/organizations/{orgName}/users/{username}
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X DELETE https://localhost:4430/1.0/organizations/{orgName}/users/{username}
+//	  --header 'authorization: Bearer <your-jwt-token-here>'
+//
 // It returns the added user
 func OrganizationUserRemove(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Extract the username of the user to remove from the request.
 	params := mux.Vars(r)
 	userToRemove, present := params["username"]
 	// If the key does not exist
 	if !present {
-		return nil, ign.NewErrorMessage(ign.ErrorUserNotInRequest)
+		return nil, gz.NewErrorMessage(gz.ErrorUserNotInRequest)
 	}
 
 	resp, em := (&users.OrganizationService{}).RemoveUserFromOrg(r.Context(), tx,
@@ -225,15 +236,15 @@ func OrganizationUserRemove(orgName string, jwtUser *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return resp, nil
 }
 
 // OrganizationTeamsList returns a paginated list with the teams of an organization.
-func OrganizationTeamsList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+func OrganizationTeamsList(p *gz.PaginationRequest, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	orgName, em := getName(tx, r)
 	if em != nil {
@@ -245,13 +256,15 @@ func OrganizationTeamsList(p *ign.PaginationRequest, user *users.User, tx *gorm.
 
 // OrganizationTeamCreate adds a team to an organization.
 // You can request this method with the following cURL request:
-//    curl -k -X POST https://localhost:4430/1.0/organizations/{orgName}/teams
-//      -H "Content-Type: application/json"
-//      -d '{"name":"teamName", "visible":"aBool", "description":"desc"}'
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X POST https://localhost:4430/1.0/organizations/{orgName}/teams
+//	  -H "Content-Type: application/json"
+//	  -d '{"name":"teamName", "visible":"aBool", "description":"desc"}'
+//	  --header 'authorization: Bearer <your-jwt-token-here>'
+//
 // It returns the created team
 func OrganizationTeamCreate(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	var teamInput users.CreateTeamForm
 	if em := ParseStruct(&teamInput, r, false); em != nil {
@@ -268,7 +281,7 @@ func OrganizationTeamCreate(orgName string, jwtUser *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return response, nil
@@ -276,11 +289,13 @@ func OrganizationTeamCreate(orgName string, jwtUser *users.User, tx *gorm.DB,
 
 // OrganizationTeamRemove removes a team from an organization.
 // You can request this method with the following cURL request:
-//    curl -k -X DELETE https://localhost:4430/1.0/organizations/{orgName}/teams/{teamname}
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X DELETE https://localhost:4430/1.0/organizations/{orgName}/teams/{teamname}
+//	  --header 'authorization: Bearer <your-jwt-token-here>'
+//
 // It returns the team
 func OrganizationTeamRemove(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Extract the team name from the request.
 	teamName, em := getTeamName(r)
@@ -299,7 +314,7 @@ func OrganizationTeamRemove(orgName string, jwtUser *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return response, nil
@@ -307,12 +322,14 @@ func OrganizationTeamRemove(orgName string, jwtUser *users.User, tx *gorm.DB,
 
 // OrganizationTeamUpdate modifies an existing team.
 // You can request this method with the following cURL request:
-//    curl -k -X PATCH -d '{"description":"New Description"}'
-//      https://localhost:4430/1.0/organizations/{name}/teams/{teamname} -H "Content-Type: application/json"
-//      -H 'Authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
+//	curl -k -X PATCH -d '{"description":"New Description"}'
+//	  https://localhost:4430/1.0/organizations/{name}/teams/{teamname} -H "Content-Type: application/json"
+//	  -H 'Authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
 // It returns the updated team
 func OrganizationTeamUpdate(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Extract the team name from the request.
 	teamName, em := getTeamName(r)
@@ -333,21 +350,22 @@ func OrganizationTeamUpdate(orgName string, jwtUser *users.User, tx *gorm.DB,
 
 	// Commit the DB transaction.
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	infoStr := "Organization Team has been updated: \n\t name: " + teamName
-	ign.LoggerFromRequest(r).Info(infoStr)
+	gz.LoggerFromRequest(r).Info(infoStr)
 
 	return response, nil
 }
 
 // OrganizationTeamIndex returns a single team.
 // You can request this method with the following cURL request:
-//   curl -k -X GET --url https://localhost:4430/1.0/organizations/{name}/teams/{teamname}
-//     --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/organizations/{name}/teams/{teamname}
+//	  --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
 func OrganizationTeamIndex(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Extract the team name from the request.
 	teamName, em := getTeamName(r)

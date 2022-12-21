@@ -3,10 +3,10 @@ package users
 import (
 	"context"
 	"fmt"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
 	"regexp"
 	"strings"
 	"time"
@@ -33,7 +33,7 @@ IMPLEMENTATION NOTES / Design:
 // NOTE: It does not remove the Group or its permissions from the Permissions
 // DB (casbin), in case we want to revert.
 func (ms *OrganizationService) RemoveOrganization(ctx context.Context, tx *gorm.DB, orgName string,
-	user *User) (*OrganizationResponse, *ign.ErrMsg) {
+	user *User) (*OrganizationResponse, *gz.ErrMsg) {
 
 	// Sanity check: make sure the org exists
 	organization, em := ByOrganizationName(tx, orgName, false)
@@ -53,10 +53,10 @@ func (ms *OrganizationService) RemoveOrganization(ctx context.Context, tx *gorm.
 	// Remove the organization from the database (soft-delete).
 	owner := UniqueOwner{Name: organization.Name}
 	if err := tx.Delete(organization).Delete(&owner).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
-	ign.LoggerFromContext(ctx).Info("Organization removed. Name=", *organization.Name)
+	gz.LoggerFromContext(ctx).Info("Organization removed. Name=", *organization.Name)
 
 	response := ms.CreateOrganizationResponse(organization, user, false)
 	return &response, nil
@@ -64,20 +64,20 @@ func (ms *OrganizationService) RemoveOrganization(ctx context.Context, tx *gorm.
 
 // OrganizationList returns a list of paginated OrganizationResponses.
 // forceShowPrivate forces returning Org private data regardless of the requestor's permissions.
-func (ms *OrganizationService) OrganizationList(p *ign.PaginationRequest, tx *gorm.DB,
-	requestor *User, forceShowPrivate bool) (*OrganizationResponses, *ign.PaginationResult, *ign.ErrMsg) {
+func (ms *OrganizationService) OrganizationList(p *gz.PaginationRequest, tx *gorm.DB,
+	requestor *User, forceShowPrivate bool) (*OrganizationResponses, *gz.PaginationResult, *gz.ErrMsg) {
 	// Get the organizations
 	var organizations Organizations
 
 	// Create the DB query
 	q := tx.Model(&Organization{})
 
-	pagination, err := ign.PaginateQuery(q, &organizations, *p)
+	pagination, err := gz.PaginateQuery(q, &organizations, *p)
 	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 	}
 	if !pagination.PageFound {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 	}
 
 	// Create OrganizationReponse results
@@ -128,15 +128,15 @@ func (ms *OrganizationService) CreateOrganizationResponse(organization *Organiza
 // the given Organization struct.
 // Returns an OrganizationResponse.
 func (ms *OrganizationService) CreateOrganization(ctx context.Context, tx *gorm.DB,
-	co CreateOrganization, creator *User) (*OrganizationResponse, *ign.ErrMsg) {
+	co CreateOrganization, creator *User) (*OrganizationResponse, *gz.ErrMsg) {
 	// Sanity check: Make sure that the organization name was not already used,
 	// even with removed organizations or users.
 	ownerName, em := OwnerByName(tx, co.Name, true)
-	if em != nil && em.ErrCode != ign.ErrorUserUnknown {
+	if em != nil && em.ErrCode != gz.ErrorUserUnknown {
 		return nil, em
 	}
 	if ownerName != nil {
-		return nil, ign.NewErrorMessage(ign.ErrorResourceExists)
+		return nil, gz.NewErrorMessage(gz.ErrorResourceExists)
 	}
 
 	// Create the organization in the permissions DB as a 'group' and set the
@@ -159,11 +159,11 @@ func (ms *OrganizationService) CreateOrganization(ctx context.Context, tx *gorm.
 
 	owner := UniqueOwner{Name: organization.Name, OwnerType: OwnerTypeOrg}
 	if err := tx.Create(&owner).Create(&organization).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	or := ms.CreateOrganizationResponse(&organization, creator, false)
-	ign.LoggerFromContext(ctx).Info("A new organization has been created. Name=", *organization.Name)
+	gz.LoggerFromContext(ctx).Info("A new organization has been created. Name=", *organization.Name)
 	return &or, nil
 }
 
@@ -172,7 +172,7 @@ func (ms *OrganizationService) CreateOrganization(ctx context.Context, tx *gorm.
 // The user argument is the requesting user. It is used to check if the user can
 // perform the operation.
 func (ms *OrganizationService) UpdateOrganization(ctx context.Context, tx *gorm.DB,
-	orgName string, uo *UpdateOrganization, user *User) (*Organization, *ign.ErrMsg) {
+	orgName string, uo *UpdateOrganization, user *User) (*Organization, *gz.ErrMsg) {
 
 	// Sanity check: make sure the org exists
 	organization, em := ByOrganizationName(tx, orgName, false)
@@ -205,19 +205,19 @@ func (ms *OrganizationService) UpdateOrganization(ctx context.Context, tx *gorm.
 // param[in] The params key to look for.
 // deleted[in] Whether to include deleted organizations in the search query.
 func (ms *OrganizationService) GetOrganization(ctx context.Context, tx *gorm.DB,
-	orgName string, deleted bool) (*Organization, *ign.ErrMsg) {
+	orgName string, deleted bool) (*Organization, *gz.ErrMsg) {
 	org, em := ByOrganizationName(tx, orgName, deleted)
 	if em != nil {
 		return nil, em
 	}
 
-	errMsg := ign.ErrorMessageOK()
+	errMsg := gz.ErrorMessageOK()
 	return org, &errMsg
 }
 
 // AddUserToOrg adds an user to an organization, using the given role.
 func (ms *OrganizationService) AddUserToOrg(ctx context.Context, tx *gorm.DB,
-	orgName, username, role string, requestor *User) (*UserResponse, *ign.ErrMsg) {
+	orgName, username, role string, requestor *User) (*UserResponse, *gz.ErrMsg) {
 
 	// Sanity check: make sure the org and user exist
 	org, em := ByOrganizationName(tx, orgName, false)
@@ -252,7 +252,7 @@ func (ms *OrganizationService) AddUserToOrg(ctx context.Context, tx *gorm.DB,
 		return nil, em
 	}
 
-	ign.LoggerFromContext(ctx).Info(fmt.Sprintf("User [%s] added to Organization [%s]", username, *org.Name))
+	gz.LoggerFromContext(ctx).Info(fmt.Sprintf("User [%s] added to Organization [%s]", username, *org.Name))
 
 	response := CreateUserResponse(tx, user, requestor)
 	return &response, nil
@@ -261,7 +261,7 @@ func (ms *OrganizationService) AddUserToOrg(ctx context.Context, tx *gorm.DB,
 // RemoveUserFromOrg removes an user from an organization.
 // NOTE: the owner of an Org cannot be removed (will return ErrorUnexpected)
 func (ms *OrganizationService) RemoveUserFromOrg(ctx context.Context, tx *gorm.DB, orgName, username string,
-	requestor *User) (*UserResponse, *ign.ErrMsg) {
+	requestor *User) (*UserResponse, *gz.ErrMsg) {
 
 	// Sanity check: make sure the org and user exist
 	org, em := ByOrganizationName(tx, orgName, false)
@@ -282,7 +282,7 @@ func (ms *OrganizationService) RemoveUserFromOrg(ctx context.Context, tx *gorm.D
 		// Now check if the requesting user can remove other users based on roles.
 		role, em := globals.Permissions.GetUserRoleForGroup(*user.Username, *org.Name)
 		if em != nil {
-			return nil, ign.NewErrorMessage(ign.ErrorNameNotFound)
+			return nil, gz.NewErrorMessage(gz.ErrorNameNotFound)
 		}
 		if ok, em := globals.Permissions.IsAuthorizedForRole(*requestor.Username,
 			*org.Name, role); !ok {
@@ -296,7 +296,7 @@ func (ms *OrganizationService) RemoveUserFromOrg(ctx context.Context, tx *gorm.D
 		return nil, em
 	}
 
-	ign.LoggerFromContext(ctx).Info(fmt.Sprintf("User [%s] removed from Organization [%s]", username, *org.Name))
+	gz.LoggerFromContext(ctx).Info(fmt.Sprintf("User [%s] removed from Organization [%s]", username, *org.Name))
 
 	response := CreateUserResponse(tx, user, requestor)
 	return &response, nil
@@ -305,8 +305,8 @@ func (ms *OrganizationService) RemoveUserFromOrg(ctx context.Context, tx *gorm.D
 // GetOrgUsers returns the list of users of an Organization.
 // The result will be paginated.
 // user argument is the user requesting the operation.
-func (ms *OrganizationService) GetOrgUsers(p *ign.PaginationRequest, tx *gorm.DB,
-	orgName string, user *User) (*UserResponses, *ign.PaginationResult, *ign.ErrMsg) {
+func (ms *OrganizationService) GetOrgUsers(p *gz.PaginationRequest, tx *gorm.DB,
+	orgName string, user *User) (*UserResponses, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Sanity check: make sure the org exist
 	_, em := ByOrganizationName(tx, orgName, false)
@@ -323,17 +323,17 @@ func (ms *OrganizationService) GetOrgUsers(p *ign.PaginationRequest, tx *gorm.DB
 
 // CreateTeam creates a new team within an organization. Returns a Team
 func (ms *OrganizationService) CreateTeam(ctx context.Context, tx *gorm.DB,
-	orgName string, t CreateTeamForm, creator *User) (*TeamResponse, *ign.ErrMsg) {
+	orgName string, t CreateTeamForm, creator *User) (*TeamResponse, *gz.ErrMsg) {
 
 	// Sanity check: The JSON should have the required fields.
 	// \todo: this should be moved to helper function that receives list of fields or field names
 	if t.Name == "" {
-		return nil, ign.NewErrorMessage(ign.ErrorMissingField)
+		return nil, gz.NewErrorMessage(gz.ErrorMissingField)
 	}
 	// Sanity check (hack): teams cannot be named like roles (owner, admin, member).
 	if _, em := permissions.RoleFrom(strings.ToLower(t.Name)); em == nil {
 		extra := fmt.Sprintf("Team cannot be named [%s]", t.Name)
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, nil, []string{extra})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, nil, []string{extra})
 	}
 	// Sanity check: make sure the org exist
 	org, em := ByOrganizationName(tx, orgName, false)
@@ -348,17 +348,17 @@ func (ms *OrganizationService) CreateTeam(ctx context.Context, tx *gorm.DB,
 
 	// Sanity check: make sure the team does NOT exist
 	if _, err := ByTeamName(tx, t.Name, true); err == nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorResourceExists, nil, []string{t.Name})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists, nil, []string{t.Name})
 	}
 
 	// Add the team to the database.
 	team := Team{Name: &t.Name, Visible: *t.Visible, Description: t.Description,
 		Organization: *org, Creator: creator.Username}
 	if err := tx.Create(&team).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
-	ign.LoggerFromContext(ctx).Info(fmt.Sprintf("A new team has been created. Org:[%s] Team:[%s]",
+	gz.LoggerFromContext(ctx).Info(fmt.Sprintf("A new team has been created. Org:[%s] Team:[%s]",
 		*org.Name, *team.Name))
 
 	response := ms.CreateTeamResponse(orgName, &team)
@@ -370,7 +370,7 @@ func (ms *OrganizationService) CreateTeam(ctx context.Context, tx *gorm.DB,
 // NOTE: It does not remove the team role from the Permissions DB (casbin), in
 // case we want to revert.
 func (ms *OrganizationService) RemoveTeam(ctx context.Context, tx *gorm.DB,
-	orgName, teamName string, user *User) (*TeamResponse, *ign.ErrMsg) {
+	orgName, teamName string, user *User) (*TeamResponse, *gz.ErrMsg) {
 
 	// Sanity check: make sure the org exists
 	org, em := ByOrganizationName(tx, orgName, false)
@@ -391,10 +391,10 @@ func (ms *OrganizationService) RemoveTeam(ctx context.Context, tx *gorm.DB,
 
 	// Remove the team from the database (soft-delete).
 	if err := tx.Delete(team).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
-	ign.LoggerFromContext(ctx).Info(fmt.Sprintf("Team removed. Org:[%s]. Team:[%s]", *org.Name, *team.Name))
+	gz.LoggerFromContext(ctx).Info(fmt.Sprintf("Team removed. Org:[%s]. Team:[%s]", *org.Name, *team.Name))
 
 	response := ms.CreateTeamResponse(orgName, team)
 	return &response, nil
@@ -406,7 +406,7 @@ func (ms *OrganizationService) RemoveTeam(ctx context.Context, tx *gorm.DB,
 // the returned organizations will include only those that the requestor can
 // Read or are Public. Roles will be included for those that requestor can Write.
 func GetOrganizationsAndRolesForUser(tx *gorm.DB, user,
-	requestor *User) (map[string]string, *ign.ErrMsg) {
+	requestor *User) (map[string]string, *gz.ErrMsg) {
 
 	orgNames := make([]string, 0)
 	orgsWithRole := globals.Permissions.GetGroupsAndRolesForUser(*user.Username)
@@ -420,7 +420,7 @@ func GetOrganizationsAndRolesForUser(tx *gorm.DB, user,
 	q := tx.Model(&Organization{}).Where("name in (?)", orgNames)
 	var orgs Organizations
 	if err := q.Find(&orgs).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	result := make(map[string]string, len(orgs))
@@ -449,8 +449,8 @@ func GetOrganizationsAndRolesForUser(tx *gorm.DB, user,
 // GetTeams returns the list of teams of an Organization.
 // The result will be paginated.
 // user argument is the user requesting the operation.
-func (ms *OrganizationService) GetTeams(p *ign.PaginationRequest, tx *gorm.DB,
-	orgName string, user *User) (*TeamResponses, *ign.PaginationResult, *ign.ErrMsg) {
+func (ms *OrganizationService) GetTeams(p *gz.PaginationRequest, tx *gorm.DB,
+	orgName string, user *User) (*TeamResponses, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Sanity check: make sure the org exist
 	org, em := ByOrganizationName(tx, orgName, false)
@@ -473,12 +473,12 @@ func (ms *OrganizationService) GetTeams(p *ign.PaginationRequest, tx *gorm.DB,
 	}
 
 	var teams Teams
-	pagination, err := ign.PaginateQuery(q, &teams, *p)
+	pagination, err := gz.PaginateQuery(q, &teams, *p)
 	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 	}
 	if !pagination.PageFound {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 	}
 
 	responses := TeamResponses{}
@@ -490,7 +490,7 @@ func (ms *OrganizationService) GetTeams(p *ign.PaginationRequest, tx *gorm.DB,
 
 // GetTeamDetails returns a single team. The user argument is the requesting user.
 func (ms *OrganizationService) GetTeamDetails(ctx context.Context, tx *gorm.DB,
-	orgName, teamName string, user *User) (*TeamResponse, *ign.ErrMsg) {
+	orgName, teamName string, user *User) (*TeamResponse, *gz.ErrMsg) {
 
 	// Sanity check: make sure the org exist
 	org, em := ByOrganizationName(tx, orgName, false)
@@ -529,7 +529,7 @@ func (ms *OrganizationService) GetTeamDetails(ctx context.Context, tx *gorm.DB,
 // canReadTeam returns true if the given user can read a team. Note: a user can
 // read a team if he has read access to the team OR write access to the parent
 // organization.
-func canReadTeam(user, org, team string) (bool, *ign.ErrMsg) {
+func canReadTeam(user, org, team string) (bool, *gz.ErrMsg) {
 	canEditOrg, _ := globals.Permissions.IsAuthorized(user, org, permissions.Write)
 	if canEditOrg {
 		return true, nil
@@ -559,7 +559,7 @@ func (ms *OrganizationService) CreateTeamResponse(orgName string, team *Team) Te
 // The user argument is the requesting user. It is used to check if the user can
 // perform the operation.
 func (ms *OrganizationService) UpdateTeam(ctx context.Context, tx *gorm.DB,
-	orgName, teamName string, ut UpdateTeamForm, requestor *User) (*TeamResponse, *ign.ErrMsg) {
+	orgName, teamName string, ut UpdateTeamForm, requestor *User) (*TeamResponse, *gz.ErrMsg) {
 
 	// Sanity check: make sure the organization exist
 	org, em := ByOrganizationName(tx, orgName, false)
@@ -581,7 +581,7 @@ func (ms *OrganizationService) UpdateTeam(ctx context.Context, tx *gorm.DB,
 	for _, name := range ut.RmUsers {
 		isInTeam := globals.Permissions.UserBelongsToGroup(name, teamGroupName)
 		if !isInTeam {
-			return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, nil,
+			return nil, gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, nil,
 				[]string{"Team does not have user:" + name})
 		}
 	}
@@ -590,7 +590,7 @@ func (ms *OrganizationService) UpdateTeam(ctx context.Context, tx *gorm.DB,
 		// the user should already belong to Organization (default team)
 		belongsToOrg := globals.Permissions.UserBelongsToGroup(name, orgName)
 		if !belongsToOrg {
-			return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, nil,
+			return nil, gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, nil,
 				[]string{"user does not belong to Org:" + name})
 		}
 		teamGroupName := getCasbinNameForTeam(orgName, teamName)
@@ -621,7 +621,7 @@ func (ms *OrganizationService) UpdateTeam(ctx context.Context, tx *gorm.DB,
 		tx.Model(team).Update("Description", ut.Description)
 	}
 
-	ign.LoggerFromContext(ctx).Info(fmt.Sprintf("Team was updated. Org:[%s]. Team:[%s]",
+	gz.LoggerFromContext(ctx).Info(fmt.Sprintf("Team was updated. Org:[%s]. Team:[%s]",
 		*org.Name, *team.Name))
 
 	response := ms.CreateTeamResponse(orgName, team)
@@ -651,7 +651,7 @@ func getTeamsForUser(org, user string) []string {
 
 // adds a user to a team, using casbin groups.
 func addUserToTeam(ctx context.Context, tx *gorm.DB,
-	team *Team, username string) *ign.ErrMsg {
+	team *Team, username string) *gz.ErrMsg {
 
 	org := team.Organization
 
@@ -663,14 +663,14 @@ func addUserToTeam(ctx context.Context, tx *gorm.DB,
 			return em
 		}
 	} else {
-		return ign.NewErrorMessage(ign.ErrorUnexpected)
+		return gz.NewErrorMessage(gz.ErrorUnexpected)
 	}
 	return nil
 }
 
 // removes a user from a team, using casbin groups.
 func removeUserFromTeam(ctx context.Context, tx *gorm.DB,
-	team *Team, username string) *ign.ErrMsg {
+	team *Team, username string) *gz.ErrMsg {
 	org := team.Organization
 
 	// remove the user from the team. We do this by updating the permissions and roles.

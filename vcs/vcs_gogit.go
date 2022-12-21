@@ -3,8 +3,8 @@ package vcs
 import (
 	"context"
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/pkg/errors"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"gopkg.in/src-d/go-billy.v4/osfs"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -99,8 +99,8 @@ func (g *GoGitVCS) goGitInitAndCommitAll(ctx context.Context, msg string) error 
 	}
 	r, err := git.Init(storage, fs)
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while doing git Init. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while doing git Init. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
 		return err
 	}
 	g.r = r
@@ -108,7 +108,7 @@ func (g *GoGitVCS) goGitInitAndCommitAll(ctx context.Context, msg string) error 
 	// Add all files to git index
 	w, _ := r.Worktree()
 	if _, err := w.Add("."); err != nil {
-		return ign.WithStack(err)
+		return gz.WithStack(err)
 	}
 
 	// Commit
@@ -120,7 +120,7 @@ func (g *GoGitVCS) goGitInitAndCommitAll(ctx context.Context, msg string) error 
 		},
 	})
 	if err != nil {
-		return ign.WithStack(err)
+		return gz.WithStack(err)
 	}
 	return nil
 }
@@ -133,15 +133,15 @@ func (g *GoGitVCS) getCommit(ctx context.Context, rev string) (*object.Commit, e
 	pr := plumbing.Revision(rev)
 	hash, err := g.r.ResolveRevision(pr)
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while getting hash. Err: " + fmt.Sprint(err))
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while getting hash. Err: " + fmt.Sprint(err))
 		return nil, err
 	}
 	// retrieve the commit object
 	commit, err := g.r.CommitObject(*hash)
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while getting commit. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while getting commit. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
 		return nil, err
 	}
 	return commit, nil
@@ -160,20 +160,20 @@ func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string)
 	// retrieve the tree from the commit
 	f, err := commit.File(pathFromRoot)
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while getting File. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while getting File. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
 		return nil, err
 	}
 	reader, err := f.Reader()
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while getting file Reader. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while getting file Reader. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
 		return nil, err
 	}
 	var bs []byte
 	bs, err = ioutil.ReadAll(reader)
 	if err != nil {
-		err = ign.WithStack(err)
+		err = gz.WithStack(err)
 	}
 	return &bs, err
 }
@@ -196,7 +196,7 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 	// Get the files iterator
 	iter, err := commit.Files()
 	if err != nil {
-		return ign.WithStack(err)
+		return gz.WithStack(err)
 	}
 
 	visitedFolders := make(map[string]bool)
@@ -225,7 +225,7 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 					visitedFolders[foPath] = true
 					// Need to prefix all paths with "/" as client code is expecting that.
 					if err := fn(filepath.Join("/", foPath), filepath.Join("/", foParent), true); err != nil {
-						return ign.WithStack(err)
+						return gz.WithStack(err)
 					}
 				}
 			}
@@ -233,7 +233,7 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 		// Need to prefix all paths with "/" as client code is expecting that.
 		err := fn(filepath.Join("/", f.Name), filepath.Join("/", parentPath), false)
 		if err != nil {
-			return ign.WithStack(err)
+			return gz.WithStack(err)
 		}
 		return nil
 	})
@@ -259,7 +259,7 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 	// First, remove all files from master.
 	w, err := g.r.Worktree()
 	if err != nil {
-		return ign.WithStack(err)
+		return gz.WithStack(err)
 	}
 	removeFn := func(path, parentPath string, isDir bool) error {
 		if path == "/" || path == "/.gitignore" {
@@ -271,7 +271,7 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 		fullpath := filepath.Join(g.Path, path)
 		if _, err := os.Stat(fullpath); err == nil {
 			if _, err := w.Remove(path); err != nil {
-				return ign.WithStack(err)
+				return gz.WithStack(err)
 			}
 		}
 		return nil
@@ -296,12 +296,12 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 		// and trim "/" prefix
 		path = path[1:]
 		if _, err := w.Add(path); err != nil {
-			return ign.WithStack(err)
+			return gz.WithStack(err)
 		}
 		return nil
 	}
 	if err := filepath.Walk(folder, addFn); err != nil {
-		return ign.WithStack(err)
+		return gz.WithStack(err)
 	}
 
 	// Commit
@@ -318,7 +318,7 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 		},
 	})
 	if err != nil {
-		return ign.WithStack(err)
+		return gz.WithStack(err)
 	}
 	return nil
 }
@@ -338,16 +338,16 @@ func (g *GoGitVCS) Tag(ctx context.Context, tag string) error {
 	// create new tag from head
 	headRef, err := g.r.Head()
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while tagging repo. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while tagging repo. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
 		return err
 	}
 	completeTag := "refs/tags/" + tag
 	ref := plumbing.NewHashReference(plumbing.ReferenceName(completeTag), headRef.Hash())
 	err = g.r.Storer.SetReference(ref)
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while tagging repo. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while tagging repo. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
 		return err
 	}
 	return nil

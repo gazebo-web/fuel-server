@@ -2,16 +2,16 @@ package reviews
 
 import (
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"reflect"
 	"strconv"
 	"strings"
 
-	"github.com/jinzhu/gorm"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/jinzhu/gorm"
 )
 
 const noFullTextSearch = ":noft:"
@@ -37,8 +37,8 @@ func (s *Service) GetResourceSlice(len int, cap int) interface{} {
 
 // ReviewList returns a paginated list of reviews.
 // This function returns a list of Reviews that can then be mashalled into json or protobuf.
-func (s *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *string,
-	order, search string, modelID *uint, user *users.User) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+func (s *Service) ReviewList(p *gz.PaginationRequest, tx *gorm.DB, owner *string,
+	order, search string, modelID *uint, user *users.User) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	resourceInstance := s.GetResourceInstance()
 	reviewList := s.GetResourceSlice(0, 0)
@@ -84,13 +84,13 @@ func (s *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 	}
 
 	// Use pagination
-	paginationResult, err := ign.PaginateQuery(q, reviewList, *p)
+	paginationResult, err := gz.PaginateQuery(q, reviewList, *p)
 	if err != nil {
-		em := ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		em := gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 		return nil, nil, em
 	}
 	if !paginationResult.PageFound {
-		em := ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		em := gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 		return nil, nil, em
 	}
 
@@ -104,7 +104,7 @@ func (s *Service) ReviewList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 		protoReview, ok := review.Interface().(Protobuffer)
 		// If the review cannot be cast to the interface, just fail
 		if !ok {
-			em := ign.NewErrorMessage(ign.ErrorMarshalProto)
+			em := gz.NewErrorMessage(gz.ErrorMarshalProto)
 			return nil, nil, em
 		}
 		// Store the element's protobuf representation
@@ -125,7 +125,7 @@ type Protobuffer interface {
 }
 
 // CreateModelReview creates a new model review
-func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator *users.User) (*ModelReview, *ign.ErrMsg) {
+func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator *users.User) (*ModelReview, *gz.ErrMsg) {
 	// set the owner
 	owner := cmr.CreateReview.Owner
 	if owner == "" {
@@ -143,12 +143,12 @@ func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator 
 		cmr.CreateReview.Reviewers, cmr.CreateReview.Approvals, cmr.ModelID)
 	modelReview.Creator = creator.Username
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
 	// create model review in the DB
 	if err := tx.Create(&modelReview).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// read and write permissions
@@ -156,11 +156,11 @@ func (s *Service) CreateModelReview(cmr CreateModelReview, tx *gorm.DB, creator 
 	modelIDStr := strconv.FormatUint(uint64(*modelReview.ModelID), 10)
 	_, err = globals.Permissions.AddPermission(owner, modelIDStr, permissions.Read)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	_, err = globals.Permissions.AddPermission(owner, modelIDStr, permissions.Write)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	return &modelReview, nil

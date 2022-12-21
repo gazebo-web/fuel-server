@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/proto"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	"github.com/gazebo-web/gz-go/v7"
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"net/http"
 	"net/url"
 	"os"
@@ -28,7 +29,7 @@ func addAssetToCollection(t *testing.T, jwt, colOwner, colName, owner, name,
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(nameOwner)
 	uri := fmt.Sprintf("/1.0/%s/collections/%s/%ss", colOwner, colName, aType)
-	igntest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
+	gztest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }
 
 // creates an URL to get a collection
@@ -59,14 +60,14 @@ func createTestCollectionWithOwner(t *testing.T, jwt *string, name,
 		Private: &private}
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(cc)
-	igntest.AssertRouteMultipleArgs("POST", "/1.0/collections", b, http.StatusOK, jwt, ctJSON, t)
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/collections", b, http.StatusOK, jwt, ctJSON, t)
 }
 
 // Create a random public collection under the default user.
 // PRE-REQ: a user with the default JWT should have been created before.
 func createCollection(t *testing.T) string {
 	jwt := os.Getenv("IGN_TEST_JWT")
-	name := ign.RandomString(8)
+	name := gz.RandomString(8)
 	description := "a random collection"
 	createTestCollectionWithOwner(t, &jwt, name, "", description, false)
 	return name
@@ -80,7 +81,7 @@ func removeCollection(t *testing.T, owner, name string, jwt *string) {
 	require.NotNil(t, col, "removeCollection error: Unable to find collection[%s/%s] in DB", owner, name)
 
 	uri := colURL(owner, name)
-	igntest.AssertRouteMultipleArgs("DELETE", uri, nil, http.StatusOK, jwt, ctJSON, t)
+	gztest.AssertRouteMultipleArgs("DELETE", uri, nil, http.StatusOK, jwt, ctJSON, t)
 
 	// make sure the collection is not in DB anymore
 	col, _ = collections.ByName(globals.Server.Db, name, owner)
@@ -161,13 +162,13 @@ func TestGetCollections(t *testing.T) {
 		{uriTest{"model1's collections", modelColsURI(testUser, "model1"), nil, nil,
 			false}, 1, cName1, "", []string{thumb1}},
 		{uriTest{"inv model's collections", modelColsURI(testUser, "inv"), nil,
-			ign.NewErrorMessage(ign.ErrorNameNotFound), true}, 1, "", "", nil},
+			gz.NewErrorMessage(gz.ErrorNameNotFound), true}, 1, "", "", nil},
 		{uriTest{"world1's collections should be empty", worldColsURI(testUser, "world1"),
 			nil, nil, false}, 0, "", "", nil},
 		{uriTest{"world2's collections", worldColsURI(testUser, "world2"), nil, nil,
 			false}, 1, cName1, "", []string{thumb1}},
 		{uriTest{"inv world's collections", worldColsURI(testUser, "inv"), nil,
-			ign.NewErrorMessage(ign.ErrorNameNotFound), true}, 1, "", "", nil},
+			gz.NewErrorMessage(gz.ErrorNameNotFound), true}, 1, "", "", nil},
 		// PAGINATION
 		{uriTest{"get page #1", uri + "?order=asc&per_page=1&page=1", nil, nil, false}, 1, cName1,
 			"</1.0/collections?order=asc&page=2&per_page=1>; rel=\"next\", </1.0/collections?order=asc&page=3&per_page=1>; rel=\"last\"", nil},
@@ -175,7 +176,7 @@ func TestGetCollections(t *testing.T) {
 			"</1.0/collections?order=asc&page=3&per_page=1>; rel=\"next\", </1.0/collections?order=asc&page=3&per_page=1>; rel=\"last\", </1.0/collections?order=asc&page=1&per_page=1>; rel=\"first\", </1.0/collections?order=asc&page=1&per_page=1>; rel=\"prev\"", nil},
 		{uriTest{"get page #3", uri + "?order=desc&per_page=1&page=3", nil, nil, false}, 1, cName1,
 			"</1.0/collections?order=desc&page=1&per_page=1>; rel=\"first\", </1.0/collections?order=desc&page=2&per_page=1>; rel=\"prev\"", nil},
-		{uriTest{"invalid page", uri + "?per_page=1&page=7", nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound), false}, 0, "", "", nil},
+		{uriTest{"invalid page", uri + "?per_page=1&page=7", nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound), false}, 0, "", "", nil},
 	}
 
 	user2NoCollections := []collectionsSearchTest{
@@ -225,13 +226,13 @@ func runSubtestWithCollectionSearchTestData(t *testing.T, test collectionsSearch
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var cols collections.Collections
 		require.NotNil(t, bslice)
@@ -349,7 +350,7 @@ func TestAPICollections(t *testing.T) {
 	// General test setup
 	setup()
 	uri := "/1.0/collections"
-	igntest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
+	gztest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
 }
 
 // TODO try to MERGE with TestGetOwnerModel.
@@ -413,20 +414,20 @@ func TestGetCollectionIndex(t *testing.T) {
 		{uriTest{"no jwt - get public collection", colURL(testUser, cName1), nil,
 			nil, false}, testUser, cName1, []string{thumb1}},
 		{uriTest{"no jwt - get private collection", colURL(testUser, cName2), nil,
-			ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "", "", nil},
+			gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "", "", nil},
 		{uriTest{"invalid name", colURL(testUser, "invalidname"), nil,
-			ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "", "", nil},
+			gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "", "", nil},
 		{uriTest{"get collection with special char", colURL(testUser, colSpecialCharName),
 			nil, nil, false}, testUser, colSpecialCharName, nil},
 		{uriTest{"get public collection of another user", colURL(testUser, cName1),
 			newJWT(jwt2), nil, true}, testUser, cName1, []string{thumb1}},
 		{uriTest{"get private collection of another user", colURL(testUser, cName2),
-			newJWT(jwt2), ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "", "",
+			newJWT(jwt2), gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "", "",
 			nil},
 		{uriTest{"get public org collection with no jwt", colURL(org, orgCol1), nil,
 			nil, true}, org, orgCol1, nil},
 		{uriTest{"get private org collection with no jwt", colURL(org, orgCol2), nil,
-			ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "", "", nil},
+			gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "", "", nil},
 		{uriTest{"get public org collection from a member", colURL(org, orgCol1), newJWT(jwt2),
 			nil, true}, org, orgCol1, nil},
 		{uriTest{"get private org collection from a member", colURL(org, orgCol2),
@@ -434,7 +435,7 @@ func TestGetCollectionIndex(t *testing.T) {
 		{uriTest{"get public org collection from non member", colURL(org, orgCol1),
 			newJWT(jwt3), nil, true}, org, orgCol1, nil},
 		{uriTest{"get private org collection from non member", colURL(org, orgCol2),
-			newJWT(jwt3), ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "", "",
+			newJWT(jwt3), gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "", "",
 			nil},
 	}
 
@@ -450,13 +451,13 @@ func runSubtestWithCollectionIndexTestData(t *testing.T, test collectionIndexTes
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	assert.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK && resp.RespRecorder.Code == http.StatusOK {
 		var got collections.Collection
 		assert.NoError(t, json.Unmarshal(*bslice, &got), "Unable to unmarshal resource: %s", string(*bslice))
@@ -529,20 +530,20 @@ func TestCollectionCreate(t *testing.T) {
 	description := "a cool Collection"
 	uri := "/1.0/collections"
 	colCreateTestsData := []createCollectionTest{
-		{uriTest{"no jwt", uri, nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true},
+		{uriTest{"no jwt", uri, nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true},
 			collections.CreateCollection{Name: name}, false, ""},
 		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")},
-			ign.NewErrorMessage(ign.ErrorUnauthorized), true},
+			gz.NewErrorMessage(gz.ErrorUnauthorized), true},
 			collections.CreateCollection{Name: name}, false, ""},
-		{uriTest{"no user in backend", uri, newJWT(jwt2), ign.NewErrorMessage(ign.ErrorAuthNoUser),
+		{uriTest{"no user in backend", uri, newJWT(jwt2), gz.NewErrorMessage(gz.ErrorAuthNoUser),
 			false}, collections.CreateCollection{Name: name, Description: description},
 			false, ""},
-		{uriTest{"no name", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue),
+		{uriTest{"no name", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue),
 			false}, collections.CreateCollection{Description: description}, false, ""},
-		{uriTest{"short name", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue),
+		{uriTest{"short name", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue),
 			false}, collections.CreateCollection{Name: "no", Description: description}, false, ""},
 		{uriTest{"no optional fields", uri, jwtDef, nil, false},
-			collections.CreateCollection{Name: ign.RandomString(8)}, true, username},
+			collections.CreateCollection{Name: gz.RandomString(8)}, true, username},
 		{uriTest{"with space underscore and dash", uri, jwtDef, nil, true},
 			collections.CreateCollection{Name: "with- _space", Description: description},
 			true, username},
@@ -551,7 +552,7 @@ func TestCollectionCreate(t *testing.T) {
 			collections.CreateCollection{Name: name, Description: description}, false,
 			username},
 		{uriTest{"duplicate name for same owner", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorResourceExists), false},
+			gz.NewErrorMessage(gz.ErrorResourceExists), false},
 			collections.CreateCollection{Name: name, Description: description}, true,
 			username},
 		// end of inter-related test cases
@@ -562,7 +563,7 @@ func TestCollectionCreate(t *testing.T) {
 		{uriTest{"OK create for Org member but cannot delete", uri, newJWT(jwt3),
 			nil, false}, collections.CreateCollection{Name: name, Owner: org}, false, org},
 		{uriTest{"no write access from non org member", uri, newJWT(jwt4),
-			ign.NewErrorMessage(ign.ErrorUnauthorized), false},
+			gz.NewErrorMessage(gz.ErrorUnauthorized), false},
 			collections.CreateCollection{Name: name, Owner: org}, false, org},
 	}
 
@@ -664,9 +665,9 @@ func TestCollectionTransfer(t *testing.T) {
 			json.NewEncoder(b).Encode(test.postParams)
 
 			if test.expStatus != http.StatusOK {
-				igntest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwt, "text/plain; charset=utf-8", t)
+				gztest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwt, "text/plain; charset=utf-8", t)
 			} else {
-				igntest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwt, "application/json", t)
+				gztest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwt, "application/json", t)
 			}
 		})
 	}
@@ -800,10 +801,10 @@ func runSubTestWithCreateCollectionTestData(test createCollectionTest, t *testin
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	bslice, _ := igntest.AssertRouteMultipleArgs("POST", test.URL, b, expStatus, jwt, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	bslice, _ := gztest.AssertRouteMultipleArgs("POST", test.URL, b, expStatus, jwt, expCt, t)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name()+" POST /collections", bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name()+" POST /collections", bslice, expEm.ErrCode, t)
 	}
 	if test.deleteAfter {
 		removeCollection(t, test.owner, cc.Name, jwt)
@@ -820,10 +821,10 @@ func runSubTestWithCloneCollectionTestData(test cloneCollectionTest, t *testing.
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	bslice, _ := igntest.AssertRouteMultipleArgs("POST", test.URL, b, expStatus, jwt, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	bslice, _ := gztest.AssertRouteMultipleArgs("POST", test.URL, b, expStatus, jwt, expCt, t)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name()+" POST /{username}/collections/{collection_name}/clone", bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name()+" POST /{username}/collections/{collection_name}/clone", bslice, expEm.ErrCode, t)
 	}
 	if test.deleteAfter {
 		removeCollection(t, test.owner, cloneCollection.Name, jwt)
@@ -840,7 +841,7 @@ type updateCollectionTest struct {
 	owner string
 	// update data
 	upd        *collections.UpdateCollection
-	postFiles  []igntest.FileDesc
+	postFiles  []gztest.FileDesc
 	expThumbCT *string
 	expVersion int
 }
@@ -895,31 +896,31 @@ func TestCollectionUpdate(t *testing.T) {
 	priv := true
 	upd := collections.UpdateCollection{Description: &description, Private: &priv}
 	updDescOnly := collections.UpdateCollection{Description: &description}
-	emptyFiles := []igntest.FileDesc{}
-	withLogo := []igntest.FileDesc{
+	emptyFiles := []gztest.FileDesc{}
+	withLogo := []gztest.FileDesc{
 		{"thumbnails/col.sdf", constModelSDFFileContents},
 	}
 	expThumbCT := "chemical/x-mdl-sdfile"
 
 	uri := colURL(username, cName)
-	unauth := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	unauth := gz.NewErrorMessage(gz.ErrorUnauthorized)
 	colUpdateTestsData := []updateCollectionTest{
 		{uriTest{"no jwt", uri, nil, unauth, true},
 			cName, username, &upd, emptyFiles, nil, 1},
 		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")},
 			unauth, true}, cName, username, &upd, emptyFiles, nil, 1},
-		{uriTest{"no fields", uri, jwtDef, ign.NewErrorMessage(ign.ErrorUnmarshalJSON),
+		{uriTest{"no fields", uri, jwtDef, gz.NewErrorMessage(gz.ErrorUnmarshalJSON),
 			true}, cName, username, nil, nil, nil, 1},
-		{uriTest{"no fields #2", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue),
+		{uriTest{"no fields #2", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue),
 			false}, cName, username, &collections.UpdateCollection{}, nil, nil, 1},
 		{uriTest{"update OK", uri, jwtDef, nil, false}, cName, username, &upd, emptyFiles, nil, 1},
-		{uriTest{"non active user", uri, newJWT(jwt2), ign.NewErrorMessage(ign.ErrorAuthNoUser),
+		{uriTest{"non active user", uri, newJWT(jwt2), gz.NewErrorMessage(gz.ErrorAuthNoUser),
 			true}, cName, username, nil, emptyFiles, nil, 1},
 		{uriTest{"non existent collection", colURL(username, "inv"), jwtDef,
-			ign.NewErrorMessage(ign.ErrorNameNotFound), false}, cName, username,
+			gz.NewErrorMessage(gz.ErrorNameNotFound), false}, cName, username,
 			&upd, emptyFiles, nil, 1},
 		{uriTest{"no write access for other user", uri, newJWT(jwt3),
-			ign.NewErrorMessage(ign.ErrorNameNotFound), true}, cName, username,
+			gz.NewErrorMessage(gz.ErrorNameNotFound), true}, cName, username,
 			&upd, emptyFiles, nil, 1},
 		{uriTest{"no write access for non org member", colURL(org, orgCName), newJWT(jwt4),
 			unauth, true}, orgCName, org, &upd,
@@ -965,12 +966,12 @@ func runSubTestWithUpdateCollectionTestData(test updateCollectionTest, t *testin
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, _ := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	gotCode, bslice, ok := igntest.SendMultipartMethod(t.Name(), t, "PATCH", test.URL, jwt, postParams, test.postFiles)
+	gotCode, bslice, ok := gztest.SendMultipartMethod(t.Name(), t, "PATCH", test.URL, jwt, postParams, test.postFiles)
 	assert.True(t, ok, "Could not perform multipart request")
 	if expStatus != http.StatusOK {
 		require.Equal(t, expStatus, gotCode)
 		if !test.ignoreErrorBody {
-			igntest.AssertBackendErrorCode(t.Name()+" PATCH "+test.URL, bslice,
+			gztest.AssertBackendErrorCode(t.Name()+" PATCH "+test.URL, bslice,
 				expEm.ErrCode, t)
 		}
 	} else if expStatus == http.StatusOK {
@@ -1004,9 +1005,9 @@ func runSubTestWithUpdateCollectionTestData(test updateCollectionTest, t *testin
 			thumbnailURL := fmt.Sprintf("/%s/collections/%s/tip/files/%s", test.owner,
 				url.PathEscape(test.name), test.postFiles[0].Path)
 			assert.Equal(t, thumbnailURL, got.ThumbnailUrls[0])
-			reqArgs := igntest.RequestArgs{Method: "GET", Route: "/1.0" + thumbnailURL,
+			reqArgs := gztest.RequestArgs{Method: "GET", Route: "/1.0" + thumbnailURL,
 				Body: nil, SignedToken: nil}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, *test.expThumbCT, t)
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, *test.expThumbCT, t)
 			ensureIgnResourceVersionHeader(resp.RespRecorder, test.expVersion, t)
 		}
 	}
@@ -1067,31 +1068,31 @@ func TestCollectionAssetAdd(t *testing.T) {
 	testListGen := func(aType string) []collectionAssetAddTest {
 		return []collectionAssetAddTest{
 			{uriTest{aType + "| no jwt", assetsURL(username, cName, aType), nil,
-				ign.NewErrorMessage(ign.ErrorUnauthorized), true},
+				gz.NewErrorMessage(gz.ErrorUnauthorized), true},
 				collections.NameOwnerPair{aType + "1", username}},
 			{uriTest{aType + "| collection doest not exist", assetsURL(username, "inv", aType),
-				jwtDef, ign.NewErrorMessage(ign.ErrorNameNotFound), false},
+				jwtDef, gz.NewErrorMessage(gz.ErrorNameNotFound), false},
 				collections.NameOwnerPair{aType + "1", username}},
 			{uriTest{aType + "| invalid jwt token", assetsURL(username, cName, aType),
 				&testJWT{jwt: sptr("invalid")},
-				ign.NewErrorMessage(ign.ErrorUnauthorized), true},
+				gz.NewErrorMessage(gz.ErrorUnauthorized), true},
 				collections.NameOwnerPair{aType + "1", username}},
 			{uriTest{aType + " doest not exist", assetsURL(username, cName, aType), jwtDef,
-				ign.NewErrorMessage(ign.ErrorNameNotFound), true},
+				gz.NewErrorMessage(gz.ErrorNameNotFound), true},
 				collections.NameOwnerPair{"inv", username}},
 			{uriTest{aType + " already in collection", assetsURL(username, cName, aType), jwtDef,
-				ign.NewErrorMessage(ign.ErrorResourceExists), true},
+				gz.NewErrorMessage(gz.ErrorResourceExists), true},
 				collections.NameOwnerPair{aType + "1", username}},
 			{uriTest{aType + "| non owner user should not be able to add asset to user collection",
 				assetsURL(username, cName, aType), newJWT(jwt2),
-				ign.NewErrorMessage(ign.ErrorUnauthorized), false},
+				gz.NewErrorMessage(gz.ErrorUnauthorized), false},
 				collections.NameOwnerPair{aType + "2", username}},
 			{uriTest{aType + "| success adding asset to user collection",
 				assetsURL(username, cName, aType), jwtDef, nil, false},
 				collections.NameOwnerPair{aType + "2", username}},
 			{uriTest{aType + "| non org member should not be able to add asset to org collection",
 				assetsURL(testOrg, orgCol, aType), newJWT(jwt2),
-				ign.NewErrorMessage(ign.ErrorUnauthorized), false},
+				gz.NewErrorMessage(gz.ErrorUnauthorized), false},
 				collections.NameOwnerPair{aType + "3", username}},
 			{uriTest{aType + "| org member should be able to add asset to org collection",
 				assetsURL(testOrg, orgCol, aType), newJWT(jwt3), nil, true},
@@ -1110,13 +1111,13 @@ func TestCollectionAssetAdd(t *testing.T) {
 				jwt := getJWTToken(t, test.jwtGen)
 				expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 				expStatus := expEm.StatusCode
-				igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-				reqArgs := igntest.RequestArgs{Method: "POST", Route: test.URL, Body: b, SignedToken: jwt}
-				resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+				gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+				reqArgs := gztest.RequestArgs{Method: "POST", Route: test.URL, Body: b, SignedToken: jwt}
+				resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 				bslice := resp.BodyAsBytes
 				require.Equal(t, expStatus, resp.RespRecorder.Code)
 				if expStatus != http.StatusOK && !test.ignoreErrorBody {
-					igntest.AssertBackendErrorCode(t.Name()+" POST "+test.URL, bslice, expEm.ErrCode, t)
+					gztest.AssertBackendErrorCode(t.Name()+" POST "+test.URL, bslice, expEm.ErrCode, t)
 				}
 			})
 		}
@@ -1186,39 +1187,39 @@ func TestCollectionAssetRemove(t *testing.T) {
 	testListGen := func(aType string) []collectionAssetRemoveTest {
 		return []collectionAssetRemoveTest{
 			{uriTest{aType + "| no jwt", assetsURL(username, cName, aType), nil,
-				ign.NewErrorMessage(ign.ErrorUnauthorized), true},
+				gz.NewErrorMessage(gz.ErrorUnauthorized), true},
 				&collections.NameOwnerPair{aType + "1", username}},
 			{uriTest{aType + "| col doest not exist", assetsURL(username, "inv", aType),
-				jwtDef, ign.NewErrorMessage(ign.ErrorNameNotFound), false},
+				jwtDef, gz.NewErrorMessage(gz.ErrorNameNotFound), false},
 				&collections.NameOwnerPair{aType + "1", username}},
 			{uriTest{aType + "| invalid jwt token", assetsURL(username, cName, aType),
 				&testJWT{jwt: sptr("invalid")},
-				ign.NewErrorMessage(ign.ErrorUnauthorized), true},
+				gz.NewErrorMessage(gz.ErrorUnauthorized), true},
 				&collections.NameOwnerPair{aType + "1", username}},
 			{uriTest{aType + " empty asset owner", assetsURL(username, cName, aType), jwtDef,
-				ign.NewErrorMessage(ign.ErrorFormInvalidValue), false},
+				gz.NewErrorMessage(gz.ErrorFormInvalidValue), false},
 				&collections.NameOwnerPair{"model1", ""}},
 			{uriTest{aType + " empty asset name", assetsURL(username, cName, aType), jwtDef,
-				ign.NewErrorMessage(ign.ErrorFormInvalidValue), false},
+				gz.NewErrorMessage(gz.ErrorFormInvalidValue), false},
 				&collections.NameOwnerPair{"", "username"}},
 			{uriTest{aType + " no parameters", assetsURL(username, cName, aType), jwtDef,
-				ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, nil},
+				gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, nil},
 			{uriTest{aType + " doest not exist", assetsURL(username, cName, aType), jwtDef,
-				ign.NewErrorMessage(ign.ErrorNonExistentResource), false},
+				gz.NewErrorMessage(gz.ErrorNonExistentResource), false},
 				&collections.NameOwnerPair{"inv", username}},
 			{uriTest{aType + " does not belong to col", assetsURL(username, cName, aType),
-				jwtDef, ign.NewErrorMessage(ign.ErrorNonExistentResource), true},
+				jwtDef, gz.NewErrorMessage(gz.ErrorNonExistentResource), true},
 				&collections.NameOwnerPair{aType + "2", username}},
 			{uriTest{aType + "| non owner user should not be able to remove asset from user col",
 				assetsURL(username, cName, aType), newJWT(jwt2),
-				ign.NewErrorMessage(ign.ErrorUnauthorized), true},
+				gz.NewErrorMessage(gz.ErrorUnauthorized), true},
 				&collections.NameOwnerPair{aType + "1", username}},
 			{uriTest{aType + "| success removing asset from user col",
 				assetsURL(username, cName, aType), jwtDef, nil, false},
 				&collections.NameOwnerPair{aType + "1", username}},
 			{uriTest{aType + "| non org member should not be able to remove asset from org col",
 				assetsURL(testOrg, orgCol, aType), newJWT(jwt2),
-				ign.NewErrorMessage(ign.ErrorUnauthorized), false},
+				gz.NewErrorMessage(gz.ErrorUnauthorized), false},
 				&collections.NameOwnerPair{aType + "1", username}},
 			{uriTest{aType + "| org member should be able to remove asset from org col",
 				assetsURL(testOrg, orgCol, aType), newJWT(jwt3),
@@ -1244,13 +1245,13 @@ func TestCollectionAssetRemove(t *testing.T) {
 				if test.nameOwner != nil {
 					url += "?o=" + test.nameOwner.Owner + "&n=" + test.nameOwner.Name
 				}
-				igntest.AssertRoute("OPTIONS", url, http.StatusOK, t)
-				reqArgs := igntest.RequestArgs{Method: "DELETE", Route: url, Body: nil, SignedToken: jwt}
-				resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+				gztest.AssertRoute("OPTIONS", url, http.StatusOK, t)
+				reqArgs := gztest.RequestArgs{Method: "DELETE", Route: url, Body: nil, SignedToken: jwt}
+				resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 				bslice := resp.BodyAsBytes
 				require.Equal(t, expStatus, resp.RespRecorder.Code)
 				if expStatus != http.StatusOK && !test.ignoreErrorBody {
-					igntest.AssertBackendErrorCode(t.Name()+" DELETE "+url, bslice, expEm.ErrCode, t)
+					gztest.AssertBackendErrorCode(t.Name()+" DELETE "+url, bslice, expEm.ErrCode, t)
 				}
 			})
 		}
@@ -1373,10 +1374,10 @@ func runSubtestWithCollectionAssetListTestData(t *testing.T, test collectionAsse
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL+test.paginationQuery, http.StatusOK, t)
-	bslice, _ := igntest.AssertRouteMultipleArgs("GET", test.URL+test.paginationQuery, nil, expStatus, jwt, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL+test.paginationQuery, http.StatusOK, t)
+	bslice, _ := gztest.AssertRouteMultipleArgs("GET", test.URL+test.paginationQuery, nil, expStatus, jwt, expCt, t)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name()+" GET assets", bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name()+" GET assets", bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		if aType == collections.TModel {
 			var results []fuel.Model

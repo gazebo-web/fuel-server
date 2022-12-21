@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	"github.com/gazebo-web/gz-go/v7"
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"os"
 	"testing"
@@ -44,23 +44,23 @@ func TestOrganizationCreate(t *testing.T) {
 	description := "a friendly organization"
 	uri := "/1.0/organizations"
 	organizationCreateTestsData := []createOrganizationTest{
-		{uriTest{"no user in backend", uri, newJWT(jwt2), ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, users.CreateOrganization{Name: name, Description: description}, false},
-		{uriTest{"no name", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, users.CreateOrganization{Description: description}, false},
-		{uriTest{"no optional fields", uri, jwtDef, nil, false}, users.CreateOrganization{Name: ign.RandomString(8)}, true},
-		{uriTest{"blacklisted name", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false},
+		{uriTest{"no user in backend", uri, newJWT(jwt2), gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, users.CreateOrganization{Name: name, Description: description}, false},
+		{uriTest{"no name", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, users.CreateOrganization{Description: description}, false},
+		{uriTest{"no optional fields", uri, jwtDef, nil, false}, users.CreateOrganization{Name: gz.RandomString(8)}, true},
+		{uriTest{"blacklisted name", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false},
 			users.CreateOrganization{Name: "home", Description: description}, false},
 		{uriTest{"with space underscore and dash", uri, jwtDef, nil, true},
 			users.CreateOrganization{Name: "with- _space", Description: description},
 			false},
-		{uriTest{"short name", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false},
+		{uriTest{"short name", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false},
 			users.CreateOrganization{Name: "b", Description: description}, false},
 		// Note: the following test cases are inter-related, as the test for duplication.
 		{uriTest{"with all fields", uri, jwtDef, nil, false},
 			users.CreateOrganization{Name: name, Email: email, Description: description},
 			false},
-		{uriTest{"duplicate name", uri, jwtDef, ign.NewErrorMessage(ign.ErrorResourceExists), false}, users.CreateOrganization{Name: name, Description: description}, true},
-		{uriTest{"duplicate name even after org removal", uri, jwtDef, ign.NewErrorMessage(ign.ErrorResourceExists), false}, users.CreateOrganization{Name: name, Description: description}, false},
-		{uriTest{"duplicate name - used for username", uri, jwtDef, ign.NewErrorMessage(ign.ErrorResourceExists), false}, users.CreateOrganization{Name: username, Description: description}, false},
+		{uriTest{"duplicate name", uri, jwtDef, gz.NewErrorMessage(gz.ErrorResourceExists), false}, users.CreateOrganization{Name: name, Description: description}, true},
+		{uriTest{"duplicate name even after org removal", uri, jwtDef, gz.NewErrorMessage(gz.ErrorResourceExists), false}, users.CreateOrganization{Name: name, Description: description}, false},
+		{uriTest{"duplicate name - used for username", uri, jwtDef, gz.NewErrorMessage(gz.ErrorResourceExists), false}, users.CreateOrganization{Name: username, Description: description}, false},
 		// end of inter-related test cases
 	}
 
@@ -81,12 +81,12 @@ func runSubTestWithCreateOrganizationTestData(test createOrganizationTest, t *te
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	reqArgs := igntest.RequestArgs{Method: "POST", Route: test.URL, Body: b, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	reqArgs := gztest.RequestArgs{Method: "POST", Route: test.URL, Body: b, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	gotCode := resp.RespRecorder.Code
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name()+" POST /organizations", bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name()+" POST /organizations", bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		require.Equal(t, http.StatusOK, gotCode, "Did not receive expected http code [%d]. Got: [%d]. Response: %s", http.StatusOK, gotCode, string(*bslice))
 		var gotOrg users.OrganizationResponse
@@ -148,10 +148,10 @@ func TestOrganizationRemove(t *testing.T) {
 	defer removeUserWithJWT(user4, jwt4, t)
 
 	uri := "/1.0/organizations"
-	unauth := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	unauth := gz.NewErrorMessage(gz.ErrorUnauthorized)
 
 	removeOrganizationTestsData := []removeOrganizationTest{
-		{uriTest{"no user in backend", uri, newJWT(jwtUn), ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, org},
+		{uriTest{"no user in backend", uri, newJWT(jwtUn), gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, org},
 		{uriTest{"org cannot be removed by non member", uri, newJWT(jwt4), unauth, false}, org},
 		{uriTest{"org cannot be removed by a member", uri, newJWT(jwt2), unauth, false}, org},
 		{uriTest{"org cannot be removed by an admin", uri, newJWT(jwt3), unauth, false}, org},
@@ -163,12 +163,12 @@ func TestOrganizationRemove(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "DELETE", Route: test.URL + "/" + test.nameToRemove, Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "DELETE", Route: test.URL + "/" + test.nameToRemove, Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			require.Equal(t, expStatus, resp.RespRecorder.Code)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" DELETE /organizations/"+test.nameToRemove, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" DELETE /organizations/"+test.nameToRemove, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				dbo, _ := getOrganizationFromDb(test.nameToRemove, t)
 				assert.Nil(t, dbo, "Organization was found in DB but should have been deleted:", test.nameToRemove)
@@ -223,11 +223,11 @@ func TestOrganizationIndex(t *testing.T) {
 		{uriTest{"org member should get private data", uri, newJWT(jwt2), nil, false}, org, true},
 		{uriTest{"non member should get public data", uri, newJWT(jwt4), nil, false}, org, false},
 		{uriTest{"no jwt - should get public data", uri, nil, nil, false}, org, false},
-		{uriTest{"non existent org", uri, jwtDef, ign.NewErrorMessage(ign.ErrorNonExistentResource), false}, "name2", false},
-		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, org, false},
+		{uriTest{"non existent org", uri, jwtDef, gz.NewErrorMessage(gz.ErrorNonExistentResource), false}, "name2", false},
+		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, org, false},
 		// This one should return Unauthorized, if the jwt is passed in and its associated user is not valid anymore.
 		// TODO: we should add a middleware to check passed in JWTs vs DB users.
-		{uriTest{"non active user - should fail", uri, newJWT(jwtNO), nil /*ign.NewErrorMessage(ign.ErrorUnauthorized)*/, true}, org, false},
+		{uriTest{"non active user - should fail", uri, newJWT(jwtNO), nil /*gz.NewErrorMessage(gz.ErrorUnauthorized)*/, true}, org, false},
 	}
 
 	for _, test := range organizationIndexTestsData {
@@ -235,12 +235,12 @@ func TestOrganizationIndex(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL + "/" + test.name, Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL + "/" + test.name, Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			require.Equal(t, expStatus, resp.RespRecorder.Code)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" GET /organizations/"+test.name, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" GET /organizations/"+test.name, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				var or users.OrganizationResponse
 				assert.NoError(t, json.Unmarshal(*bslice, &or), "Unable to unmarshal organization response", string(*bslice))
@@ -260,11 +260,11 @@ func TestAPIOrganization(t *testing.T) {
 
 	code := http.StatusOK
 	if globals.Server.Db == nil {
-		code = ign.ErrorMessage(ign.ErrorNoDatabase).StatusCode
+		code = gz.ErrorMessage(gz.ErrorNoDatabase).StatusCode
 	}
 
 	uri := "/1.0/organizations/anOrg"
-	igntest.AssertRoute("OPTIONS", uri, code, t)
+	gztest.AssertRoute("OPTIONS", uri, code, t)
 }
 
 type expOrg struct {
@@ -310,7 +310,7 @@ func TestOrganizationPagination(t *testing.T) {
 	defer removeUserWithJWT(user4, jwt4, t)
 
 	uri := "/1.0/organizations"
-	invpage := ign.NewErrorMessage(ign.ErrorInvalidPaginationRequest)
+	invpage := gz.NewErrorMessage(gz.ErrorInvalidPaginationRequest)
 	organizationListTestsData := []organizationListTest{
 		{uriTest{"no jwt - get all organizations, get only public date", uri, nil,
 			nil, false}, "", []expOrg{{testOrg1, false}, {testOrg2, false}}},
@@ -336,7 +336,7 @@ func TestOrganizationPagination(t *testing.T) {
 		{uriTest{"no jwt - get pages of 1, page 2", uri, nil, nil, false},
 			"?per_page=1&page=2", []expOrg{{testOrg2, false}}},
 		{uriTest{"get page beyond limit", uri, nil,
-			ign.NewErrorMessage(ign.ErrorPaginationPageNotFound), false}, "?page=3", nil},
+			gz.NewErrorMessage(gz.ErrorPaginationPageNotFound), false}, "?page=3", nil},
 		{uriTest{"get invalid page", uri, nil, invpage, false}, "?page=invalid", nil},
 		{uriTest{"get invalid page #2", uri, nil, invpage, false}, "?page=-5", nil},
 		{uriTest{"get invalid page #3", uri, nil, invpage, false}, "?page=1.2", nil},
@@ -347,12 +347,12 @@ func TestOrganizationPagination(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL + test.paginationQuery, Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL + test.paginationQuery, Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			require.Equal(t, expStatus, resp.RespRecorder.Code)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" GET /organizations", bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" GET /organizations", bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				var organizations users.OrganizationResponses
 				assert.NoError(t, json.Unmarshal(*bslice, &organizations), "Unable to unmarshal list of organizations", string(*bslice))
@@ -414,21 +414,21 @@ func TestOrganizationUpdate(t *testing.T) {
 	removeUserWithJWT(usernameNO, jwtNO, t)
 
 	uri := "/1.0/organizations"
-	unauth := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	unauth := gz.NewErrorMessage(gz.ErrorUnauthorized)
 
 	description := "updated organization description"
 	email := "test@email.org"
 	organizationUpdateTestsData := []updateOrganizationTest{
 		{uriTest{"no jwt", uri, nil, unauth, true}, testOrg, &description, nil},
 		{uriTest{"no fields", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testOrg, nil, nil},
+			gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testOrg, nil, nil},
 		{uriTest{"invalid email format", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testOrg, nil, sptr("inv")},
+			gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testOrg, nil, sptr("inv")},
 		{uriTest{"only email", uri, jwtDef, nil, false}, testOrg, nil, &email},
 		{uriTest{"with all fields", uri, jwtDef, nil, false}, testOrg, &description,
 			&email},
 		{uriTest{"non active user", uri, newJWT(jwtNO),
-			ign.NewErrorMessage(ign.ErrorAuthNoUser), true}, testOrg, &description,
+			gz.NewErrorMessage(gz.ErrorAuthNoUser), true}, testOrg, &description,
 			&email},
 		{uriTest{"org cannot be updated by non member", uri, newJWT(jwt4), unauth,
 			false}, testOrg, &description, nil},
@@ -459,12 +459,12 @@ func runSubTestWithUpdateOrganizationTestData(test updateOrganizationTest, t *te
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
 
-	reqArgs := igntest.RequestArgs{Method: "PATCH", Route: test.URL + "/" + test.name, Body: b, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	reqArgs := gztest.RequestArgs{Method: "PATCH", Route: test.URL + "/" + test.name, Body: b, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	gotCode := resp.RespRecorder.Code
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name()+" PATCH /organizations/"+test.name, bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name()+" PATCH /organizations/"+test.name, bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		require.Equal(t, http.StatusOK, gotCode, "Did not receive expected http code [%d]. Got: [%d]. Response: %s", http.StatusOK, gotCode, string(*bslice))
 		var gotOrg users.OrganizationResponse
@@ -524,17 +524,17 @@ func TestOrganizationUserAdd(t *testing.T) {
 	user6 := createUserWithJWT(jwt6, t)
 	defer removeUserWithJWT(user6, jwt6, t)
 
-	unauth := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	unauth := gz.NewErrorMessage(gz.ErrorUnauthorized)
 	uri := orgUsersRoute(testOrg)
 	userAddTestsData := []userAddTest{
 		{uriTest{"no jwt", uri, nil, unauth, true}, username2, "member"},
-		{uriTest{"org doest not exist", orgUsersRoute("inv"), jwtDef, ign.NewErrorMessage(ign.ErrorNonExistentResource), false}, username2, "member"},
+		{uriTest{"org doest not exist", orgUsersRoute("inv"), jwtDef, gz.NewErrorMessage(gz.ErrorNonExistentResource), false}, username2, "member"},
 		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, unauth, true}, username2, "member"},
-		{uriTest{"invalid username format", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, "inv user", "member"},
-		{uriTest{"user to add does not exist", uri, jwtDef, ign.NewErrorMessage(ign.ErrorUserUnknown), false}, "nope", "admin"},
-		{uriTest{"invalid role format ", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, username2, "memb er"},
-		{uriTest{"invalid role format #2", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, username2, "admin1"},
-		{uriTest{"user already in org", uri, jwtDef, ign.NewErrorMessage(ign.ErrorResourceExists), false}, username, "admin"},
+		{uriTest{"invalid username format", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, "inv user", "member"},
+		{uriTest{"user to add does not exist", uri, jwtDef, gz.NewErrorMessage(gz.ErrorUserUnknown), false}, "nope", "admin"},
+		{uriTest{"invalid role format ", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, username2, "memb er"},
+		{uriTest{"invalid role format #2", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, username2, "admin1"},
+		{uriTest{"user already in org", uri, jwtDef, gz.NewErrorMessage(gz.ErrorResourceExists), false}, username, "admin"},
 		{uriTest{"outside user should not be able to add", uri, newJWT(jwt2), unauth, false}, username2, "member"},
 		{uriTest{"org owner - success adding user2 as member", uri, jwtDef, nil, false}, username2, "member"},
 		{uriTest{"org member not authorized to add new user", uri, newJWT(jwt4), unauth, false}, username3, "member"},
@@ -554,13 +554,13 @@ func TestOrganizationUserAdd(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "POST", Route: test.URL, Body: b, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "POST", Route: test.URL, Body: b, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			gotCode := resp.RespRecorder.Code
 			require.Equal(t, expStatus, gotCode)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" POST "+test.URL, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" POST "+test.URL, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				require.Equal(t, http.StatusOK, gotCode, "Did not receive expected http code [%d]. Got: [%d]. Response: %s", http.StatusOK, gotCode, string(*bslice))
 				var got users.UserResponse
@@ -628,18 +628,18 @@ func TestOrganizationUserRemove(t *testing.T) {
 	defer removeUserWithJWT(user7, jwt7, t)
 	addUserToOrg(user7, "owner", testOrg, t)
 
-	unauth := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	unauth := gz.NewErrorMessage(gz.ErrorUnauthorized)
 	uri := rmOrgUsersRoute(testOrg, username2)
 	userRemoveTestData := []userRemoveTest{
 		{uriTest{"no jwt", uri, nil, unauth, true}, ""},
 		{uriTest{"org doest not exist", rmOrgUsersRoute("inv", username2), jwtDef,
-			ign.NewErrorMessage(ign.ErrorNonExistentResource), false}, ""},
+			gz.NewErrorMessage(gz.ErrorNonExistentResource), false}, ""},
 		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, unauth,
 			true}, ""},
 		{uriTest{"user does not exist", rmOrgUsersRoute(testOrg, "inv"),
-			jwtDef, ign.NewErrorMessage(ign.ErrorUserUnknown), false}, ""},
+			jwtDef, gz.NewErrorMessage(gz.ErrorUserUnknown), false}, ""},
 		{uriTest{"user not in org", rmOrgUsersRoute(testOrg, username3), jwtDef,
-			ign.NewErrorMessage(ign.ErrorNameNotFound), false}, ""},
+			gz.NewErrorMessage(gz.ErrorNameNotFound), false}, ""},
 		{uriTest{"outside user cannot remove users", uri, newJWT(jwt3),
 			unauth, false}, ""},
 		{uriTest{"org member cannot remove users", uri, newJWT(jwt4),
@@ -648,13 +648,13 @@ func TestOrganizationUserRemove(t *testing.T) {
 			newJWT(jwt4), nil, false}, username4},
 		{uriTest{"org owner - success removing user2", uri, jwtDef, nil, false}, username2},
 		{uriTest{"should not be able to remove user2 again", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorNameNotFound), false}, ""},
+			gz.NewErrorMessage(gz.ErrorNameNotFound), false}, ""},
 		{uriTest{"org admin cannot remove an owner", rmOrgUsersRoute(testOrg, user7),
 			newJWT(jwt5), unauth, false}, user7},
 		{uriTest{"owner should be able to remove an owner", rmOrgUsersRoute(testOrg, user7),
 			jwtDef, nil, false}, user7},
 		{uriTest{"should not be able to remove last owner", rmOrgUsersRoute(testOrg, username),
-			jwtDef, ign.NewErrorMessage(ign.ErrorUnexpected), true}, ""},
+			jwtDef, gz.NewErrorMessage(gz.ErrorUnexpected), true}, ""},
 		{uriTest{"org admin can remove other members", rmOrgUsersRoute(testOrg, username6),
 			newJWT(jwt5), nil, true}, username6},
 	}
@@ -664,14 +664,14 @@ func TestOrganizationUserRemove(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "DELETE", Route: test.URL, Body: nil,
+			reqArgs := gztest.RequestArgs{Method: "DELETE", Route: test.URL, Body: nil,
 				SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			gotCode := resp.RespRecorder.Code
 			require.Equal(t, expStatus, gotCode)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" DELETE "+test.URL, bslice,
+				gztest.AssertBackendErrorCode(t.Name()+" DELETE "+test.URL, bslice,
 					expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				require.Equal(t, http.StatusOK, gotCode, "Did not receive expected http code [%d]. Got: [%d]. Response: %s", http.StatusOK, gotCode, string(*bslice))
@@ -779,7 +779,7 @@ func TestOrganizationUserList(t *testing.T) {
 
 	orgUserListTestData = []orgUserListTest{
 		{uriTest{"after removing org2 - with jwt for org2", uriOrg2, jwtDef,
-			ign.NewErrorMessage(ign.ErrorNonExistentResource), false}, nil},
+			gz.NewErrorMessage(gz.ErrorNonExistentResource), false}, nil},
 		{uriTest{"after removing org2 - with owner jwt for org1", uriOrg1, jwtDef, nil, true},
 			[]expUser{
 				{username, []string{testOrg}, map[string]string{testOrg: "owner"}},
@@ -811,10 +811,10 @@ func runSubTestWithOrgUserListTestData(test orgUserListTest, t *testing.T) {
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	bslice, _ := igntest.AssertRouteMultipleArgs("GET", test.URL, nil, expStatus,
+	bslice, _ := gztest.AssertRouteMultipleArgs("GET", test.URL, nil, expStatus,
 		jwt, expCt, t)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name()+" GET "+test.URL, bslice,
+		gztest.AssertBackendErrorCode(t.Name()+" GET "+test.URL, bslice,
 			expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var ur users.UserResponses
@@ -885,33 +885,33 @@ func TestOrganizationTeamCreate(t *testing.T) {
 	uri := orgTeamsRoute(testOrg)
 
 	teamCreateTestsData := []createTeamTest{
-		{uriTest{"no jwt", uri, nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, testOrg, t1Input, t1Response},
-		{uriTest{"not authorized", uri, newJWT(jwt2), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, testOrg, t1Input, t1Response},
-		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, testOrg, t1Input, t1Response},
-		{uriTest{"org doest not exist", orgTeamsRoute("inv"), jwtDef, ign.NewErrorMessage(ign.ErrorNonExistentResource), false}, testOrg, t1Input, t1Response},
-		{uriTest{"missing team name input", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testOrg,
+		{uriTest{"no jwt", uri, nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, testOrg, t1Input, t1Response},
+		{uriTest{"not authorized", uri, newJWT(jwt2), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, testOrg, t1Input, t1Response},
+		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, testOrg, t1Input, t1Response},
+		{uriTest{"org doest not exist", orgTeamsRoute("inv"), jwtDef, gz.NewErrorMessage(gz.ErrorNonExistentResource), false}, testOrg, t1Input, t1Response},
+		{uriTest{"missing team name input", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testOrg,
 			users.CreateTeamForm{Name: "", Description: sptr("a desc"), Visible: new(bool)}, t1Response},
-		{uriTest{"missing visible arg", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testOrg,
+		{uriTest{"missing visible arg", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testOrg,
 			users.CreateTeamForm{Name: "aa", Description: nil, Visible: nil}, t1Response},
-		{uriTest{"invalid team name #1", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testOrg,
+		{uriTest{"invalid team name #1", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testOrg,
 			users.CreateTeamForm{Name: "admin", Description: sptr("a desc"), Visible: &b}, t1Response},
-		{uriTest{"invalid team name #2", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testOrg,
+		{uriTest{"invalid team name #2", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testOrg,
 			users.CreateTeamForm{Name: "member", Description: sptr("a desc"), Visible: &b}, t1Response},
-		{uriTest{"invalid team name #3", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testOrg,
+		{uriTest{"invalid team name #3", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testOrg,
 			users.CreateTeamForm{Name: "owner", Description: sptr("a desc"), Visible: &b}, t1Response},
 		{uriTest{"org owner - success adding team", uri, jwtDef, nil, false}, testOrg, t1Input, t1Response},
-		{uriTest{"dup team", uri, jwtDef, ign.NewErrorMessage(ign.ErrorResourceExists), false}, testOrg, t1Input, t1Response},
+		{uriTest{"dup team", uri, jwtDef, gz.NewErrorMessage(gz.ErrorResourceExists), false}, testOrg, t1Input, t1Response},
 		{uriTest{"org owner - success adding team #2", uri, jwtDef, nil, true}, testOrg, t2Input, t2Response},
 		{uriTest{"org admin - success adding team", uri, newJWT(jwt4), nil, false},
 			testOrg, users.CreateTeamForm{Name: "team3", Visible: new(bool)},
 			users.TeamResponse{Name: "team3", Visible: false, Usernames: nil},
 		},
 		{uriTest{"org member - should not be able to add team", uri, newJWT(jwt3),
-			ign.NewErrorMessage(ign.ErrorUnauthorized), false},
+			gz.NewErrorMessage(gz.ErrorUnauthorized), false},
 			testOrg, users.CreateTeamForm{Name: "team4", Visible: new(bool)}, users.TeamResponse{},
 		},
 		{uriTest{"non member - should not be able to add team", uri, newJWT(jwt5),
-			ign.NewErrorMessage(ign.ErrorUnauthorized), false},
+			gz.NewErrorMessage(gz.ErrorUnauthorized), false},
 			testOrg, users.CreateTeamForm{Name: "team4", Visible: new(bool)}, users.TeamResponse{},
 		},
 	}
@@ -923,13 +923,13 @@ func TestOrganizationTeamCreate(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "POST", Route: test.URL, Body: b, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "POST", Route: test.URL, Body: b, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			gotCode := resp.RespRecorder.Code
 			require.Equal(t, expStatus, gotCode)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" POST "+test.URL, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" POST "+test.URL, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				var tr users.TeamResponse
 				require.NoError(t, json.Unmarshal(*bslice, &tr), "Unable to unmarshal response: %s", string(*bslice))
@@ -992,16 +992,16 @@ func TestOrganizationTeamRemove(t *testing.T) {
 
 	uri := orgTeamsRoute(testOrg)
 	removeTeamTestsData := []removeTeamTest{
-		{uriTest{"no jwt", uri, nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "team1", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
-		{uriTest{"no write access", uri, newJWT(jwt2), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "team1", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
-		{uriTest{"org doest not exist", orgTeamsRoute("inv"), jwtDef, ign.NewErrorMessage(ign.ErrorNonExistentResource), false}, "team1", nil},
-		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "team1", nil},
-		{uriTest{"missing team name", uri, jwtDef, ign.NewErrorMessage(ign.ErrorNameNotFound), true}, "", nil},
+		{uriTest{"no jwt", uri, nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "team1", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
+		{uriTest{"no write access", uri, newJWT(jwt2), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "team1", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
+		{uriTest{"org doest not exist", orgTeamsRoute("inv"), jwtDef, gz.NewErrorMessage(gz.ErrorNonExistentResource), false}, "team1", nil},
+		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "team1", nil},
+		{uriTest{"missing team name", uri, jwtDef, gz.NewErrorMessage(gz.ErrorNameNotFound), true}, "", nil},
 		{uriTest{"non member cannot delete team", uri, newJWT(jwt5),
-			ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "team2",
+			gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "team2",
 			users.TeamResponses{}},
 		{uriTest{"member only cannot delete team", uri, newJWT(jwt2),
-			ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "team2",
+			gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "team2",
 			users.TeamResponses{}},
 		{uriTest{"org admin can delete team2", uri, newJWT(jwt3), nil, false},
 			"team2", users.TeamResponses{t1Resp, t3Resp}},
@@ -1013,15 +1013,15 @@ func TestOrganizationTeamRemove(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "DELETE", Route: test.URL + "/" + test.team, Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "DELETE", Route: test.URL + "/" + test.team, Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			gotCode := resp.RespRecorder.Code
 			require.Equal(t, expStatus, gotCode)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" DELETE "+test.team, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" DELETE "+test.team, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
-				bslice, _ = igntest.AssertRouteMultipleArgs("GET", test.URL, nil, http.StatusOK, jwt, ctJSON, t)
+				bslice, _ = gztest.AssertRouteMultipleArgs("GET", test.URL, nil, http.StatusOK, jwt, ctJSON, t)
 				var teams users.TeamResponses
 				require.NoError(t, json.Unmarshal(*bslice, &teams), "Unable to unmarshal response", string(*bslice))
 				assert.Equal(t, test.expTeams, teams)
@@ -1082,12 +1082,12 @@ func TestTeamsPagination(t *testing.T) {
 	uri2 := orgTeamsRoute(testOrg2)
 
 	teamListTestsData := []teamListTest{
-		{uriTest{"unauthorized", uri, nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
+		{uriTest{"unauthorized", uri, nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
 		{uriTest{"org owner can see all teams", uri, jwtDef, nil, false}, "", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
 		{uriTest{"org admin can see all teams", uri, newJWT(jwt3), nil, false}, "", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
 		{uriTest{"org member can only see visible teams or ones he is part of", uri, newJWT(jwt2), nil, false}, "", users.TeamResponses{t2Resp, t3Resp}},
 		{uriTest{"teams from org2", uri2, jwtDef, nil, false}, "", users.TeamResponses{t4Resp}},
-		{uriTest{"teams from org2 - unauthorized for non member", uri2, newJWT(jwt2), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "", users.TeamResponses{t4Resp}},
+		{uriTest{"teams from org2 - unauthorized for non member", uri2, newJWT(jwt2), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "", users.TeamResponses{t4Resp}},
 	}
 
 	for _, test := range teamListTestsData {
@@ -1095,13 +1095,13 @@ func TestTeamsPagination(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL + test.paginationQuery, Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL + test.paginationQuery, Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			gotCode := resp.RespRecorder.Code
 			require.Equal(t, expStatus, gotCode)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" GET teams", bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" GET teams", bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				var teams users.TeamResponses
 				require.NoError(t, json.Unmarshal(*bslice, &teams), "Unable to unmarshal response", string(*bslice))
@@ -1154,12 +1154,12 @@ func TestGetTeamDetails(t *testing.T) {
 
 	uri := orgTeamsRoute(testOrg)
 	teamIndexTestsData := []teamIndexTest{
-		{uriTest{"no jwt - unauth", uri, nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "team1", t1Resp},
-		{uriTest{"inexistent org", orgTeamsRoute("inv"), jwtDef, ign.NewErrorMessage(ign.ErrorNonExistentResource), false}, "team1", t1Resp},
-		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "team1", t1Resp},
+		{uriTest{"no jwt - unauth", uri, nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "team1", t1Resp},
+		{uriTest{"inexistent org", orgTeamsRoute("inv"), jwtDef, gz.NewErrorMessage(gz.ErrorNonExistentResource), false}, "team1", t1Resp},
+		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "team1", t1Resp},
 		{uriTest{"org owner should get team1 data", uri, jwtDef, nil, false}, "team1", t1Resp},
 		{uriTest{"org admin should get any team", uri, newJWT(jwt3), nil, false}, "team1", t1Resp},
-		{uriTest{"user2 should NOT get team1 (non team member)", uri, newJWT(jwt2), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "team1", t1Resp},
+		{uriTest{"user2 should NOT get team1 (non team member)", uri, newJWT(jwt2), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "team1", t1Resp},
 		{uriTest{"user2 should get a visible team", uri, newJWT(jwt2), nil, false}, "team2", t2Resp},
 		{uriTest{"user2 should get team3 (team member)", uri, newJWT(jwt2), nil, false}, "team3", t3Resp},
 	}
@@ -1169,9 +1169,9 @@ func TestGetTeamDetails(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			bslice, _ := igntest.AssertRouteMultipleArgs("GET", test.URL+"/"+test.name, nil, expStatus, jwt, expCt, t)
+			bslice, _ := gztest.AssertRouteMultipleArgs("GET", test.URL+"/"+test.name, nil, expStatus, jwt, expCt, t)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" GET "+test.name, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" GET "+test.name, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				var tr users.TeamResponse
 				require.NoError(t, json.Unmarshal(*bslice, &tr), "Unable to unmarshal response: %s", string(*bslice))
@@ -1186,7 +1186,7 @@ type updateTeamTest struct {
 	name            string
 	teamInput       users.UpdateTeamForm
 	readJwt         *string
-	readError       *ign.ErrMsg
+	readError       *gz.ErrMsg
 	expTeamResponse users.TeamResponse
 }
 
@@ -1234,31 +1234,31 @@ func TestOrganizationTeamUpdate(t *testing.T) {
 
 	uri := orgTeamsRoute(testOrg)
 	updateTeamTestsData := []updateTeamTest{
-		{uriTest{"no jwt", uri, nil, ign.NewErrorMessage(ign.ErrorUnauthorized),
+		{uriTest{"no jwt", uri, nil, gz.NewErrorMessage(gz.ErrorUnauthorized),
 			true}, "team1", t1Update, nil, nil, t1Resp},
 		{uriTest{"inexistent org", orgTeamsRoute("inv"), jwtDef,
-			ign.NewErrorMessage(ign.ErrorNonExistentResource), true}, "team1",
+			gz.NewErrorMessage(gz.ErrorNonExistentResource), true}, "team1",
 			t1Update, nil, nil, t1Resp},
 		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")},
-			ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "team1", t1Update, nil,
+			gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "team1", t1Update, nil,
 			nil, t1Resp},
 		{uriTest{"non org member cannot update teams", uri, newJWT(jwt5),
-			ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "team1", t1Update, nil,
+			gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "team1", t1Update, nil,
 			nil, t1Resp},
 		{uriTest{"org member doesn't have write access for team1", uri, newJWT(jwt2),
-			ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "team1", t1Update,
+			gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "team1", t1Update,
 			nil, nil, t1Resp},
 		{uriTest{"org member doesn't have write access for team3", uri, newJWT(jwt2),
-			ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "team3", t3Update,
+			gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "team3", t3Update,
 			nil, nil, t3Resp},
 		{uriTest{"invalid team name", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorNameNotFound), true}, "a1", t1Update, nil,
+			gz.NewErrorMessage(gz.ErrorNameNotFound), true}, "a1", t1Update, nil,
 			nil, t1Resp},
 		{uriTest{"org owner can add user2 to team1. Then user2 can Read team data", uri,
 			jwtDef, nil, true}, "team1", t1Update, &jwt2, nil, t1Resp},
 		{uriTest{"org owner can make team2 invisible. Then user2 cannot read invisible team", uri,
 			jwtDef, nil, true}, "team2", t2Update, &jwt2,
-			ign.NewErrorMessage(ign.ErrorUnauthorized), t2Resp},
+			gz.NewErrorMessage(gz.ErrorUnauthorized), t2Resp},
 		{uriTest{"org owner can update team2", uri, jwtDef, nil, true}, "team2", t2Update, nil,
 			nil, t2Resp},
 		{uriTest{"org admin can update team3", uri, newJWT(jwt4), nil, true}, "team3",
@@ -1276,22 +1276,22 @@ func TestOrganizationTeamUpdate(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "PATCH", Route: test.URL + "/" + test.name, Body: b, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "PATCH", Route: test.URL + "/" + test.name, Body: b, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			gotCode := resp.RespRecorder.Code
 			require.Equal(t, expStatus, gotCode)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" PATCH "+test.URL+"/"+test.name, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" PATCH "+test.URL+"/"+test.name, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				if test.readJwt != nil {
 					jwt = test.readJwt
 				}
 				expEm, expCt = errMsgAndContentType(test.readError, ctJSON)
 				expStatus = expEm.StatusCode
-				bslice, _ = igntest.AssertRouteMultipleArgs("GET", test.URL+"/"+test.name, nil, expStatus, jwt, expCt, t)
+				bslice, _ = gztest.AssertRouteMultipleArgs("GET", test.URL+"/"+test.name, nil, expStatus, jwt, expCt, t)
 				if expStatus != http.StatusOK && !test.ignoreErrorBody {
-					igntest.AssertBackendErrorCode(t.Name()+" GET "+test.URL+"/"+test.name, bslice, expEm.ErrCode, t)
+					gztest.AssertBackendErrorCode(t.Name()+" GET "+test.URL+"/"+test.name, bslice, expEm.ErrCode, t)
 				} else if expStatus == http.StatusOK {
 					var tr users.TeamResponse
 					require.NoError(t, json.Unmarshal(*bslice, &tr), "Unable to unmarshal response: %s", string(*bslice))

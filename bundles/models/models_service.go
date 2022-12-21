@@ -3,8 +3,6 @@ package models
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/proto"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/generics"
@@ -14,7 +12,9 @@ import (
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/proto"
 	"github.com/gazebo-web/fuel-server/vcs"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/golang/protobuf/proto"
+	"github.com/jinzhu/gorm"
 	"net/url"
 	"os"
 	"strings"
@@ -27,12 +27,12 @@ type Service struct{}
 
 // GetModel returns a model by its name and owner's name.
 func (ms *Service) GetModel(tx *gorm.DB, owner, name string,
-	user *users.User) (*Model, *ign.ErrMsg) {
+	user *users.User) (*Model, *gz.ErrMsg) {
 
 	// Get the model
 	model, err := GetModelByName(tx, name, owner)
 	if err != nil {
-		em := ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, err, []string{name})
+		em := gz.NewErrorMessageWithArgs(gz.ErrorNameNotFound, err, []string{name})
 		return nil, em
 	}
 
@@ -47,7 +47,7 @@ func (ms *Service) GetModel(tx *gorm.DB, owner, name string,
 // GetModelProto returns a model proto struct, given a model name and owner.
 // The user argument is the user requesting the operation.
 func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
-	name string, user *users.User) (*fuel.Model, *ign.ErrMsg) {
+	name string, user *users.User) (*fuel.Model, *gz.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, name, user)
 	if em != nil {
@@ -57,7 +57,7 @@ func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
 	// get model latest version number
 	latestVersion, err := res.GetLatestVersion(ctx, model)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	// Load the metadata
@@ -79,8 +79,8 @@ func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
 // If the likedBy argument is set, it will return the list of models liked by a user.
 // This function returns a list of fuel.Model that can then be mashalled into json or protobuf.
 // TODO: find a way to MERGE this with the one from Worlds service.
-func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *string,
-	order, search string, likedBy *users.User, user *users.User, categories *category.Categories) (*fuel.Models, *ign.PaginationResult, *ign.ErrMsg) {
+func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string,
+	order, search string, likedBy *users.User, user *users.User, categories *category.Categories) (*fuel.Models, *gz.PaginationResult, *gz.ErrMsg) {
 
 	var modelList Models
 	// Create query
@@ -132,7 +132,7 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 					"(SELECT id FROM models WHERE MATCH (name, description) AGAINST (?));"
 				var ids []int
 				if err := tx.Raw(sq, searchStr, searchStr).Pluck("model_id", &ids).Error; err != nil {
-					em := ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
+					em := gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 					return nil, nil, em
 				}
 				// Now that we got the IDs , use them in the main query
@@ -142,13 +142,13 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 	}
 
 	// Use pagination
-	paginationResult, err := ign.PaginateQuery(q, &modelList, *p)
+	paginationResult, err := gz.PaginateQuery(q, &modelList, *p)
 	if err != nil {
-		em := ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		em := gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 		return nil, nil, em
 	}
 	if !paginationResult.PageFound {
-		em := ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		em := gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 		return nil, nil, em
 	}
 
@@ -165,7 +165,7 @@ func (ms *Service) ModelList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 // RemoveModel removes a model. The user argument is the requesting user. It
 // is used to check if the user can perform the operation.
 func (ms *Service) RemoveModel(ctx context.Context, tx *gorm.DB, owner, modelName string,
-	user *users.User) *ign.ErrMsg {
+	user *users.User) *gz.ErrMsg {
 
 	model, em := ms.GetModel(tx, owner, modelName, user)
 	if em != nil {
@@ -281,7 +281,7 @@ func (ms *Service) ModelToProto(model *Model) *fuel.Model {
 
 // ModelFileTree gets the model's FileTree
 func (ms *Service) ModelFileTree(ctx context.Context, tx *gorm.DB, owner, modelName,
-	version string, user *users.User) (*fuel.FileTree, *ign.ErrMsg) {
+	version string, user *users.User) (*fuel.FileTree, *gz.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, modelName, user)
 	if em != nil {
@@ -292,21 +292,21 @@ func (ms *Service) ModelFileTree(ctx context.Context, tx *gorm.DB, owner, modelN
 }
 
 // getModelLike returns a model like.
-func (ms *Service) getModelLike(tx *gorm.DB, model *Model, user *users.User) (*ModelLike, *ign.ErrMsg) {
+func (ms *Service) getModelLike(tx *gorm.DB, model *Model, user *users.User) (*ModelLike, *gz.ErrMsg) {
 	var modelLike ModelLike
 	if err := tx.Where("user_id = ? AND model_id = ?", user.ID, model.ID).First(&modelLike).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorIDNotFound, err)
 	}
 	return &modelLike, nil
 }
 
 // CreateModelLike creates a ModelLike.
-// Returns the created modelLike, the current count of likes, or an ign.errMsg.
+// Returns the created modelLike, the current count of likes, or an gz.errMsg.
 func (ms *Service) CreateModelLike(tx *gorm.DB, owner, modelName string,
-	user *users.User) (*ModelLike, int, *ign.ErrMsg) {
+	user *users.User) (*ModelLike, int, *gz.ErrMsg) {
 
 	if user == nil {
-		return nil, 0, ign.NewErrorMessage(ign.ErrorAuthNoUser)
+		return nil, 0, gz.NewErrorMessage(gz.ErrorAuthNoUser)
 	}
 
 	model, em := ms.GetModel(tx, owner, modelName, user)
@@ -317,7 +317,7 @@ func (ms *Service) CreateModelLike(tx *gorm.DB, owner, modelName string,
 	// Register the like.
 	modelLike := ModelLike{UserID: &user.ID, ModelID: &model.ID}
 	if err := tx.Create(&modelLike).Error; err != nil {
-		return nil, 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of likes of the model.
 	count, errorMsg := ms.updateLikesCounter(tx, model)
@@ -328,12 +328,12 @@ func (ms *Service) CreateModelLike(tx *gorm.DB, owner, modelName string,
 }
 
 // CreateModelReport creates a ModelReport
-func (ms *Service) CreateModelReport(tx *gorm.DB, owner, modelName, reason string) (*ModelReport, *ign.ErrMsg) {
+func (ms *Service) CreateModelReport(tx *gorm.DB, owner, modelName, reason string) (*ModelReport, *gz.ErrMsg) {
 
 	model, err := GetModelByName(tx, modelName, owner)
 
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNameNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNameNotFound, err)
 	}
 
 	modelReport := ModelReport{
@@ -344,19 +344,19 @@ func (ms *Service) CreateModelReport(tx *gorm.DB, owner, modelName, reason strin
 	}
 
 	if err = tx.Create(&modelReport).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return &modelReport, nil
 }
 
 // RemoveModelLike removes a ModelLike.
-// Returns the removed modelLike, the current count of likes, or an ign.errMsg.
+// Returns the removed modelLike, the current count of likes, or an gz.errMsg.
 func (ms *Service) RemoveModelLike(tx *gorm.DB, owner, modelName string,
-	user *users.User) (*ModelLike, int, *ign.ErrMsg) {
+	user *users.User) (*ModelLike, int, *gz.ErrMsg) {
 
 	if user == nil {
-		return nil, 0, ign.NewErrorMessage(ign.ErrorAuthNoUser)
+		return nil, 0, gz.NewErrorMessage(gz.ErrorAuthNoUser)
 	}
 
 	model, em := ms.GetModel(tx, owner, modelName, user)
@@ -367,7 +367,7 @@ func (ms *Service) RemoveModelLike(tx *gorm.DB, owner, modelName string,
 	// Unlike the model.
 	var modelLike ModelLike
 	if err := tx.Where("user_id = ? AND model_id = ?", &user.ID, &model.ID).Delete(&modelLike).Error; err != nil {
-		return nil, 0, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 	// Update the number of likes of the model.
 	count, errorMsg := ms.updateLikesCounter(tx, model)
@@ -380,10 +380,10 @@ func (ms *Service) RemoveModelLike(tx *gorm.DB, owner, modelName string,
 // ComputeAllCounters is an initialization function that iterates
 // all models and updates their likes and downloads counter, based on the number
 // of records in corresponding tables model_likes and model_downloads.
-func (ms *Service) ComputeAllCounters(tx *gorm.DB) *ign.ErrMsg {
+func (ms *Service) ComputeAllCounters(tx *gorm.DB) *gz.ErrMsg {
 	var modelList Models
 	if err := tx.Model(&Model{}).Unscoped().Find(&modelList).Error; err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 	}
 	for _, model := range modelList {
 		if _, em := ms.updateLikesCounter(tx, &model); em != nil {
@@ -397,31 +397,31 @@ func (ms *Service) ComputeAllCounters(tx *gorm.DB) *ign.ErrMsg {
 }
 
 // updateLikesCounter counts the number of likes and updates the model accordingly.
-func (ms *Service) updateLikesCounter(tx *gorm.DB, model *Model) (int, *ign.ErrMsg) {
+func (ms *Service) updateLikesCounter(tx *gorm.DB, model *Model) (int, *gz.ErrMsg) {
 	var counter int
 	// Count the number of likes of the model.
 	if err := tx.Model(&ModelLike{}).Where("model_id = ?", model.ID).Count(&counter).Error; err != nil {
 		// Note: This is not currently covered by the tests.
-		return 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of likes of the model.
 	if err := tx.Model(model).Update("likes", counter).Error; err != nil {
 		// Note: This is not currently covered by the tests.
-		return 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	return counter, nil
 }
 
 // updateDownloadsCounter counts the number of downloads and updates the
 // model accordingly.
-func (ms *Service) updateDownloadsCounter(tx *gorm.DB, model *Model) (int, *ign.ErrMsg) {
+func (ms *Service) updateDownloadsCounter(tx *gorm.DB, model *Model) (int, *gz.ErrMsg) {
 	// Count the number of downloads of the model.
 	var count int
 	if err := tx.Model(&ModelDownload{}).Where("model_id = ?", model.ID).Count(&count).Error; err != nil {
-		return 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	if err := tx.Model(model).Update("Downloads", count).Error; err != nil {
-		return 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	return count, nil
 }
@@ -429,7 +429,7 @@ func (ms *Service) updateDownloadsCounter(tx *gorm.DB, model *Model) (int, *ign.
 // GetFile returns the contents (bytes) of a model file. Model version is considered.
 // Returns the file's bytes and the resolved version of the model.
 func (ms *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
-	version string, user *users.User) (*[]byte, int, *ign.ErrMsg) {
+	version string, user *users.User) (*[]byte, int, *gz.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, name, user)
 	if em != nil {
@@ -446,7 +446,7 @@ func (ms *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
 // Returns the model, as well as a pointer to the zip's filepath and the
 // resolved version.
 func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelName,
-	version string, u *users.User, agent string) (*Model, *string, int, *ign.ErrMsg) {
+	version string, u *users.User, agent string) (*Model, *string, int, *gz.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, modelName, u)
 	if em != nil {
@@ -458,7 +458,7 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 		modelDl.UserID = &u.ID
 	}
 	if err := tx.Create(&modelDl).Error; err != nil {
-		return nil, nil, 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of downloads of the model.
 	_, errorMsg := ms.updateDownloadsCounter(tx, model)
@@ -476,7 +476,7 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 // Returns the updated model
 func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	modelName string, desc, tagstr, filesPath *string, private *bool,
-	user *users.User, metadata *ModelMetadata, categories *string) (*Model, *ign.ErrMsg) {
+	user *users.User, metadata *ModelMetadata, categories *string) (*Model, *gz.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, modelName, user)
 	if em != nil {
@@ -496,25 +496,25 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	if tagstr != nil {
 		tags, err := StrToTags(tx, *tagstr)
 		if err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 		}
 		tx.Model(&model).Association("Tags").Replace(*tags)
 	}
 
 	if categories != nil {
 
-		sl := ign.StrToSlice(*categories)
+		sl := gz.StrToSlice(*categories)
 
 		cats, err := category.StrSliceToCategories(tx, sl)
 		if err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorFormInvalidValue, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 		}
 
 		if cats != nil {
 			length := len(*cats)
 
 			if length > globals.MaxCategoriesPerModel {
-				return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+				return nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue)
 			}
 
 			if length == 0 {
@@ -545,7 +545,7 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 		// Replace ALL model files with the new ones
 		repo := globals.VCSRepoFactory(ctx, *model.Location)
 		if err := repo.ReplaceFiles(ctx, *filesPath, *user.Username); err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 		}
 		// update model's zip and model's filesize
 		if em := ms.updateModelZip(ctx, repo, model); em != nil {
@@ -571,7 +571,7 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 // updateModelZip creates a new zip file for the given model and also
 // updates its Filesize field in DB.
 func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS,
-	model *Model) *ign.ErrMsg {
+	model *Model) *gz.ErrMsg {
 	zSize, em := res.ZipResourceTip(ctx, repo, model, "models")
 	if em != nil {
 		return em
@@ -583,12 +583,12 @@ func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS,
 // CreateModel creates a new model.
 // creator argument is the active user requesting the operation.
 func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
-	uuidStr, filesPath string, creator *users.User) (*Model, *ign.ErrMsg) {
+	uuidStr, filesPath string, creator *users.User) (*Model, *gz.ErrMsg) {
 
 	// Sanity check: Ensure license exists
 	license, err := license.ByID(tx, cm.License)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, err,
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, err,
 			[]string{"license"})
 	}
 
@@ -596,16 +596,16 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 	var categories *category.Categories
 	if len(cm.Categories) > 0 {
 
-		sl := ign.StrToSlice(cm.Categories)
+		sl := gz.StrToSlice(cm.Categories)
 		length := len(sl)
 
 		if length > globals.MaxCategoriesPerModel || length == 0 {
-			return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+			return nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue)
 		}
 
 		categories, err = category.StrSliceToCategories(tx, sl)
 		if err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorFormInvalidValue, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 		}
 	}
 
@@ -622,12 +622,12 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 
 	// Sanity check: model name should be unique for an owner
 	if _, err := GetModelByName(tx, cm.Name, owner); err == nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormDuplicateModelName, nil, []string{cm.Name})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorFormDuplicateModelName, nil, []string{cm.Name})
 	}
 	// Process the optional tags
 	pTags, err := StrToTags(tx, cm.Tags)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	private := false
@@ -641,7 +641,7 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 		private, categories, cm.Metadata)
 
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
 	repo, em := res.CreateResourceRepo(ctx, &model, filesPath)
@@ -656,17 +656,17 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 
 	// If everything went OK then create the model in DB.
 	if err := tx.Create(&model).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// add read and write permissions
 	_, err = globals.Permissions.AddPermission(owner, *model.UUID, permissions.Read)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	_, err = globals.Permissions.AddPermission(owner, *model.UUID, permissions.Write)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, model)
@@ -676,7 +676,7 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 // CloneModel clones a model.
 // creator argument is the active user requesting the operation.
 func (ms *Service) CloneModel(ctx context.Context, tx *gorm.DB, smOwner,
-	smName string, cm CloneModel, creator *users.User) (*Model, *ign.ErrMsg) {
+	smName string, cm CloneModel, creator *users.User) (*Model, *gz.ErrMsg) {
 
 	// Get source model (sm)
 	model, em := ms.GetModel(tx, smOwner, smName, creator)
@@ -704,7 +704,7 @@ func (ms *Service) CloneModel(ctx context.Context, tx *gorm.DB, smOwner,
 		authorized, _ := globals.Permissions.IsAuthorized(
 			*creator.Username, *model.UUID, permissions.Read)
 		if !authorized {
-			return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+			return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 		}
 	}
 
@@ -717,7 +717,7 @@ func (ms *Service) CloneModel(ctx context.Context, tx *gorm.DB, smOwner,
 	}
 	modelName, err := ms.createUniqueModelName(tx, mName, owner)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
 	clonePrivate := false
@@ -733,7 +733,7 @@ func (ms *Service) CloneModel(ctx context.Context, tx *gorm.DB, smOwner,
 		nil, &owner, creator.Username, model.License, model.Permission, model.Tags,
 		clonePrivate, &model.Categories, &model.Metadata)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
 	repo, em := res.CloneResourceRepo(ctx, model, &clone)
@@ -750,17 +750,17 @@ func (ms *Service) CloneModel(ctx context.Context, tx *gorm.DB, smOwner,
 	// If everything went OK then create the  new model in DB.
 	if err := tx.Create(&clone).Error; err != nil {
 		os.Remove(*clone.Location)
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// add read and write permissions
 	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Read)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Write)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	return &clone, nil

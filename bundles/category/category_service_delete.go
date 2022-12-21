@@ -3,21 +3,21 @@ package category
 import (
 	"context"
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // Delete deletes a category by the given slug.
-func (cs *Service) Delete(ctx context.Context, tx *gorm.DB, categorySlug string) (*Category, *ign.ErrMsg) {
+func (cs *Service) Delete(ctx context.Context, tx *gorm.DB, categorySlug string) (*Category, *gz.ErrMsg) {
 	var cat *Category
 	var err error
 	// Sanity check: Make sure that the category exists.
 	if cat, err = BySlug(tx, categorySlug); err != nil {
-		return nil, ign.NewErrorMessage(ign.ErrorNonExistentResource)
+		return nil, gz.NewErrorMessage(gz.ErrorNonExistentResource)
 	}
 
 	if err := tx.Delete(&Category{}, "slug = ?", cat.Slug).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	// Update all child categories to remove parent ID.
@@ -27,9 +27,9 @@ func (cs *Service) Delete(ctx context.Context, tx *gorm.DB, categorySlug string)
 			tx.Unscoped().Model(Category{}).Where("parent_id = ?", cat.ID).UpdateColumn("parent_id", nil)
 		}
 	} else {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
-	ign.LoggerFromContext(ctx).Info(fmt.Sprintf("Category [%s] %s has been removed.", *cat.Slug, *cat.Name))
+	gz.LoggerFromContext(ctx).Info(fmt.Sprintf("Category [%s] %s has been removed.", *cat.Slug, *cat.Name))
 	return cat, nil
 }

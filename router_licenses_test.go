@@ -2,10 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"github.com/gazebo-web/fuel-server/bundles/license"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	"github.com/gazebo-web/gz-go/v7"
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
+	"github.com/stretchr/testify/assert"
+
 	"net/http"
 	"os"
 	"testing"
@@ -49,7 +50,7 @@ func TestGetLicenses(t *testing.T) {
 		// WITH PAGINATION
 		{uriTest{"get page #1", uri + "?per_page=1&page=1", nil, nil, false}, 1, []string{"Creative Commons Zero v1.0 Universal"}},
 		{uriTest{"get page #2 size 2", uri + "?per_page=2&page=2", nil, nil, false}, 2, expNamesPage2},
-		{uriTest{"invalid page", uri + "?per_page=1&page=8", nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound), false}, 0, nil},
+		{uriTest{"invalid page", uri + "?per_page=1&page=8", nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound), false}, 0, nil},
 	}
 
 	for _, test := range licenseListTestsData {
@@ -71,13 +72,13 @@ func runSubtestWithLicenseListTestData(t *testing.T, test licenseListTest) {
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	assert.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var lics license.Licenses
 		assert.NoError(t, json.Unmarshal(*bslice, &lics), "Unable to get all licenses: %s", string(*bslice))

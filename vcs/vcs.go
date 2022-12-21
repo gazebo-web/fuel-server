@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/pkg/errors"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -47,7 +47,7 @@ type GitVCS struct {
 
 func ensureFolderExists(dir string) error {
 	_, err := os.Stat(dir)
-	return ign.WithStack(err)
+	return gz.WithStack(err)
 }
 
 // make sure the revision is valid. If "tip" or an empty revision
@@ -93,15 +93,15 @@ func (g *GitVCS) Init(ctx context.Context) error {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return err
 }
 
 // GetFile - Gets a single file with a given revision from the repo.
 func (g *GitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (*[]byte, error) {
-	ign.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")
+	gz.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")
 	if err := ensureFolderExists(g.Path); err != nil {
 		return nil, err
 	}
@@ -113,8 +113,8 @@ func (g *GitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (
 	cmd.Stderr = &stderr
 	bs, err = cmd.Output()
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return &bs, err
 }
@@ -140,8 +140,8 @@ func (g *GitVCS) addAll(ctx context.Context) error {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return err
 }
@@ -154,7 +154,7 @@ func (g *GitVCS) Commit(ctx context.Context, message string) error {
 	cmd := exec.Command("git", "-C", g.Path, "commit", "-m", message, "--allow-empty")
 	err := cmd.Run()
 	if err != nil {
-		err = ign.WithStack(err)
+		err = gz.WithStack(err)
 	}
 	return err
 }
@@ -164,7 +164,7 @@ func (g *GitVCS) Commit(ctx context.Context, message string) error {
 // If output is empty, then a zip file in the tmp folder will be created.
 // Returns a string path pointing to the created zip file.
 func (g *GitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
-	ign.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")
+	gz.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")
 	return archive(ctx, g.Path, rev, output)
 }
 
@@ -189,7 +189,7 @@ func archive(ctx context.Context, repoPath, rev, output string) (*string, error)
 		zipPath = output
 	}
 	if err != nil {
-		return nil, ign.WithStack(err)
+		return nil, gz.WithStack(err)
 	}
 	cmd := exec.Command("git", "-C", repoPath, "archive",
 		"--format=zip", "-o", zipPath, rev)
@@ -197,8 +197,8 @@ func archive(ctx context.Context, repoPath, rev, output string) (*string, error)
 	cmd.Stderr = &stderr
 	_, err = cmd.Output()
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while running git archive process. Err: " +
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while running git archive process. Err: " +
 			fmt.Sprint(err) + ". Stderr: " + stderr.String())
 		return nil, err
 	}
@@ -233,8 +233,8 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while Tagging repo: " + g.Path + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while Tagging repo: " + g.Path + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return nil
 }
@@ -246,8 +246,8 @@ func doLocalClone(ctx context.Context, source, target string) error {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while cloning git repo: " + source + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while cloning git repo: " + source + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
 	return err
 }
@@ -256,7 +256,7 @@ func doLocalClone(ctx context.Context, source, target string) error {
 // If revision is empty, last commit from "master" branch will be used.
 // Returns the number of revisions.
 func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
-	ign.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")
+	gz.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")
 	return getRevisionCount(ctx, g.Path, rev)
 }
 
@@ -276,15 +276,15 @@ func getRevisionCount(ctx context.Context, repoPath, rev string) (int, error) {
 	bs, err = cmd.Output()
 	var count int
 	if err != nil {
-		err = ign.WithStack(err)
-		ign.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 		count = 0
 	} else {
 		s := string(bs[:])
 		parsed, parseErr := strconv.Atoi(strings.Fields(s)[0])
 		if parseErr != nil {
-			parseErr = ign.WithStack(parseErr)
-			ign.LoggerFromContext(ctx).Info("Error while parsing revision count: " + fmt.Sprint(parseErr))
+			parseErr = gz.WithStack(parseErr)
+			gz.LoggerFromContext(ctx).Info("Error while parsing revision count: " + fmt.Sprint(parseErr))
 		} else {
 			count = parsed
 		}

@@ -2835,7 +2835,7 @@
           "x-go-name": "Prefix"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/ign-go"
+      "x-go-package": "github.com/gazebo-web/gz-go"
     },
     "AccessTokens": {
       "description": "AccessTokens is an array of AccessToken",
@@ -2843,7 +2843,7 @@
       "items": {
         "$ref": "#/definitions/AccessToken"
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/ign-go"
+      "x-go-package": "github.com/gazebo-web/gz-go"
     },
     "AdminSearchRequest": {
       "description": "AdminSearchRequest is a request to alter the ElasticSearchConfig",
@@ -3126,7 +3126,7 @@
           "x-go-name": "UserAgent"
         }
       },
-      "x-go-package": "gitlab.com/ignitionrobotics/web/ign-go"
+      "x-go-package": "github.com/gazebo-web/gz-go"
     },
     "File": {
       "type": "object",

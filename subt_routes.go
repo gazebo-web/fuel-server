@@ -1,20 +1,18 @@
 package main
 
-import (
-	"gitlab.com/ignitionrobotics/web/ign-go"
-)
+import "github.com/gazebo-web/gz-go/v7"
 
-var subTRoutes = ign.Routes{
+var subTRoutes = gz.Routes{
 
 	// REGISTRATIONS
 
-	ign.Route{
+	gz.Route{
 		"Registrations",
 		"Information about all SubT registrations",
 		"/registrations",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route POST /subt/registrations subtRegistrations applySubtReg
 			//
 			// Apply a SubT registration
@@ -29,11 +27,11 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Registration
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Create a new subt registration",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(SubTRegistrationCreate)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(SubTRegistrationCreate)},
 				},
 			},
 			// swagger:route GET /subt/registrations registrations listRegistrations
@@ -50,24 +48,24 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Registrations
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all subt registrations",
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(PaginationHandlerWithUser(RegistrationsList, true))},
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandlerWithUser(RegistrationsList, true))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(PaginationHandlerWithUser(RegistrationsList, true))},
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandlerWithUser(RegistrationsList, true))},
 				},
 			},
 		},
 	},
 
-	ign.Route{
+	gz.Route{
 		"Single Registration",
 		"Update a registration",
 		"/registrations/{competition}/{name}",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route PATCH /subt/registrations/{competition}/{name} subtRegistrations resolveSubtReg
 			//
 			// Resolves a SubT registration
@@ -82,11 +80,11 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Registration
-			ign.Method{
+			gz.Method{
 				"PATCH",
 				"Resolves a subt registration",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, SubTRegistrationUpdate))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, SubTRegistrationUpdate))},
 				},
 			},
 			// swagger:route DELETE /subt/registrations/{competition}/{name} subtRegistrations deleteSubtReg
@@ -103,11 +101,11 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Registration
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Deletes a subt registration",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, SubTRegistrationDelete))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, SubTRegistrationDelete))},
 				},
 			},
 		},
@@ -115,13 +113,13 @@ var subTRoutes = ign.Routes{
 
 	// PARTICIPANTS
 
-	ign.Route{
+	gz.Route{
 		"Participants",
 		"Information about all SubT participants",
 		"/participants",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /subt/participants participants listParticipants
 			//
 			// Get list of Subt participants.
@@ -136,24 +134,24 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OrganizationResponses
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all subt participants",
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(PaginationHandlerWithUser(SubTParticipantsList, true))},
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandlerWithUser(SubTParticipantsList, true))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(PaginationHandlerWithUser(SubTParticipantsList, true))},
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandlerWithUser(SubTParticipantsList, true))},
 				},
 			},
 		},
 	},
 
-	ign.Route{
+	gz.Route{
 		"Single Participant",
 		"Update a participant",
 		"/participants/{competition}/{name}",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route DELETE /subt/participants/{competition}/{name} participants deleteSubtParticipants
 			//
 			// Delete a Subt participant.
@@ -166,22 +164,22 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: CompetitionParticipant
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Delete a subt participant",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, SubTParticipantDelete))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, SubTParticipantDelete))},
 				},
 			},
 		},
 	},
-	ign.Route{
+	gz.Route{
 		"Participant Log Files",
 		"SubT log files submissions from a participant",
 		"/participants/{name}/logfiles",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /subt/participants/{name}/logfiles logfiles listPartLogfiles
 			//
 			// Get list of Subt log files.
@@ -196,11 +194,11 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: LogFiles
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get a list of subt logfiles",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandlerWithUser(SubTLogFileList, true))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandlerWithUser(SubTLogFileList, true))},
 				},
 			},
 		},
@@ -208,13 +206,13 @@ var subTRoutes = ign.Routes{
 
 	// LOG FILES
 
-	ign.Route{
+	gz.Route{
 		"Log Files",
 		"SubT log files submissions",
 		"/logfiles",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route POST /subt/logfiles logfiles submitLog
 			//
 			// Submit a SubT log file
@@ -232,11 +230,11 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: LogFile
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Create a new subt log file",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(SubTSubmitLogFile)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(SubTSubmitLogFile)},
 				},
 			},
 			// swagger:route GET /subt/logfiles logfiles listLogfiles
@@ -253,23 +251,23 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: LogFiles
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all subt logfiles",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandlerWithUser(SubTLogFileList, true))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandlerWithUser(SubTLogFileList, true))},
 				},
 			},
 		},
 	},
 
-	ign.Route{
+	gz.Route{
 		"Single Log File",
 		"Single log files",
 		"/logfiles/{id}",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /subt/logfiles/{id} logfiles getLogFile
 			//
 			// Update a log file
@@ -284,11 +282,11 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: LogFile
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get a log file",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(SubTGetLogFile)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(SubTGetLogFile)},
 				},
 			},
 			// swagger:route PATCH /subt/logfiles/{id} logfiles updateLogFile
@@ -305,11 +303,11 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: LogFile
-			ign.Method{
+			gz.Method{
 				"PATCH",
 				"Update a subt log file",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(SubTUpdateLogFile)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(SubTUpdateLogFile)},
 				},
 			},
 			// swagger:route DELETE /subt/logfiles/{id} logfiles deleteLogFile
@@ -326,23 +324,23 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: LogFile
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Delete a log file",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(SubTDeleteLogFile)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(SubTDeleteLogFile)},
 				},
 			},
 		},
 	},
 
-	ign.Route{
+	gz.Route{
 		"Download Single Log File",
 		"Download Single log files",
 		"/logfiles/{id}/file",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /subt/logfiles/{id}/file logfiles downloadLogFile
 			//
 			// Downloads a log file
@@ -354,11 +352,11 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: File
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get a log file",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(SubTLogFileDownload)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(SubTLogFileDownload)},
 				},
 			},
 		},
@@ -366,12 +364,12 @@ var subTRoutes = ign.Routes{
 
 	// LEADERBOARD
 
-	ign.Route{
+	gz.Route{
 		"Leaderboard",
 		"SubT leaderboard",
 		"/leaderboard",
-		ign.AuthHeadersRequired,
-		ign.Methods{
+		gz.AuthHeadersRequired,
+		gz.Methods{
 			// swagger:route GET /subt/leaderboard leaderboard listLeaderboard
 			//
 			// Get the Subt leaderboard.
@@ -386,14 +384,14 @@ var subTRoutes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Leaderboard
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get the leaderboard",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandler(Leaderboard))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(Leaderboard))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 } // routes

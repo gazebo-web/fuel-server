@@ -3,14 +3,14 @@ package subt
 import (
 	"context"
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"time"
 
-	"github.com/jinzhu/gorm"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	p "github.com/gazebo-web/fuel-server/permissions"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/jinzhu/gorm"
 )
 
 // SubTPortalName is the name of the Org that represents the competition.
@@ -24,33 +24,33 @@ func iptr(i int) *int {
 	return &i
 }
 
-func getRegistration(tx *gorm.DB, comp, participant string) (*Registration, *ign.ErrMsg) {
+func getRegistration(tx *gorm.DB, comp, participant string) (*Registration, *gz.ErrMsg) {
 	var r Registration
 	// Create query
 	q := QueryForRegistrations(tx).Order("id desc", true)
 	if err := q.Where("participant = ? AND competition = ?", participant, comp).First(&r).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNameNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNameNotFound, err)
 	}
 	return &r, nil
 }
 
-func getRegistrationByCreator(tx *gorm.DB, comp, requestingUser string) (*Registration, *ign.ErrMsg) {
+func getRegistrationByCreator(tx *gorm.DB, comp, requestingUser string) (*Registration, *gz.ErrMsg) {
 	var r Registration
 	// Create query
 	q := QueryForRegistrations(tx).Order("id desc", true)
 	if err := q.Where("creator = ? AND competition = ?", requestingUser, comp).First(&r).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNameNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNameNotFound, err)
 	}
 	return &r, nil
 }
 
 func getParticipant(tx *gorm.DB, comp,
-	participant string) (*CompetitionParticipant, *ign.ErrMsg) {
+	participant string) (*CompetitionParticipant, *gz.ErrMsg) {
 	var p CompetitionParticipant
 	// Create query
 	q := tx.Model(&CompetitionParticipant{})
 	if err := q.Where("owner = ? AND competition = ?", participant, comp).First(&p).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNameNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNameNotFound, err)
 	}
 	return &p, nil
 }
@@ -60,7 +60,7 @@ func getParticipant(tx *gorm.DB, comp,
 // The orgName argument is the organization that will be registered as
 // a 'participant team'.
 func (s *Service) ApplyToSubT(ctx context.Context, tx *gorm.DB,
-	orgName string, user *users.User) (*Registration, *ign.ErrMsg) {
+	orgName string, user *users.User) (*Registration, *gz.ErrMsg) {
 
 	r, em := s.CreateRegistration(ctx, tx, SubTPortalName, orgName, user)
 	if em != nil {
@@ -75,12 +75,12 @@ func (s *Service) ApplyToSubT(ctx context.Context, tx *gorm.DB,
 // The orgName argument is the organization that will be registered as a 'team'.
 // TODO: this should be moved to generic a Registrations bundle.
 func (s *Service) CreateRegistration(ctx context.Context, tx *gorm.DB,
-	comp, orgName string, user *users.User) (*Registration, *ign.ErrMsg) {
+	comp, orgName string, user *users.User) (*Registration, *gz.ErrMsg) {
 
 	// Make sure the orgName to be registered as participant isn't the same
 	// Competition org.
 	if orgName == comp {
-		return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+		return nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue)
 	}
 
 	// Sanity check: make sure the org exists
@@ -95,24 +95,24 @@ func (s *Service) CreateRegistration(ctx context.Context, tx *gorm.DB,
 
 	// Now check there is no pending (or done) registration made by the requesting user.
 	reg, em := getRegistrationByCreator(tx, comp, *user.Username)
-	if em != nil && em.ErrCode != ign.ErrorNameNotFound {
+	if em != nil && em.ErrCode != gz.ErrorNameNotFound {
 		return nil, em
 	} else if reg != nil && *reg.Status != int(RegOpRejected) {
-		return nil, ign.NewErrorMessage(ign.ErrorResourceExists)
+		return nil, gz.NewErrorMessage(gz.ErrorResourceExists)
 	}
 
 	// Now check there is no pending registration already for that participant org.
 	reg, em = getRegistration(tx, comp, orgName)
-	if em != nil && em.ErrCode != ign.ErrorNameNotFound {
+	if em != nil && em.ErrCode != gz.ErrorNameNotFound {
 		return nil, em
 	} else if reg != nil && *reg.Status != int(RegOpRejected) {
-		return nil, ign.NewErrorMessage(ign.ErrorResourceExists)
+		return nil, gz.NewErrorMessage(gz.ErrorResourceExists)
 	}
 
 	registration := Registration{Status: iptr(int(RegOpPending)),
 		Participant: &orgName, Competition: &comp, Creator: user.Username, Email: user.Email}
 	if err := tx.Create(&registration).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// Set read permissions to all Competition organizing team members (eg, SubT)
@@ -120,10 +120,10 @@ func (s *Service) CreateRegistration(ctx context.Context, tx *gorm.DB,
 	// The Write permission will be only for admins of Competition (SubT).
 	rName := registration.regName()
 	if _, em := globals.Permissions.AddPermission(comp, rName, p.Read); em != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, em)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, em)
 	}
 	if _, em := globals.Permissions.AddPermission(*user.Username, rName, p.Read); em != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, em)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, em)
 	}
 
 	sendMail(fmt.Sprintf("New Registration [regName:%s] for [%s]. Team [%s]", rName, comp, orgName), &registration, org)
@@ -134,11 +134,11 @@ func (s *Service) CreateRegistration(ctx context.Context, tx *gorm.DB,
 // (approve / reject).
 // The requestor argument is the active user requesting the operation (an admin).
 func (s *Service) ResolveRegistration(ctx context.Context, tx *gorm.DB,
-	ru *RegistrationUpdate, requestor *users.User) (*Registration, *ign.ErrMsg) {
+	ru *RegistrationUpdate, requestor *users.User) (*Registration, *gz.ErrMsg) {
 
 	// validate input data
 	if ru.Resolution != RegOpDone && ru.Resolution != RegOpRejected {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, nil, []string{"resolution"})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, nil, []string{"resolution"})
 	}
 
 	// Sanity check: make sure there is a pending registration
@@ -147,7 +147,7 @@ func (s *Service) ResolveRegistration(ctx context.Context, tx *gorm.DB,
 		return nil, em
 	}
 	if *reg.Status != int(RegOpPending) {
-		return nil, ign.NewErrorMessage(ign.ErrorNameNotFound)
+		return nil, gz.NewErrorMessage(gz.ErrorNameNotFound)
 	}
 
 	// Only admins of the competition can update registrations for that competition.
@@ -166,7 +166,7 @@ func (s *Service) ResolveRegistration(ctx context.Context, tx *gorm.DB,
 		cu := &CompetitionParticipant{Owner: &ru.Participant,
 			Competition: &ru.Competition, Private: &priv}
 		if err := tx.Create(&cu).Error; err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 		}
 	}
 	return reg, nil
@@ -176,7 +176,7 @@ func (s *Service) ResolveRegistration(ctx context.Context, tx *gorm.DB,
 // The requestor argument is the active user requesting the operation.
 // Returns the canceled registration
 func (s *Service) DeleteRegistration(ctx context.Context, tx *gorm.DB,
-	comp, orgName string, requestor *users.User) (*Registration, *ign.ErrMsg) {
+	comp, orgName string, requestor *users.User) (*Registration, *gz.ErrMsg) {
 
 	// Sanity check: make sure there is a pending registration
 	reg, em := getRegistration(tx, comp, orgName)
@@ -184,7 +184,7 @@ func (s *Service) DeleteRegistration(ctx context.Context, tx *gorm.DB,
 		return nil, em
 	}
 	if *reg.Status != int(RegOpPending) {
-		return nil, ign.NewErrorMessage(ign.ErrorNameNotFound)
+		return nil, gz.NewErrorMessage(gz.ErrorNameNotFound)
 	}
 
 	// Only the same user or admins of the competition can cancel the registration.
@@ -196,7 +196,7 @@ func (s *Service) DeleteRegistration(ctx context.Context, tx *gorm.DB,
 
 	// Remove the registration from the database
 	if err := tx.Delete(reg).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	return reg, nil
@@ -206,7 +206,7 @@ func (s *Service) DeleteRegistration(ctx context.Context, tx *gorm.DB,
 // The requestor argument is the active user requesting the operation.
 // Returns the deleted participant
 func (s *Service) DeleteParticipant(ctx context.Context, tx *gorm.DB,
-	comp, orgName string, requestor *users.User) (*CompetitionParticipant, *ign.ErrMsg) {
+	comp, orgName string, requestor *users.User) (*CompetitionParticipant, *gz.ErrMsg) {
 
 	// Sanity check: make sure there is a participant
 	part, em := getParticipant(tx, comp, orgName)
@@ -229,12 +229,12 @@ func (s *Service) DeleteParticipant(ctx context.Context, tx *gorm.DB,
 
 	// Remove the participant from the participant table
 	if err := tx.Delete(part).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	// Remove the registration from the registration table
 	if err := tx.Delete(reg).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	return part, nil
@@ -243,8 +243,8 @@ func (s *Service) DeleteParticipant(ctx context.Context, tx *gorm.DB,
 // RegistrationList returns a list of paginated registrations.
 // Only the admins of the competition and the user that applied the registration
 // should be able to see registrations.
-func (s *Service) RegistrationList(pr *ign.PaginationRequest, tx *gorm.DB, comp string,
-	status RegStatus, reqUser *users.User) (*Registrations, *ign.PaginationResult, *ign.ErrMsg) {
+func (s *Service) RegistrationList(pr *gz.PaginationRequest, tx *gorm.DB, comp string,
+	status RegStatus, reqUser *users.User) (*Registrations, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Create the DB query
 	q := QueryForRegistrations(tx)
@@ -267,20 +267,20 @@ func (s *Service) RegistrationList(pr *ign.PaginationRequest, tx *gorm.DB, comp 
 	}
 
 	var regs Registrations
-	pagination, err := ign.PaginateQuery(q, &regs, *pr)
+	pagination, err := gz.PaginateQuery(q, &regs, *pr)
 	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 	}
 	if !pagination.PageFound {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 	}
 
 	return &regs, pagination, nil
 }
 
 // ParticipantsList returns a list of paginated participants (organizations and users).
-func (s *Service) ParticipantsList(pr *ign.PaginationRequest, tx *gorm.DB, comp string,
-	reqUser *users.User) (*users.OrganizationResponses, *ign.PaginationResult, *ign.ErrMsg) {
+func (s *Service) ParticipantsList(pr *gz.PaginationRequest, tx *gorm.DB, comp string,
+	reqUser *users.User) (*users.OrganizationResponses, *gz.PaginationResult, *gz.ErrMsg) {
 
 	q := tx.Model(&users.OrganizationResponse{})
 	q = q.Table("competition_participants")
@@ -297,12 +297,12 @@ func (s *Service) ParticipantsList(pr *ign.PaginationRequest, tx *gorm.DB, comp 
 
 	var responses users.OrganizationResponses
 
-	pagination, err := ign.PaginateQuery(q, &responses, *pr)
+	pagination, err := gz.PaginateQuery(q, &responses, *pr)
 	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 	}
 	if !pagination.PageFound {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 	}
 
 	return (*users.OrganizationResponses)(&responses), pagination, nil
@@ -321,8 +321,8 @@ func (s *Service) filterLeaderboard(q *gorm.DB, field string, filters []string) 
 
 // Leaderboard returns a paginated list with all competition participants sorted
 // by their score.
-func (s *Service) Leaderboard(pr *ign.PaginationRequest, tx *gorm.DB, comp string, circuit *string,
-	owner *string) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+func (s *Service) Leaderboard(pr *gz.PaginationRequest, tx *gorm.DB, comp string, circuit *string,
+	owner *string) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// NOTE this feature is public. Anyone can see the leaderboard.
 
@@ -349,12 +349,12 @@ func (s *Service) Leaderboard(pr *ign.PaginationRequest, tx *gorm.DB, comp strin
 
 	// Get the organizations
 	var lb []LeaderboardParticipant
-	pagination, err := ign.PaginateQuery(q, &lb, *pr)
+	pagination, err := gz.PaginateQuery(q, &lb, *pr)
 	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 	}
 	if !pagination.PageFound {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 	}
 
 	return &lb, pagination, nil

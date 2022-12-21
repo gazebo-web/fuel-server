@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/proto"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	"github.com/gazebo-web/gz-go/v7"
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"net/http"
 	"os"
 	"strconv"
@@ -61,21 +62,21 @@ func TestModelCreateVariants(t *testing.T) {
 	}
 
 	// Files to upload
-	var dupModelFiles = []igntest.FileDesc{
+	var dupModelFiles = []gztest.FileDesc{
 		{"model.config", constModelConfigFileContents},
 		{"model.sdf", constModelSDFFileContents},
 		{"model.config", constModelConfigFileContents},
 	}
 
-	var okModelFiles = []igntest.FileDesc{
+	var okModelFiles = []gztest.FileDesc{
 		{"model.config", constModelConfigFileContents},
 		{"model.sdf", constModelSDFFileContents},
 	}
 
-	var invalidHgFiles = []igntest.FileDesc{
+	var invalidHgFiles = []gztest.FileDesc{
 		{".hg/test.txt", constModelConfigFileContents},
 	}
-	var invalidGitFiles = []igntest.FileDesc{
+	var invalidGitFiles = []gztest.FileDesc{
 		{".git/test.txt", constModelConfigFileContents},
 	}
 
@@ -85,28 +86,28 @@ func TestModelCreateVariants(t *testing.T) {
 		{"TestFilesPostOK2", uri, nil, extraParams, okModelFiles, http.StatusOK, -1, nil, &models.Model{}},
 		{"TestFilesPostOK3", uri, nil, extraParams, okModelFiles, http.StatusOK, -1, nil, &models.Model{}},
 		{"TestInvalidGitFile", uri, nil, extraParams, invalidGitFiles, http.StatusBadRequest,
-			ign.ErrorFormInvalidValue, nil, &models.Model{}},
+			gz.ErrorFormInvalidValue, nil, &models.Model{}},
 		{"TestInvalidHgFile", uri, nil, extraParams, invalidHgFiles, http.StatusBadRequest,
-			ign.ErrorFormInvalidValue, nil, &models.Model{}},
+			gz.ErrorFormInvalidValue, nil, &models.Model{}},
 		{"TestDuplicateFilesPost", uri, nil, extraParams, dupModelFiles, http.StatusBadRequest,
-			ign.ErrorFormDuplicateFile, nil, &models.Model{}},
-		{"TestEmptyFilesInPost", uri, nil, extraParams, []igntest.FileDesc{}, http.StatusBadRequest,
-			ign.ErrorFormMissingFiles, nil, &models.Model{}},
+			gz.ErrorFormDuplicateFile, nil, &models.Model{}},
+		{"TestEmptyFilesInPost", uri, nil, extraParams, []gztest.FileDesc{}, http.StatusBadRequest,
+			gz.ErrorFormMissingFiles, nil, &models.Model{}},
 		// TestCreateModelInvalidData checks the model creation route fails when an incomplete post is sent.
-		{"TestCreateModelMissingData", uri, nil, map[string]string{}, []igntest.FileDesc{}, http.StatusBadRequest,
-			ign.ErrorFormInvalidValue, nil, &models.Model{}},
+		{"TestCreateModelMissingData", uri, nil, map[string]string{}, []gztest.FileDesc{}, http.StatusBadRequest,
+			gz.ErrorFormInvalidValue, nil, &models.Model{}},
 		{"TestCreateModelInvalidValueLicense", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "a", "permission": "0"}, okModelFiles, http.StatusBadRequest, ign.ErrorFormInvalidValue, nil, &models.Model{}},
+			"license": "a", "permission": "0"}, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
 		{"TestCreateModelNonExistentLicense", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "1000", "permission": "0"}, okModelFiles, http.StatusBadRequest, ign.ErrorFormInvalidValue, nil, &models.Model{}},
+			"license": "1000", "permission": "0"}, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
 		{"TestCreateModelInvalidValuePermission", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "2", "permission": "public"}, okModelFiles, http.StatusBadRequest, ign.ErrorFormInvalidValue, nil, &models.Model{}},
+			"license": "2", "permission": "public"}, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
 		{"TestCreateModelInvalidRangePermission", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "2", "permission": "2"}, okModelFiles, http.StatusBadRequest, ign.ErrorFormInvalidValue, nil, &models.Model{}},
+			"license": "2", "permission": "2"}, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
 		{"TestCreateModelInvalidRangePermission2", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "2", "permission": "-1"}, okModelFiles, http.StatusBadRequest, ign.ErrorFormInvalidValue, nil, &models.Model{}},
+			"license": "2", "permission": "-1"}, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
 		{"TestDescriptionMoreThan255Chars", uri, nil, longDescriptionParams, okModelFiles, http.StatusOK, -1, nil, &models.Model{}},
-		{"TestNameContainsPercent", uri, nil, invalidNamePercentParams, okModelFiles, http.StatusBadRequest, ign.ErrorFormInvalidValue, nil, &models.Model{}},
+		{"TestNameContainsPercent", uri, nil, invalidNamePercentParams, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
 	}
 	// Run all tests under different users, and removing each model after creation
 	testResourcePOST(t, modelTests, false, &rmRoute)
@@ -120,7 +121,7 @@ func TestModelCreateVariants(t *testing.T) {
 		{"TestFilesPostOK", uri, nil, extraParams, okModelFiles, http.StatusOK,
 			-1, nil, &models.Model{}},
 		{"TestDuplicateModelName", uri, nil, extraParams, okModelFiles,
-			http.StatusBadRequest, ign.ErrorFormDuplicateModelName, nil, &models.Model{}},
+			http.StatusBadRequest, gz.ErrorFormDuplicateModelName, nil, &models.Model{}},
 	}
 
 	testResourcePOST(t, dupModelNameTests, true, nil)
@@ -131,7 +132,7 @@ func TestModelCreateVariants(t *testing.T) {
 	defer removeUserWithJWT(testUser, jwt, t)
 
 	ownerTest := []postTest{
-		{"TestCreatorOwnerMismatch", uri, nil, map[string]string{"name": "test", "tags": "", "owner": testUser, "license": "1", "permission": "0"}, okModelFiles, http.StatusUnauthorized, ign.ErrorUnauthorized, nil, &models.Model{}},
+		{"TestCreatorOwnerMismatch", uri, nil, map[string]string{"name": "test", "tags": "", "owner": testUser, "license": "1", "permission": "0"}, okModelFiles, http.StatusUnauthorized, gz.ErrorUnauthorized, nil, &models.Model{}},
 	}
 
 	// Now run test with owner that is different from creator
@@ -196,9 +197,9 @@ func TestModelTransfer(t *testing.T) {
 			json.NewEncoder(b).Encode(test.postParams)
 
 			if test.expStatus != http.StatusOK {
-				igntest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwtDef, "text/plain; charset=utf-8", t)
+				gztest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwtDef, "text/plain; charset=utf-8", t)
 			} else {
-				igntest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwtDef, "application/json", t)
+				gztest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwtDef, "application/json", t)
 			}
 		})
 	}
@@ -229,7 +230,7 @@ func TestModelClone(t *testing.T) {
 	}
 
 	emptyParams := map[string]string{}
-	postFiles := []igntest.FileDesc{}
+	postFiles := []gztest.FileDesc{}
 	otherName := map[string]string{
 		"name": "test",
 	}
@@ -274,21 +275,21 @@ func TestModelClone(t *testing.T) {
 
 	// test that the files are also cloned and we can retrieve them using the versioned routes
 	getURI := "/1.0/" + *m.Owner + "/models/" + clonedModelName + "/tip/files/model.config"
-	igntest.AssertRouteMultipleArgs("GET", getURI, nil, http.StatusOK, &jwt, "text/xml; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("GET", getURI, nil, http.StatusOK, &jwt, "text/xml; charset=utf-8", t)
 
 	getURI = "/1.0/" + *m.Owner + "/models/" + clonedModelName + "/1/files/model.config"
-	igntest.AssertRouteMultipleArgs("GET", getURI, nil, http.StatusOK, &jwt, "text/xml; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("GET", getURI, nil, http.StatusOK, &jwt, "text/xml; charset=utf-8", t)
 
 	getURI = "/1.0/" + *m.Owner + "/models/" + clonedModelName + "/1/" + clonedModelName
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: getURI + ".zip", Body: nil, SignedToken: &jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, "application/zip", t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: getURI + ".zip", Body: nil, SignedToken: &jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, "application/zip", t)
 	assert.True(t, resp.Ok, "Model Zip Download request didn't succeed")
 
 	// Now test with a failing VCS repository mock
 	SetFailingVCSFactory()
 	serverErrorTests := []postTest{
 		{"TestCloneWithServerVCSError", uri, nil, otherName, postFiles, http.StatusInternalServerError,
-			ign.ErrorCreatingDir, nil, &models.Model{}},
+			gz.ErrorCreatingDir, nil, &models.Model{}},
 	}
 	testResourcePOST(t, serverErrorTests, true, nil)
 	RestoreVCSFactory()
@@ -327,7 +328,7 @@ func TestModelClone(t *testing.T) {
 	modelTestsPrivateClone := []postTest{
 		{"Test clone private ok", "/1.0/" + username + "/models/private_model/clone", &jwtDef, clonePrivateParam, postFiles, http.StatusOK, -1, &expClonePrivateParam, &models.Model{}},
 		{"Test clone org private model by member", "/1.0/" + testOrg + "/models/private2/clone", &jwt3, emptyParams, postFiles, http.StatusOK, -1, &expCloneOrgPrivateParam, &models.Model{}},
-		{"Test clone private unauthorized", "/1.0/" + username + "/models/private_model/clone", &jwt, emptyParams, postFiles, http.StatusUnauthorized, ign.ErrorUnauthorized, nil, &models.Model{}},
+		{"Test clone private unauthorized", "/1.0/" + username + "/models/private_model/clone", &jwt, emptyParams, postFiles, http.StatusUnauthorized, gz.ErrorUnauthorized, nil, &models.Model{}},
 	}
 	testResourcePOST(t, modelTestsPrivateClone, false, nil)
 }
@@ -336,7 +337,7 @@ func TestModelClone(t *testing.T) {
 type modelUpdateTest struct {
 	uriTest
 	postParams map[string]string
-	postFiles  []igntest.FileDesc
+	postFiles  []gztest.FileDesc
 	// expected model description after update.
 	expDesc string
 	// expected tags
@@ -393,8 +394,8 @@ func TestModelUpdate(t *testing.T) {
 	descParams := map[string]string{
 		"description": newDescription,
 	}
-	emptyFiles := []igntest.FileDesc{}
-	var okModelFiles = []igntest.FileDesc{
+	emptyFiles := []gztest.FileDesc{}
+	var okModelFiles = []gztest.FileDesc{
 		{"model.config", constModelConfigFileContents},
 		{"model.sdf", "test changed contents\n"},
 		{"model1.sdf", constModelSDFFileContents},
@@ -407,7 +408,7 @@ func TestModelUpdate(t *testing.T) {
 		"tags": newTags,
 	}
 
-	var otherFiles = []igntest.FileDesc{
+	var otherFiles = []gztest.FileDesc{
 		{"model1.config", constModelConfigFileContents},
 	}
 
@@ -422,7 +423,7 @@ func TestModelUpdate(t *testing.T) {
 	orgURI := "/1.0/" + testOrg + "/models/private_model"
 
 	modelUpdateTestData := []modelUpdateTest{
-		{uriTest{"update with no JWT", uri, nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, nil, nil, "", nil, 0, nil, false},
+		{uriTest{"update with no JWT", uri, nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, nil, nil, "", nil, 0, nil, false},
 		{uriTest{"edit only tags", uri, defaultJWT, nil, false}, tagsParams, emptyFiles, "description", []string{newTags}, 3, origRootPaths, false},
 		{uriTest{"edit only desc", uri, defaultJWT, nil, false}, descParams, emptyFiles, newDescription, []string{newTags}, 3, origRootPaths, false},
 		{uriTest{"edit model desc and tags", uri, defaultJWT, nil, false}, extraParams, emptyFiles, "edit-description", extraTags, 3, origRootPaths, false},
@@ -432,8 +433,8 @@ func TestModelUpdate(t *testing.T) {
 		{uriTest{"edit org model by owner", orgURI, defaultJWT, nil, false}, extraParams, otherFiles, "edit-description", extraTags, 1, []string{"/model1.config"}, true},
 		{uriTest{"edit org model by admin", orgURI, newJWT(jwt4), nil, false}, extraParams, otherFiles, "edit-description", extraTags, 1, []string{"/model1.config"}, true},
 		{uriTest{"edit org model by member", orgURI, newJWT(jwt2), nil, false}, extraParams, otherFiles, "edit-description", extraTags, 1, []string{"/model1.config"}, true},
-		{uriTest{"non member cannot edit org model", orgURI, newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, nil, nil, "", nil, 0, nil, false},
-		{uriTest{"member only cannot edit privacy setting", orgURI, newJWT(jwt2), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, privacyParams, otherFiles, "edit-description", extraTags, 1, []string{"/model1.config"}, true},
+		{uriTest{"non member cannot edit org model", orgURI, newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, nil, nil, "", nil, 0, nil, false},
+		{uriTest{"member only cannot edit privacy setting", orgURI, newJWT(jwt2), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, privacyParams, otherFiles, "edit-description", extraTags, 1, []string{"/model1.config"}, true},
 		{uriTest{"admin can edit privacy setting", orgURI, newJWT(jwt4), nil, false}, privacyParams, otherFiles, "edit-description", extraTags, 1, []string{"/model1.config"}, true},
 		{uriTest{"owner can edit privacy setting", orgURI, defaultJWT, nil, false}, privacyParams, otherFiles, "edit-description", extraTags, 1, []string{"/model1.config"}, true},
 	}
@@ -443,11 +444,11 @@ func TestModelUpdate(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, _ := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			gotCode, bslice, ok := igntest.SendMultipartMethod(t.Name(), t, "PATCH", test.URL, jwt, test.postParams, test.postFiles)
+			gotCode, bslice, ok := gztest.SendMultipartMethod(t.Name(), t, "PATCH", test.URL, jwt, test.postParams, test.postFiles)
 			assert.True(t, ok, "Could not perform multipart request")
 			require.Equal(t, expStatus, gotCode)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				assert.Equal(t, http.StatusOK, gotCode, "Did not receive expected http code [%d] after sending PATCH. Got: [%d]. Response: %s", http.StatusOK, gotCode, string(*bslice))
 				var gotModel fuel.Model
@@ -461,11 +462,11 @@ func TestModelUpdate(t *testing.T) {
 				if test.expTags != nil {
 					actualTags := models.TagsToStrSlice(m.Tags)
 					assert.Len(t, actualTags, len(test.expTags), "Tags length is not the expected")
-					assert.True(t, ign.SameElements(test.expTags, actualTags), "Returned Tags are not the expected. Expected: %v. Got: %v", test.expTags, actualTags)
+					assert.True(t, gz.SameElements(test.expTags, actualTags), "Returned Tags are not the expected. Expected: %v. Got: %v", test.expTags, actualTags)
 				}
 				if test.expRootPaths != nil {
 					filesURI := fmt.Sprintf("/1.0/%s/models/%s/tip/files", *gotModel.Owner, *gotModel.Name)
-					bslice2, _ := igntest.AssertRoute("GET", filesURI, http.StatusOK, t)
+					bslice2, _ := gztest.AssertRoute("GET", filesURI, http.StatusOK, t)
 					var m2 fuel.FileTree
 					assert.NoError(t, json.Unmarshal(*bslice2, &m2), "Unable to get the model filetree: %s", string(*bslice2))
 					assertFileTreeLen(t, &m2, test.expFileTreeLen, "Invalid len in FileTree. URL: %s", filesURI)
