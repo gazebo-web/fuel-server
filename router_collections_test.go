@@ -547,7 +547,7 @@ func TestCollectionCreate(t *testing.T) {
 		{uriTest{"with space underscore and dash", uri, jwtDef, nil, true},
 			collections.CreateCollection{Name: "with- _space", Description: description},
 			true, username},
-		// // Note: the following test cases are inter-related, as the test for duplication.
+		//// Note: the following test cases are inter-related, as the test for duplication.
 		{uriTest{"with all fields", uri, jwtDef, nil, false},
 			collections.CreateCollection{Name: name, Description: description}, false,
 			username},

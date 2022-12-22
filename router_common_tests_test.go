@@ -344,7 +344,7 @@ func TestGetFileTree(t *testing.T) {
 		{uriTest{"get model with org owner", modelURL(orgname, "orgModel", "") + "/tip/files", defaultJWT, nil, false}, 3, 1, expModelPaths},
 		{uriTest{"get private model with org member", modelURL(orgname, "orgModel", "") + "/tip/files", newJWT(jwt3), nil, false}, 3, 1, expModelPaths},
 		{uriTest{"get private model with non member", modelURL(orgname, "orgModel", "") + "/tip/files", newJWT(jwt2), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, 0, 1, nil},
-		// // WORLDS
+		//// WORLDS
 		{uriTest{"world1 filetree", worldURL(testUser, "world1", "") + "/tip/files", nil, nil, false}, 3, 1, expWorldPaths},
 		{uriTest{"world2 filetree with subfolder", worldURL(testUser, "world2", "") + "/tip/files", nil, nil, false}, 4, 1, []string{"/subfolder", "/world.sdf", "/world.world", "/subfolder/test.txt"}},
 		{uriTest{"invalid world", worldURL(testUser, "invalidworld", "") + "/tip/files.json", nil, gz.NewErrorMessage(gz.ErrorNameNotFound), true}, 0, 1, nil},
