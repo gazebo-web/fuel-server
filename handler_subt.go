@@ -1,23 +1,24 @@
 package main
 
 import (
+	"github.com/gazebo-web/gz-go/v7"
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/subt"
 	"github.com/gazebo-web/fuel-server/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 )
 
 // Leaderboard returns a paginated list of subt participant names
 // sorted by their score.
 // You can request this method with the following cURL request:
-//   curl -k -X GET --url https://localhost:4430/1.0/subt/leaderboard
-//     --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
-func Leaderboard(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/subt/leaderboard
+//	  --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+func Leaderboard(p *gz.PaginationRequest, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 	// Parse parameters
 	var competition string
 	var circuit, owner *string
@@ -48,10 +49,11 @@ func Leaderboard(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
 
 // RegistrationsList returns a paginated list of subt registrations.
 // You can request this method with the following cURL request:
-//   curl -k -X GET --url https://localhost:4430/1.0/subt/registrations
-//     --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
-func RegistrationsList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/subt/registrations
+//	  --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+func RegistrationsList(p *gz.PaginationRequest, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 	// Get the parameters
 	params := r.URL.Query()
 	var status subt.RegStatus
@@ -65,7 +67,7 @@ func RegistrationsList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
 	} else if s[0] == "rejected" {
 		status = subt.RegOpRejected
 	} else {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorMissingField)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorMissingField)
 	}
 
 	return (&subt.Service{}).RegistrationList(p, tx, subt.SubTPortalName, status, user)
@@ -73,11 +75,12 @@ func RegistrationsList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
 
 // SubTRegistrationCreate creates a new pending registration.
 // You can request this method with the following cURL request:
-//    curl -k -X POST -d '{"partipant":<an organization>}' -H "Content-Type: application/json"
-//			https://localhost:4430/1.0/subt/registrations
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	   curl -k -X POST -d '{"partipant":<an organization>}' -H "Content-Type: application/json"
+//				https://localhost:4430/1.0/subt/registrations
+//	     --header 'authorization: Bearer <your-jwt-token-here>'
 func SubTRegistrationCreate(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Sanity check: Find the user associated to the given JWT. Fail if no user.
 	user, ok, errMsg := getUserFromJWT(tx, r)
@@ -96,12 +99,14 @@ func SubTRegistrationCreate(tx *gorm.DB, w http.ResponseWriter,
 
 // SubTRegistrationUpdate accepts or rejects an existing pending registration.
 // You can request this method with the following cURL request:
-//    curl -k -X PATCH -d '{"resolution":<0,1, or 2>}' -H "Content-Type: application/json"
-//			https://localhost:4430/1.0/subt/registrations/{competition}/{name}
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	   curl -k -X PATCH -d '{"resolution":<0,1, or 2>}' -H "Content-Type: application/json"
+//				https://localhost:4430/1.0/subt/registrations/{competition}/{name}
+//	     --header 'authorization: Bearer <your-jwt-token-here>'
+//
 // It returns the updated registration.
 func SubTRegistrationUpdate(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Sanity check: Find the user associated to the given JWT. Fail if no user.
 	user, ok, errMsg := getUserFromJWT(tx, r)
@@ -123,10 +128,11 @@ func SubTRegistrationUpdate(orgName string, jwtUser *users.User, tx *gorm.DB,
 // invoked by the user that applied the original registration, or by admins of
 // the competition (SubT).
 // You can request this method with the following cURL request:
-//    curl -k -X DELETE https://localhost:4430/1.0/subt/registrations/{competition}/{name}
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X DELETE https://localhost:4430/1.0/subt/registrations/{competition}/{name}
+//	  --header 'authorization: Bearer <your-jwt-token-here>'
 func SubTRegistrationDelete(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Sanity check: Find the user associated to the given JWT. Fail if no user.
 	user, ok, errMsg := getUserFromJWT(tx, r)
@@ -142,10 +148,11 @@ func SubTRegistrationDelete(orgName string, jwtUser *users.User, tx *gorm.DB,
 // invoked by the user that applied the original registration, or by admins of
 // the competition (SubT).
 // You can request this method with the following cURL request:
-//    curl -k -X DELETE https://localhost:4430/1.0/subt/participants/{competition}/{name}
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X DELETE https://localhost:4430/1.0/subt/participants/{competition}/{name}
+//	  --header 'authorization: Bearer <your-jwt-token-here>'
 func SubTParticipantDelete(orgName string, jwtUser *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Sanity check: Find the user associated to the given JWT. Fail if no user.
 	user, ok, errMsg := getUserFromJWT(tx, r)
@@ -159,26 +166,28 @@ func SubTParticipantDelete(orgName string, jwtUser *users.User, tx *gorm.DB,
 
 // SubTParticipantsList returns a paginated list of subt participants (organizations for now).
 // You can request this method with the following cURL request:
-//   curl -k -X GET --url https://localhost:4430/1.0/subt/participants
-//     --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
-func SubTParticipantsList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/subt/participants
+//	  --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+func SubTParticipantsList(p *gz.PaginationRequest, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	return (&subt.Service{}).ParticipantsList(p, tx, subt.SubTPortalName, user)
 }
 
 // SubTSubmitLogFile submits a new log file for evaluation.
 // You can request this method with the following cURL request:
-//    curl -k -X POST -F owner=ownerName -F private=true
-//      -F 'file=@<full-path-to-file;filename=theFileName>'
-//      https://localhost:4430/1.0/subt/logfiles
-//			--header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	   curl -k -X POST -F owner=ownerName -F private=true
+//	     -F 'file=@<full-path-to-file;filename=theFileName>'
+//	     https://localhost:4430/1.0/subt/logfiles
+//				--header 'authorization: Bearer <your-jwt-token-here>'
 func SubTSubmitLogFile(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Parse form's values and files.
 	if err := r.ParseMultipartForm(0); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
 	defer r.MultipartForm.RemoveAll()
@@ -196,7 +205,7 @@ func SubTSubmitLogFile(tx *gorm.DB, w http.ResponseWriter,
 
 	f, fh, err := r.FormFile("file")
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	fName := fh.Filename
 	log, em := (&subt.LogService{}).CreateLog(r.Context(), tx, f, fName,
@@ -205,12 +214,14 @@ func SubTSubmitLogFile(tx *gorm.DB, w http.ResponseWriter,
 }
 
 // SubTUpdateLogFile updates a log file.
-//    curl -k -X PATCH -d '{"status":<0,1, or 2>, "score":<float32>}' -H "Content-Type: application/json"
-//			https://localhost:4430/1.0/subt/logfiles/{id}
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	   curl -k -X PATCH -d '{"status":<0,1, or 2>, "score":<float32>}' -H "Content-Type: application/json"
+//				https://localhost:4430/1.0/subt/logfiles/{id}
+//	     --header 'authorization: Bearer <your-jwt-token-here>'
+//
 // Returns the updated log file
 func SubTUpdateLogFile(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the user and ID from request. Fail if any of those are missing
 	user, id, em := getUserAndID(tx, r)
@@ -229,9 +240,10 @@ func SubTUpdateLogFile(tx *gorm.DB, w http.ResponseWriter,
 
 // SubTDeleteLogFile deletes a log file.
 // You can request this method with the following curl request:
-//   curl -k -X DELETE --url https://localhost:4430/1.0/subt/logfiles/{id}
+//
+//	curl -k -X DELETE --url https://localhost:4430/1.0/subt/logfiles/{id}
 func SubTDeleteLogFile(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the user and ID from request. Fail if any of those are missing
 	user, id, em := getUserAndID(tx, r)
@@ -247,9 +259,10 @@ func SubTDeleteLogFile(tx *gorm.DB, w http.ResponseWriter,
 // If the url query includes link=true as parameter then this handler will
 // return the download URL as a string result instead of doing a http redirect.
 // You can request this method with the following curl request:
-//   curl -k -X GET --url https://localhost:4430/1.0/subt/logfiles/{id}/file?link=true
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/subt/logfiles/{id}/file?link=true
 func SubTLogFileDownload(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Sanity check: Find the user associated to the given JWT. Fail if no user.
 	user, ok, errMsg := getUserFromJWT(tx, r)
@@ -282,9 +295,10 @@ func SubTLogFileDownload(tx *gorm.DB, w http.ResponseWriter,
 
 // SubTGetLogFile returns info about a single log file.
 // You can request this method with the following curl request:
-//   curl -k -X GET --url https://localhost:4430/1.0/subt/logfiles/{id}
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/subt/logfiles/{id}
 func SubTGetLogFile(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the user and ID from request. Fail if any of those are missing
 	user, id, em := getUserAndID(tx, r)
@@ -298,13 +312,16 @@ func SubTGetLogFile(tx *gorm.DB, w http.ResponseWriter,
 
 // SubTLogFileList returns a paginated list of subt log files.
 // You can request this method with the following cURL request:
-//   curl -k -X GET --url https://localhost:4430/1.0/subt/logfiles
-//     --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/subt/logfiles
+//	  --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
 // OR
-//   curl -k -X GET --url https://localhost:4430/1.0/subt/participants/{name}/logfiles
-//     --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
-func SubTLogFileList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/subt/participants/{name}/logfiles
+//	  --header 'authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+func SubTLogFileList(p *gz.PaginationRequest, user *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Get the parameters
 	params := r.URL.Query()
@@ -319,12 +336,12 @@ func SubTLogFileList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
 	} else if s[0] == "rejected" {
 		status = subt.StRejected
 	} else {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorMissingField)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorMissingField)
 	}
 
 	owner, ok, em := readOwner(tx, r, "name", true)
 	// If the owner does not exist
-	if !ok && em.ErrCode != ign.ErrorUserNotInRequest {
+	if !ok && em.ErrCode != gz.ErrorUserNotInRequest {
 		return nil, nil, em
 	}
 
@@ -334,7 +351,7 @@ func SubTLogFileList(p *ign.PaginationRequest, user *users.User, tx *gorm.DB,
 
 // getUserAndID reads the user and ID from the http request.
 // It fails if any of those cannot be found.
-func getUserAndID(tx *gorm.DB, r *http.Request) (*users.User, uint, *ign.ErrMsg) {
+func getUserAndID(tx *gorm.DB, r *http.Request) (*users.User, uint, *gz.ErrMsg) {
 	user, ok, errMsg := getUserFromJWT(tx, r)
 	if !ok {
 		return nil, 0, &errMsg
@@ -348,16 +365,16 @@ func getUserAndID(tx *gorm.DB, r *http.Request) (*users.User, uint, *ign.ErrMsg)
 }
 
 // readID extracts the id from the request.
-func readID(r *http.Request) (uint, *ign.ErrMsg) {
+func readID(r *http.Request) (uint, *gz.ErrMsg) {
 
 	params := mux.Vars(r)
 	idStr, ok := params["id"]
 	if !ok {
-		return 0, ign.NewErrorMessage(ign.ErrorIDNotInRequest)
+		return 0, gz.NewErrorMessage(gz.ErrorIDNotInRequest)
 	}
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		return 0, ign.NewErrorMessage(ign.ErrorIDNotInRequest)
+		return 0, gz.NewErrorMessage(gz.ErrorIDNotInRequest)
 	}
 	return uint(id), nil
 }

@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 	"github.com/gazebo-web/fuel-server/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+
 	"log"
 	"os"
 	"testing"
@@ -21,7 +22,7 @@ func TestMain(m *testing.M) {
 // Clean up our mess
 func packageTearDown(ctx context.Context) {
 	if ctx == nil {
-		ctx = ign.NewContextWithLogger(context.Background(), ign.NewLoggerNoRollbar("test", ign.VerbosityDebug))
+		ctx = gz.NewContextWithLogger(context.Background(), gz.NewLoggerNoRollbar("test", gz.VerbosityDebug))
 	}
 	cleanDBTables(ctx)
 	// Remove all created folders

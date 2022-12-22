@@ -6,15 +6,15 @@ import (
 	"encoding/json"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/proto"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	"net/http"
 	"strconv"
 	"strings"
@@ -79,35 +79,35 @@ type AdminSearchResponse struct {
 // DeleteElasticSearchHandler deletes an elasticsearch config
 //
 // curl -k -X DELETE http://localhost:8000/1.0/admin/search/{config_id} --header "Private-token: YOUR_TOKEN"
-func DeleteElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+func DeleteElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	user, ok, errMsg := getUserFromJWT(tx, r)
 
-	if !ok && (errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != ign.ErrorAuthNoUser) {
+	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
+		errMsg.ErrCode != gz.ErrorAuthNoUser) {
 		return nil, &errMsg
 	}
 
 	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	// Get the config id
 	configID, valid := mux.Vars(r)["config_id"]
 	if !valid {
-		return nil, ign.NewErrorMessage(ign.ErrorIDNotInRequest)
+		return nil, gz.NewErrorMessage(gz.ErrorIDNotInRequest)
 	}
 
 	var config ElasticSearchConfig
 
 	// Find the config
 	if err := tx.First(&config, configID).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorIDNotFound, err)
 	}
 
 	// Try to delete the config.
 	if err := tx.Delete(&config).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	// Return the config that was deleted.
@@ -116,24 +116,24 @@ func DeleteElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 
 // ModifyElasticSearchHandler modifies an existing config
 //
-//curl -k -H "Content-Type: application/json" -X PATCH http://localhost:8000/1.0/admin/search/{config_id} -d '{"address":"http://localhost:9200", "primary":true, "username":"my_username", "password":"my_password"}' --header "Private-token: YOUR_TOKEN"
-func ModifyElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+// curl -k -H "Content-Type: application/json" -X PATCH http://localhost:8000/1.0/admin/search/{config_id} -d '{"address":"http://localhost:9200", "primary":true, "username":"my_username", "password":"my_password"}' --header "Private-token: YOUR_TOKEN"
+func ModifyElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	user, ok, errMsg := getUserFromJWT(tx, r)
 
-	if !ok && (errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != ign.ErrorAuthNoUser) {
+	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
+		errMsg.ErrCode != gz.ErrorAuthNoUser) {
 		return nil, &errMsg
 	}
 
 	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	// Get the config id
 	configID, valid := mux.Vars(r)["config_id"]
 	if !valid {
-		return nil, ign.NewErrorMessage(ign.ErrorIDNotInRequest)
+		return nil, gz.NewErrorMessage(gz.ErrorIDNotInRequest)
 	}
 
 	// Parse the request
@@ -146,7 +146,7 @@ func ModifyElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 
 	// Find the config
 	if err := tx.First(&dbConfig, configID).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorIDNotFound, err)
 	}
 
 	dbConfig.Address = request.Address
@@ -155,7 +155,7 @@ func ModifyElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 	dbConfig.IsPrimary = request.Primary
 
 	if err := tx.Save(&dbConfig).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// If new primary, then make other entries not be primary.
@@ -169,17 +169,17 @@ func ModifyElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 // CreateElasticSearchHandler creates a new elastic search config
 //
 // curl -k -H "Content-Type: application/json" -X POST http://localhost:8000/1.0/admin/search -d '{"address":"http://localhost:9200", "primary":true}' --header "Private-token: YOUR_TOKEN"
-func CreateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+func CreateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	user, ok, errMsg := getUserFromJWT(tx, r)
 
-	if !ok && (errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != ign.ErrorAuthNoUser) {
+	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
+		errMsg.ErrCode != gz.ErrorAuthNoUser) {
 		return nil, &errMsg
 	}
 
 	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	// Parse the request
@@ -198,7 +198,7 @@ func CreateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := tx.Create(&dbConfig).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// If new primary, then make other not primary.
@@ -212,17 +212,17 @@ func CreateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 // ListElasticSearchHandler returns a list of the elastic search configs
 //
 // curl -k -X GET http://localhost:8000/1.0/admin/search --header "Private-token: YOUR_TOKEN"
-func ListElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+func ListElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	user, ok, errMsg := getUserFromJWT(tx, r)
 
-	if !ok && (errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != ign.ErrorAuthNoUser) {
+	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
+		errMsg.ErrCode != gz.ErrorAuthNoUser) {
 		return nil, &errMsg
 	}
 
 	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	var dbConfigs ElasticSearchConfigs
@@ -235,21 +235,21 @@ func ListElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Reques
 // ReconnectElasticSearchHandler reconnects to the primary ElasticSearch config
 //
 // curl -k -X GET http://localhost:8000/1.0/admin/search/reconnect --header "Private-token: YOUR_TOKEN"
-func ReconnectElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+func ReconnectElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	user, ok, errMsg := getUserFromJWT(tx, r)
 
-	if !ok && (errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != ign.ErrorAuthNoUser) {
+	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
+		errMsg.ErrCode != gz.ErrorAuthNoUser) {
 		return nil, &errMsg
 	}
 
 	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	if err := connectToElasticSearch(r.Context()); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	response := AdminSearchResponse{Message: "Reconnected"}
@@ -259,17 +259,17 @@ func ReconnectElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.R
 // RebuildElasticSearchHandler rebuilds the indices for the primary config
 //
 // curl -k -X GET http://localhost:8000/1.0/admin/search/rebuild --header "Private-token: YOUR_TOKEN"
-func RebuildElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+func RebuildElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	user, ok, errMsg := getUserFromJWT(tx, r)
 
-	if !ok && (errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != ign.ErrorAuthNoUser) {
+	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
+		errMsg.ErrCode != gz.ErrorAuthNoUser) {
 		return nil, &errMsg
 	}
 
 	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	deleteIndices(r.Context())
@@ -285,17 +285,17 @@ func RebuildElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Req
 // UpdateElasticSearchHandler updates the primay ElasticSearch.
 //
 // curl -k -X GET http://localhost:8000/1.0/admin/search/update --header "Private-token: YOUR_TOKEN"
-func UpdateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+func UpdateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	user, ok, errMsg := getUserFromJWT(tx, r)
 
-	if !ok && (errMsg.ErrCode != ign.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != ign.ErrorAuthNoUser) {
+	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
+		errMsg.ErrCode != gz.ErrorAuthNoUser) {
 		return nil, &errMsg
 	}
 
 	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	models.ElasticSearchUpdateAll(r.Context(), tx)
@@ -315,7 +315,7 @@ func connectToElasticSearch(ctx context.Context) error {
 
 	// Get the first primary configuration
 	if err = globals.Server.Db.Where("is_primary = 1").First(&dbConfig).Error; err != nil {
-		ign.LoggerFromContext(ctx).Debug("No ElasticSearch configuration, skipping")
+		gz.LoggerFromContext(ctx).Debug("No ElasticSearch configuration, skipping")
 		return err
 	}
 
@@ -328,31 +328,31 @@ func connectToElasticSearch(ctx context.Context) error {
 	// Create a new elastic search client.
 	globals.ElasticSearch, err = elasticsearch.NewClient(cfg)
 	if err != nil {
-		ign.LoggerFromContext(ctx).Error("Elastic search error creating new elasticsearch client:", err)
+		gz.LoggerFromContext(ctx).Error("Elastic search error creating new elasticsearch client:", err)
 		return err
 	}
 
 	// Get cluster info
 	res, err := globals.ElasticSearch.Info()
 	if err != nil {
-		ign.LoggerFromContext(ctx).Error("Elastic search error getting response:", err)
+		gz.LoggerFromContext(ctx).Error("Elastic search error getting response:", err)
 		return err
 	}
 	defer res.Body.Close()
 
 	// Check response status
 	if res.IsError() {
-		ign.LoggerFromContext(ctx).Error("Elastic search error:", res.String())
+		gz.LoggerFromContext(ctx).Error("Elastic search error:", res.String())
 	}
 
 	// Deserialize the response into a map.
 	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-		ign.LoggerFromContext(ctx).Error("Error parsing the response body:", err)
+		gz.LoggerFromContext(ctx).Error("Error parsing the response body:", err)
 	}
 
 	// Print client and server version numbers.
-	ign.LoggerFromContext(ctx).Info("Elastic Search Client:", elasticsearch.Version)
-	ign.LoggerFromContext(ctx).Info("Elastic Search Server:",
+	gz.LoggerFromContext(ctx).Info("Elastic Search Client:", elasticsearch.Version)
+	gz.LoggerFromContext(ctx).Info("Elastic Search Server:",
 		response["version"].(map[string]interface{})["number"])
 
 	return nil
@@ -368,7 +368,7 @@ func deleteIndices(ctx context.Context) {
 	// Perform the request with the client.
 	_, err := deleteReq.Do(context.Background(), globals.ElasticSearch)
 	if err != nil {
-		ign.LoggerFromContext(ctx).Error("Error delete indices with response:", err)
+		gz.LoggerFromContext(ctx).Error("Error delete indices with response:", err)
 	}
 }
 
@@ -493,17 +493,17 @@ func createIndex(ctx context.Context, indexName string) {
 	// Perform the request with the client.
 	res, err := mappingReq.Do(context.Background(), globals.ElasticSearch)
 	if err != nil {
-		ign.LoggerFromContext(ctx).Error("Error creating the index with response:", err)
+		gz.LoggerFromContext(ctx).Error("Error creating the index with response:", err)
 	}
 	defer res.Body.Close()
 
 	// Deserialize the response into a map.
 	var response map[string]interface{}
 	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-		ign.LoggerFromContext(ctx).Error("Error parsing the response body:", err)
+		gz.LoggerFromContext(ctx).Error("Error parsing the response body:", err)
 	}
 
-	ign.LoggerFromContext(ctx).Info("Created fuel elastic search index and mappings.")
+	gz.LoggerFromContext(ctx).Info("Created fuel elastic search index and mappings.")
 }
 
 // createIndices will create the fuel indices and mappings.
@@ -517,7 +517,7 @@ func createIndices(ctx context.Context) {
 		// Perform the request with the client.
 		res, err := indexExistsReq.Do(context.Background(), globals.ElasticSearch)
 		if err != nil {
-			ign.LoggerFromContext(ctx).Error("Error getting the indices with response:", err)
+			gz.LoggerFromContext(ctx).Error("Error getting the indices with response:", err)
 		}
 
 		// If the status code is not 200, then we need to create the index,
@@ -532,7 +532,7 @@ func createIndices(ctx context.Context) {
 // elasticSearch performs a search
 // It's recommended that we don't use ElasticSearch for empty searches.
 // Instead, use a direct SQL select.
-func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order, search string, user *users.User, tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order, search string, user *users.User, tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Debug
 	//fmt.Printf("=== Start of ElasticSearch[%s] ===\n", index)
@@ -734,7 +734,7 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 
 	// Encode the search request.
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
-		return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorUnexpected, err,
+		return nil, nil, gz.NewErrorMessageWithArgs(gz.ErrorUnexpected, err,
 			[]string{"Error encoding search query"})
 	}
 
@@ -749,13 +749,13 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 		globals.ElasticSearch.Search.WithTrackTotalHits(true),
 		globals.ElasticSearch.Search.WithPretty(),
 		globals.ElasticSearch.Search.WithFrom(
-			int((ign.Max(pr.Page, 1)-1)*pr.PerPage)),
+			int((gz.Max(pr.Page, 1)-1)*pr.PerPage)),
 		globals.ElasticSearch.Search.WithSize(int(pr.PerPage)),
 	)
 
 	// Check to see if ElasticSearch returned an error.
 	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorUnexpected, err,
+		return nil, nil, gz.NewErrorMessageWithArgs(gz.ErrorUnexpected, err,
 			[]string{"Error getting search response"})
 	}
 
@@ -766,10 +766,10 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 		var errResult map[string]interface{}
 
 		if err := json.NewDecoder(res.Body).Decode(&errResult); err != nil {
-			return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorUnexpected, err,
+			return nil, nil, gz.NewErrorMessageWithArgs(gz.ErrorUnexpected, err,
 				[]string{"Error parsing the search response error body"})
 		}
-		return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorUnexpected, err,
+		return nil, nil, gz.NewErrorMessageWithArgs(gz.ErrorUnexpected, err,
 			[]string{"Search error ",
 				errResult["error"].(map[string]string)["reason"]})
 	}
@@ -778,7 +778,7 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 
 	// Decode the search response
 	if err := json.NewDecoder(res.Body).Decode(&elasticResult); err != nil {
-		return nil, nil, ign.NewErrorMessageWithArgs(ign.ErrorUnexpected, err,
+		return nil, nil, gz.NewErrorMessageWithArgs(gz.ErrorUnexpected, err,
 			[]string{"Error parsing the search response body"})
 	}
 
@@ -802,7 +802,7 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 	totalCount := int64(elasticResult["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64))
 
 	// Construct the pagination result
-	page := ign.PaginationResult{}
+	page := gz.PaginationResult{}
 	page.Page = pr.Page
 	page.PerPage = pr.PerPage
 	page.URL = pr.URL
@@ -810,7 +810,7 @@ func elasticSearch(index string, pr *ign.PaginationRequest, owner *string, order
 	page.PageFound = count > 0 || (page.Page == 1 && count == 0)
 
 	// Write the pagination headers
-	ign.WritePaginationHeaders(page, w, r)
+	gz.WritePaginationHeaders(page, w, r)
 
 	// Debug
 	// fmt.Printf("--- End of ElasticSearch ---\n")
@@ -828,11 +828,11 @@ func createWorldResults(ctx context.Context, user *users.User, tx *gorm.DB, elas
 		if ok && len(idString) > 0 {
 			resourceID, err := strconv.ParseInt(idString, 10, 64)
 			if err != nil {
-				ign.LoggerFromContext(ctx).Error("Unable to convert ID to int64.", idString)
+				gz.LoggerFromContext(ctx).Error("Unable to convert ID to int64.", idString)
 			}
 			resourceIDs = append(resourceIDs, resourceID)
 		} else {
-			ign.LoggerFromContext(ctx).Error("Unable to convert ID to string.")
+			gz.LoggerFromContext(ctx).Error("Unable to convert ID to string.")
 		}
 	}
 
@@ -870,11 +870,11 @@ func createModelResults(ctx context.Context, user *users.User, tx *gorm.DB, elas
 		if ok && len(idString) > 0 {
 			resourceID, err := strconv.ParseInt(idString, 10, 64)
 			if err != nil {
-				ign.LoggerFromContext(ctx).Error("Unable to convert ID to int64.", idString)
+				gz.LoggerFromContext(ctx).Error("Unable to convert ID to int64.", idString)
 			}
 			resourceIDs = append(resourceIDs, resourceID)
 		} else {
-			ign.LoggerFromContext(ctx).Error("Unable to convert ID to string.")
+			gz.LoggerFromContext(ctx).Error("Unable to convert ID to string.")
 
 		}
 	}

@@ -1,8 +1,8 @@
 package users
 
 import (
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 	"time"
 )
 
@@ -59,7 +59,7 @@ type User struct {
 	DownloadedWorlds *uint `json:"downloaded_worlds,omitempty"`
 
 	// AccessTokens are personal access tokens granted to a user by a user.
-	AccessTokens ign.AccessTokens
+	AccessTokens gz.AccessTokens
 }
 
 // Users is an slice of User
@@ -103,7 +103,7 @@ func (uu UpdateUserInput) IsEmpty() bool {
 }
 
 // ByUsername queries a user by username.
-func ByUsername(tx *gorm.DB, username string, deleted bool) (*User, *ign.ErrMsg) {
+func ByUsername(tx *gorm.DB, username string, deleted bool) (*User, *gz.ErrMsg) {
 	q := tx
 	if deleted {
 		// Allow to search in already deleted users
@@ -111,16 +111,16 @@ func ByUsername(tx *gorm.DB, username string, deleted bool) (*User, *ign.ErrMsg)
 	}
 	var user User
 	if q.Where("username = ?", username).First(&user); q.Error != nil && !q.RecordNotFound() {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, q.Error)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, q.Error)
 	}
 	if user.Username == nil {
-		return nil, ign.NewErrorMessage(ign.ErrorUserUnknown)
+		return nil, gz.NewErrorMessage(gz.ErrorUserUnknown)
 	}
 	return &user, nil
 }
 
 // ByIdentity queries a user by identity.
-func ByIdentity(tx *gorm.DB, identity string, deleted bool) (*User, *ign.ErrMsg) {
+func ByIdentity(tx *gorm.DB, identity string, deleted bool) (*User, *gz.ErrMsg) {
 	q := tx
 	if deleted {
 		// Allow to search in already deleted users
@@ -128,16 +128,16 @@ func ByIdentity(tx *gorm.DB, identity string, deleted bool) (*User, *ign.ErrMsg)
 	}
 	var aUser User
 	if q.Where("identity = ?", identity).First(&aUser); q.Error != nil && !q.RecordNotFound() {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, q.Error)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, q.Error)
 	}
 	if aUser.Identity == nil || *aUser.Identity != identity {
-		return nil, ign.NewErrorMessage(ign.ErrorAuthNoUser)
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
 	}
 	return &aUser, nil
 }
 
 // OwnerByName queries a the unique owner names.
-func OwnerByName(tx *gorm.DB, name string, deleted bool) (*UniqueOwner, *ign.ErrMsg) {
+func OwnerByName(tx *gorm.DB, name string, deleted bool) (*UniqueOwner, *gz.ErrMsg) {
 	q := tx
 	if deleted {
 		// Allow to search in already deleted users
@@ -145,10 +145,10 @@ func OwnerByName(tx *gorm.DB, name string, deleted bool) (*UniqueOwner, *ign.Err
 	}
 	var owner UniqueOwner
 	if q.Where("name = ?", name).First(&owner); q.Error != nil && !q.RecordNotFound() {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, q.Error)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, q.Error)
 	}
 	if owner.Name == nil {
-		return nil, ign.NewErrorMessage(ign.ErrorUserUnknown)
+		return nil, gz.NewErrorMessage(gz.ErrorUserUnknown)
 	}
 	return &owner, nil
 }

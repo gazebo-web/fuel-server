@@ -3,14 +3,14 @@ package collections
 import (
 	"context"
 	"fmt"
-	"github.com/jinzhu/gorm"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
 	"net/url"
 	"os"
 	"strings"
@@ -30,7 +30,7 @@ type ResourceWithID interface {
 // Optional: The user argument is the requesting user. It is used to check if
 // the user can perform the operation.
 func (s *Service) GetCollection(tx *gorm.DB, owner, name string,
-	user *users.User) (*Collection, *ign.ErrMsg) {
+	user *users.User) (*Collection, *gz.ErrMsg) {
 
 	c, em := s.internalGetCollection(tx, owner, name, user)
 	if em != nil {
@@ -53,7 +53,7 @@ func (s *Service) GetCollection(tx *gorm.DB, owner, name string,
 // Optional: The user argument is the requesting user. It is used to check if
 // the user can perform the operation.
 func (s *Service) internalGetCollection(tx *gorm.DB, owner, name string,
-	user *users.User) (*Collection, *ign.ErrMsg) {
+	user *users.User) (*Collection, *gz.ErrMsg) {
 
 	// Create query
 	q := QueryForCollections(tx)
@@ -62,7 +62,7 @@ func (s *Service) internalGetCollection(tx *gorm.DB, owner, name string,
 	// Find the collection
 	c, err := ByName(q, name, owner)
 	if err != nil {
-		em := ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, err, []string{owner, name})
+		em := gz.NewErrorMessageWithArgs(gz.ErrorNameNotFound, err, []string{owner, name})
 		return nil, em
 	}
 	return c, nil
@@ -71,9 +71,9 @@ func (s *Service) internalGetCollection(tx *gorm.DB, owner, name string,
 // CollectionList returns a paginated list of Collections.
 // Note: 'extend' argument is to only return collections that the user can
 // add/remove assets (which is not the same as 'updating the collection details').
-func (s *Service) CollectionList(p *ign.PaginationRequest, tx *gorm.DB,
+func (s *Service) CollectionList(p *gz.PaginationRequest, tx *gorm.DB,
 	owner *string, order, search string, extend bool, user *users.User) (*Collections,
-	*ign.PaginationResult, *ign.ErrMsg) {
+	*gz.PaginationResult, *gz.ErrMsg) {
 
 	var list Collections
 	// Create query
@@ -116,13 +116,13 @@ func (s *Service) CollectionList(p *ign.PaginationRequest, tx *gorm.DB,
 	}
 
 	// Use pagination
-	paginationResult, err := ign.PaginateQuery(q, &list, *p)
+	paginationResult, err := gz.PaginateQuery(q, &list, *p)
 	if err != nil {
-		em := ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		em := gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 		return nil, nil, em
 	}
 	if !paginationResult.PageFound {
-		em := ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		em := gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 		return nil, nil, em
 	}
 
@@ -140,7 +140,7 @@ func (s *Service) CollectionList(p *ign.PaginationRequest, tx *gorm.DB,
 }
 
 func populateCollectionThumbnails(tx *gorm.DB,
-	col *Collection, user *users.User) *ign.ErrMsg {
+	col *Collection, user *users.User) *gz.ErrMsg {
 	// first check if the collection has a Logo as thumbnail
 	if tbnPaths, err := res.GetThumbnails(col); err == nil {
 		url := fmt.Sprintf("/%s/%ss/%s/tip/files/%s", *col.GetOwner(), "collection",
@@ -151,12 +151,12 @@ func populateCollectionThumbnails(tx *gorm.DB,
 	// otherwise return the asset thumbnails
 	assocs, err := FindAssociations(tx, col, 4)
 	if err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	for _, a := range *assocs {
 		var r res.Resource
-		var em *ign.ErrMsg
+		var em *gz.ErrMsg
 		if a.Type == TModel {
 			s := &models.Service{}
 			r, em = s.GetModel(tx, a.AssetOwner, a.AssetName, user)
@@ -182,7 +182,7 @@ func populateCollectionThumbnails(tx *gorm.DB,
 
 // RemoveCollection removes a Collection. The user argument is the requesting user. It
 // is used to check if the user can perform the operation.
-func (s *Service) RemoveCollection(tx *gorm.DB, owner, name string, user *users.User) *ign.ErrMsg {
+func (s *Service) RemoveCollection(tx *gorm.DB, owner, name string, user *users.User) *gz.ErrMsg {
 
 	col, em := s.internalGetCollection(tx, owner, name, user)
 	if em != nil {
@@ -203,7 +203,7 @@ func (s *Service) RemoveCollection(tx *gorm.DB, owner, name string, user *users.
 
 	// Remove the resource from the database (soft-delete).
 	if err := tx.Delete(col).Error; err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	return nil
@@ -216,7 +216,7 @@ func (s *Service) RemoveCollection(tx *gorm.DB, owner, name string, user *users.
 // Returns the updated collection. Note: it will be the same instance as 'col' arg.
 func (s *Service) UpdateCollection(ctx context.Context, tx *gorm.DB, colOwner,
 	colName string, desc, filesPath *string, private *bool,
-	user *users.User) (*Collection, *ign.ErrMsg) {
+	user *users.User) (*Collection, *gz.ErrMsg) {
 
 	col, em := s.internalGetCollection(tx, colOwner, colName, user)
 	if em != nil {
@@ -249,7 +249,7 @@ func (s *Service) UpdateCollection(ctx context.Context, tx *gorm.DB, colOwner,
 		// Replace ALL files with the new ones
 		repo := globals.VCSRepoFactory(ctx, *col.GetLocation())
 		if err := repo.ReplaceFiles(ctx, *filesPath, *user.Username); err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 		}
 	}
 
@@ -265,7 +265,7 @@ func (s *Service) UpdateCollection(ctx context.Context, tx *gorm.DB, colOwner,
 // CreateCollection creates a new collections.
 // creator argument is the active user requesting the operation.
 func (s *Service) CreateCollection(ctx context.Context, tx *gorm.DB, cc CreateCollection,
-	creator *users.User) (*Collection, *ign.ErrMsg) {
+	creator *users.User) (*Collection, *gz.ErrMsg) {
 
 	// Set the owner
 	owner := cc.Owner
@@ -280,7 +280,7 @@ func (s *Service) CreateCollection(ctx context.Context, tx *gorm.DB, cc CreateCo
 
 	// Sanity check: name should be unique for a user
 	if _, err := ByName(tx, cc.Name, owner); err == nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorResourceExists,
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists,
 			nil, []string{cc.Name})
 	}
 
@@ -292,11 +292,11 @@ func (s *Service) CreateCollection(ctx context.Context, tx *gorm.DB, cc CreateCo
 	col, err := NewCollection(&cc.Name, &cc.Description, &owner, creator.Username,
 		private)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
 	if err := os.MkdirAll(*col.GetLocation(), 0711); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 	_, em := res.CreateResourceRepo(ctx, &col, *col.GetLocation())
 	if em != nil {
@@ -305,17 +305,17 @@ func (s *Service) CreateCollection(ctx context.Context, tx *gorm.DB, cc CreateCo
 
 	// If everything went OK then create the collection in DB.
 	if err := tx.Create(&col).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// add read and write permissions
 	_, err = globals.Permissions.AddPermission(owner, *col.UUID, permissions.Read)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	_, err = globals.Permissions.AddPermission(owner, *col.UUID, permissions.Write)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	return &col, nil
@@ -324,7 +324,7 @@ func (s *Service) CreateCollection(ctx context.Context, tx *gorm.DB, cc CreateCo
 // AddAsset adds an asset to a collection.
 // The user argument is the active user requesting the operation.
 func (s *Service) AddAsset(ctx context.Context, tx *gorm.DB, owner, name string,
-	no NameOwnerPair, assetType string, user *users.User) (*Collection, *ign.ErrMsg) {
+	no NameOwnerPair, assetType string, user *users.User) (*Collection, *gz.ErrMsg) {
 
 	col, em := s.internalGetCollection(tx, owner, name, user)
 	if em != nil {
@@ -345,7 +345,7 @@ func (s *Service) AddAsset(ctx context.Context, tx *gorm.DB, owner, name string,
 
 	// Sanity check: the association should NOT exist already
 	if _, err := FindAssociation(tx, col.ID, no.Owner, no.Name, assetType); err == nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorResourceExists,
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists,
 			nil, []string{no.Name, no.Owner, assetType})
 	}
 
@@ -358,7 +358,7 @@ func (s *Service) AddAsset(ctx context.Context, tx *gorm.DB, owner, name string,
 	ca := CollectionAsset{ColID: col.ID, AssetID: res.GetID(), AssetName: no.Name,
 		AssetOwner: no.Owner, Type: assetType}
 	if err := tx.Create(&ca).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return col, nil
@@ -366,7 +366,7 @@ func (s *Service) AddAsset(ctx context.Context, tx *gorm.DB, owner, name string,
 
 // findAssociatedAsset ensures the related asset (model/world) exists.
 func findAssociatedAsset(tx *gorm.DB, owner, name,
-	assetType string, user *users.User) (interface{}, *ign.ErrMsg) {
+	assetType string, user *users.User) (interface{}, *gz.ErrMsg) {
 
 	if assetType == TModel {
 		return (&models.Service{}).GetModel(tx, owner, name, user)
@@ -382,7 +382,7 @@ func (s *Service) RemoveAssetFromAllCollections(tx *gorm.DB, assetID uint) error
 // RemoveAsset removes an asset from a collection.
 // user argument is the active user requesting the operation.
 func (s *Service) RemoveAsset(ctx context.Context, tx *gorm.DB, owner, name string,
-	no NameOwnerPair, assetType string, user *users.User) (*Collection, *ign.ErrMsg) {
+	no NameOwnerPair, assetType string, user *users.User) (*Collection, *gz.ErrMsg) {
 
 	col, em := s.internalGetCollection(tx, owner, name, user)
 	if em != nil {
@@ -396,7 +396,7 @@ func (s *Service) RemoveAsset(ctx context.Context, tx *gorm.DB, owner, name stri
 	// Sanity check: the association should exist
 	assoc, err := FindAssociation(tx, col.ID, no.Owner, no.Name, assetType)
 	if err != nil {
-		return nil, ign.NewErrorMessage(ign.ErrorNonExistentResource)
+		return nil, gz.NewErrorMessage(gz.ErrorNonExistentResource)
 	}
 
 	// make sure the requesting user has the correct permissions
@@ -407,7 +407,7 @@ func (s *Service) RemoveAsset(ctx context.Context, tx *gorm.DB, owner, name stri
 
 	// Remove the association from the database (hard-delete)
 	if err := tx.Delete(assoc).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	return col, nil
@@ -417,9 +417,9 @@ func (s *Service) RemoveAsset(ctx context.Context, tx *gorm.DB, owner, name stri
 // The optional "assetsType" argument can be used to filter which type of assets
 // to return.
 // The user argument is the user requesting the operation.
-func (s *Service) GetCollectionAssets(p *ign.PaginationRequest, tx *gorm.DB,
+func (s *Service) GetCollectionAssets(p *gz.PaginationRequest, tx *gorm.DB,
 	colOwner, colName string, assetsType string, user *users.User) (interface{},
-	*ign.PaginationResult, *ign.ErrMsg) {
+	*gz.PaginationResult, *gz.ErrMsg) {
 
 	col, em := s.internalGetCollection(tx, colOwner, colName, user)
 	if em != nil {
@@ -447,8 +447,8 @@ func (s *Service) GetCollectionAssets(p *ign.PaginationRequest, tx *gorm.DB,
 // The "assetType" argument is used to identify if the name and owner correspond
 // to a model or world.
 // The user argument is the user requesting the operation.
-func (s *Service) GetAssociatedCollections(p *ign.PaginationRequest, tx *gorm.DB,
-	no NameOwnerPair, assetType string, user *users.User) (*Collections, *ign.PaginationResult, *ign.ErrMsg) {
+func (s *Service) GetAssociatedCollections(p *gz.PaginationRequest, tx *gorm.DB,
+	no NameOwnerPair, assetType string, user *users.User) (*Collections, *gz.PaginationResult, *gz.ErrMsg) {
 
 	if em := validateAssetType(assetType); em != nil {
 		return nil, nil, em
@@ -474,7 +474,7 @@ func (s *Service) GetAssociatedCollections(p *ign.PaginationRequest, tx *gorm.DB
 // Returns the file's bytes and the resolved version.
 // The user argument is the user requesting the operation.
 func (s *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
-	version string, user *users.User) (*[]byte, int, *ign.ErrMsg) {
+	version string, user *users.User) (*[]byte, int, *gz.ErrMsg) {
 
 	col, em := s.internalGetCollection(tx, owner, name, user)
 	if em != nil {
@@ -487,7 +487,7 @@ func (s *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
 // creator argument is the active user requesting the operation.
 func (s *Service) CloneCollection(ctx context.Context, tx *gorm.DB,
 	sourceCollectionOwner, sourceCollectionName string,
-	cloneData CloneCollection, creator *users.User) (*Collection, *ign.ErrMsg) {
+	cloneData CloneCollection, creator *users.User) (*Collection, *gz.ErrMsg) {
 
 	// Get source collection. This function will return an error if the `creator`
 	// does not have the correct permissions to access the collection.
@@ -516,7 +516,7 @@ func (s *Service) CloneCollection(ctx context.Context, tx *gorm.DB,
 		authorized, _ := globals.Permissions.IsAuthorized(
 			*creator.Username, *sourceCollection.UUID, permissions.Read)
 		if !authorized {
-			return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+			return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 		}
 	}
 
@@ -529,7 +529,7 @@ func (s *Service) CloneCollection(ctx context.Context, tx *gorm.DB,
 	}
 	collectionName, err := s.createUniqueCollectionName(tx, cName, owner)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	clonePrivate := false
@@ -541,33 +541,33 @@ func (s *Service) CloneCollection(ctx context.Context, tx *gorm.DB,
 	clone, err := NewCollection(&collectionName, sourceCollection.Description,
 		&owner, creator.Username, clonePrivate)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	// If everything went OK then create the  new model in DB.
 	if err := tx.Create(&clone).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// Get the source collection's assets
 	var sourceAssets CollectionAssets
 	if err := tx.Where("col_id = ?", sourceCollection.ID).Find(&sourceAssets).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorIDNotFound, err)
 	}
 
 	// Insert the assets
 	if err := insertAssets(tx, &sourceAssets, clone.ID); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// add read and write permissions
 	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Read)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Write)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	return &clone, nil

@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -19,14 +19,16 @@ import (
 // value will be of type "collections.Collections"
 // It follows the func signature defined by type "searchHandler".
 // You can request this method with the following curl request:
-//     curl -k -X GET --url https://localhost:4430/1.0/collections
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/collections
+//
 // or  curl -k -X GET --url https://localhost:4430/1.0/collections.json
 // or  curl -k -X GET --url https://localhost:4430/1.0/{username}/collections with all the
 // above format variants.
-// func CollectionList(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
-func CollectionList(p *ign.PaginationRequest, owner *string, order, search string,
+// func CollectionList(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+func CollectionList(p *gz.PaginationRequest, owner *string, order, search string,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	var extend bool
 	// Check if we need to only return collections that the user can extend
@@ -41,9 +43,10 @@ func CollectionList(p *ign.PaginationRequest, owner *string, order, search strin
 // CollectionIndex returns a single Collection. The returned value will be of
 // type "collections.Collection".
 // You can request this method with the following curl request:
-//  curl -k -H "Content-Type: application/json" -X GET https://localhost:4430/1.0/{username}/collections/{name}
+//
+//	curl -k -H "Content-Type: application/json" -X GET https://localhost:4430/1.0/{username}/collections/{name}
 func CollectionIndex(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	s := &collections.Service{}
 	return s.GetCollection(tx, owner, name, user)
@@ -51,9 +54,10 @@ func CollectionIndex(owner, name string, user *users.User, tx *gorm.DB,
 
 // CollectionRemove removes a Collection based on owner and name
 // You can request this method with the following curl request:
-//   curl -k -X DELETE --url https://localhost:4430/1.0/{username}/collections/{name}
+//
+//	curl -k -X DELETE --url https://localhost:4430/1.0/{username}/collections/{name}
 func CollectionRemove(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	if em := (&collections.Service{}).RemoveCollection(tx, owner, name, user); em != nil {
 		return nil, em
@@ -64,7 +68,7 @@ func CollectionRemove(owner, name string, user *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -76,12 +80,12 @@ func CollectionRemove(owner, name string, user *users.User, tx *gorm.DB,
 // doCreateCollection. It is expected that createFn will have the real logic for
 // the Collection creation.
 type createCollectionFn func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter,
-	r *http.Request) (*collections.Collection, *ign.ErrMsg)
+	r *http.Request) (*collections.Collection, *gz.ErrMsg)
 
 // doCreateCollection provides the pre and post steps needed to create a collection.
 // Handlers should invoke this function and pass a createCollectionFn callback.
 func doCreateCollection(tx *gorm.DB, cb createCollectionFn, w http.ResponseWriter,
-	r *http.Request) (*collections.Collection, *ign.ErrMsg) {
+	r *http.Request) (*collections.Collection, *gz.ErrMsg) {
 	// Extract the owner from the request.
 	jwtUser, ok, errMsg := getUserFromJWT(tx, r)
 	if !ok {
@@ -99,7 +103,7 @@ func doCreateCollection(tx *gorm.DB, cb createCollectionFn, w http.ResponseWrite
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 	}
 
 	infoStr := "A new collection has been created:" +
@@ -109,7 +113,7 @@ func doCreateCollection(tx *gorm.DB, cb createCollectionFn, w http.ResponseWrite
 		"\n\t uuid: " + *col.UUID +
 		"\n\t CreationDate: " + col.CreatedAt.UTC().Format(time.RFC3339)
 
-	ign.LoggerFromRequest(r).Info(infoStr)
+	gz.LoggerFromRequest(r).Info(infoStr)
 	// TODO: we should NOT be returning the DB record (including ID) to users.
 	return col, nil
 }
@@ -117,11 +121,12 @@ func doCreateCollection(tx *gorm.DB, cb createCollectionFn, w http.ResponseWrite
 // CollectionCreate creates a new collection based on input form. It returns a
 // collections.Collection or an error.
 // You can request this method with the following cURL request:
-//    curl -k -H "Content-Type: application/json" -X POST -d '{"name":"my collection",
-//    "description":"a super cool collection", owner:"name"}'
-//    https://localhost:4430/1.0/collections
-//    --header 'authorization: Bearer <your-jwt-token-here>'
-func CollectionCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+//
+//	curl -k -H "Content-Type: application/json" -X POST -d '{"name":"my collection",
+//	"description":"a super cool collection", owner:"name"}'
+//	https://localhost:4430/1.0/collections
+//	--header 'authorization: Bearer <your-jwt-token-here>'
+func CollectionCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	var cc collections.CreateCollection
 	if em := ParseStruct(&cc, r, false); em != nil {
@@ -129,7 +134,7 @@ func CollectionCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (inte
 	}
 
 	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter,
-		r *http.Request) (*collections.Collection, *ign.ErrMsg) {
+		r *http.Request) (*collections.Collection, *gz.ErrMsg) {
 
 		// Create the collection via the Collections Service
 		s := &collections.Service{}
@@ -145,12 +150,13 @@ func CollectionCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (inte
 
 // CollectionUpdate modifies an existing collection.
 // You can request this method with the following cURL request:
-//    curl -k -X PATCH -F description="New Description"
-//      -F file=@<full-path-to-file;filename=aFileName>
-//      https://localhost:4430/1.0/{username}/collections/{name}
-//      -H 'Authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
+//	curl -k -X PATCH -F description="New Description"
+//	  -F file=@<full-path-to-file;filename=aFileName>
+//	  https://localhost:4430/1.0/{username}/collections/{name}
+//	  -H 'Authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
 func CollectionUpdate(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	r.ParseMultipartForm(0)
 	// Delete temporary files from r.ParseMultipartForm(0)
@@ -163,7 +169,7 @@ func CollectionUpdate(owner, name string, user *users.User, tx *gorm.DB,
 
 	bFiles := r.MultipartForm != nil && len(getRequestFiles(r)) > 0
 	if uc.IsEmpty() && !bFiles {
-		return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+		return nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue)
 	}
 
 	// If the user has also sent files, then update them
@@ -174,7 +180,7 @@ func CollectionUpdate(owner, name string, user *users.User, tx *gorm.DB,
 		tmpDir, err := ioutil.TempDir("", name)
 		defer os.Remove(tmpDir)
 		if err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 		}
 		if _, errMsg := populateTmpDir(r, false, tmpDir); errMsg != nil {
 			return nil, errMsg
@@ -197,66 +203,72 @@ func CollectionUpdate(owner, name string, user *users.User, tx *gorm.DB,
 		"\n\t CreatedAt: " + col.CreatedAt.UTC().Format(time.RFC3339) +
 		"\n\t UpdatedAt: " + col.UpdatedAt.UTC().Format(time.RFC3339)
 
-	ign.LoggerFromRequest(r).Info(infoStr)
+	gz.LoggerFromRequest(r).Info(infoStr)
 
 	return &col, nil
 }
 
 // CollectionModelsList returns the list of models of a collection.
 // You can request this method with the following cURL request:
-//   curl -k https://localhost:4430/1.0/{username}/collections/{col_name}/models
+//
+//	curl -k https://localhost:4430/1.0/{username}/collections/{col_name}/models
 func CollectionModelsList(colOwner, colName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	return collectionAssetList(colOwner, colName, collections.TModel, user, tx, w, r)
 }
 
 // CollectionModelAdd associates a model to a collection.
 // You can request this method with the following cURL request:
-//   curl -k -d '{"name":"model name", owner:"model owner"}'
-//      -X POST https://localhost:4430/1.0/{username}/collections/{col_name}/models
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -d '{"name":"model name", owner:"model owner"}'
+//	   -X POST https://localhost:4430/1.0/{username}/collections/{col_name}/models
+//	   --header 'authorization: Bearer <your-jwt-token-here>'
 func CollectionModelAdd(colOwner, colName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	return collectionAssetAdd(colOwner, colName, collections.TModel, user, tx, w, r)
 }
 
 // CollectionModelRemove removes a model from a collection.
 // You can request this method with the following cURL request:
-//   curl -k -d '{"name":"model name", owner:"model owner"}'
-//      -X DELETE https://localhost:4430/1.0/{username}/collections/{col_name}/models
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -d '{"name":"model name", owner:"model owner"}'
+//	   -X DELETE https://localhost:4430/1.0/{username}/collections/{col_name}/models
+//	   --header 'authorization: Bearer <your-jwt-token-here>'
 func CollectionModelRemove(colOwner, colName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 	return collectionAssetRemove(colOwner, colName, collections.TModel, user, tx, w, r)
 }
 
 // CollectionWorldAdd associates a world to a collection.
 // You can request this method with the following cURL request:
-//   curl -k -d '{"name":"world name", owner:"world owner"}'
-//      -X POST https://localhost:4430/1.0/{username}/collections/{col_name}/worlds
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -d '{"name":"world name", owner:"world owner"}'
+//	   -X POST https://localhost:4430/1.0/{username}/collections/{col_name}/worlds
+//	   --header 'authorization: Bearer <your-jwt-token-here>'
 func CollectionWorldAdd(colOwner, colName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 	return collectionAssetAdd(colOwner, colName, collections.TWorld, user, tx, w, r)
 }
 
 // CollectionWorldRemove removes a world from a collection.
 // You can request this method with the following cURL request:
-//   curl -k -d '{"name":"world name", owner:"world owner"}'
-//      -X DELETE https://localhost:4430/1.0/{username}/collections/{col_name}/worlds
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -d '{"name":"world name", owner:"world owner"}'
+//	   -X DELETE https://localhost:4430/1.0/{username}/collections/{col_name}/worlds
+//	   --header 'authorization: Bearer <your-jwt-token-here>'
 func CollectionWorldRemove(colOwner, colName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 	return collectionAssetRemove(colOwner, colName, collections.TWorld, user, tx, w, r)
 }
 
 // CollectionWorldsList returns the list of worlds of a collection.
 // You can request this method with the following cURL request:
-//   curl -k https://localhost:4430/1.0/{username}/collections/{col_name}/worlds
+//
+//	curl -k https://localhost:4430/1.0/{username}/collections/{col_name}/worlds
 func CollectionWorldsList(colOwner, colName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	return collectionAssetList(colOwner, colName, collections.TWorld, user, tx, w, r)
 }
@@ -264,7 +276,7 @@ func CollectionWorldsList(colOwner, colName string, user *users.User, tx *gorm.D
 // collectionAssetAdd associates an asset to a collection. It requires the
 // asset type as mandatory argument.
 func collectionAssetAdd(colOwner, colName, assetType string, user *users.User,
-	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	var no collections.NameOwnerPair
 	if em := ParseStruct(&no, r, false); em != nil {
@@ -296,7 +308,7 @@ func collectionAssetAdd(colOwner, colName, assetType string, user *users.User,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -308,7 +320,7 @@ func collectionAssetAdd(colOwner, colName, assetType string, user *users.User,
 // collectionAssetRemove deletes an asset from a collection. It requires the
 // asset type as mandatory argument.
 func collectionAssetRemove(colOwner, colName, assetType string, user *users.User,
-	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	var no collections.NameOwnerPair
 	// Read the name and owner from URL query. DELETE does not allow body.
@@ -329,7 +341,7 @@ func collectionAssetRemove(colOwner, colName, assetType string, user *users.User
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -343,10 +355,10 @@ func collectionAssetRemove(colOwner, colName, assetType string, user *users.User
 // type "collections.CollectionAssets".
 // The assetType argument can be used filter assets by type, eg: model|world.
 func collectionAssetList(colOwner, colName, assetType string, user *users.User,
-	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Prepare pagination
-	pr, em := ign.NewPaginationRequest(r)
+	pr, em := gz.NewPaginationRequest(r)
 	if em != nil {
 		return nil, em
 	}
@@ -358,16 +370,17 @@ func collectionAssetList(colOwner, colName, assetType string, user *users.User,
 		return nil, em
 	}
 
-	ign.WritePaginationHeaders(*pagination, w, r)
+	gz.WritePaginationHeaders(*pagination, w, r)
 
 	return assets, nil
 }
 
 // ModelCollections returns the list of collections associated to a given model.
 // You can request this method with the following cURL request:
-//   curl -k https://localhost:4430/1.0/{username}/models/{model_name}/collections
+//
+//	curl -k https://localhost:4430/1.0/{username}/models/{model_name}/collections
 func ModelCollections(owner, modelName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	no := collections.NameOwnerPair{Name: modelName, Owner: owner}
 	return associatedCollectionsList(collections.TModel, no, user, tx, w, r)
@@ -375,9 +388,10 @@ func ModelCollections(owner, modelName string, user *users.User, tx *gorm.DB,
 
 // WorldCollections returns the list of collections associated to a given world.
 // You can request this method with the following cURL request:
-//   curl -k https://localhost:4430/1.0/{username}/worlds/{world_name}/collections
+//
+//	curl -k https://localhost:4430/1.0/{username}/worlds/{world_name}/collections
 func WorldCollections(owner, worldName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	no := collections.NameOwnerPair{Name: worldName, Owner: owner}
 	return associatedCollectionsList(collections.TWorld, no, user, tx, w, r)
@@ -387,10 +401,10 @@ func WorldCollections(owner, worldName string, user *users.User, tx *gorm.DB,
 // a model or world, belongs to.
 func associatedCollectionsList(assetType string, no collections.NameOwnerPair,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Prepare pagination
-	pr, em := ign.NewPaginationRequest(r)
+	pr, em := gz.NewPaginationRequest(r)
 	if em != nil {
 		return nil, em
 	}
@@ -401,17 +415,19 @@ func associatedCollectionsList(assetType string, no collections.NameOwnerPair,
 		return nil, em
 	}
 
-	ign.WritePaginationHeaders(*pagination, w, r)
+	gz.WritePaginationHeaders(*pagination, w, r)
 
 	return cols, nil
 }
 
 // CollectionIndividualFileDownload downloads an individual file from a collection.
 // You can request this method with the following curl request:
-//   curl -k -X GET --url https://localhost:4430/1.0/{username}/collections/{name}/{version}/files/{file-path}
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/{username}/collections/{name}/{version}/files/{file-path}
+//
 // eg. curl -k -X GET --url https://localhost:4430/1.0/{username}/collections/{name}/tip/files/thumbnails/logo.png
 func CollectionIndividualFileDownload(owner, name string, user *users.User,
-	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	s := &collections.Service{}
 	return IndividualFileDownload(s, owner, name, user, tx, w, r)
@@ -419,10 +435,11 @@ func CollectionIndividualFileDownload(owner, name string, user *users.User,
 
 // CollectionClone clones a collection.
 // You can request this method with the following curl request:
-//   curl -k -X POST --url http://localhost:3000/1.0/{other-username}/collections/{collection-name}/clone
-//    --header 'Private-Token: <your-private-token-here>'
+//
+//	curl -k -X POST --url http://localhost:3000/1.0/{other-username}/collections/{collection-name}/clone
+//	 --header 'Private-Token: <your-private-token-here>'
 func CollectionClone(sourceCollectionOwner, sourceCollectionName string,
-	ignored *users.User, tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	ignored *users.User, tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Parse information about the collection to clone
 	var cloneData collections.CloneCollection
@@ -430,7 +447,7 @@ func CollectionClone(sourceCollectionOwner, sourceCollectionName string,
 		return nil, em
 	}
 
-	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*collections.Collection, *ign.ErrMsg) {
+	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*collections.Collection, *gz.ErrMsg) {
 		// Ask the Models Service to clone the model
 		cs := &collections.Service{}
 		clone, em := cs.CloneCollection(r.Context(), tx, sourceCollectionOwner, sourceCollectionName, cloneData, jwtUser)
@@ -446,13 +463,13 @@ func CollectionClone(sourceCollectionOwner, sourceCollectionName string,
 // CollectionTransfer transfer ownership of a collection to an organization.
 // The source owner must have write permissions on the destination organization
 //
-//    curl -k -X POST -H "Content-Type: application/json" http://localhost:8000/1.0/{username}/collections/{collectionname}/transfer --header "Private-Token: {private-token}" -d '{"destOwner":"destination_owner_name"}'
+//	curl -k -X POST -H "Content-Type: application/json" http://localhost:8000/1.0/{username}/collections/{collectionname}/transfer --header "Private-Token: {private-token}" -d '{"destOwner":"destination_owner_name"}'
 //
 // \todo Support transfer of collection to owners other users and organizations.
 // This will require some kind of email notifcation to the destination and
 // acceptance form.
 func CollectionTransfer(sourceOwner, collectionName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Read the request and check permissions.
 	transferAsset, em := processTransferRequest(sourceOwner, tx, r)
@@ -465,7 +482,7 @@ func CollectionTransfer(sourceOwner, collectionName string, user *users.User, tx
 	collection, em := cs.GetCollection(tx, sourceOwner, collectionName, user)
 	if em != nil {
 		extra := fmt.Sprintf("Collection [%s] not found", collectionName)
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, em.BaseError, []string{extra})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorNameNotFound, em.BaseError, []string{extra})
 	}
 
 	if em := transferMoveResource(tx, collection, sourceOwner, transferAsset.DestOwner); em != nil {

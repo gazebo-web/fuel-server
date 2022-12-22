@@ -1,7 +1,7 @@
 <div align="center">
   <img src="./assets/logo.png" width="200" alt="Ignition Robotics" />
-  <h1>Ignition Robotics</h1>
-  <p>Ignition Web Fuel Server hosts simulation resources for consumption through a REST API.</p>
+  <h1>Gazebo Fuel Server</h1>
+  <p>Gazebo Fuel Server hosts simulation resources for consumption through a REST API.</p>
 </div>
 
 # Install
@@ -523,8 +523,8 @@ Two web services are used for log management.
 
 Rollbar aggregates log messages from the application. Application log
 messages are sent to rollbar when a REST error is returned to a client or by
-using one of `ign.Debug`, `ign.Info`, `ign.Warning`, `ign.Error`, or
-`ign.Critical`.
+using one of `gz.Debug`, `gz.Info`, `gz.Warning`, `gz.Error`, or
+`gz.Critical`.
 
 Messages are sent to rollbar asynchronously. This could result in messages
 appearing out of order on rollbar's UI. In addition to the timestamp
@@ -594,4 +594,4 @@ How to use vg:
 
 1. To add or update dependencies (into Gopck.toml) use: `vg ensure -- -update <dependency>` (or just use normal `dep ensure -update <dependency>` style, and later run `vg ensure` to move dependencies into vg's workspace)
 
-1. How to switch to a local version of a dependency: eg. `vg localInstall gitlab.com/ignitionrobotics/web/ign-go`
+1. How to switch to a local version of a dependency: eg. `vg localInstall github.com/gazebo-web/gz-go`

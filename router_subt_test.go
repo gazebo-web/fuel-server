@@ -5,14 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/gazebo-web/fuel-server/bundles/subt"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/migrate"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	"github.com/gazebo-web/gz-go/v7"
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"io"
 	"net/http"
 	"os"
@@ -99,7 +100,7 @@ func TestSubTRoutes(t *testing.T) {
 	addUserToOrg(user5, "member", org, t)
 
 	uri := "/1.0/subt/registrations"
-	unauth := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	unauth := gz.NewErrorMessage(gz.ErrorUnauthorized)
 
 	// Test submitting registrations
 	submitRegistrationTestsData := []subtRegistrationTest{
@@ -107,21 +108,21 @@ func TestSubTRoutes(t *testing.T) {
 		{uriTest{"invalid jwt token", uri, &testJWT{jwt: sptr("invalid")}, unauth, true},
 			""},
 		{uriTest{"no user in backend", uri, newJWT(jwt2),
-			ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, ""},
+			gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, ""},
 		{uriTest{"invalid organization name", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorNonExistentResource), false}, "noOrg"},
+			gz.NewErrorMessage(gz.ErrorNonExistentResource), false}, "noOrg"},
 		{uriTest{"non org member cannot apply for the org", uri, newJWT(jwt4),
 			unauth, false}, org},
 		{uriTest{"only organization admins can apply for the org", uri, newJWT(jwt5),
 			unauth, false}, org},
 		{uriTest{"Cannot register the competition org as a participant", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, subt.SubTPortalName},
+			gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, subt.SubTPortalName},
 		// Note: the following test cases are inter-related, as the test for duplication.
 		{uriTest{"Apply registration OK", uri, jwtDef, nil, false}, org},
 		{uriTest{"Participant org already applied (pending)", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorResourceExists), false}, org},
+			gz.NewErrorMessage(gz.ErrorResourceExists), false}, org},
 		{uriTest{"User already submitted (pending) registrations for another org", uri,
-			jwtDef, ign.NewErrorMessage(ign.ErrorResourceExists), false}, org3},
+			jwtDef, gz.NewErrorMessage(gz.ErrorResourceExists), false}, org3},
 		{uriTest{"Another team registration OK", uri, newJWT(jwt3), nil, false}, org3},
 	}
 	for _, test := range submitRegistrationTestsData {
@@ -137,11 +138,11 @@ func TestSubTRoutes(t *testing.T) {
 		{uriTest{"invalid jwt token", pendingURI, &testJWT{jwt: sptr("invalid")},
 			unauth, true}, nil},
 		{uriTest{"no user in backend", pendingURI, newJWT(jwt2),
-			ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, nil},
+			gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, nil},
 		{uriTest{"test pagination support. Get page #1", uri + "?per_page=1&page=1", jwtDef, nil, false},
 			[]string{org}},
 		{uriTest{"invalid status in query", uri + "?status=invalid", jwtDef,
-			ign.NewErrorMessage(ign.ErrorMissingField), false}, nil},
+			gz.NewErrorMessage(gz.ErrorMissingField), false}, nil},
 		{uriTest{"missing status in query should return pending ones", uri, jwtDef,
 			nil, false}, []string{org, org3}},
 		{uriTest{"user3 should only see registrations applied by him", uri, newJWT(jwt3),
@@ -159,13 +160,13 @@ func TestSubTRoutes(t *testing.T) {
 	resolveRegistrations := []subtResolveRegistrationTest{
 		{uriTest{"no jwt", resURI, nil, unauth, true}, org, nil},
 		{uriTest{"invalid jwt token", resURI, &testJWT{jwt: sptr("invalid")}, unauth, true}, org, nil},
-		{uriTest{"no body", resURI, jwtDef, ign.NewErrorMessage(ign.ErrorUnmarshalJSON),
+		{uriTest{"no body", resURI, jwtDef, gz.NewErrorMessage(gz.ErrorUnmarshalJSON),
 			false}, org, nil},
 		{uriTest{"unauthorized user cannot resolve registration", resURI, newJWT(jwt3), unauth,
 			false}, org3, &subt.RegistrationUpdate{Resolution: subt.RegOpDone}},
 		{uriTest{"Valid resolution to Done by sysadmin", resURI, jwtDef, nil,
 			false}, org, &subt.RegistrationUpdate{Resolution: subt.RegOpDone}},
-		{uriTest{"Cannot resolve a registration twice", resURI, jwtDef, ign.NewErrorMessage(ign.ErrorNameNotFound),
+		{uriTest{"Cannot resolve a registration twice", resURI, jwtDef, gz.NewErrorMessage(gz.ErrorNameNotFound),
 			false}, org, &subt.RegistrationUpdate{Resolution: subt.RegOpDone}},
 		{uriTest{"Valid resolution to Rejected", resURI, newJWT(subtadmJWT), nil, false},
 			org3, &subt.RegistrationUpdate{Resolution: subt.RegOpRejected}},
@@ -212,9 +213,9 @@ func TestSubTRoutes(t *testing.T) {
 		{uriTest{"rejected user can apply again", uri, newJWT(jwt3),
 			nil, false}, org3},
 		{uriTest{"User already has a DONE registration for another org", uri,
-			jwtDef, ign.NewErrorMessage(ign.ErrorResourceExists), false}, org3},
+			jwtDef, gz.NewErrorMessage(gz.ErrorResourceExists), false}, org3},
 		{uriTest{"org is already registered (Reg done)", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorResourceExists), false}, org},
+			gz.NewErrorMessage(gz.ErrorResourceExists), false}, org},
 		{uriTest{"Another team (org4) registration done by its admin", uri,
 			newJWT(jwtAdmOrg4), nil, false}, org4},
 		{uriTest{"Another team (org5) registration done by its admin", uri,
@@ -243,7 +244,7 @@ func TestSubTRoutes(t *testing.T) {
 	delOrg5 := resURI + org5
 	deleteRegistrationTestsData := []subtRegistrationDeleteTest{
 		{uriTest{"already resolved registrations cannot be deleted", delOrg,
-			newJWT(subtadmJWT), ign.NewErrorMessage(ign.ErrorNameNotFound), false}},
+			newJWT(subtadmJWT), gz.NewErrorMessage(gz.ErrorNameNotFound), false}},
 		{uriTest{"other user cannot delete a pending registration", delOrg4, newJWT(jwt3),
 			unauth, false}},
 		{uriTest{"same user can delete pending registration", delOrg4, jwtDef,
@@ -263,7 +264,7 @@ func TestSubTRoutes(t *testing.T) {
 		{uriTest{"no jwt", pURI, nil, unauth, true}, nil},
 		{uriTest{"invalid jwt token", pURI, &testJWT{jwt: sptr("invalid")}, unauth, true}, nil},
 		{uriTest{"no user in backend", pURI, newJWT(jwt2),
-			ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, nil},
+			gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, nil},
 		{uriTest{"test participants pagination support. Get page #1", pURI + "?per_page=1&page=1",
 			jwtDef, nil, false}, []OrgData{{Name: org, Private: true}}},
 		{uriTest{"non competition user should not see any participants", pURI,
@@ -284,7 +285,7 @@ func TestSubTRoutes(t *testing.T) {
 	//	Test deleting existing participants
 	dpURI := "/1.0/subt/participants/subt/"
 	participantDeletetions := []subtParticipantDeleteTest{
-		{uriTest{"missing participant", dpURI, jwtDef, ign.NewErrorMessage(ign.ErrorNameNotFound), false}, org4},
+		{uriTest{"missing participant", dpURI, jwtDef, gz.NewErrorMessage(gz.ErrorNameNotFound), false}, org4},
 		{uriTest{"valid deletion of participant", dpURI, jwtDef, nil, false}, org3},
 	}
 	for _, test := range participantDeletetions {
@@ -317,14 +318,14 @@ func TestSubTRoutes(t *testing.T) {
 
 	// Test submitting log files
 	lfURI := "/1.0/subt/logfiles"
-	file := []igntest.FileDesc{{"log.txt", "test content"}}
+	file := []gztest.FileDesc{{"log.txt", "test content"}}
 	b := true
 	logFileTests := []subtLogFileSubmitTest{
 		{uriTest{"no jwt", lfURI, nil, unauth, true}, nil, nil},
-		{uriTest{"no files", lfURI, jwtDef, ign.NewErrorMessage(ign.ErrorForm),
+		{uriTest{"no files", lfURI, jwtDef, gz.NewErrorMessage(gz.ErrorForm),
 			false}, &subt.LogSubmission{Owner: org}, nil},
 		{uriTest{"no logfile submission data", lfURI, jwtDef,
-			ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, nil, file},
+			gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, nil, file},
 		{uriTest{"submit OK for org by member", lfURI, newJWT(jwt5), nil, false},
 			&subt.LogSubmission{Owner: org}, file},
 		{uriTest{"submit fails for non org member", lfURI, newJWT(jwt3), unauth, false},
@@ -349,7 +350,7 @@ func TestSubTRoutes(t *testing.T) {
 		{uriTest{"no jwt", lfURI, nil, unauth, true}, 1, nil},
 		{uriTest{"invalid jwt token", lfURI, &testJWT{jwt: sptr("invalid")}, unauth,
 			true}, 1, nil},
-		{uriTest{"no body", lfURI, jwtDef, ign.NewErrorMessage(ign.ErrorUnmarshalJSON),
+		{uriTest{"no body", lfURI, jwtDef, gz.NewErrorMessage(gz.ErrorUnmarshalJSON),
 			false}, 1, nil},
 		{uriTest{"unauthorized user cannot score logfile", lfURI, newJWT(jwt3), unauth,
 			false}, 1, &subt.SubmissionUpdate{Status: subt.StDone, Score: 3}},
@@ -404,11 +405,11 @@ func TestSubTRoutes(t *testing.T) {
 		{uriTest{"invalid jwt token", lfPending, &testJWT{jwt: sptr("invalid")},
 			unauth, true}, nil},
 		{uriTest{"no user in backend", lfPending, newJWT(jwt2),
-			ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, nil},
+			gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, nil},
 		{uriTest{"test pagination support. Get page #1", lfURI + "?per_page=1&page=1",
 			newJWT(subtadmJWT), nil, false}, []uint{4}},
 		{uriTest{"invalid status in query", lfURI + "?status=invalid", jwtDef,
-			ign.NewErrorMessage(ign.ErrorMissingField), false}, nil},
+			gz.NewErrorMessage(gz.ErrorMissingField), false}, nil},
 		{uriTest{"missing status in query should return pending ones", lfURI, jwtDef,
 			nil, false}, []uint{4}},
 		{uriTest{"user5 should only see logfiles submitted by his team",
@@ -515,13 +516,13 @@ func runSubTestWithSubTRegistrationData(test subtRegistrationTest, t *testing.T)
 
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "POST", Route: test.URL, Body: b, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "POST", Route: test.URL, Body: b, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var reg subt.Registration
 		require.NoError(t, json.Unmarshal(*bslice, &reg), "Unable to unmarshal response", string(*bslice))
@@ -551,13 +552,13 @@ func runSubTestWithSubTResolveRegistrationData(test subtResolveRegistrationTest,
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
 	uri := test.URL + test.organization
-	igntest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "PATCH", Route: uri, Body: b, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "PATCH", Route: uri, Body: b, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var reg subt.Registration
 		require.NoError(t, json.Unmarshal(*bslice, &reg), "Unable to unmarshal response", string(*bslice))
@@ -578,13 +579,13 @@ func runSubTestWithSubTRegistrationDeleteData(test subtRegistrationDeleteTest, t
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "DELETE", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "DELETE", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var reg subt.Registration
 		require.NoError(t, json.Unmarshal(*bslice, &reg), "Unable to unmarshal response", string(*bslice))
@@ -603,13 +604,13 @@ func runSubTestWithSubTRegistrationListData(test subtRegistrationListTest, t *te
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var regs subt.Registrations
 		require.NoError(t, json.Unmarshal(*bslice, &regs), "Unable to unmarshal response", string(*bslice))
@@ -635,13 +636,13 @@ func runSubTestWithSubTParticipantsListData(test subtParticipantsListTest, t *te
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var ps users.OrganizationResponses
 		require.NoError(t, json.Unmarshal(*bslice, &ps), "Unable to unmarshal response", string(*bslice))
@@ -662,13 +663,13 @@ func runSubTestWithSubTParticipantDeleteData(test subtParticipantDeleteTest, t *
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL+test.Name, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "DELETE", Route: test.URL + test.Name, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL+test.Name, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "DELETE", Route: test.URL + test.Name, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		participants := subt.CompetitionParticipants{}
 		q := globals.Server.Db.Table("competition_participants").Select("competition_participants.*").Where("competition_participants.owner = ?", test.Name)
@@ -681,7 +682,7 @@ func runSubTestWithSubTParticipantDeleteData(test subtParticipantDeleteTest, t *
 type subtLogFileSubmitTest struct {
 	uriTest
 	ls    *subt.LogSubmission
-	files []igntest.FileDesc
+	files []gztest.FileDesc
 }
 
 func runSubTestWithSubTLogFileSubmit(test subtLogFileSubmitTest, t *testing.T) {
@@ -698,11 +699,11 @@ func runSubTestWithSubTLogFileSubmit(test subtLogFileSubmitTest, t *testing.T) {
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, _ := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
 	code, bslice := postWithArgs(t, test.URL, jwt, params, test.files)
 	require.Equal(t, expStatus, code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var lf subt.LogFile
 		require.NoError(t, json.Unmarshal(*bslice, &lf), "Unable to unmarshal response", string(*bslice))
@@ -733,13 +734,13 @@ func runSubTestWithSubTUpdateLogFile(test subtUpdateLogFileTest, t *testing.T) {
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
 	uri := fmt.Sprintf("%s/%d", test.URL, test.logID)
-	igntest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "PATCH", Route: uri, Body: b, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "PATCH", Route: uri, Body: b, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var log subt.LogFile
 		require.NoError(t, json.Unmarshal(*bslice, &log), "Unable to unmarshal response", string(*bslice))
@@ -763,13 +764,13 @@ func runSubTestWithSubTLogFileDelete(test subtLogFileDeleteTest, t *testing.T) {
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
 	uri := fmt.Sprintf("%s/%d", test.URL, test.logID)
-	igntest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "DELETE", Route: uri, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "DELETE", Route: uri, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var log subt.LogFile
 		require.NoError(t, json.Unmarshal(*bslice, &log), "Unable to unmarshal response", string(*bslice))
@@ -788,13 +789,13 @@ func runSubTestWithSubTLogFileListData(test subtLogFileListTest, t *testing.T) {
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var logs subt.LogFiles
 		require.NoError(t, json.Unmarshal(*bslice, &logs), "Unable to unmarshal response", string(*bslice))
@@ -824,14 +825,14 @@ func runSubTestWithSubTSingleLogFileTest(test subtSingleLogFileTest, t *testing.
 	} else if expStatus == http.StatusOK {
 		expStatus = http.StatusTemporaryRedirect
 	}
-	igntest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: uri, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: uri, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && expStatus != http.StatusTemporaryRedirect {
 		if !test.ignoreErrorBody {
-			igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+			gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 		}
 	} else {
 		if test.linkOnly {
@@ -858,13 +859,13 @@ func runSubTestWithLeaderboardTestData(test leaderboardTest, t *testing.T) {
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var lb []subt.LeaderboardParticipant
 		require.NoError(t, json.Unmarshal(*bslice, &lb), "Unable to unmarshal response", string(*bslice))

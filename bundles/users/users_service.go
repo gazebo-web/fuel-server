@@ -2,10 +2,10 @@ package users
 
 import (
 	"context"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
 	"os"
 	"path"
 	"time"
@@ -14,7 +14,7 @@ import (
 // RemoveUser removes the given user. Returns a UserResponse with the removed user.
 // The reqUser argument is the requesting user. It is used to check if the
 // reqUser can perform the operation.
-func RemoveUser(ctx context.Context, tx *gorm.DB, username string, reqUser *User) (*UserResponse, *ign.ErrMsg) {
+func RemoveUser(ctx context.Context, tx *gorm.DB, username string, reqUser *User) (*UserResponse, *gz.ErrMsg) {
 
 	user, em := ByUsername(tx, username, false)
 	if em != nil {
@@ -23,13 +23,13 @@ func RemoveUser(ctx context.Context, tx *gorm.DB, username string, reqUser *User
 
 	// Make sure the JWT user is the same user to be removed
 	if *user.Identity != *reqUser.Identity {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	// Sanity check: Make sure that the directory exists.
 	dirPath := path.Join(globals.ResourceDir, *user.Username)
 	if _, err := os.Stat(dirPath); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNonExistentResource, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNonExistentResource, err)
 	}
 
 	// NOTE: we are not removing the user's folder.
@@ -37,7 +37,7 @@ func RemoveUser(ctx context.Context, tx *gorm.DB, username string, reqUser *User
 	// Remove the user from the database (soft-delete).
 	owner := UniqueOwner{Name: user.Username}
 	if err := tx.Delete(user).Delete(&owner).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	ok, em := globals.Permissions.RemoveUser(*user.Username)
@@ -45,7 +45,7 @@ func RemoveUser(ctx context.Context, tx *gorm.DB, username string, reqUser *User
 		return nil, em
 	}
 
-	ign.LoggerFromContext(ctx).Info("User removed. Username=", *user.Username, " Email=", *user.Email)
+	gz.LoggerFromContext(ctx).Info("User removed. Username=", *user.Username, " Email=", *user.Email)
 
 	response := CreateUserResponse(tx, user, reqUser)
 	return &response, nil
@@ -56,7 +56,7 @@ func RemoveUser(ctx context.Context, tx *gorm.DB, username string, reqUser *User
 // The reqUser argument is the requesting user. It is used to check if the
 // reqUser can perform the operation.
 func UpdateUser(ctx context.Context, tx *gorm.DB, username string,
-	uu *UpdateUserInput, reqUser *User) (*UserResponse, *ign.ErrMsg) {
+	uu *UpdateUserInput, reqUser *User) (*UserResponse, *gz.ErrMsg) {
 
 	// Sanity check: make sure the user exists
 	user, em := ByUsername(tx, username, false)
@@ -66,7 +66,7 @@ func UpdateUser(ctx context.Context, tx *gorm.DB, username string,
 
 	// Make sure the JWT user is the same user to be updated
 	if *user.Identity != *reqUser.Identity {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	upd := tx.Model(user)
@@ -83,7 +83,7 @@ func UpdateUser(ctx context.Context, tx *gorm.DB, username string,
 	// Update the modification date.
 	upd.Update("ModifyDate", time.Now())
 
-	ign.LoggerFromContext(ctx).Info("User updated. Username=", *user.Username,
+	gz.LoggerFromContext(ctx).Info("User updated. Username=", *user.Username,
 		" Email=", *user.Email)
 
 	ur := CreateUserResponse(tx, user, reqUser)
@@ -91,20 +91,20 @@ func UpdateUser(ctx context.Context, tx *gorm.DB, username string,
 }
 
 // UserList returns a list of paginated UserResponses.
-func UserList(p *ign.PaginationRequest, tx *gorm.DB,
-	reqUser *User) (*UserResponses, *ign.PaginationResult, *ign.ErrMsg) {
+func UserList(p *gz.PaginationRequest, tx *gorm.DB,
+	reqUser *User) (*UserResponses, *gz.PaginationResult, *gz.ErrMsg) {
 	// Get the users
 	var us Users
 
 	// Create the DB query
 	q := tx.Model(&User{})
 
-	pagination, err := ign.PaginateQuery(q, &us, *p)
+	pagination, err := gz.PaginateQuery(q, &us, *p)
 	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 	}
 	if !pagination.PageFound {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 	}
 
 	// Create UserReponse results
@@ -118,7 +118,7 @@ func UserList(p *ign.PaginationRequest, tx *gorm.DB,
 
 // GetUserByIdentity returns a user given an identity.
 // This method will fail if the identify does not correspond to an active user.
-func GetUserByIdentity(tx *gorm.DB, identity string) (*UserResponse, *ign.ErrMsg) {
+func GetUserByIdentity(tx *gorm.DB, identity string) (*UserResponse, *gz.ErrMsg) {
 	user, em := ByIdentity(tx, identity, false)
 	if em != nil {
 		return nil, em
@@ -194,31 +194,31 @@ func CreateUserResponse(tx *gorm.DB, user, requestor *User) UserResponse {
 // CreateUser creates a new User in filesystem and DB using the data from
 // the given User struct.
 // Returns a UserResponse.
-func CreateUser(ctx context.Context, tx *gorm.DB, u *User, failIfDirExist bool) (*UserResponse, *ign.ErrMsg) {
+func CreateUser(ctx context.Context, tx *gorm.DB, u *User, failIfDirExist bool) (*UserResponse, *gz.ErrMsg) {
 	// Sanity check: Make sure that the identity (JWT) is not already used by an active
 	// user.
 	aUser, em := ByIdentity(tx, *u.Identity, false)
-	if em != nil && em.ErrCode != ign.ErrorAuthNoUser {
+	if em != nil && em.ErrCode != gz.ErrorAuthNoUser {
 		return nil, em
 	}
 	if aUser != nil {
-		return nil, ign.NewErrorMessage(ign.ErrorResourceExists)
+		return nil, gz.NewErrorMessage(gz.ErrorResourceExists)
 	}
 	// Sanity check: Make sure that the claimed username was not already used,
 	// even with removed users or organizations.
 	ownerName, em := OwnerByName(tx, *u.Username, true)
-	if em != nil && em.ErrCode != ign.ErrorUserUnknown {
+	if em != nil && em.ErrCode != gz.ErrorUserUnknown {
 		return nil, em
 	}
 	if ownerName != nil {
-		return nil, ign.NewErrorMessage(ign.ErrorResourceExists)
+		return nil, gz.NewErrorMessage(gz.ErrorResourceExists)
 	}
 
 	var aTeam Team
 
 	tx.Where("name = ?", *u.Username).First(&aTeam)
 	if aTeam.Name != nil && *aTeam.Name == *u.Username {
-		return nil, ign.NewErrorMessage(ign.ErrorResourceExists)
+		return nil, gz.NewErrorMessage(gz.ErrorResourceExists)
 	}
 
 	_, em = CreateOwnerFolder(ctx, *u.Username, true)
@@ -230,11 +230,11 @@ func CreateUser(ctx context.Context, tx *gorm.DB, u *User, failIfDirExist bool) 
 	// Note: we also need to add (before) a row to UniqueOwners
 	owner := UniqueOwner{Name: u.Username, OwnerType: OwnerTypeUser}
 	if err := tx.Create(&owner).Create(&u).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	ur := CreateUserResponse(tx, u, u)
-	ign.LoggerFromContext(ctx).Info("A new user has been created. Username=", *u.Username,
+	gz.LoggerFromContext(ctx).Info("A new user has been created. Username=", *u.Username,
 		" Email=", *u.Email)
 
 	return &ur, nil
@@ -245,7 +245,7 @@ func CreateUser(ctx context.Context, tx *gorm.DB, u *User, failIfDirExist bool) 
 // permission in the organization. If the 'owner' is a user, it verifies that the
 // 'user' arg is the same as the owner.
 func VerifyOwner(tx *gorm.DB, owner, user string,
-	per permissions.Action) (bool, *ign.ErrMsg) {
+	per permissions.Action) (bool, *gz.ErrMsg) {
 	// check if owner is an organization
 	org, em := ByOrganizationName(tx, owner, false)
 	if org != nil && em == nil {
@@ -258,7 +258,7 @@ func VerifyOwner(tx *gorm.DB, owner, user string,
 		// Owner is a user. Make sure the owner is the same as the jwt user.
 		if owner != user {
 			// jwt user is different from owner field!
-			return false, ign.NewErrorMessage(ign.ErrorUnauthorized)
+			return false, gz.NewErrorMessage(gz.ErrorUnauthorized)
 		}
 	}
 	return true, nil
@@ -270,7 +270,7 @@ func VerifyOwner(tx *gorm.DB, owner, user string,
 // If the 'owner' is a user, it verifies that the 'user' arg is the same as
 // the owner.
 func CanPerformWithRole(tx *gorm.DB, owner, user string,
-	role permissions.Role) (bool, *ign.ErrMsg) {
+	role permissions.Role) (bool, *gz.ErrMsg) {
 	// check if owner is an organization
 	org, em := ByOrganizationName(tx, owner, false)
 	if org != nil && em == nil {
@@ -282,7 +282,7 @@ func CanPerformWithRole(tx *gorm.DB, owner, user string,
 	} else {
 		// Owner is a user. Make sure the owner is the same as the jwt user.
 		if owner != user {
-			return false, ign.NewErrorMessage(ign.ErrorUnauthorized)
+			return false, gz.NewErrorMessage(gz.ErrorUnauthorized)
 		}
 	}
 	return true, nil
@@ -292,7 +292,7 @@ func CanPerformWithRole(tx *gorm.DB, owner, user string,
 // the resource. The resource can be public or private, and that is extracted
 // from the argument isPrivate.
 func CheckPermissions(tx *gorm.DB, resource string, user *User, isPrivate bool,
-	per permissions.Action) (bool, *ign.ErrMsg) {
+	per permissions.Action) (bool, *gz.ErrMsg) {
 
 	if !isPrivate && per == permissions.Read {
 		return true, nil
@@ -300,7 +300,7 @@ func CheckPermissions(tx *gorm.DB, resource string, user *User, isPrivate bool,
 
 	if user == nil {
 		if isPrivate || per != permissions.Read {
-			return false, ign.NewErrorMessage(ign.ErrorUnauthorized)
+			return false, gz.NewErrorMessage(gz.ErrorUnauthorized)
 		}
 		// otherwise it should be public and with Read permission.
 		return true, nil
@@ -330,7 +330,7 @@ type OwnerProfile struct {
 }
 
 // GetOwnerProfile returns the details of a user or an organization.
-func GetOwnerProfile(tx *gorm.DB, owner string, user *User) (*OwnerProfile, *ign.ErrMsg) {
+func GetOwnerProfile(tx *gorm.DB, owner string, user *User) (*OwnerProfile, *gz.ErrMsg) {
 
 	o, em := OwnerByName(tx, owner, false)
 	if em != nil {
@@ -355,19 +355,19 @@ func GetOwnerProfile(tx *gorm.DB, owner string, user *User) (*OwnerProfile, *ign
 }
 
 // AccessTokenList returns a list of paginated AccessTokens.
-func AccessTokenList(p *ign.PaginationRequest, tx *gorm.DB,
-	reqUser *User) (*ign.AccessTokens, *ign.PaginationResult, *ign.ErrMsg) {
+func AccessTokenList(p *gz.PaginationRequest, tx *gorm.DB,
+	reqUser *User) (*gz.AccessTokens, *gz.PaginationResult, *gz.ErrMsg) {
 
-	var accessTokens ign.AccessTokens
+	var accessTokens gz.AccessTokens
 
-	q := tx.Model(&ign.AccessToken{}).Where("user_id = ?", reqUser.ID)
+	q := tx.Model(&gz.AccessToken{}).Where("user_id = ?", reqUser.ID)
 
-	pagination, err := ign.PaginateQuery(q, &accessTokens, *p)
+	pagination, err := gz.PaginateQuery(q, &accessTokens, *p)
 	if err != nil {
-		return nil, nil, ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 	}
 	if !pagination.PageFound {
-		return nil, nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		return nil, nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 	}
 
 	// Strip out the keys
@@ -380,13 +380,13 @@ func AccessTokenList(p *ign.PaginationRequest, tx *gorm.DB,
 
 // AccessTokenDelete removes a personal access token. This function requires the user's JWT, which
 // means that a personal access token cannot be used to remove access token.
-func AccessTokenDelete(jwtUser *User, tx *gorm.DB, accessToken ign.AccessToken) (interface{}, *ign.ErrMsg) {
+func AccessTokenDelete(jwtUser *User, tx *gorm.DB, accessToken gz.AccessToken) (interface{}, *gz.ErrMsg) {
 
 	// Get the token.
-	var token ign.AccessToken
+	var token gz.AccessToken
 	if err := tx.Model(jwtUser).Related(&jwtUser.AccessTokens).Where(
 		"prefix = ? AND name = ?", accessToken.Prefix, accessToken.Name).First(&token).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	// Permanently delete the token
@@ -395,7 +395,7 @@ func AccessTokenDelete(jwtUser *User, tx *gorm.DB, accessToken ign.AccessToken) 
 }
 
 // AccessTokenCreate creates a new access token for a user.
-func AccessTokenCreate(jwtUser *User, tx *gorm.DB, accessTokenCreateRequest ign.AccessTokenCreateRequest) (interface{}, *ign.ErrMsg) {
+func AccessTokenCreate(jwtUser *User, tx *gorm.DB, accessTokenCreateRequest gz.AccessTokenCreateRequest) (interface{}, *gz.ErrMsg) {
 
 	newToken, saltedToken, err := accessTokenCreateRequest.Create(tx)
 

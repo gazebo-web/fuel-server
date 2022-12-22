@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
 	"github.com/stretchr/testify/assert"
-	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
 )
 
 // type reviewSearchTest defines a getReviewModels case
@@ -61,7 +61,7 @@ func createModelReviews(t *testing.T, jwt *string, user string) {
 		"owner":   user,
 	}
 
-	okModelFiles := []igntest.FileDesc{
+	okModelFiles := []gztest.FileDesc{
 		{Path: "model.config", Contents: constModelConfigFileContents},
 		{Path: "model.sdf", Contents: constModelSDFFileContents},
 	}
@@ -81,9 +81,9 @@ func createModelReviews(t *testing.T, jwt *string, user string) {
 func runSubTestWithModelReviewData(t *testing.T, test reviewSearchTest, jwt *string) {
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, SignedToken: jwt}
-	igntest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, SignedToken: jwt}
+	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	respJSON := make([]map[string]interface{}, 0, 0)
 	json.Unmarshal(*resp.BodyAsBytes, &respJSON)
 	review := respJSON[0]["review"].(map[string]interface{})

@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
 	"github.com/gazebo-web/fuel-server/bundles/generics"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	"net/http"
 	"strconv"
 )
@@ -18,14 +18,16 @@ import (
 // will be of type "fuel.Models"
 // It follows the func signature defined by type "searchHandler".
 // You can request this method with the following curl request:
-//     curl -k -X GET --url https://localhost:4430/1.0/models
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/models
+//
 // or  curl -k -X GET --url https://localhost:4430/1.0/models.proto
 // or  curl -k -X GET --url https://localhost:4430/1.0/models.json
 // or  curl -k -X GET --url https://localhost:4430/1.0/{username}/models with all the
 // above format variants.
-func ModelList(p *ign.PaginationRequest, owner *string, order, search string,
+func ModelList(p *gz.PaginationRequest, owner *string, order, search string,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	ms := &models.Service{}
 
@@ -51,11 +53,13 @@ func modelListCategoryHelper(tx *gorm.DB, filter string, categories category.Cat
 // will be of type "fuel.Models".
 // It follows the func signature defined by type "searchHandler".
 // You can request this method with the following curl request:
-//     curl -k -X GET --url https://localhost:4430/1.0/{username}/likes/models
-// func ModelLikeList(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
-func ModelLikeList(p *ign.PaginationRequest, owner *string, order, search string,
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/{username}/likes/models
+//
+// func ModelLikeList(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+func ModelLikeList(p *gz.PaginationRequest, owner *string, order, search string,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	likedBy, em := users.ByUsername(tx, *owner, true)
 	if em != nil {
@@ -68,15 +72,16 @@ func ModelLikeList(p *ign.PaginationRequest, owner *string, order, search string
 // ModelOwnerVersionFileTree returns the file tree of a single model. The returned value
 // will be of type "fuel.ModelFileTree".
 // You can request this method with the following curl request:
-//   curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model_name}/{version}/files
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model_name}/{version}/files
 func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the model version
 	modelVersion, valid := mux.Vars(r)["version"]
 	// If the version does not exist
 	if !valid {
-		return nil, ign.NewErrorMessage(ign.ErrorModelNotInRequest)
+		return nil, gz.NewErrorMessage(gz.ErrorModelNotInRequest)
 	}
 
 	modelProto, em := (&models.Service{}).ModelFileTree(r.Context(), tx, owner,
@@ -93,9 +98,10 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 // ModelOwnerIndex returns a single model. The returned value will be of
 // type "fuel.Model".
 // You can request this method with the following curl request:
-//  curl -k -H "Content-Type: application/json" -X GET https://localhost:4430/1.0/{username}/models/{model_name}
+//
+//	curl -k -H "Content-Type: application/json" -X GET https://localhost:4430/1.0/{username}/models/{model_name}
 func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	ms := &models.Service{}
 	fuelModel, em := ms.GetModelProto(r.Context(), tx, owner, modelName, user)
@@ -110,9 +116,10 @@ func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 
 // ModelOwnerRemove removes a model based on owner and name
 // You can request this method with the following curl request:
-//   curl -k -X DELETE --url https://localhost:4430/1.0/{username}/models/{model_name}
+//
+//	curl -k -X DELETE --url https://localhost:4430/1.0/{username}/models/{model_name}
 func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the model
 	model, em := (&models.Service{}).GetModel(tx, owner, modelName, user)
@@ -127,7 +134,7 @@ func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 
 	// Remove the model from collections
 	if err := (&collections.Service{}).RemoveAssetFromAllCollections(tx, model.ID); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	// commit the DB transaction
@@ -135,7 +142,7 @@ func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -145,10 +152,11 @@ func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 
 // ModelOwnerLikeCreate likes a model from an owner
 // You can request this method with the following cURL request:
-//    curl -k -X POST https://localhost:4430/1.0/{username}/models/{model_name}/likes
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X POST https://localhost:4430/1.0/{username}/models/{model_name}/likes
+//	  --header 'authorization: Bearer <your-jwt-token-here>'
 func ModelOwnerLikeCreate(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	_, count, em := (&models.Service{}).CreateModelLike(tx, owner, name, user)
 	if em != nil {
@@ -160,7 +168,7 @@ func ModelOwnerLikeCreate(owner, name string, user *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	fmt.Fprint(w, count)
@@ -169,10 +177,11 @@ func ModelOwnerLikeCreate(owner, name string, user *users.User, tx *gorm.DB,
 
 // ModelOwnerLikeRemove removes a like from a model.
 // You can request this method with the following cURL request:
-//    curl -k -X DELETE https://localhost:4430/1.0/{username}/models/{model_name}/likes
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X DELETE https://localhost:4430/1.0/{username}/models/{model_name}/likes
+//	  --header 'authorization: Bearer <your-jwt-token-here>'
 func ModelOwnerLikeRemove(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	_, count, em := (&models.Service{}).RemoveModelLike(tx, owner, name, user)
 	if em != nil {
@@ -184,7 +193,7 @@ func ModelOwnerLikeRemove(owner, name string, user *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -195,19 +204,22 @@ func ModelOwnerLikeRemove(owner, name string, user *users.User, tx *gorm.DB,
 // ModelOwnerVersionIndividualFileDownload downloads an individual model file
 // based on owner, model name, and version.
 // You can request this method with the following curl request:
-//   curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model_name}/{version}/files/{file-path}
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model_name}/{version}/files/{file-path}
+//
 // eg. curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model_name}/tip/files/model.config
 func ModelOwnerVersionIndividualFileDownload(owner, name string, user *users.User,
-	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 	s := &models.Service{}
 	return IndividualFileDownload(s, owner, name, user, tx, w, r)
 }
 
 // ModelOwnerVersionZip returns a single model as a zip file
 // You can request this method with the following curl request:
-//   curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model-name}/{version}/{model-name}.zip
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model-name}/{version}/{model-name}.zip
 func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the model version
 	modelVersion, valid := mux.Vars(r)["version"]
@@ -236,7 +248,7 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorZipNotAvailable, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
 	// Serve the zip file contents
@@ -247,13 +259,14 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 
 // ReportModelCreate reports a model.
 // You can request this method with the following curl request:
-//   curl -k -X POST --url https://localhost:4430/1.0/{username}/models/{model-name}/report
+//
+//	curl -k -X POST --url https://localhost:4430/1.0/{username}/models/{model-name}/report
 func ReportModelCreate(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Parse form's values
 	if err := r.ParseMultipartForm(0); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 
 	// Delete temporary files from r.ParseMultipartForm(0)
@@ -270,7 +283,7 @@ func ReportModelCreate(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	if _, em := generics.SendReportEmail(name, owner, "models", createModelReport.Reason, r); em != nil {

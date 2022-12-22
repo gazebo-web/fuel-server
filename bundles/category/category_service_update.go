@@ -3,32 +3,32 @@ package category
 import (
 	"context"
 	"fmt"
+	dtos "github.com/gazebo-web/fuel-server/bundles/category/dtos"
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gosimple/slug"
 	"github.com/jinzhu/gorm"
-	dtos "github.com/gazebo-web/fuel-server/bundles/category/dtos"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // Update updates a category in DB using the data from
 // the given Service struct.
 // Returns a Service.
 func (cs *Service) Update(ctx context.Context, tx *gorm.DB,
-	categorySlug string, cat dtos.UpdateCategory) (*Category, *ign.ErrMsg) {
+	categorySlug string, cat dtos.UpdateCategory) (*Category, *gz.ErrMsg) {
 
 	var savedCategory *Category
 	var err error
 	// Sanity check: Make sure that the category exists.
 	if savedCategory, err = BySlug(tx, categorySlug); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNonExistentResource, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNonExistentResource, err)
 	}
 
 	updatedCategory := updateCategoryFields(*savedCategory, cat)
 
 	if err := tx.Save(updatedCategory).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
-	ign.LoggerFromContext(ctx).Info(fmt.Sprintf("Category [%s] %s has been updated.", *updatedCategory.Slug, *updatedCategory.Name))
+	gz.LoggerFromContext(ctx).Info(fmt.Sprintf("Category [%s] %s has been updated.", *updatedCategory.Slug, *updatedCategory.Name))
 
 	return &updatedCategory, nil
 }

@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	fuel "github.com/gazebo-web/fuel-server/proto"
-	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"os"
 	"strings"
@@ -168,7 +168,7 @@ func createModelWithCategories(t *testing.T, jwt *string, name string, categorie
 		"permission":  "0",
 		"categories":  cats,
 	}
-	withThumbnails := []igntest.FileDesc{
+	withThumbnails := []gztest.FileDesc{
 		{"model.config", constModelConfigFileContents},
 		{"thumbnails/model.sdf", constModelSDFFileContents},
 	}
@@ -176,7 +176,7 @@ func createModelWithCategories(t *testing.T, jwt *string, name string, categorie
 	uri := "/1.0/models"
 	testName := t.Name()
 
-	return igntest.SendMultipartPOST(testName, t, uri, jwt, extraParams, withThumbnails)
+	return gztest.SendMultipartPOST(testName, t, uri, jwt, extraParams, withThumbnails)
 }
 
 func updateModelWithCategories(t *testing.T, jwt *string, owner, model string, categories []string) (respCode int, bslice *[]byte, ok bool) {
@@ -187,15 +187,15 @@ func updateModelWithCategories(t *testing.T, jwt *string, owner, model string, c
 	extraParams := map[string]string{
 		"categories": joinedCategories,
 	}
-	withThumbnails := []igntest.FileDesc{
+	withThumbnails := []gztest.FileDesc{
 		{"model.config", constModelConfigFileContents},
 		{"thumbnails/model.sdf", constModelSDFFileContents},
 	}
 
-	return igntest.SendMultipartMethod(testName, t, "PATCH", uri, jwt, extraParams, withThumbnails)
+	return gztest.SendMultipartMethod(testName, t, "PATCH", uri, jwt, extraParams, withThumbnails)
 }
 
 func searchModelWithCategories(t *testing.T, search string, category string) (respCode int, bslice *[]byte, ok bool) {
 	uri := fmt.Sprintf("/1.0/models?q=%s&category=%s", search, category)
-	return igntest.SendMultipartMethod(t.Name(), t, "GET", uri, nil, nil, nil)
+	return gztest.SendMultipartMethod(t.Name(), t, "GET", uri, nil, nil, nil)
 }

@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	"github.com/gazebo-web/gz-go/v7"
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"net/http"
 	"os"
 	"testing"
@@ -54,15 +55,15 @@ func TestUserLogin(t *testing.T) {
 			[]string{orgName, orgName2}, map[string]string{orgName: "member",
 				orgName2: "admin"}},
 		{uriTest{"invalid token", uri, newJWT("pahjtrkjfd"),
-			ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "", nil, nil},
+			gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "", nil, nil},
 		{uriTest{"invalid claims - no sub", uri,
 			newClaimsJWT(&jwt.MapClaims{"invalid": "user"}),
-			ign.NewErrorMessage(ign.ErrorAuthJWTInvalid), false}, "", nil, nil},
+			gz.NewErrorMessage(gz.ErrorAuthJWTInvalid), false}, "", nil, nil},
 		{uriTest{"empty claims", uri, newClaimsJWT(&jwt.MapClaims{}),
-			ign.NewErrorMessage(ign.ErrorAuthJWTInvalid), false}, "", nil, nil},
+			gz.NewErrorMessage(gz.ErrorAuthJWTInvalid), false}, "", nil, nil},
 		{uriTest{"unexistent identity", uri,
 			newClaimsJWT(&jwt.MapClaims{"sub": "non-existing-user"}),
-			ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, "", nil, nil},
+			gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, "", nil, nil},
 	}
 
 	for _, test := range loginUserTestsData {
@@ -96,7 +97,7 @@ func runSubTestWithLoginUserTest(test loginUserTest, t *testing.T) {
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	bslice, _ := igntest.AssertRouteMultipleArgs("GET", test.URL, nil, expStatus, jwt, expCt, t)
+	bslice, _ := gztest.AssertRouteMultipleArgs("GET", test.URL, nil, expStatus, jwt, expCt, t)
 	if expStatus == http.StatusOK {
 		var ur users.UserResponse
 		assert.NoError(t, json.Unmarshal(*bslice, &ur), "Unable to unmarshal user response %s", string(*bslice))
@@ -104,7 +105,7 @@ func runSubTestWithLoginUserTest(test loginUserTest, t *testing.T) {
 		assert.ElementsMatch(t, test.expOrgs, ur.Organizations)
 		assert.Equal(t, test.expOrgRoles, ur.OrgRoles)
 	} else if !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name()+" GET /login", bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name()+" GET /login", bslice, expEm.ErrCode, t)
 	}
 }
 
@@ -136,7 +137,7 @@ func TestUserCreate(t *testing.T) {
 	name := "A random user"
 	email := "username@example.com"
 	org := "My organization"
-	username := ign.RandomString(8)
+	username := gz.RandomString(8)
 	invalidUsername := "d aaaa"
 	// create and remove another user (ie. a non active user)
 	jwt2 := createValidJWTForIdentity("another-user-2", t)
@@ -144,22 +145,22 @@ func TestUserCreate(t *testing.T) {
 	removeUserWithJWT(username2, jwt2, t)
 
 	userCreateTestsData := []createUserTest{
-		{uriTest{"no username", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, users.User{Name: &name, Email: &email, Organization: &org}, false},
+		{uriTest{"no username", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, users.User{Name: &name, Email: &email, Organization: &org}, false},
 		{uriTest{"blacklisted username", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorFormInvalidValue), false},
+			gz.NewErrorMessage(gz.ErrorFormInvalidValue), false},
 			users.User{Username: sptr("settings"), Name: &name, Email: &email,
 				Organization: &org}, false},
-		{uriTest{"no email", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, users.User{Username: sptr(ign.RandomString(8)), Name: &name, Organization: &org}, false},
-		{uriTest{"short username", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, users.User{Username: sptr("aa"), Email: &email}, false},
-		{uriTest{"invalid username", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, users.User{Username: &invalidUsername, Email: &email}, false},
-		{uriTest{"no optional fields", uri, jwtDef, nil, false}, users.User{Username: sptr(ign.RandomString(8)), Email: &email}, true},
+		{uriTest{"no email", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, users.User{Username: sptr(gz.RandomString(8)), Name: &name, Organization: &org}, false},
+		{uriTest{"short username", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, users.User{Username: sptr("aa"), Email: &email}, false},
+		{uriTest{"invalid username", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, users.User{Username: &invalidUsername, Email: &email}, false},
+		{uriTest{"no optional fields", uri, jwtDef, nil, false}, users.User{Username: sptr(gz.RandomString(8)), Email: &email}, true},
 		// Note: the following test cases are inter-related, as the test for duplication.
 		{uriTest{"with all fields", uri, jwtDef, nil, false}, users.User{Username: &username, Name: &name, Email: &email, Organization: &org}, false},
-		{uriTest{"another user using existent JWT", uri, jwtDef, ign.NewErrorMessage(ign.ErrorResourceExists), false}, users.User{Username: sptr(ign.RandomString(8)), Email: &email}, false},
-		{uriTest{"dup username", uri, jwtDef, ign.NewErrorMessage(ign.ErrorResourceExists), false}, users.User{Username: &username, Name: &name, Email: &email, Organization: &org}, true},
-		{uriTest{"should be able to reuse JWT after user deletion", uri, jwtDef, nil, false}, users.User{Username: sptr(ign.RandomString(8)), Email: &email}, true},
-		{uriTest{"dup username - used by Org #1", uri, jwtDef, ign.NewErrorMessage(ign.ErrorResourceExists), false}, users.User{Username: &orgName, Name: &name, Email: &email, Organization: &org}, false},
-		{uriTest{"dup username - used by Org, other JWT", uri, newJWT(jwt2), ign.NewErrorMessage(ign.ErrorResourceExists), false}, users.User{Username: &orgName, Name: &name, Email: &email, Organization: &org}, false},
+		{uriTest{"another user using existent JWT", uri, jwtDef, gz.NewErrorMessage(gz.ErrorResourceExists), false}, users.User{Username: sptr(gz.RandomString(8)), Email: &email}, false},
+		{uriTest{"dup username", uri, jwtDef, gz.NewErrorMessage(gz.ErrorResourceExists), false}, users.User{Username: &username, Name: &name, Email: &email, Organization: &org}, true},
+		{uriTest{"should be able to reuse JWT after user deletion", uri, jwtDef, nil, false}, users.User{Username: sptr(gz.RandomString(8)), Email: &email}, true},
+		{uriTest{"dup username - used by Org #1", uri, jwtDef, gz.NewErrorMessage(gz.ErrorResourceExists), false}, users.User{Username: &orgName, Name: &name, Email: &email, Organization: &org}, false},
+		{uriTest{"dup username - used by Org, other JWT", uri, newJWT(jwt2), gz.NewErrorMessage(gz.ErrorResourceExists), false}, users.User{Username: &orgName, Name: &name, Email: &email, Organization: &org}, false},
 		// end of inter-related test cases
 	}
 
@@ -179,9 +180,9 @@ func runSubTestWithCreateUserTestData(test createUserTest, t *testing.T) {
 	json.NewEncoder(b).Encode(u)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	bslice, _ := igntest.AssertRouteMultipleArgs("POST", test.URL, b, expStatus, jwt, expCt, t)
+	bslice, _ := gztest.AssertRouteMultipleArgs("POST", test.URL, b, expStatus, jwt, expCt, t)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name()+" POST /users", bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name()+" POST /users", bslice, expEm.ErrCode, t)
 	}
 	if test.deleteAfter {
 		// Delete the user
@@ -203,7 +204,7 @@ func TestInvalidServerKeyCreateUser(t *testing.T) {
 			"should fail with unauthorized status",
 			"/1.0/users",
 			jwtDef,
-			ign.NewErrorMessage(ign.ErrorUnauthorized),
+			gz.NewErrorMessage(gz.ErrorUnauthorized),
 			true,
 		},
 		users.User{Username: sptr("ShouldNotBeCreated"), Email: sptr("user@email.org")},
@@ -247,7 +248,7 @@ func TestRemoveUser(t *testing.T) {
 	uri := "/1.0/users/"
 
 	removeUserTestsData := []removeUserTest{
-		{uriTest{"try to delete from other jwt", uri + username2, newJWT(myJWT), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, username2},
+		{uriTest{"try to delete from other jwt", uri + username2, newJWT(myJWT), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, username2},
 		{uriTest{"valid removal", uri + username2, newJWT(jwt2), nil, false}, username2},
 	}
 
@@ -257,9 +258,9 @@ func TestRemoveUser(t *testing.T) {
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
 			// Invoke DELETE user
-			bslice, _ := igntest.AssertRouteMultipleArgs("DELETE", test.URL, nil, expStatus, jwt, expCt, t)
+			bslice, _ := gztest.AssertRouteMultipleArgs("DELETE", test.URL, nil, expStatus, jwt, expCt, t)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" DELETE "+test.URL, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" DELETE "+test.URL, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				dbu, _ := getUserFromDb(test.usernameToRemove, t)
 				assert.Nil(t, dbu, "User was found in DB but should have been deleted: %s", test.usernameToRemove)
@@ -298,22 +299,22 @@ func TestUserUpdate(t *testing.T) {
 	name := "New Name"
 	email := "test@email.org"
 	userUpdateTestsData := []updateUserTest{
-		{uriTest{"no jwt", uri, nil, ign.NewErrorMessage(ign.ErrorUnauthorized),
+		{uriTest{"no jwt", uri, nil, gz.NewErrorMessage(gz.ErrorUnauthorized),
 			true}, username, &users.UpdateUserInput{Name: &name, Email: &email}},
-		{uriTest{"no fields", uri, jwtDef, ign.NewErrorMessage(ign.ErrorFormInvalidValue),
+		{uriTest{"no fields", uri, jwtDef, gz.NewErrorMessage(gz.ErrorFormInvalidValue),
 			false}, username, &users.UpdateUserInput{}},
-		{uriTest{"no fields #2", uri, jwtDef, ign.NewErrorMessage(ign.ErrorUnmarshalJSON),
+		{uriTest{"no fields #2", uri, jwtDef, gz.NewErrorMessage(gz.ErrorUnmarshalJSON),
 			false}, username, nil},
 		{uriTest{"invalid email format", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorFormInvalidValue), true}, username,
+			gz.NewErrorMessage(gz.ErrorFormInvalidValue), true}, username,
 			&users.UpdateUserInput{Name: &name, Email: sptr("inv")}},
 		{uriTest{"invalid expFeatures", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorFormInvalidValue), true}, username,
+			gz.NewErrorMessage(gz.ErrorFormInvalidValue), true}, username,
 			&users.UpdateUserInput{Name: &name, Email: &email, ExpFeatures: sptr("  inv")}},
 		{uriTest{"with all fields", uri, jwtDef, nil, false}, username,
 			&users.UpdateUserInput{Name: &name, Email: &email,
 				ExpFeatures: sptr("  gzweb")}},
-		{uriTest{"non active user", uri, newJWT(jwt2), ign.NewErrorMessage(ign.ErrorAuthNoUser),
+		{uriTest{"non active user", uri, newJWT(jwt2), gz.NewErrorMessage(gz.ErrorAuthNoUser),
 			true}, username, &users.UpdateUserInput{Name: &name, Email: &email}},
 	}
 
@@ -338,12 +339,12 @@ func runSubTestWithUpdateUserTestData(test updateUserTest, t *testing.T) {
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
 
-	reqArgs := igntest.RequestArgs{Method: "PATCH", Route: test.URL + "/" + test.username, Body: b, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	reqArgs := gztest.RequestArgs{Method: "PATCH", Route: test.URL + "/" + test.username, Body: b, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	gotCode := resp.RespRecorder.Code
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name()+" PATCH /users/"+test.username, bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name()+" PATCH /users/"+test.username, bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		require.Equal(t, http.StatusOK, gotCode, "Did not receive expected http code [%d]. Got: [%d]. Response: %s", http.StatusOK, gotCode, string(*bslice))
 		var got users.UserResponse
@@ -382,8 +383,8 @@ func TestUserIndex(t *testing.T) {
 	userIndexTestsData := []userIndexTest{
 		{uriTest{"should get private data", uri, newJWT(myJWT), nil, false}, username, true},
 		{uriTest{"no jwt. Should not get private data", uri, nil, nil, false}, username, false},
-		{uriTest{"unexistent user", uri, nil, ign.NewErrorMessage(ign.ErrorUserUnknown), false}, "username2", false},
-		{uriTest{"invalid jwt token", uri, newJWT("invalid"), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, username, false},
+		{uriTest{"unexistent user", uri, nil, gz.NewErrorMessage(gz.ErrorUserUnknown), false}, "username2", false},
+		{uriTest{"invalid jwt token", uri, newJWT("invalid"), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, username, false},
 	}
 
 	for _, test := range userIndexTestsData {
@@ -391,9 +392,9 @@ func TestUserIndex(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			bslice, _ := igntest.AssertRouteMultipleArgs("GET", test.URL+test.username, nil, expStatus, jwt, expCt, t)
+			bslice, _ := gztest.AssertRouteMultipleArgs("GET", test.URL+test.username, nil, expStatus, jwt, expCt, t)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" GET /users/"+test.username, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" GET /users/"+test.username, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				var ur users.UserResponse
 				assert.NoError(t, json.Unmarshal(*bslice, &ur), "Unable to unmarshal user response: %s", string(*bslice))
@@ -442,10 +443,10 @@ func TestOwnerProfile(t *testing.T) {
 			username, users.OwnerTypeUser, false},
 		{uriTest{"should get org data", uri, newJWT(myJWT), nil, false},
 			orgname, users.OwnerTypeOrg, true},
-		{uriTest{"unexistent owner", uri, nil, ign.NewErrorMessage(ign.ErrorUserUnknown),
+		{uriTest{"unexistent owner", uri, nil, gz.NewErrorMessage(gz.ErrorUserUnknown),
 			false}, "name2", "", false},
 		{uriTest{"invalid jwt token", uri, newJWT("invalid"),
-			ign.NewErrorMessage(ign.ErrorUnauthorized), true}, username, "", false},
+			gz.NewErrorMessage(gz.ErrorUnauthorized), true}, username, "", false},
 		{uriTest{"should get org public data", uri, newJWT(jwt2), nil, false},
 			orgname, users.OwnerTypeOrg, false},
 		{uriTest{"should get user public data", uri, newJWT(jwt2), nil, false},
@@ -457,9 +458,9 @@ func TestOwnerProfile(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			bslice, _ := igntest.AssertRouteMultipleArgs("GET", test.URL+test.name, nil, expStatus, jwt, expCt, t)
+			bslice, _ := gztest.AssertRouteMultipleArgs("GET", test.URL+test.name, nil, expStatus, jwt, expCt, t)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" GET /profile/"+test.name, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" GET /profile/"+test.name, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				var op users.OwnerProfile
 				require.NoError(t, json.Unmarshal(*bslice, &op), "Unable to unmarshal response: %s", string(*bslice))
@@ -498,11 +499,11 @@ func TestAPIUser(t *testing.T) {
 
 	code := http.StatusOK
 	if globals.Server.Db == nil {
-		code = ign.ErrorMessage(ign.ErrorNoDatabase).StatusCode
+		code = gz.ErrorMessage(gz.ErrorNoDatabase).StatusCode
 	}
 
 	uri := "/1.0/users/" + testUser
-	igntest.AssertRoute("OPTIONS", uri, code, t)
+	gztest.AssertRoute("OPTIONS", uri, code, t)
 }
 
 type expResUser struct {
@@ -545,9 +546,9 @@ func TestUserPagination(t *testing.T) {
 	defer removeUserWithJWT(user3, jwt3, t)
 	addUserToOrg(user3, "member", orgName, t)
 
-	invUser := ign.NewErrorMessage(ign.ErrorUnauthorized)
-	invJwt := ign.ErrMsg{
-		ErrCode:    ign.ErrorAuthNoUser,
+	invUser := gz.NewErrorMessage(gz.ErrorUnauthorized)
+	invJwt := gz.ErrMsg{
+		ErrCode:    gz.ErrorAuthNoUser,
 		StatusCode: http.StatusUnauthorized}
 
 	uri := "/1.0/users"
@@ -590,12 +591,12 @@ func TestUserPagination(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL + test.paginationQuery, Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL + test.paginationQuery, Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			require.Equal(t, expStatus, resp.RespRecorder.Code)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" GET /users", bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" GET /users", bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				var users users.UserResponses
 				assert.NoError(t, json.Unmarshal(*bslice, &users), "Unable to unmarshal list of users: %s", string(*bslice))
@@ -633,13 +634,13 @@ func TestUserPaginationAdmin(t *testing.T) {
 	user2 := createUserWithJWT(jwt2, t)
 	defer removeUserWithJWT(user2, jwt2, t)
 
-	// invUser := ign.NewErrorMessage(ign.ErrorUnauthorized)
-	/*invJwt := ign.ErrMsg{
-	  ErrCode: ign.ErrorAuthNoUser,
+	// invUser := gz.NewErrorMessage(gz.ErrorUnauthorized)
+	/*invJwt := gz.ErrMsg{
+	  ErrCode: gz.ErrorAuthNoUser,
 	  StatusCode: http.StatusUnauthorized}
 	*/
 
-	invpage := ign.NewErrorMessage(ign.ErrorInvalidPaginationRequest)
+	invpage := gz.NewErrorMessage(gz.ErrorInvalidPaginationRequest)
 
 	uri := "/1.0/users"
 	userListTestsData := []userListTest{
@@ -659,7 +660,7 @@ func TestUserPaginationAdmin(t *testing.T) {
 			},
 		},
 		{uriTest{"get page beyond limit", uri, jwtDef,
-			ign.NewErrorMessage(ign.ErrorPaginationPageNotFound), false}, "?page=3", nil,
+			gz.NewErrorMessage(gz.ErrorPaginationPageNotFound), false}, "?page=3", nil,
 		},
 		{uriTest{"get invalid page", uri, jwtDef, invpage, false}, "?page=invalid", nil},
 		{uriTest{"get invalid page #2", uri, jwtDef, invpage, false}, "?page=-5", nil},
@@ -671,12 +672,12 @@ func TestUserPaginationAdmin(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL + test.paginationQuery, Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL + test.paginationQuery, Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			require.Equal(t, expStatus, resp.RespRecorder.Code)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" GET /users", bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" GET /users", bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				var users users.UserResponses
 				assert.NoError(t, json.Unmarshal(*bslice, &users), "Unable to unmarshal list of users: %s", string(*bslice))
@@ -726,33 +727,33 @@ func TestPersonalAccessToken(t *testing.T) {
 	json.NewEncoder(body).Encode(accessTokenCreateInfo)
 
 	// A non-existant user should return an error.
-	igntest.AssertRouteMultipleArgs("POST", "/1.0/users/BAD/access-tokens", body,
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/users/BAD/access-tokens", body,
 		400, &myJWT, "text/plain; charset=utf-8", t)
 
 	// The username in the route should match the jwt username.
-	igntest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username2+"/access-tokens", body,
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username2+"/access-tokens", body,
 		401, &myJWT, "text/plain; charset=utf-8", t)
 
-	response, _ := igntest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username+"/access-tokens", body,
+	response, _ := gztest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username+"/access-tokens", body,
 		200, &myJWT, "application/json", t)
 
 	// Unmarshal the response, and check the name
-	var newToken ign.AccessToken
+	var newToken gz.AccessToken
 	assert.NoError(t, json.Unmarshal(*response, &newToken), "Unable to unmarshal response.")
 	assert.Equal(t, "myName", newToken.Name, "The new access token has an invalid name.")
 
 	// A non-existant user should return an error.
-	igntest.AssertRouteMultipleArgs("GET", "/1.0/users/BAD/access-tokens", nil,
+	gztest.AssertRouteMultipleArgs("GET", "/1.0/users/BAD/access-tokens", nil,
 		400, &myJWT, "text/plain; charset=utf-8", t)
 
 	// The username in the route should match the jwt username.
-	igntest.AssertRouteMultipleArgs("GET", "/1.0/users/"+username2+"/access-tokens", nil,
+	gztest.AssertRouteMultipleArgs("GET", "/1.0/users/"+username2+"/access-tokens", nil,
 		401, &myJWT, "text/plain; charset=utf-8", t)
 
 	// Get the list of access tokens
-	response, _ = igntest.AssertRouteMultipleArgs("GET", "/1.0/users/"+username+"/access-tokens", nil,
+	response, _ = gztest.AssertRouteMultipleArgs("GET", "/1.0/users/"+username+"/access-tokens", nil,
 		200, &myJWT, "application/json", t)
-	var tokens ign.AccessTokens
+	var tokens gz.AccessTokens
 	assert.NoError(t, json.Unmarshal(*response, &tokens), "Unable to unmarshal access token list.")
 	assert.Equal(t, 1, len(tokens), "The number of access tokens was not equal to one.")
 	assert.Empty(t, tokens[0].Key, "The key field should have been empty.")
@@ -762,18 +763,18 @@ func TestPersonalAccessToken(t *testing.T) {
 	json.NewEncoder(body).Encode(newToken)
 
 	// A non-existant user should return an error.
-	igntest.AssertRouteMultipleArgs("POST", "/1.0/users/BAD/access-tokens/revoke", body,
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/users/BAD/access-tokens/revoke", body,
 		400, &myJWT, "text/plain; charset=utf-8", t)
 
 	// The username in the route should match the jwt username.
-	igntest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username2+"/access-tokens/revoke", body,
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username2+"/access-tokens/revoke", body,
 		401, &myJWT, "text/plain; charset=utf-8", t)
 
-	igntest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username+"/access-tokens/revoke", body,
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username+"/access-tokens/revoke", body,
 		200, &myJWT, "application/json", t)
 
 	// Get the list of tokens, and make sure that the length is zero.
-	response, _ = igntest.AssertRouteMultipleArgs("GET", "/1.0/users/"+username+"/access-tokens", nil,
+	response, _ = gztest.AssertRouteMultipleArgs("GET", "/1.0/users/"+username+"/access-tokens", nil,
 		200, &myJWT, "application/json", t)
 	json.Unmarshal(*response, &tokens)
 	assert.Equal(t, 0, len(tokens), "There should be no token after the revoke.")

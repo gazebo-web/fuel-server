@@ -1,24 +1,24 @@
 package main
 
 import (
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
 )
 
 /////////////////////////////////////////////////
 /// Declare the routes. See also router.go
-var routes = ign.Routes{
+var routes = gz.Routes{
 
 	////////////
 	// Models //
 	////////////
 
 	// Route for all models
-	ign.Route{
+	gz.Route{
 		"Models",
 		"Information about all models",
 		"/models",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /models models listModels
 			//
 			// Get list of models.
@@ -41,17 +41,17 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: jsonModels
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all models",
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONListResult("Models", SearchHandler(ModelList))},
-					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ModelList))},
-					ign.FormatHandler{"", ign.JSONListResult("Models", SearchHandler(ModelList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONListResult("Models", SearchHandler(ModelList))},
+					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(ModelList))},
+					gz.FormatHandler{"", gz.JSONListResult("Models", SearchHandler(ModelList))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route POST /models models createModel
 			//
 			// Create model
@@ -74,23 +74,23 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbModel
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Create a new model",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(ModelCreate)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(ModelCreate)},
 				},
 			},
 		},
 	},
 
 	// Route that returns a list of models from a team/user (ie. an 'owner')
-	ign.Route{
+	gz.Route{
 		"OwnerModels",
 		"Information about models belonging to an owner. The {username} URI option will limit the scope to the specified user/team. Otherwise all models are considered.",
 		"/{username}/models",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/models models listOwnerModels
 			//
 			// Get owner's models
@@ -115,28 +115,28 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: jsonModels
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all models of the specified team/user",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONListResult("Models", SearchHandler(ModelList))},
-					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ModelList))},
-					ign.FormatHandler{"", ign.JSONListResult("Models", SearchHandler(ModelList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONListResult("Models", SearchHandler(ModelList))},
+					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(ModelList))},
+					gz.FormatHandler{"", gz.JSONListResult("Models", SearchHandler(ModelList))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that handles likes to a model from an owner
-	ign.Route{
+	gz.Route{
 		"ModelLikes",
 		"Handles the likes of a model.",
 		"/{username}/models/{model}/likes",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route POST /{username}/models/{model}/likes models modelLikeCreate
 			//
 			// Like a model
@@ -149,12 +149,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Model
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Like a model",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerLikeCreate)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerLikeCreate)))},
 				},
 			},
 			// swagger:route DELETE /{username}/models/{model}/likes models modelUnlike
@@ -169,24 +169,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Model
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Unlike a model",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerLikeRemove)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerLikeRemove)))},
 				},
 			},
 		},
 	},
 
 	// Route that returns a list of models liked by a user.
-	ign.Route{
+	gz.Route{
 		"ModelLikeList",
 		"Models liked by a user.",
 		"/{username}/likes/models",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/likes/models models modelLikeList
 			//
 			// Get models liked by a user.
@@ -208,26 +208,26 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: jsonModels
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all models liked by the specified user",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONListResult("Models", SearchHandler(ModelLikeList))},
-					ign.FormatHandler{"", ign.JSONListResult("Models", SearchHandler(ModelLikeList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONListResult("Models", SearchHandler(ModelLikeList))},
+					gz.FormatHandler{"", gz.JSONListResult("Models", SearchHandler(ModelLikeList))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that returns the files tree of a single model based on owner, model name, and version
-	ign.Route{
+	gz.Route{
 		"ModelOwnerVersionFileTree",
 		"Route that returns the files tree of a single model.",
 		"/{username}/models/{model}/{version}/files",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/models/{model}/{version}/files models modelFileTree
 			//
 			// Model's file tree.
@@ -243,26 +243,26 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: ModelFileTree
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get file tree",
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
-					ign.FormatHandler{".proto", ign.ProtoResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
+					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that downloads an individual file from a model based on owner, model name, and version
-	ign.Route{
+	gz.Route{
 		"ModelOwnerVersionIndividualFileDownload",
 		"Download individual file from a model.",
 		"/{username}/models/{model}/{version}/files/{path:.+}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/models/{model}/{version}/files/{path} models downloadModelFile
 			//
 			// Download an individual file from a model.
@@ -275,24 +275,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: fileResponse
-			ign.Method{
+			gz.Method{
 				"GET",
 				"GET a file",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionIndividualFileDownload)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionIndividualFileDownload)))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that returns a model, by name, from a team/user
-	ign.Route{
+	gz.Route{
 		"OwnerModelIndex",
 		"Information about a model belonging to an owner.",
 		"/{username}/models/{model}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/models/{model} models singleOwnerModel
 			//
 			// Get a single model from an owner
@@ -309,19 +309,19 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Model
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get a model belonging to the specified team/user",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
-					ign.FormatHandler{".proto", ign.ProtoResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
-					ign.FormatHandler{".zip", ign.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionZip)))},
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
+					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
+					gz.FormatHandler{".zip", gz.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionZip)))},
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route PATCH /{username}/models/{model} models modelUpdate
 			//
 			// Update a model
@@ -339,12 +339,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Model
-			ign.Method{
+			gz.Method{
 				"PATCH",
 				"Edit a model",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("model", true, ModelUpdate))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", true, ModelUpdate))},
 				},
 			},
 			// swagger:route DELETE /{username}/models/{model} models deleteModel
@@ -358,25 +358,25 @@ var routes = ign.Routes{
 			//
 			//   Schemes: https
 			//
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Deletes a single model",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerRemove)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerRemove)))},
 				},
 			},
 		},
 	},
 
 	// Route that transfers a model
-	ign.Route{
+	gz.Route{
 		"OwnerModelIndex",
 		"Transfer a model to another owner.",
 		"/{username}/models/{model}/transfer",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route POST /{username}/models/{model}/transfer models modelTransfer
 			//
 			// Transfer a model
@@ -392,24 +392,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Model
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Transfer a model",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("model", true, ModelTransfer))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", true, ModelTransfer))},
 				},
 			},
 		},
 	},
 
 	// Route that returns a model zip file from a team/user
-	ign.Route{
+	gz.Route{
 		"OwnerModelVersion",
 		"Download a versioned model zip file belonging to an owner.",
 		"/{username}/models/{model}/{version}/{model}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/models/{model}/{version}/{model} models singleOwnerModel
 			//
 			// Get a single model zip file from an owner
@@ -424,29 +424,29 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Model
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get a model of specified version belonging to the specified team/user",
 				// Format handlers
 				// if empty file extension is given, it returns model's meta data
 				// and {version} is then ignored
-				ign.FormatHandlers{
-					ign.FormatHandler{".zip", ign.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionZip)))},
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".zip", gz.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionZip)))},
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that clones a model
-	ign.Route{
+	gz.Route{
 		"CloneModel",
 		"Clone a model",
 		"/{username}/models/{model}/clone",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route POST /{username}/models/{model}/clone models cloneModel
 			//
 			// Clones a models
@@ -464,23 +464,23 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OK
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Clones a model",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("model", false, ModelClone))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", false, ModelClone))},
 				},
 			},
 		},
 	},
 
 	// Route that handles model reports
-	ign.Route{
+	gz.Route{
 		"ReportModel",
 		"Report a model",
 		"/{username}/models/{model}/report",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route POST /{username}/models/{model}/report models reportModel
 			//
 			// Reports a model.
@@ -496,15 +496,15 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OK
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Reports a model",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("model", false, ReportModelCreate)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("model", false, ReportModelCreate)))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	////////////
@@ -512,12 +512,12 @@ var routes = ign.Routes{
 	////////////
 
 	// Route for all worlds
-	ign.Route{
+	gz.Route{
 		"Worlds",
 		"Information about all worlds",
 		"/worlds",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /worlds worlds listWorlds
 			//
 			// Get list of worlds.
@@ -540,17 +540,17 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: jsonWorlds
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all worlds",
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONListResult("Worlds", SearchHandler(WorldList))},
-					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(WorldList))},
-					ign.FormatHandler{"", ign.JSONListResult("Worlds", SearchHandler(WorldList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONListResult("Worlds", SearchHandler(WorldList))},
+					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(WorldList))},
+					gz.FormatHandler{"", gz.JSONListResult("Worlds", SearchHandler(WorldList))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route POST /worlds worlds createWorld
 			//
 			// Create world
@@ -573,23 +573,23 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbWorld
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Create a new world",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(WorldCreate)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(WorldCreate)},
 				},
 			},
 		},
 	},
 
 	// Route that returns a list of worlds from a team/user (ie. an 'owner')
-	ign.Route{
+	gz.Route{
 		"OwnerWorlds",
 		"Information about worlds belonging to an owner. The {username} URI option will limit the scope to the specified user/team. Otherwise all worlds are considered.",
 		"/{username}/worlds",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/worlds worlds listOwnerWorlds
 			//
 			// Get owner's worlds
@@ -614,28 +614,28 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: jsonWorlds
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all worlds of the specified team/user",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONListResult("Worlds", SearchHandler(WorldList))},
-					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(WorldList))},
-					ign.FormatHandler{"", ign.JSONListResult("Worlds", SearchHandler(WorldList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONListResult("Worlds", SearchHandler(WorldList))},
+					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(WorldList))},
+					gz.FormatHandler{"", gz.JSONListResult("Worlds", SearchHandler(WorldList))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that handles likes to a world from an owner
-	ign.Route{
+	gz.Route{
 		"WorldLikes",
 		"Handles the likes of a world.",
 		"/{username}/worlds/{world}/likes",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route POST /{username}/worlds/{world}/likes worlds worldLikeCreate
 			//
 			// Like a world
@@ -648,12 +648,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: World
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Like a world",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("world", true, WorldLikeCreate)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("world", true, WorldLikeCreate)))},
 				},
 			},
 			// swagger:route DELETE /{username}/worlds/{world}/likes worlds worldUnlike
@@ -668,24 +668,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: World
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Unlike a world",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("world", true, WorldLikeRemove)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("world", true, WorldLikeRemove)))},
 				},
 			},
 		},
 	},
 
 	// Route that returns a list of worlds liked by a user.
-	ign.Route{
+	gz.Route{
 		"WorldLikeList",
 		"Worlds liked by a user.",
 		"/{username}/likes/worlds",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/likes/worlds worlds worldLikeList
 			//
 			// Get worlds liked by a user.
@@ -707,26 +707,26 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: jsonWorlds
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all worlds liked by the specified user",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONListResult("Worlds", SearchHandler(WorldLikeList))},
-					ign.FormatHandler{"", ign.JSONListResult("Worlds", SearchHandler(WorldLikeList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONListResult("Worlds", SearchHandler(WorldLikeList))},
+					gz.FormatHandler{"", gz.JSONListResult("Worlds", SearchHandler(WorldLikeList))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that returns the files tree of a single world based on owner, name, and version
-	ign.Route{
+	gz.Route{
 		"WorldFileTree",
 		"Route that returns the files tree of a single world.",
 		"/{username}/worlds/{world}/{version}/files",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/worlds/{world}/{version}/files worlds worldFileTree
 			//
 			// World's file tree.
@@ -742,26 +742,26 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: WorldFileTree
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get file tree",
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameOwnerHandler("world", false, WorldFileTree))},
-					ign.FormatHandler{".proto", ign.ProtoResult(NameOwnerHandler("world", false, WorldFileTree))},
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("world", false, WorldFileTree))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("world", false, WorldFileTree))},
+					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("world", false, WorldFileTree))},
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldFileTree))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that downloads an individual file from a world based on owner, name, and version
-	ign.Route{
+	gz.Route{
 		"WorldIndividualFileDownload",
 		"Download individual file from a world.",
 		"/{username}/worlds/{world}/{version}/files/{path:.+}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/worlds/{world}/{version}/files/{path} worlds downloadWorldFile
 			//
 			// Download an individual file from a world.
@@ -774,24 +774,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: fileResponse
-			ign.Method{
+			gz.Method{
 				"GET",
 				"GET a file",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("world", false, WorldIndividualFileDownload)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("world", false, WorldIndividualFileDownload)))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that returns a world, by name, from a team/user
-	ign.Route{
+	gz.Route{
 		"WorldIndex",
 		"Information about a world belonging to an owner.",
 		"/{username}/worlds/{world}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/worlds/{world} worlds singleOwnerWorld
 			//
 			// Get a single world from an owner
@@ -808,19 +808,19 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: World
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get a world belonging to the specified team/user",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
-					ign.FormatHandler{".proto", ign.ProtoResult(NameOwnerHandler("world", false, WorldIndex))},
-					ign.FormatHandler{".zip", ign.Handler(NoResult(NameOwnerHandler("world", false, WorldZip)))},
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
+					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("world", false, WorldIndex))},
+					gz.FormatHandler{".zip", gz.Handler(NoResult(NameOwnerHandler("world", false, WorldZip)))},
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route PATCH /{username}/worlds/{world} worlds worldUpdate
 			//
 			// Update a world
@@ -838,12 +838,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: World
-			ign.Method{
+			gz.Method{
 				"PATCH",
 				"Edit a world",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("world", true, WorldUpdate))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", true, WorldUpdate))},
 				},
 			},
 			// swagger:route DELETE /{username}/worlds/{world} world deleteWorld
@@ -857,25 +857,25 @@ var routes = ign.Routes{
 			//
 			//   Schemes: https
 			//
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Deletes a single world",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("world", true, WorldRemove)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("world", true, WorldRemove)))},
 				},
 			},
 		},
 	},
 
 	// Route that transfers a world
-	ign.Route{
+	gz.Route{
 		"OwnerWorldTransfer",
 		"Transfer a world to another owner.",
 		"/{username}/worlds/{world}/transfer",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route POST /{username}/worlds/{world}/transfer models worldTransfer
 			//
 			// Transfer a world
@@ -891,24 +891,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Model
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Transfer a world",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("world", true, WorldTransfer))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", true, WorldTransfer))},
 				},
 			},
 		},
 	},
 
 	// Route that returns a world zip file from a team/user
-	ign.Route{
+	gz.Route{
 		"WorldVersion",
 		"Download a versioned world zip file belonging to an owner.",
 		"/{username}/worlds/{world}/{version}/{world}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/worlds/{world}/{version}/{world} worlds singleOwnerWorld
 			//
 			// Get a single world zip file from an owner
@@ -923,29 +923,29 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: World
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get a world of specified version belonging to the specified team/user",
 				// Format handlers
 				// if empty file extension is given, it returns world's meta data
 				// and {version} is then ignored
-				ign.FormatHandlers{
-					ign.FormatHandler{".zip", ign.Handler(NoResult(NameOwnerHandler("world", false, WorldZip)))},
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".zip", gz.Handler(NoResult(NameOwnerHandler("world", false, WorldZip)))},
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that clones a world
-	ign.Route{
+	gz.Route{
 		"CloneWorld",
 		"Clone a world",
 		"/{username}/worlds/{world}/clone",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route POST /{username}/worlds/{world}/clone worlds cloneWorld
 			//
 			// Clones a world
@@ -963,23 +963,23 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OK
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Clones a world",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("world", false, WorldClone))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldClone))},
 				},
 			},
 		},
 	},
 
 	// Route that handles world reports
-	ign.Route{
+	gz.Route{
 		"ReportWorld",
 		"Report a world",
 		"/{username}/worlds/{world}/report",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route POST /{username}/worlds/{world}/report worlds reportWorld
 			//
 			// Reports a world.
@@ -995,24 +995,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OK
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Reports a world",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("world", false, ReportWorldCreate)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("world", false, ReportWorldCreate)))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that returns the modelIncludes of a world.
-	ign.Route{
+	gz.Route{
 		"WorldModelIncludes",
 		"Route that returns the external models referenced by a world",
 		"/{username}/worlds/{world}/{version}/{world}/modelrefs",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/worlds/{world}/{version}/{world}/modelrefs worlds worldModelIncludes
 			//
 			// World's model references.
@@ -1027,16 +1027,16 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: ModelIncludes
-			ign.Method{
+			gz.Method{
 				"GET",
 				"World's ModelIncludes ",
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameOwnerHandler("world", false, WorldModelReferences))},
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("world", false, WorldModelReferences))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("world", false, WorldModelReferences))},
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldModelReferences))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	/////////////////
@@ -1044,12 +1044,12 @@ var routes = ign.Routes{
 	/////////////////
 
 	// Route for all Collections
-	ign.Route{
+	gz.Route{
 		"Collection",
 		"Information about all collections",
 		"/collections",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /collections collections listCollections
 			//
 			// Get list of collections.
@@ -1071,16 +1071,16 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbCollections
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all collections",
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(SearchHandler(CollectionList))},
-					ign.FormatHandler{"", ign.JSONResult(SearchHandler(CollectionList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(SearchHandler(CollectionList))},
+					gz.FormatHandler{"", gz.JSONResult(SearchHandler(CollectionList))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route POST /collections collections createCollection
 			//
 			// Create collection
@@ -1100,24 +1100,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbCollection
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Create a new collection",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(CollectionCreate)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(CollectionCreate)},
 				},
 			},
 		},
 	},
 
 	// Route that returns a list of collections from a team/user (ie. an 'owner')
-	ign.Route{
+	gz.Route{
 		"OwnerCollections",
 		"Information about worlds belonging to an owner. The {username} URI option " +
 			"will limit the scope to the specified user/team. Otherwise all collections are considered.",
 		"/{username}/collections",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/collections collections listOwnerCollections
 			//
 			// Get owner's collections
@@ -1141,26 +1141,26 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbCollections
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all collections of the specified team/user",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(SearchHandler(CollectionList))},
-					ign.FormatHandler{"", ign.JSONResult(SearchHandler(CollectionList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(SearchHandler(CollectionList))},
+					gz.FormatHandler{"", gz.JSONResult(SearchHandler(CollectionList))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that returns a Collection, by name, from a team/user
-	ign.Route{
+	gz.Route{
 		"CollectionIndex",
 		"Information about a collection belonging to an owner.",
 		"/{username}/collections/{collection}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/collections/{collection} collections singleOwnerCollection
 			//
 			// Get a single collection from an owner
@@ -1175,17 +1175,17 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbCollection
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get a collection belonging to the specified team/user",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameOwnerHandler("collection", false, CollectionIndex))},
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("collection", false, CollectionIndex))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("collection", false, CollectionIndex))},
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("collection", false, CollectionIndex))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route PATCH /{username}/collections/{collection} collections collectionUpdate
 			//
 			// Update a collection
@@ -1203,12 +1203,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbCollection
-			ign.Method{
+			gz.Method{
 				"PATCH",
 				"Edit a collection",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("collection", true, CollectionUpdate))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("collection", true, CollectionUpdate))},
 				},
 			},
 			// swagger:route DELETE /{username}/collections/{collection} collection deleteCollection
@@ -1225,24 +1225,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OK
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Deletes a single collection",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("collection", true, CollectionRemove)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionRemove)))},
 				},
 			},
 		},
 	},
 
-	ign.Route{
+	gz.Route{
 		"OwnerCollectionTransfer",
 		"Transfer a collection to another owner.",
 		"/{username}/collections/{collection}/transfer",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route POST /{username}/collections/{collection}/transfer collections collectionTransfer
 			//
 			// Transfer a collection
@@ -1258,24 +1258,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Model
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Transfer a collection",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("collection", true, CollectionTransfer))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("collection", true, CollectionTransfer))},
 				},
 			},
 		},
 	},
 	// Route that clones a collection
-	ign.Route{
+	gz.Route{
 		"CloneCollection",
 		"Clone a collection",
 		"/{username}/collections/{collection}/clone",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route POST /{username}/collections/{collection}/clone collections cloneCollection
 			//
 			// Clones a collection
@@ -1291,11 +1291,11 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OK
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Clones a collection",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("collection", false, CollectionClone))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("collection", false, CollectionClone))},
 				},
 			},
 		},
@@ -1303,12 +1303,12 @@ var routes = ign.Routes{
 
 	// Route that downloads an individual file from a collection.
 	// It is used to download the collection logo and banner.
-	ign.Route{
+	gz.Route{
 		"CollectionIndividualFileDownload",
 		"Download individual file from a collection.",
 		"/{username}/collections/{collection}/{version}/files/{path:.+}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/collections/{collection}/{version}/files/{path} collections downloadColFile
 			//
 			// Download an individual file from a collection.
@@ -1321,24 +1321,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: fileResponse
-			ign.Method{
+			gz.Method{
 				"GET",
 				"GET a file",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("collection", false, CollectionIndividualFileDownload)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", false, CollectionIndividualFileDownload)))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route to list, add and remove models from collections.
-	ign.Route{
+	gz.Route{
 		"CollectionModels",
 		"Information about models from a collection",
 		"/{username}/collections/{collection}/models",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/collections/{collection}/models collections collectionModels
 			//
 			// Lists the models of a collection
@@ -1353,18 +1353,18 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbCollectionAssets
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get the models associated to a collection",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONListResult("Models", NameOwnerHandler("collection", false, CollectionModelsList))},
-					ign.FormatHandler{".proto", ign.ProtoResult(NameOwnerHandler("collection", false, CollectionModelsList))},
-					ign.FormatHandler{"", ign.JSONListResult("Models", NameOwnerHandler("collection", false, CollectionModelsList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONListResult("Models", NameOwnerHandler("collection", false, CollectionModelsList))},
+					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("collection", false, CollectionModelsList))},
+					gz.FormatHandler{"", gz.JSONListResult("Models", NameOwnerHandler("collection", false, CollectionModelsList))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route POST /{username}/collections/{collection}/models collections collectionModelAdd
 			//
 			// Add a model to a collection
@@ -1382,12 +1382,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OK
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Add a model to a collection",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("collection", true, CollectionModelAdd)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionModelAdd)))},
 				},
 			},
 			// swagger:route DELETE /{username}/collections/{collection}/models collection collectionModelRemove
@@ -1407,24 +1407,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OK
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Removes a model from a collection",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("collection", true, CollectionModelRemove)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionModelRemove)))},
 				},
 			},
 		},
 	},
 
 	// Route to list, add and remove worlds from collections.
-	ign.Route{
+	gz.Route{
 		"CollectionWorlds",
 		"Information about Worlds from a collection",
 		"/{username}/collections/{collection}/worlds",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/collections/{collection}/worlds collections collectionWorlds
 			//
 			// Lists the worlds of a collection
@@ -1439,18 +1439,18 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbCollectionAssets
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get the worlds associated to a collection",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONListResult("Worlds", NameOwnerHandler("collection", false, CollectionWorldsList))},
-					ign.FormatHandler{".proto", ign.ProtoResult(NameOwnerHandler("collection", false, CollectionWorldsList))},
-					ign.FormatHandler{"", ign.JSONListResult("Worlds", NameOwnerHandler("collection", false, CollectionWorldsList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONListResult("Worlds", NameOwnerHandler("collection", false, CollectionWorldsList))},
+					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("collection", false, CollectionWorldsList))},
+					gz.FormatHandler{"", gz.JSONListResult("Worlds", NameOwnerHandler("collection", false, CollectionWorldsList))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route POST /{username}/collections/{collection}/worlds collections collectionWorldAdd
 			//
 			// Add a world to a collection
@@ -1468,12 +1468,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OK
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Add a world to a collection",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("collection", true, CollectionWorldAdd)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionWorldAdd)))},
 				},
 			},
 			// swagger:route DELETE /{username}/collections/{collection}/worlds collection collectionWorldRemove
@@ -1493,24 +1493,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OK
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Removes a world from a collection",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.Handler(NoResult(NameOwnerHandler("collection", true, CollectionWorldRemove)))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionWorldRemove)))},
 				},
 			},
 		},
 	},
 
 	// Route that returns the list of collections associated to a model
-	ign.Route{
+	gz.Route{
 		"ModelCollections",
 		"List of collections associated to a model.",
 		"/{username}/models/{model}/collections",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/models/{model}/collections collections modelCollections
 			//
 			// List of collections associated to a model.
@@ -1525,26 +1525,26 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbCollections
-			ign.Method{
+			gz.Method{
 				"GET",
 				"List of collections associated to a model",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameOwnerHandler("model", false, ModelCollections))},
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("model", false, ModelCollections))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("model", false, ModelCollections))},
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", false, ModelCollections))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	// Route that returns the list of collections associated to a world
-	ign.Route{
+	gz.Route{
 		"WorldCollections",
 		"List of collections associated to a world.",
 		"/{username}/worlds/{world}/collections",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/worlds/{world}/collections collections worldCollections
 			//
 			// List of collections associated to a world.
@@ -1559,17 +1559,17 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: dbCollections
-			ign.Method{
+			gz.Method{
 				"GET",
 				"List of collections associated to a world",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameOwnerHandler("world", false, WorldCollections))},
-					ign.FormatHandler{"", ign.JSONResult(NameOwnerHandler("world", false, WorldCollections))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("world", false, WorldCollections))},
+					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldCollections))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	///////////
@@ -1577,13 +1577,13 @@ var routes = ign.Routes{
 	///////////
 
 	// Route that returns login information for a given JWT
-	ign.Route{
+	gz.Route{
 		"Login",
 		"Login a user",
 		"/login",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /login users loginUser
 			//
 			// Login user
@@ -1598,24 +1598,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: UserResponse
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Login a user",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(Login)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(Login)},
 				},
 			},
 		},
 	},
 
 	// Route that returns information about all users
-	ign.Route{
+	gz.Route{
 		"Users",
 		"Route for all users",
 		"/users",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /users users listUsers
 			//
 			// Get a list of users. Access limited to administrators.
@@ -1647,13 +1647,13 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: UserResponses
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all users information",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(PaginationHandler(UserList))},
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandler(UserList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(PaginationHandler(UserList))},
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(UserList))},
 				},
 			},
 			// swagger:route POST /users users createUser
@@ -1673,23 +1673,23 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: UserResponse
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Create a new user",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(UserCreate)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(UserCreate)},
 				},
 			},
 		},
 	},
 
 	// Route that returns information about a user
-	ign.Route{
+	gz.Route{
 		"UserIndex",
 		"Access information about a single user.",
 		"/users/{username}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /users/{username} users singleUser
 			//
 			// Get a user
@@ -1704,18 +1704,18 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: UserResponse
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get user information",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameHandler("username", false, UserIndex))},
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("username", false, UserIndex))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameHandler("username", false, UserIndex))},
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", false, UserIndex))},
 				},
 			},
 		},
 
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route DELETE /users/{username} users deleteUser
 			//
 			// Delete a user
@@ -1727,12 +1727,12 @@ var routes = ign.Routes{
 			//
 			//   Schemes: https
 			//
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Remove a user",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("username", true, UserRemove))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", true, UserRemove))},
 				},
 			},
 
@@ -1750,26 +1750,26 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: UserResponse
-			ign.Method{
+			gz.Method{
 				"PATCH",
 				"Update a user",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("username", true, UserUpdate))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", true, UserUpdate))},
 				},
 			},
 		},
 	},
 
 	// Routes to get and create access tokens.
-	ign.Route{
+	gz.Route{
 		"AccessTokens",
 		"Routes to get and create access tokens.",
 		"/users/{username}/access-tokens",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
+		gz.AuthHeadersRequired,
+		gz.Methods{},
 
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route GET /users/{username}/access-tokens users getAccessToken
 			//
 			// Get the acccess tokens for a user.
@@ -1779,12 +1779,12 @@ var routes = ign.Routes{
 			//
 			//   Schemes: https
 			//
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get a user's access tokens",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandlerWithUser(AccessTokenList, true))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandlerWithUser(AccessTokenList, true))},
 				},
 			},
 
@@ -1799,26 +1799,26 @@ var routes = ign.Routes{
 			//
 			//   Schemes: https
 			//
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Create an access token",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("username", true, AccessTokenCreate))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", true, AccessTokenCreate))},
 				},
 			},
 		},
 	},
 
 	// Routes to revoke access tokens
-	ign.Route{
+	gz.Route{
 		"AccessTokens",
 		"Route to revoke access tokens.",
 		"/users/{username}/access-tokens/revoke",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
+		gz.AuthHeadersRequired,
+		gz.Methods{},
 
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route POST /users/{username}/access-tokens/revoke users revokeAccessToken
 			//
 			// Delete an acccess token that belongs to a user.
@@ -1828,24 +1828,24 @@ var routes = ign.Routes{
 			//
 			//   Schemes: https
 			//
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Delete a user's access token",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("username", true, AccessTokenDelete))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", true, AccessTokenDelete))},
 				},
 			},
 		},
 	},
 
 	// Route that returns the details of a single user or organization
-	ign.Route{
+	gz.Route{
 		"OwnerProfile",
 		"Access the details of a single user OR organization.",
 		"/profile/{username}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /profile/{username} users ownerProfile
 			//
 			// Get the profile of an owner
@@ -1860,17 +1860,17 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OwnerProfile
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get profile information",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameHandler("username", false, OwnerProfile))},
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("username", false, OwnerProfile))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameHandler("username", false, OwnerProfile))},
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", false, OwnerProfile))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	//////////////
@@ -1878,12 +1878,12 @@ var routes = ign.Routes{
 	//////////////
 
 	// Route that returns information about all available licenses
-	ign.Route{
+	gz.Route{
 		"Licenses",
 		"Route for all licenses",
 		"/licenses",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /licenses licenses listLicenses
 			//
 			// List licenses
@@ -1902,17 +1902,17 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: Licenses
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all licenses",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(PaginationHandler(LicenseList))},
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandler(LicenseList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(PaginationHandler(LicenseList))},
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(LicenseList))},
 				},
 			},
 		},
-		ign.SecureMethods{},
+		gz.SecureMethods{},
 	},
 
 	//////////////
@@ -1921,30 +1921,30 @@ var routes = ign.Routes{
 
 	// Categories route with slug
 	// PATCH:
-	ign.Route{
+	gz.Route{
 		Name:        "Categories",
 		Description: "Routes for categories with slug",
 		URI:         "/categories/{slug}",
-		Headers:     ign.AuthHeadersOptional,
-		Methods:     ign.Methods{},
-		SecureMethods: ign.SecureMethods{
-			ign.Method{
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
 				Type:        "PATCH",
 				Description: "Update a category",
-				Handlers: ign.FormatHandlers{
-					ign.FormatHandler{
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{
 						Extension: "",
-						Handler:   ign.JSONResult(CategoryUpdate),
+						Handler:   gz.JSONResult(CategoryUpdate),
 					},
 				},
 			},
-			ign.Method{
+			gz.Method{
 				Type:        "DELETE",
 				Description: "Delete a category",
-				Handlers: ign.FormatHandlers{
-					ign.FormatHandler{
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{
 						Extension: "",
-						Handler:   ign.JSONResult(CategoryDelete),
+						Handler:   gz.JSONResult(CategoryDelete),
 					},
 				},
 			},
@@ -1954,36 +1954,36 @@ var routes = ign.Routes{
 	// Categories route
 	// GET: Get the list of categories
 	// POST: Create a new category
-	ign.Route{
+	gz.Route{
 		Name:        "Categories",
 		Description: "Route for categories",
 		URI:         "/categories",
-		Headers:     ign.AuthHeadersOptional,
-		Methods: ign.Methods{
-			ign.Method{
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
+			gz.Method{
 				Type:        "GET",
 				Description: "Get all categories",
 				// Format handlers
-				Handlers: ign.FormatHandlers{
-					ign.FormatHandler{
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{
 						Extension: ".json",
-						Handler:   ign.JSONResult(CategoryList),
+						Handler:   gz.JSONResult(CategoryList),
 					},
-					ign.FormatHandler{
+					gz.FormatHandler{
 						Extension: "",
-						Handler:   ign.JSONResult(CategoryList),
+						Handler:   gz.JSONResult(CategoryList),
 					},
 				},
 			},
 		},
-		SecureMethods: ign.SecureMethods{
-			ign.Method{
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
 				Type:        "POST",
 				Description: "Create a new category",
-				Handlers: ign.FormatHandlers{
-					ign.FormatHandler{
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{
 						Extension: "",
-						Handler:   ign.JSONResult(CategoryCreate),
+						Handler:   gz.JSONResult(CategoryCreate),
 					},
 				},
 			},
@@ -1995,12 +1995,12 @@ var routes = ign.Routes{
 	///////////////////
 
 	// Route that returns information about all organizations
-	ign.Route{
+	gz.Route{
 		"Organizations",
 		"Route for all organizations",
 		"/organizations",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /organizations organizations listOrganizations
 			//
 			// List organizations
@@ -2019,17 +2019,17 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OrganizationResponses
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all organizations information",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(PaginationHandler(OrganizationList))},
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandler(OrganizationList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(PaginationHandler(OrganizationList))},
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(OrganizationList))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route POST /organizations organizations createOrganization
 			//
 			// Create organization
@@ -2047,23 +2047,23 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OrganizationResponse
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Create a new organization",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(OrganizationCreate)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(OrganizationCreate)},
 				},
 			},
 		},
 	},
 
 	// Route that returns information about an organization
-	ign.Route{
+	gz.Route{
 		"OrganizationIndex",
 		"Access information about a single organization.",
 		"/organizations/{name}",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /organizations/{name} organizations singleOrganization
 			//
 			// Get an organization
@@ -2078,17 +2078,17 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OrganizationResponse
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get organization information",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameHandler("name", false, OrganizationIndex))},
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", false, OrganizationIndex))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameHandler("name", false, OrganizationIndex))},
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", false, OrganizationIndex))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route DELETE /organizations/{name} organizations deleteOrganizations
 			//
 			// Delete an organization
@@ -2103,12 +2103,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OrganizationResponse
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Remove an organization",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, OrganizationRemove))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationRemove))},
 				},
 			},
 			// swagger:route PATCH /organizations/{name} organizations organizationUpdate
@@ -2128,23 +2128,23 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: OrganizationResponse
-			ign.Method{
+			gz.Method{
 				"PATCH",
 				"Edit an organization",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, OrganizationUpdate))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationUpdate))},
 				},
 			},
 		},
 	},
 	// Route that returns information about organization users
-	ign.Route{
+	gz.Route{
 		"OrganizationUsers",
 		"Base route to list of users of an Organization",
 		"/organizations/{name}/users",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /organizations/{name}/users organizations orgUsers
 			//
 			// Get the list of users of an organization
@@ -2159,17 +2159,17 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: UserResponses
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get the list of users of an organization",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(PaginationHandler(OrganizationUserList))},
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandler(OrganizationUserList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(PaginationHandler(OrganizationUserList))},
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(OrganizationUserList))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route POST /organizations/{name}/users organizations addUserToOrganization
 			//
 			// Adds a user to an organization
@@ -2187,23 +2187,23 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: UserResponse
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Adds a user to an Organization",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, OrganizationUserCreate))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationUserCreate))},
 				},
 			},
 		},
 	},
 	// Route that returns information about organization users
-	ign.Route{
+	gz.Route{
 		"OrganizationUserUpdate",
 		"Route to update and delete a member of an organization",
 		"/organizations/{name}/users/{username}",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route DELETE /organizations/{name}/users/{username} organizations orgUserDelete
 			//
 			// Removes a user from an organization
@@ -2218,25 +2218,25 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: UserResponse
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Removes a user from an organization",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, OrganizationUserRemove))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationUserRemove))},
 				},
 			},
 		},
 	},
 
 	// Route that returns information about organization teams
-	ign.Route{
+	gz.Route{
 		"OrganizationTeams",
 		"Base route to list of teams of an Organization",
 		"/organizations/{name}/teams",
-		ign.AuthHeadersRequired,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersRequired,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /organizations/{name}/teams organizations orgTeams
 			//
 			// Get the list of teams of an organization
@@ -2251,13 +2251,13 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: TeamResponses
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get the list of teams of an organization",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(PaginationHandler(OrganizationTeamsList))},
-					ign.FormatHandler{"", ign.JSONResult(PaginationHandler(OrganizationTeamsList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(PaginationHandler(OrganizationTeamsList))},
+					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(OrganizationTeamsList))},
 				},
 			},
 			// swagger:route POST /organizations/{name}/teams organizations addTeamToOrganization
@@ -2277,23 +2277,23 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: TeamResponse
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Adds a team to an Organization",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, OrganizationTeamCreate))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationTeamCreate))},
 				},
 			},
 		},
 	},
 	// Route that returns information about an organization team
-	ign.Route{
+	gz.Route{
 		"OrganizationTeamIndex",
 		"Route to get, update and delete a team of an organization",
 		"/organizations/{name}/teams/{teamname}",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /organizations/{name}/teams/{teamname} organizations singleTeam
 			//
 			// Get a single team of an organization
@@ -2308,13 +2308,13 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: TeamResponse
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get a team from an organization",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(NameHandler("name", true, OrganizationTeamIndex))},
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, OrganizationTeamIndex))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(NameHandler("name", true, OrganizationTeamIndex))},
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationTeamIndex))},
 				},
 			},
 			// swagger:route PATCH /organizations/{name}/teams/{teamname} organizations orgTeamUpdate
@@ -2331,12 +2331,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: TeamResponse
-			ign.Method{
+			gz.Method{
 				"PATCH",
 				"Updates a team",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, OrganizationTeamUpdate))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationTeamUpdate))},
 				},
 			},
 			// swagger:route DELETE /organizations/{name}/teams/{teamname} organizations orgTeamDelete
@@ -2353,24 +2353,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: TeamResponse
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Removes a team",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(NameHandler("name", true, OrganizationTeamRemove))},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationTeamRemove))},
 				},
 			},
 		},
 	},
 	// Route to create an elastic search config
-	ign.Route{
+	gz.Route{
 		"ElasticSearch",
 		"Route to create an ElasticSearch config",
 		"/admin/search",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /admin/search search elasticSearchUpdate
 			//
 			// Get a list of the available ElasticSearch configurations.
@@ -2393,12 +2393,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: ElasticSearchConfigs
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Gets a list of the ElasticSearch configs",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(ListElasticSearchHandler)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(ListElasticSearchHandler)},
 				},
 			},
 
@@ -2444,24 +2444,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: ElasticSearchConfig
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Creates an ElasticSearch config",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(CreateElasticSearchHandler)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(CreateElasticSearchHandler)},
 				},
 			},
 		},
 	},
 	// Route to reconnect to the primary elastic search config
-	ign.Route{
+	gz.Route{
 		"ElasticSearch",
 		"Route to reconnect to the primary elastic search config",
 		"/admin/search/reconnect",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /admin/search/reconnect search elasticSearchUpdate
 			//
 			// Reconnects to the primary ElasticSearch server.
@@ -2481,24 +2481,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: AdminSearchResponse
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Reconnect to the primary ElasticSearch config",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(ReconnectElasticSearchHandler)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(ReconnectElasticSearchHandler)},
 				},
 			},
 		},
 	},
 	// Route to rebuild to the primary elastic search indices
-	ign.Route{
+	gz.Route{
 		"ElasticSearch",
 		"Route to rebuild to the primary elastic search indices",
 		"/admin/search/rebuild",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /admin/search/rebuild search elasticSearchUpdate
 			//
 			// Rebuilds the primary ElasticSearch indices.
@@ -2521,24 +2521,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: AdminSearchResponse
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Rebuild the primary ElasticSearch indices",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(RebuildElasticSearchHandler)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(RebuildElasticSearchHandler)},
 				},
 			},
 		},
 	},
 	// Route to update to the primary elastic search indices
-	ign.Route{
+	gz.Route{
 		"ElasticSearch",
 		"Route to update to the primary elastic search indices",
 		"/admin/search/update",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route GET /admin/search/update search elasticSearchUpdate
 			//
 			// Updates the primary ElasticSearch servers indices.
@@ -2562,24 +2562,24 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: AdminSearchResponse
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Update the primary ElasticSearch indices",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(UpdateElasticSearchHandler)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(UpdateElasticSearchHandler)},
 				},
 			},
 		},
 	},
 	// Route to manage an elastic search config
-	ign.Route{
+	gz.Route{
 		"ElasticSearch",
 		"Route to manage an ElasticSearch config",
 		"/admin/search/{config_id}",
-		ign.AuthHeadersOptional,
-		ign.Methods{},
-		ign.SecureMethods{
+		gz.AuthHeadersOptional,
+		gz.Methods{},
+		gz.SecureMethods{
 			// swagger:route DELETE /admin/search/{config_id} search elasticSearchUpdate
 			//
 			// Deletes an ElasticSearch server configuration.
@@ -2606,12 +2606,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: ElasticSearchConfig
-			ign.Method{
+			gz.Method{
 				"DELETE",
 				"Deletes an ElasticSearch config",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(DeleteElasticSearchHandler)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(DeleteElasticSearchHandler)},
 				},
 			},
 			// swagger:route PATCH /admin/search/{config_id} search elasticSearchUpdate
@@ -2662,12 +2662,12 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: ElasticSearchConfig
-			ign.Method{
+			gz.Method{
 				"PATCH",
 				"Modify an ElasticSearch config",
 				// Format handlers
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(ModifyElasticSearchHandler)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(ModifyElasticSearchHandler)},
 				},
 			},
 		},
@@ -2678,12 +2678,12 @@ var routes = ign.Routes{
 	///////////////////
 
 	// Route for all model reviews
-	ign.Route{
+	gz.Route{
 		"ModelReviews",
 		"Information about all model reviews",
 		"/models/reviews",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /models/reviews reviews listModelReviews
 			//
 			// Get list of reviews for models.
@@ -2706,37 +2706,37 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: jsonReviews
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all reviews for models",
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(SearchHandler(ModelReviewList))},
-					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(ModelReviewList))},
-					ign.FormatHandler{"", ign.JSONResult(SearchHandler(ModelReviewList))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(SearchHandler(ModelReviewList))},
+					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(ModelReviewList))},
+					gz.FormatHandler{"", gz.JSONResult(SearchHandler(ModelReviewList))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route POST /models/reviews reviews createModelReview
 			//
 			// Create a new model and a new review.
 			//
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Post a review and a new model",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(ModelReviewCreate)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(ModelReviewCreate)},
 				},
 			},
 		},
 	},
 
-	ign.Route{
+	gz.Route{
 		"Review",
 		"Information about reviews for a model",
 		"/{username}/models/{model}/reviews",
-		ign.AuthHeadersOptional,
-		ign.Methods{
+		gz.AuthHeadersOptional,
+		gz.Methods{
 			// swagger:route GET /{username}/models/{model}/reviews reviews listUserModelReviews
 			//
 			// Get list of reviews for a model.
@@ -2759,26 +2759,26 @@ var routes = ign.Routes{
 			//   Responses:
 			//     default: fuelError
 			//     200: jsonReviews
-			ign.Method{
+			gz.Method{
 				"GET",
 				"Get all reviews for a selected model",
-				ign.FormatHandlers{
-					ign.FormatHandler{".json", ign.JSONResult(SearchHandler(UserModelReview))},
-					ign.FormatHandler{".proto", ign.ProtoResult(SearchHandler(UserModelReview))},
-					ign.FormatHandler{"", ign.JSONResult(SearchHandler(UserModelReview))},
+				gz.FormatHandlers{
+					gz.FormatHandler{".json", gz.JSONResult(SearchHandler(UserModelReview))},
+					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(UserModelReview))},
+					gz.FormatHandler{"", gz.JSONResult(SearchHandler(UserModelReview))},
 				},
 			},
 		},
-		ign.SecureMethods{
+		gz.SecureMethods{
 			// swagger:route POST /{username}/models/{model}/reviews reviews createUserModelReview
 			//
 			// Create a new review for an existing model.
 			//
-			ign.Method{
+			gz.Method{
 				"POST",
 				"Post a review for a model",
-				ign.FormatHandlers{
-					ign.FormatHandler{"", ign.JSONResult(ReviewCreate)},
+				gz.FormatHandlers{
+					gz.FormatHandler{"", gz.JSONResult(ReviewCreate)},
 				},
 			},
 		},

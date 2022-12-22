@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -13,9 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/generics"
 	"github.com/gazebo-web/fuel-server/bundles/license"
@@ -25,7 +23,9 @@ import (
 	"github.com/gazebo-web/fuel-server/permissions"
 	fuel "github.com/gazebo-web/fuel-server/proto"
 	"github.com/gazebo-web/fuel-server/vcs"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/golang/protobuf/proto"
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 )
 
 // ParseWorldContentsEnvVar holds the name of the boolean env var to check if parsing
@@ -37,11 +37,11 @@ type Service struct{}
 
 // GetWorld returns a world by its name and owner's name.
 func (ws *Service) GetWorld(tx *gorm.DB, owner, name string,
-	user *users.User) (*World, *ign.ErrMsg) {
+	user *users.User) (*World, *gz.ErrMsg) {
 
 	w, err := GetWorldByName(tx, name, owner)
 	if err != nil {
-		em := ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, err, []string{name})
+		em := gz.NewErrorMessageWithArgs(gz.ErrorNameNotFound, err, []string{name})
 		return nil, em
 	}
 
@@ -56,7 +56,7 @@ func (ws *Service) GetWorld(tx *gorm.DB, owner, name string,
 // GetWorldProto returns a world proto struct, given a world name and owner.
 // The user argument is the user requesting the operation.
 func (ws *Service) GetWorldProto(ctx context.Context, tx *gorm.DB, owner,
-	name string, user *users.User) (*fuel.World, *ign.ErrMsg) {
+	name string, user *users.User) (*fuel.World, *gz.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, name, user)
 	if em != nil {
@@ -65,7 +65,7 @@ func (ws *Service) GetWorldProto(ctx context.Context, tx *gorm.DB, owner,
 	// get the world latest version number
 	latestVersion, err := res.GetLatestVersion(ctx, world)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	// Load the metadata
@@ -86,8 +86,8 @@ func (ws *Service) GetWorldProto(ctx context.Context, tx *gorm.DB, owner,
 // WorldList returns a paginated list of worlds.
 // If the likedBy argument is set, it will return the list of worlds liked by an user.
 // TODO: find a way to MERGE this with the one from Worlds service.
-func (ws *Service) WorldList(p *ign.PaginationRequest, tx *gorm.DB, owner *string,
-	order, search string, likedBy *users.User, user *users.User) (*fuel.Worlds, *ign.PaginationResult, *ign.ErrMsg) {
+func (ws *Service) WorldList(p *gz.PaginationRequest, tx *gorm.DB, owner *string,
+	order, search string, likedBy *users.User, user *users.User) (*fuel.Worlds, *gz.PaginationResult, *gz.ErrMsg) {
 
 	var worldList Worlds
 	// Create query
@@ -123,7 +123,7 @@ func (ws *Service) WorldList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 					"(SELECT id FROM worlds WHERE MATCH (name, description) AGAINST (?));"
 				var ids []int
 				if err := tx.Raw(sq, searchStr, searchStr).Pluck("world_id", &ids).Error; err != nil {
-					em := ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
+					em := gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 					return nil, nil, em
 				}
 				// Now that we got the IDs , use them in the main query
@@ -133,13 +133,13 @@ func (ws *Service) WorldList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 	}
 
 	// Use pagination
-	paginationResult, err := ign.PaginateQuery(q, &worldList, *p)
+	paginationResult, err := gz.PaginateQuery(q, &worldList, *p)
 	if err != nil {
-		em := ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		em := gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 		return nil, nil, em
 	}
 	if !paginationResult.PageFound {
-		em := ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		em := gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 		return nil, nil, em
 	}
 
@@ -155,7 +155,7 @@ func (ws *Service) WorldList(p *ign.PaginationRequest, tx *gorm.DB, owner *strin
 
 // RemoveWorld removes a world. The user argument is the requesting user. It
 // is used to check if the user can perform the operation.
-func (ws *Service) RemoveWorld(ctx context.Context, tx *gorm.DB, owner, name string, user *users.User) *ign.ErrMsg {
+func (ws *Service) RemoveWorld(ctx context.Context, tx *gorm.DB, owner, name string, user *users.User) *gz.ErrMsg {
 
 	world, em := ws.GetWorld(tx, owner, name, user)
 	if em != nil {
@@ -260,21 +260,21 @@ func (ws *Service) WorldToProto(world *World) *fuel.World {
 }
 
 // getWorldLike returns a world like.
-func (ws *Service) getWorldLike(tx *gorm.DB, world *World, user *users.User) (*WorldLike, *ign.ErrMsg) {
+func (ws *Service) getWorldLike(tx *gorm.DB, world *World, user *users.User) (*WorldLike, *gz.ErrMsg) {
 	var worldLike WorldLike
 	if err := tx.Where("user_id = ? AND world_id = ?", user.ID, world.ID).First(&worldLike).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorIDNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorIDNotFound, err)
 	}
 	return &worldLike, nil
 }
 
 // CreateWorldLike creates a WorldLike.
-// Returns the created worldLike, the current count of likes, or an ign.errMsg.
+// Returns the created worldLike, the current count of likes, or an gz.errMsg.
 func (ws *Service) CreateWorldLike(tx *gorm.DB, owner, worldName string,
-	user *users.User) (*WorldLike, int, *ign.ErrMsg) {
+	user *users.User) (*WorldLike, int, *gz.ErrMsg) {
 
 	if user == nil {
-		return nil, 0, ign.NewErrorMessage(ign.ErrorAuthNoUser)
+		return nil, 0, gz.NewErrorMessage(gz.ErrorAuthNoUser)
 	}
 
 	world, em := ws.GetWorld(tx, owner, worldName, user)
@@ -285,7 +285,7 @@ func (ws *Service) CreateWorldLike(tx *gorm.DB, owner, worldName string,
 	// Register the like.
 	worldLike := WorldLike{UserID: &user.ID, WorldID: &world.ID}
 	if err := tx.Create(&worldLike).Error; err != nil {
-		return nil, 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of likes of the world.
 	count, errorMsg := ws.updateLikeCounter(tx, world)
@@ -296,12 +296,12 @@ func (ws *Service) CreateWorldLike(tx *gorm.DB, owner, worldName string,
 }
 
 // CreateWorldReport creates a WorldReport
-func (ws *Service) CreateWorldReport(tx *gorm.DB, owner, worldName, reason string) (*WorldReport, *ign.ErrMsg) {
+func (ws *Service) CreateWorldReport(tx *gorm.DB, owner, worldName, reason string) (*WorldReport, *gz.ErrMsg) {
 
 	world, err := GetWorldByName(tx, worldName, owner)
 
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNameNotFound, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNameNotFound, err)
 	}
 
 	worldReport := WorldReport{
@@ -312,19 +312,19 @@ func (ws *Service) CreateWorldReport(tx *gorm.DB, owner, worldName, reason strin
 	}
 
 	if err := tx.Create(&worldReport).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return &worldReport, nil
 }
 
 // RemoveWorldLike removes a worldLike.
-// Returns the removed worldLike, the current count of likes, or an ign.errMsg.
+// Returns the removed worldLike, the current count of likes, or an gz.errMsg.
 func (ws *Service) RemoveWorldLike(tx *gorm.DB, owner, worldName string,
-	user *users.User) (*WorldLike, int, *ign.ErrMsg) {
+	user *users.User) (*WorldLike, int, *gz.ErrMsg) {
 
 	if user == nil {
-		return nil, 0, ign.NewErrorMessage(ign.ErrorAuthNoUser)
+		return nil, 0, gz.NewErrorMessage(gz.ErrorAuthNoUser)
 	}
 
 	world, em := ws.GetWorld(tx, owner, worldName, user)
@@ -335,7 +335,7 @@ func (ws *Service) RemoveWorldLike(tx *gorm.DB, owner, worldName string,
 	// Unlike the world.
 	var worldLike WorldLike
 	if err := tx.Where("user_id = ? AND world_id = ?", &user.ID, &world.ID).Delete(&worldLike).Error; err != nil {
-		return nil, 0, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 	// Update the number of likes of the world.
 	count, errorMsg := ws.updateLikeCounter(tx, world)
@@ -346,33 +346,33 @@ func (ws *Service) RemoveWorldLike(tx *gorm.DB, owner, worldName string,
 }
 
 // updateLikeCounter counts the number of likes and updates the world accordingly.
-func (ws *Service) updateLikeCounter(tx *gorm.DB, world *World) (int, *ign.ErrMsg) {
+func (ws *Service) updateLikeCounter(tx *gorm.DB, world *World) (int, *gz.ErrMsg) {
 	var counter int
 	// Count the number of likes of the world.
 	if err := tx.Model(&WorldLike{}).Where("world_id = ?", world.ID).Count(&counter).Error; err != nil {
 		// Note: This is not currently covered by the tests.
-		return 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of likes of the world.
 	if err := tx.Model(world).Update("likes", counter).Error; err != nil {
 		// Note: This is not currently covered by the tests.
-		return 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	return counter, nil
 }
 
 // updateDownloadsCounter counts the number of downloads and updates the world
 // accordingly.
-func (ws *Service) updateDownloadsCounter(tx *gorm.DB, world *World) (int, *ign.ErrMsg) {
+func (ws *Service) updateDownloadsCounter(tx *gorm.DB, world *World) (int, *gz.ErrMsg) {
 	var count int
 	// Count the number of downloads of the world.
 	if err := tx.Model(&WorldDownload{}).Where("world_id = ?", world.ID).Count(&count).Error; err != nil {
 		// Note: This is not currently covered by the tests.
-		return 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of downloads of the world.
 	if err := tx.Model(world).Update("Downloads", count).Error; err != nil {
-		return 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	return count, nil
 }
@@ -380,10 +380,10 @@ func (ws *Service) updateDownloadsCounter(tx *gorm.DB, world *World) (int, *ign.
 // ComputeAllCounters is an initialization function that iterates
 // all worlds and updates their likes and downloads counter, based on the number
 // of records in corresponding tables world_likes and world_downloads.
-func (ws *Service) ComputeAllCounters(tx *gorm.DB) *ign.ErrMsg {
+func (ws *Service) ComputeAllCounters(tx *gorm.DB) *gz.ErrMsg {
 	var worldList Worlds
 	if err := tx.Model(&World{}).Unscoped().Find(&worldList).Error; err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 	}
 	for _, w := range worldList {
 		if _, em := ws.updateLikeCounter(tx, &w); em != nil {
@@ -399,7 +399,7 @@ func (ws *Service) ComputeAllCounters(tx *gorm.DB) *ign.ErrMsg {
 // GetFile returns the contents (bytes) of a world file. World version is considered.
 // Returns the file's bytes and the resolved version of the world.
 func (ws *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
-	version string, user *users.User) (*[]byte, int, *ign.ErrMsg) {
+	version string, user *users.User) (*[]byte, int, *gz.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, name, user)
 	if em != nil {
@@ -411,7 +411,7 @@ func (ws *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
 
 // FileTree gets the world's FileTree
 func (ws *Service) FileTree(ctx context.Context, tx *gorm.DB, owner, worldName,
-	version string, user *users.User) (*fuel.FileTree, *ign.ErrMsg) {
+	version string, user *users.User) (*fuel.FileTree, *gz.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, worldName, user)
 	if em != nil {
@@ -428,7 +428,7 @@ func (ws *Service) FileTree(ctx context.Context, tx *gorm.DB, owner, worldName,
 // Returns the world, as well as a pointer to the zip's filepath and the
 // resolved version.
 func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldName,
-	version string, u *users.User, agent string) (*World, *string, int, *ign.ErrMsg) {
+	version string, u *users.User, agent string) (*World, *string, int, *gz.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, worldName, u)
 	if em != nil {
@@ -440,7 +440,7 @@ func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldNam
 		worldDl.UserID = &u.ID
 	}
 	if err := tx.Create(&worldDl).Error; err != nil {
-		return nil, nil, 0, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of downloads of the world.
 	_, errorMsg := ws.updateDownloadsCounter(tx, world)
@@ -457,7 +457,7 @@ func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldNam
 // The filesPath argument points to a tmp folder from which to read the new files.
 func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 	worldName string, desc, tagstr, filesPath *string, private *bool,
-	user *users.User, metadata *WorldMetadata) (*World, *ign.ErrMsg) {
+	user *users.User, metadata *WorldMetadata) (*World, *gz.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, worldName, user)
 	if em != nil {
@@ -478,7 +478,7 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 	if tagstr != nil {
 		tags, err := models.StrToTags(tx, *tagstr)
 		if err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 		}
 		tx.Model(&world).Association("Tags").Replace(*tags)
 	}
@@ -503,7 +503,7 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 		// Replace ALL files with the new ones
 		repo := globals.VCSRepoFactory(ctx, *world.Location)
 		if err := repo.ReplaceFiles(ctx, *filesPath, *user.Username); err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 		}
 		// update zip file and filesize
 		if em := ws.updateZip(ctx, repo, world); em != nil {
@@ -533,7 +533,7 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 
 // updateZip creates a new zip file for the given world and also
 // updates its Filesize field in DB.
-func (ws *Service) updateZip(ctx context.Context, repo vcs.VCS, world *World) *ign.ErrMsg {
+func (ws *Service) updateZip(ctx context.Context, repo vcs.VCS, world *World) *gz.ErrMsg {
 	zSize, em := res.ZipResourceTip(ctx, repo, world, worlds)
 	if em != nil {
 		return em
@@ -545,12 +545,12 @@ func (ws *Service) updateZip(ctx context.Context, repo vcs.VCS, world *World) *i
 // CreateWorld creates a new world.
 // creator argument is the active user requesting the operation.
 func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
-	uuidStr, filesPath string, creator *users.User) (*World, *ign.ErrMsg) {
+	uuidStr, filesPath string, creator *users.User) (*World, *gz.ErrMsg) {
 
 	// Sanity check: Ensure license exists
 	license, err := license.ByID(tx, cm.License)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, err, []string{"license"})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, err, []string{"license"})
 	}
 
 	// Set the owner
@@ -566,12 +566,12 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 
 	// Sanity check: name should be unique for a user
 	if _, err := GetWorldByName(tx, cm.Name, owner); err == nil {
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorFormDuplicateWorldName, nil, []string{cm.Name})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorFormDuplicateWorldName, nil, []string{cm.Name})
 	}
 	// Process the optional tags
 	pTags, err := models.StrToTags(tx, cm.Tags)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	private := false
@@ -582,7 +582,7 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 	world, err := NewWorld(&uuidStr, &cm.Name, &cm.Description, nil, &owner,
 		creator.Username, *license, cm.Permission, *pTags, private, cm.Metadata)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
 	repo, em := res.CreateResourceRepo(ctx, &world, filesPath)
@@ -597,17 +597,17 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 
 	// If everything went OK then create the world in DB.
 	if err := tx.Create(&world).Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// add read and write permissions
 	_, err = globals.Permissions.AddPermission(owner, *world.UUID, permissions.Read)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	_, err = globals.Permissions.AddPermission(owner, *world.UUID, permissions.Write)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	// parse the world file and find the model references
@@ -623,21 +623,21 @@ func (ws *Service) CreateWorld(ctx context.Context, tx *gorm.DB, cm CreateWorld,
 // populateModelIncludes is an internal function that given a world and its location,
 // computes and stores included model references.
 func populateModelIncludes(ctx context.Context, tx *gorm.DB, world *World,
-	worldDirPath string) *ign.ErrMsg {
+	worldDirPath string) *gz.ErrMsg {
 
-	enabled, _ := ign.ReadEnvVar(ParseWorldContentsEnvVar)
+	enabled, _ := gz.ReadEnvVar(ParseWorldContentsEnvVar)
 	if flag, err := strconv.ParseBool(enabled); err != nil || !flag {
 		return nil
 	}
 
 	worldVersion, err := res.GetLatestVersion(ctx, world)
 	if err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	worldFilePath, err := getWorldMainFile(worldDirPath)
 	if err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorFormInvalidValue, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 	}
 
 	incs, em := parseModelIncludes(tx, world, worldVersion, *worldFilePath)
@@ -647,7 +647,7 @@ func populateModelIncludes(ctx context.Context, tx *gorm.DB, world *World,
 	for _, mi := range *incs {
 		// Add Model Includes to DB
 		if err := tx.Create(&mi).Error; err != nil {
-			return ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+			return gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 		}
 	}
 	return nil
@@ -687,12 +687,12 @@ type include struct {
 // on disk, finds the referenced external models. These references can be in
 // the old form (model://) or new form (full url).
 func parseModelIncludes(tx *gorm.DB, world *World,
-	version int, worldFilePath string) (*ModelIncludes, *ign.ErrMsg) {
+	version int, worldFilePath string) (*ModelIncludes, *gz.ErrMsg) {
 
 	// TODO: a world file can have multiple <world> elements. We assume only 1 for now
 	xmlFile, err := os.Open(worldFilePath)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorFormInvalidValue, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 	}
 	defer xmlFile.Close()
 	b, _ := ioutil.ReadAll(xmlFile)
@@ -724,7 +724,7 @@ func parseModelIncludes(tx *gorm.DB, world *World,
 		} else {
 			// no match . Fail
 			err := errors.New("Model Include does not have valid format: " + inc.URI)
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorFormInvalidValue, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 		}
 		mi := ModelInclude{WorldID: world.ID, WorldVersion: &version,
 			ModelOwner: mOwner, ModelName: &modelName, ModelVersion: &mVer,
@@ -739,7 +739,7 @@ func parseModelIncludes(tx *gorm.DB, world *World,
 // CloneWorld clones a world.
 // creator argument is the active user requesting the operation.
 func (ws *Service) CloneWorld(ctx context.Context, tx *gorm.DB, swOwner,
-	swName string, cw CloneWorld, creator *users.User) (*World, *ign.ErrMsg) {
+	swName string, cw CloneWorld, creator *users.User) (*World, *gz.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, swOwner, swName, creator)
 	if em != nil {
@@ -766,7 +766,7 @@ func (ws *Service) CloneWorld(ctx context.Context, tx *gorm.DB, swOwner,
 		authorized, _ := globals.Permissions.IsAuthorized(
 			*creator.Username, *world.UUID, permissions.Read)
 		if !authorized {
-			return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+			return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 		}
 	}
 
@@ -779,7 +779,7 @@ func (ws *Service) CloneWorld(ctx context.Context, tx *gorm.DB, swOwner,
 	}
 	worldName, err := ws.createUniqueName(tx, aName, owner)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
 	clonePrivate := false
@@ -795,7 +795,7 @@ func (ws *Service) CloneWorld(ctx context.Context, tx *gorm.DB, swOwner,
 		nil, &owner, creator.Username, world.License, world.Permission, world.Tags,
 		clonePrivate, &world.Metadata)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
 	repo, em := res.CloneResourceRepo(ctx, world, &clone)
@@ -812,17 +812,17 @@ func (ws *Service) CloneWorld(ctx context.Context, tx *gorm.DB, swOwner,
 	// If everything went OK then create the new world in DB.
 	if err := tx.Create(&clone).Error; err != nil {
 		os.Remove(*clone.Location)
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	// add read and write permissions
 	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Read)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	_, err = globals.Permissions.AddPermission(owner, *clone.UUID, permissions.Write)
 	if err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	// parse the world file, find the model references and recreate them in DB
 	if em := populateModelIncludes(ctx, tx, &clone, *clone.GetLocation()); em != nil {
@@ -852,9 +852,9 @@ func (ws *Service) createUniqueName(tx *gorm.DB, name, owner string) (string, er
 // GetModelReferences returns the list of external "model includes" of a world.
 // Argument @version is the world version. Can be "tip" too.
 // Argument @user is the requesting user.
-func (ws *Service) GetModelReferences(ctx context.Context, p *ign.PaginationRequest,
+func (ws *Service) GetModelReferences(ctx context.Context, p *gz.PaginationRequest,
 	tx *gorm.DB, owner, name, version string,
-	user *users.User) (*ModelIncludes, *ign.PaginationResult, *ign.ErrMsg) {
+	user *users.User) (*ModelIncludes, *gz.PaginationResult, *gz.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, name, user)
 	if em != nil {
@@ -869,13 +869,13 @@ func (ws *Service) GetModelReferences(ctx context.Context, p *ign.PaginationRequ
 
 	var includes ModelIncludes
 	// Use pagination
-	paginationResult, err := ign.PaginateQuery(q, &includes, *p)
+	paginationResult, err := gz.PaginateQuery(q, &includes, *p)
 	if err != nil {
-		em := ign.NewErrorMessageWithBase(ign.ErrorInvalidPaginationRequest, err)
+		em := gz.NewErrorMessageWithBase(gz.ErrorInvalidPaginationRequest, err)
 		return nil, nil, em
 	}
 	if !paginationResult.PageFound {
-		em := ign.NewErrorMessage(ign.ErrorPaginationPageNotFound)
+		em := gz.NewErrorMessage(gz.ErrorPaginationPageNotFound)
 		return nil, nil, em
 	}
 	return &includes, paginationResult, nil

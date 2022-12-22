@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/proto"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
 	"os"
 )
 
@@ -137,5 +137,5 @@ type createModelParam struct {
 // swagger:response fuelError
 type fuelError struct {
 	// In: body
-	ErrMsg ign.ErrMsg
+	ErrMsg gz.ErrMsg
 }

@@ -1,8 +1,8 @@
 package users
 
 import (
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // Team is a group of users within an Organization
@@ -68,7 +68,7 @@ func QueryForTeams(q *gorm.DB) *gorm.DB {
 }
 
 // ByTeamName finds a team by name.
-func ByTeamName(tx *gorm.DB, name string, deleted bool) (*Team, *ign.ErrMsg) {
+func ByTeamName(tx *gorm.DB, name string, deleted bool) (*Team, *gz.ErrMsg) {
 	q := tx
 	if deleted {
 		// Allow to search in already deleted teams
@@ -76,10 +76,10 @@ func ByTeamName(tx *gorm.DB, name string, deleted bool) (*Team, *ign.ErrMsg) {
 	}
 	var team Team
 	if QueryForTeams(q).Where("name = ?", name).First(&team); q.Error != nil && !q.RecordNotFound() {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, q.Error)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, q.Error)
 	}
 	if team.Name == nil {
-		return nil, ign.NewErrorMessage(ign.ErrorNonExistentResource)
+		return nil, gz.NewErrorMessage(gz.ErrorNonExistentResource)
 	}
 	return &team, nil
 }

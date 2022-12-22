@@ -1,8 +1,8 @@
 package users
 
 import (
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
-	"gitlab.com/ignitionrobotics/web/ign-go"
 )
 
 // Organization consists of a group of users/teams
@@ -71,7 +71,7 @@ type AddUserToOrgInput struct {
 }
 
 // ByOrganizationName queries an organization by name.
-func ByOrganizationName(tx *gorm.DB, name string, deleted bool) (*Organization, *ign.ErrMsg) {
+func ByOrganizationName(tx *gorm.DB, name string, deleted bool) (*Organization, *gz.ErrMsg) {
 	q := tx
 	if deleted {
 		// Allow to search in already deleted organizations
@@ -79,10 +79,10 @@ func ByOrganizationName(tx *gorm.DB, name string, deleted bool) (*Organization, 
 	}
 	var organization Organization
 	if q.Where("name = ?", name).First(&organization); q.Error != nil && !q.RecordNotFound() {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, q.Error)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, q.Error)
 	}
 	if organization.Name == nil {
-		return nil, ign.NewErrorMessage(ign.ErrorNonExistentResource)
+		return nil, gz.NewErrorMessage(gz.ErrorNonExistentResource)
 	}
 	return &organization, nil
 }

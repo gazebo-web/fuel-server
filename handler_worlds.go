@@ -3,19 +3,19 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
 	"github.com/gazebo-web/fuel-server/bundles/generics"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 )
 
 // parseMetadata will check if metadata exists in a request, and return a
@@ -47,14 +47,16 @@ func parseWorldMetadata(r *http.Request) *worlds.WorldMetadata {
 // will be of type "fuel.Worlds".
 // It follows the func signature defined by type "searchHandler".
 // You can request this method with the following curl request:
-//     curl -k -X GET --url https://localhost:4430/1.0/worlds
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/worlds
+//
 // or  curl -k -X GET --url https://localhost:4430/1.0/worlds.proto
 // or  curl -k -X GET --url https://localhost:4430/1.0/worlds.json
 // or  curl -k -X GET --url https://localhost:4430/1.0/{username}/worlds with all the
 // above format variants.
-func WorldList(p *ign.PaginationRequest, owner *string, order, search string,
+func WorldList(p *gz.PaginationRequest, owner *string, order, search string,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	ws := &worlds.Service{}
 	return ws.WorldList(p, tx, owner, order, search, nil, user)
@@ -64,10 +66,11 @@ func WorldList(p *ign.PaginationRequest, owner *string, order, search string,
 // will be of type "fuel.Worlds".
 // It follows the func signature defined by type "searchHandler".
 // You can request this method with the following curl request:
-//     curl -k -X GET --url https://localhost:4430/1.0/{username}/likes/worlds
-func WorldLikeList(p *ign.PaginationRequest, owner *string, order, search string,
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/{username}/likes/worlds
+func WorldLikeList(p *gz.PaginationRequest, owner *string, order, search string,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.PaginationResult, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
 	likedBy, em := users.ByUsername(tx, *owner, true)
 	if em != nil {
@@ -80,15 +83,16 @@ func WorldLikeList(p *ign.PaginationRequest, owner *string, order, search string
 // WorldFileTree returns the file tree of a single world. The returned value
 // will be of type "fuel.WorldFileTree".
 // You can request this method with the following curl request:
-//   curl -k -X GET --url https://localhost:4430/1.0/{username}/worlds/{world_name}/{version}/files
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/{username}/worlds/{world_name}/{version}/files
 func WorldFileTree(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the version
 	version, valid := mux.Vars(r)["version"]
 	// If the version does not exist
 	if !valid {
-		return nil, ign.NewErrorMessage(ign.ErrorWorldNotInRequest)
+		return nil, gz.NewErrorMessage(gz.ErrorWorldNotInRequest)
 	}
 
 	worldProto, em := (&worlds.Service{}).FileTree(r.Context(), tx, owner, name, version, user)
@@ -104,9 +108,10 @@ func WorldFileTree(owner, name string, user *users.User, tx *gorm.DB,
 // WorldIndex returns a single world. The returned value will be of
 // type "fuel.World".
 // You can request this method with the following curl request:
-//  curl -k -H "Content-Type: application/json" -X GET https://localhost:4430/1.0/{username}/worlds/{world_name}
+//
+//	curl -k -H "Content-Type: application/json" -X GET https://localhost:4430/1.0/{username}/worlds/{world_name}
 func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	ws := (&worlds.Service{})
 	fuelWorld, em := ws.GetWorldProto(r.Context(), tx, owner, name, user)
@@ -121,9 +126,10 @@ func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
 
 // WorldRemove removes a world based on owner and name
 // You can request this method with the following curl request:
-//   curl -k -X DELETE --url https://localhost:4430/1.0/{username}/worlds/{world_name}
+//
+//	curl -k -X DELETE --url https://localhost:4430/1.0/{username}/worlds/{world_name}
 func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the world
 	world, em := (&worlds.Service{}).GetWorld(tx, owner, name, user)
@@ -138,7 +144,7 @@ func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 
 	// Remove the world from collections
 	if err := (&collections.Service{}).RemoveAssetFromAllCollections(tx, world.ID); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	// commit the DB transaction
@@ -146,7 +152,7 @@ func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -156,10 +162,11 @@ func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 
 // WorldLikeCreate likes a world from an owner
 // You can request this method with the following cURL request:
-//    curl -k -X POST https://localhost:4430/1.0/{username}/worlds/{world_name}/likes
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X POST https://localhost:4430/1.0/{username}/worlds/{world_name}/likes
+//	  --header 'authorization: Bearer <your-jwt-token-here>'
 func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	_, count, em := (&worlds.Service{}).CreateWorldLike(tx, owner, worldName, user)
 	if em != nil {
@@ -171,7 +178,7 @@ func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	fmt.Fprint(w, count)
@@ -180,10 +187,11 @@ func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
 
 // WorldLikeRemove removes a like from a world.
 // You can request this method with the following cURL request:
-//    curl -k -X DELETE https://localhost:4430/1.0/{username}/worlds/{world_name}/likes
-//      --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X DELETE https://localhost:4430/1.0/{username}/worlds/{world_name}/likes
+//	  --header 'authorization: Bearer <your-jwt-token-here>'
 func WorldLikeRemove(owner, worldName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	_, count, em := (&worlds.Service{}).RemoveWorldLike(tx, owner, worldName, user)
 	if em != nil {
@@ -195,7 +203,7 @@ func WorldLikeRemove(owner, worldName string, user *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -206,10 +214,12 @@ func WorldLikeRemove(owner, worldName string, user *users.User, tx *gorm.DB,
 // WorldIndividualFileDownload downloads an individual world file
 // based on owner, world name, and version.
 // You can request this method with the following curl request:
-//   curl -k -X GET --url https://localhost:4430/1.0/{username}/worlds/{world_name}/{version}/files/{file-path}
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/{username}/worlds/{world_name}/{version}/files/{file-path}
+//
 // eg. curl -k -X GET --url https://localhost:4430/1.0/{username}/worlds/{world_name}/tip/files/model.config
 func WorldIndividualFileDownload(owner, worldName string, user *users.User,
-	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	s := &worlds.Service{}
 	return IndividualFileDownload(s, owner, worldName, user, tx, w, r)
@@ -217,9 +227,10 @@ func WorldIndividualFileDownload(owner, worldName string, user *users.User,
 
 // WorldZip returns a single world as a zip file
 // You can request this method with the following curl request:
-//   curl -k -X GET --url https://localhost:4430/1.0/{username}/worlds/{world-name}/{version}/{world-name}.zip
+//
+//	curl -k -X GET --url https://localhost:4430/1.0/{username}/worlds/{world-name}/{version}/{world-name}.zip
 func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the world version
 	version, valid := mux.Vars(r)["version"]
@@ -248,7 +259,7 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorZipNotAvailable, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
 	// Serve the zip file contents
@@ -259,13 +270,14 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 
 // ReportWorldCreate reports a model.
 // You can request this method with the following curl request:
-//   curl -k -X POST --url https://localhost:4430/1.0/{username}/worlds/{model-name}/report
+//
+//	curl -k -X POST --url https://localhost:4430/1.0/{username}/worlds/{model-name}/report
 func ReportWorldCreate(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Parse form's values
 	if err := r.ParseMultipartForm(0); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 
 	// Delete temporary files from r.ParseMultipartForm(0)
@@ -282,7 +294,7 @@ func ReportWorldCreate(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	if _, em := generics.SendReportEmail(name, owner, "worlds", createWorldReport.Reason, r); em != nil {
@@ -297,11 +309,11 @@ func ReportWorldCreate(owner, name string, user *users.User, tx *gorm.DB,
 
 // createWorldFn is a callback func that "creation handlers" will pass to doCreateWorld.
 // It is expected that createFn will have the real logic for the world creation.
-type createWorldFn func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*worlds.World, *ign.ErrMsg)
+type createWorldFn func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*worlds.World, *gz.ErrMsg)
 
 // doCreateWorld provides the pre and post steps needed to create or clone a world.
 // Handlers should invoke this function and pass a createWorldFn callback.
-func doCreateWorld(tx *gorm.DB, cb createWorldFn, w http.ResponseWriter, r *http.Request) (*worlds.World, *ign.ErrMsg) {
+func doCreateWorld(tx *gorm.DB, cb createWorldFn, w http.ResponseWriter, r *http.Request) (*worlds.World, *gz.ErrMsg) {
 	// Extract the owner of the new world from the request.
 	jwtUser, ok, errMsg := getUserFromJWT(tx, r)
 	if !ok {
@@ -320,7 +332,7 @@ func doCreateWorld(tx *gorm.DB, cb createWorldFn, w http.ResponseWriter, r *http
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
 		os.Remove(*world.Location)
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorNoDatabase, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 	}
 
 	infoStr := "A new world has been created:" +
@@ -335,19 +347,20 @@ func doCreateWorld(tx *gorm.DB, cb createWorldFn, w http.ResponseWriter, r *http
 		infoStr += *t.Name
 	}
 
-	ign.LoggerFromRequest(r).Info(infoStr)
+	gz.LoggerFromRequest(r).Info(infoStr)
 	// TODO: we should NOT be returning the DB world (including ID) to users.
 	return world, nil
 }
 
 // WorldCreate creates a new world based on input form. It return a world.World or an error.
 // You can request this method with the following cURL request:
-//    curl -k -X POST -F name=my_world -F license=1
-//      -F file=@<full-path-to-file>
-//      https://localhost:4430/1.0/worlds --header 'authorization: Bearer <your-jwt-token-here>'
-func WorldCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+//
+//	curl -k -X POST -F name=my_world -F license=1
+//	  -F file=@<full-path-to-file>
+//	  https://localhost:4430/1.0/worlds --header 'authorization: Bearer <your-jwt-token-here>'
+func WorldCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 	if err := r.ParseMultipartForm(0); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
 	defer r.MultipartForm.RemoveAll()
@@ -357,7 +370,7 @@ func WorldCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 		return nil, em
 	}
 
-	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*worlds.World, *ign.ErrMsg) {
+	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*worlds.World, *gz.ErrMsg) {
 		owner := cw.Owner
 		if owner != "" {
 			// Ensure the passed in name exists before moving forward
@@ -372,7 +385,7 @@ func WorldCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 		// Get a new UUID and world folder
 		uuidStr, worldPath, err := users.NewUUID(owner, "worlds")
 		if err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 		}
 
 		// move files from multipart form into new world's folder
@@ -398,13 +411,14 @@ func WorldCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 // WorldClone clones a world. Cloning a world means internally creating a new repository
 // (git clone) under the current username.
 // You can request this method with the following curl request:
-//   curl -k -X POST --url https://localhost:4430/1.0/{other-username}/worlds/{world-name}/clone
-//    --header 'authorization: Bearer <your-jwt-token-here>'
+//
+//	curl -k -X POST --url https://localhost:4430/1.0/{other-username}/worlds/{world-name}/clone
+//	 --header 'authorization: Bearer <your-jwt-token-here>'
 func WorldClone(owner, name string, ignored *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
 	defer r.MultipartForm.RemoveAll()
@@ -414,7 +428,7 @@ func WorldClone(owner, name string, ignored *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*worlds.World, *ign.ErrMsg) {
+	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*worlds.World, *gz.ErrMsg) {
 		// Ask the Models Service to clone the model
 		ws := &worlds.Service{}
 		clone, em := ws.CloneWorld(r.Context(), tx, owner, name, cw, jwtUser)
@@ -429,11 +443,12 @@ func WorldClone(owner, name string, ignored *users.User, tx *gorm.DB,
 
 // WorldUpdate modifies an existing world.
 // You can request this method with the following cURL request:
-//    curl -k -X PATCH -d '{"description":"New Description", "tags":"tag1,tag2"}'
-//      https://localhost:4430/1.0/{username}/worlds/{world-name} -H "Content-Type: application/json"
-//      -H 'Authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
+//
+//	curl -k -X PATCH -d '{"description":"New Description", "tags":"tag1,tag2"}'
+//	  https://localhost:4430/1.0/{username}/worlds/{world-name} -H "Content-Type: application/json"
+//	  -H 'Authorization: Bearer <A_VALID_AUTH0_JWT_TOKEN>'
 func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	r.ParseMultipartForm(0)
 	// Delete temporary files from r.ParseMultipartForm(0)
@@ -444,7 +459,7 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 		return nil, errMsg
 	}
 	if uw.IsEmpty() && r.MultipartForm == nil {
-		return nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue)
+		return nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue)
 	}
 
 	// If the user has also sent files, then update the world's version
@@ -455,7 +470,7 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 		tmpDir, err := ioutil.TempDir("", worldName)
 		defer os.Remove(tmpDir)
 		if err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 		}
 		if _, errMsg := populateTmpDir(r, true, tmpDir); errMsg != nil {
 			return nil, errMsg
@@ -481,7 +496,7 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 	for _, t := range world.Tags {
 		infoStr += *t.Name
 	}
-	ign.LoggerFromRequest(r).Info(infoStr)
+	gz.LoggerFromRequest(r).Info(infoStr)
 
 	// Encode world into a protobuf message
 	fuelWorld := (&worlds.Service{}).WorldToProto(world)
@@ -491,9 +506,10 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 // WorldModelReferences returns the list of external models referenced by a world.
 // The returned value will be of type "worlds.ModelIncludes"
 // You can request this method with the following curl request:
-//   curl -k --url https://localhost:4430/1.0/{username}/worlds/{world_name}/{version}/{world_name}/modelrefs
+//
+//	curl -k --url https://localhost:4430/1.0/{username}/worlds/{world_name}/{version}/{world_name}/modelrefs
 func WorldModelReferences(owner, name string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the world version
 	version, valid := mux.Vars(r)["version"]
@@ -503,7 +519,7 @@ func WorldModelReferences(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	// Prepare pagination
-	pr, em := ign.NewPaginationRequest(r)
+	pr, em := gz.NewPaginationRequest(r)
 	if em != nil {
 		return nil, em
 	}
@@ -515,20 +531,20 @@ func WorldModelReferences(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	ign.WritePaginationHeaders(*pagination, w, r)
+	gz.WritePaginationHeaders(*pagination, w, r)
 	return refs, nil
 }
 
 // WorldTransfer transfer ownership of a world to an organization. The source
 // owner must have write permissions on the destination organization
 //
-//    curl -k -X POST -H "Content-Type: application/json" http://localhost:8000/1.0/{username}/worlds/{worldname}/transfer --header "Private-Token: {private-token}" -d '{"destOwner":"{destination_owner_name"}'
+//	curl -k -X POST -H "Content-Type: application/json" http://localhost:8000/1.0/{username}/worlds/{worldname}/transfer --header "Private-Token: {private-token}" -d '{"destOwner":"{destination_owner_name"}'
 //
 // \todo Support transfer of worlds to owners other users and organizations.
 // This will require some kind of email notifcation to the destination and
 // acceptance form.
 func WorldTransfer(sourceOwner, worldName string, user *users.User, tx *gorm.DB,
-	w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Read the request and check permissions.
 	transferAsset, em := processTransferRequest(sourceOwner, tx, r)
@@ -541,7 +557,7 @@ func WorldTransfer(sourceOwner, worldName string, user *users.User, tx *gorm.DB,
 	world, em := ws.GetWorld(tx, sourceOwner, worldName, user)
 	if em != nil {
 		extra := fmt.Sprintf("World [%s] not found", worldName)
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, em.BaseError, []string{extra})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorNameNotFound, em.BaseError, []string{extra})
 	}
 
 	if em := transferMoveResource(tx, world, sourceOwner, transferAsset.DestOwner); em != nil {

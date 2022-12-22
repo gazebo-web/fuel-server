@@ -1,21 +1,22 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/gosimple/slug"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	dtos "github.com/gazebo-web/fuel-server/bundles/category/dtos"
 	"github.com/gazebo-web/fuel-server/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gorilla/mux"
+	"github.com/gosimple/slug"
+	"github.com/jinzhu/gorm"
 	"net/http"
 )
 
 // CategoryList returns a list with all available categories.
 // You can request this method with the following curl command:
-//  curl -k -X GET http://localhost:8000/1.0/categories
+//
+//	curl -k -X GET http://localhost:8000/1.0/categories
 func CategoryList(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 	s := &category.Service{}
 	return s.List(tx)
 }
@@ -23,11 +24,12 @@ func CategoryList(tx *gorm.DB, w http.ResponseWriter,
 // CategoryCreate creates a new category. Only system admins can create
 // a new category.
 // You can request this method with the following curl command:
-//  curl -k -H "Content-Type: application/json" -X POST -d '{"name":"CATEGORY"}'
-//    http://localhost:8000/1.0/categories
-//    --header 'private-token: <A_VALID_ACCESS_TOKEN>'
+//
+//	curl -k -H "Content-Type: application/json" -X POST -d '{"name":"CATEGORY"}'
+//	  http://localhost:8000/1.0/categories
+//	  --header 'private-token: <A_VALID_ACCESS_TOKEN>'
 func CategoryCreate(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Parse the request.
 	var createCategory dtos.CreateCategory
@@ -42,7 +44,7 @@ func CategoryCreate(tx *gorm.DB, w http.ResponseWriter,
 	}
 
 	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	// Create the new category.
@@ -53,7 +55,7 @@ func CategoryCreate(tx *gorm.DB, w http.ResponseWriter,
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return response, nil
@@ -62,15 +64,16 @@ func CategoryCreate(tx *gorm.DB, w http.ResponseWriter,
 // CategoryDelete deletes an existing category. Only system admins can delete
 // a category.
 // You can request this method with the following curl command:
-//  curl -k -H "Content-Type: application/json" -X DELETE
-//    https://localhost:4430/1.0/categories/{slug}
-//    --header 'private-token: <A_VALID_ACCESS_TOKEN>'
+//
+//	curl -k -H "Content-Type: application/json" -X DELETE
+//	  https://localhost:4430/1.0/categories/{slug}
+//	  --header 'private-token: <A_VALID_ACCESS_TOKEN>'
 func CategoryDelete(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	categorySlug, ok := mux.Vars(r)["slug"]
 	if !ok && !slug.IsSlug(categorySlug) {
-		return nil, ign.NewErrorMessage(ign.ErrorIDNotInRequest)
+		return nil, gz.NewErrorMessage(gz.ErrorIDNotInRequest)
 	}
 
 	// Sanity check: Find the user and fail if the user is not a system admin.
@@ -79,7 +82,7 @@ func CategoryDelete(tx *gorm.DB, w http.ResponseWriter,
 		return nil, &errMsg
 	}
 	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	// Delete the category
@@ -90,7 +93,7 @@ func CategoryDelete(tx *gorm.DB, w http.ResponseWriter,
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return response, nil
@@ -99,15 +102,16 @@ func CategoryDelete(tx *gorm.DB, w http.ResponseWriter,
 // CategoryUpdate updates an existing category. Only system admins can update
 // a category.
 // You can request this method with the following curl command:
-//  curl -k -H "Content-Type: application/json" -X PATCH -d '{"name":"NEW_CATEGORY_NAME", "parent_id":"NEW_CATEGORY_PARENT_ID"}'
-//    http://localhost:8000/1.0/categories/{slug}
-//    --header 'private-token: <A_VALID_ACCESS_TOKEN>'
+//
+//	curl -k -H "Content-Type: application/json" -X PATCH -d '{"name":"NEW_CATEGORY_NAME", "parent_id":"NEW_CATEGORY_PARENT_ID"}'
+//	  http://localhost:8000/1.0/categories/{slug}
+//	  --header 'private-token: <A_VALID_ACCESS_TOKEN>'
 func CategoryUpdate(tx *gorm.DB, w http.ResponseWriter,
-	r *http.Request) (interface{}, *ign.ErrMsg) {
+	r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	categorySlug, ok := mux.Vars(r)["slug"]
 	if !ok && !slug.IsSlug(categorySlug) {
-		return nil, ign.NewErrorMessage(ign.ErrorIDNotInRequest)
+		return nil, gz.NewErrorMessage(gz.ErrorIDNotInRequest)
 	}
 	var cat dtos.UpdateCategory
 	if em := ParseStruct(&cat, r, false); em != nil {
@@ -121,7 +125,7 @@ func CategoryUpdate(tx *gorm.DB, w http.ResponseWriter,
 	}
 
 	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, ign.NewErrorMessage(ign.ErrorUnauthorized)
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	// Update the category.
@@ -132,7 +136,7 @@ func CategoryUpdate(tx *gorm.DB, w http.ResponseWriter,
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
 	return response, nil

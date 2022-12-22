@@ -3,20 +3,20 @@ package commonres
 import (
 	"context"
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/proto"
 	"github.com/gazebo-web/fuel-server/vcs"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/golang/protobuf/proto"
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 )
 
 // This package contains common functions for file based resources. Eg: model,
@@ -35,7 +35,7 @@ type Resource interface {
 
 // GetFile returns the contents (bytes) of a resource file. Given version is considered.
 // Returns the file's bytes and the resolved version of the resource.
-func GetFile(ctx context.Context, res Resource, path, version string) (*[]byte, int, *ign.ErrMsg) {
+func GetFile(ctx context.Context, res Resource, path, version string) (*[]byte, int, *gz.ErrMsg) {
 	rev, resolvedVersion, em := GetRevisionFromVersion(ctx, res, version)
 	if em != nil {
 		return nil, 0, em
@@ -43,7 +43,7 @@ func GetFile(ctx context.Context, res Resource, path, version string) (*[]byte, 
 	repo := globals.VCSRepoFactory(ctx, *res.GetLocation())
 	bs, err := repo.GetFile(ctx, rev, path)
 	if err != nil {
-		return nil, 0, ign.NewErrorMessageWithBase(ign.ErrorFileNotFound, err)
+		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorFileNotFound, err)
 	}
 	return bs, resolvedVersion, nil
 }
@@ -53,12 +53,12 @@ func GetFile(ctx context.Context, res Resource, path, version string) (*[]byte, 
 // repo was created or cloned.
 // Returns the found revision, the resolved version or an error.
 func GetRevisionFromVersion(ctx context.Context, res Resource,
-	version string) (string, int, *ign.ErrMsg) {
+	version string) (string, int, *gz.ErrMsg) {
 
 	// get latest version number
 	latestVersion, err := GetLatestVersion(ctx, res)
 	if err != nil {
-		return "", 0, ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return "", 0, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	var resRev string
@@ -70,11 +70,11 @@ func GetRevisionFromVersion(ctx context.Context, res Resource,
 		// parse the version given in route
 		resVersionParsed, parseErr := strconv.Atoi(version)
 		if parseErr != nil {
-			return "", 0, ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, parseErr, []string{"version"})
+			return "", 0, gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, parseErr, []string{"version"})
 		}
 
 		if resVersionParsed <= 0 {
-			return "", 0, ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue,
+			return "", 0, gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue,
 				errors.New("Invalid version: "+version), []string{"version"})
 		}
 
@@ -82,7 +82,7 @@ func GetRevisionFromVersion(ctx context.Context, res Resource,
 		revNumberFromHEAD := latestVersion - resVersionParsed
 		resRev = "HEAD~" + strconv.Itoa(revNumberFromHEAD)
 		if revNumberFromHEAD < 0 {
-			return "", 0, ign.NewErrorMessageWithBase(ign.ErrorVersionNotFound,
+			return "", 0, gz.NewErrorMessageWithBase(gz.ErrorVersionNotFound,
 				errors.New("Unkown revision: "+resRev))
 		}
 		resolvedVersion = resVersionParsed
@@ -131,7 +131,7 @@ func GetThumbnails(res Resource) (tbns []string, err error) {
 }
 
 // FileTree gets a the file tree of a versioned resource.
-func FileTree(ctx context.Context, res Resource, version string) (*fuel.FileTree, *ign.ErrMsg) {
+func FileTree(ctx context.Context, res Resource, version string) (*fuel.FileTree, *gz.ErrMsg) {
 
 	rev, resolvedVersion, errMsg := GetRevisionFromVersion(ctx, res, version)
 	if errMsg != nil {
@@ -147,7 +147,7 @@ func FileTree(ctx context.Context, res Resource, version string) (*fuel.FileTree
 	// Get the file tree
 	dirPath := filepath.Clean(*res.GetLocation())
 	if _, err := os.Stat(dirPath); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorFileTree, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorFileTree, err)
 	}
 
 	// Use a map to be independent from the order followed by Walk
@@ -177,7 +177,7 @@ func FileTree(ctx context.Context, res Resource, version string) (*fuel.FileTree
 		return nil
 	}
 	if err := repo.Walk(ctx, rev, true, walkFn); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorFileTree, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorFileTree, err)
 	}
 
 	// All OK
@@ -186,23 +186,23 @@ func FileTree(ctx context.Context, res Resource, version string) (*fuel.FileTree
 
 // Remove removes a resource. The user argument is the requesting user. It
 // is used to check if the user can perform the operation.
-func Remove(tx *gorm.DB, res Resource, user string) *ign.ErrMsg {
+func Remove(tx *gorm.DB, res Resource, user string) *gz.ErrMsg {
 
 	// Sanity check: Make sure the file exists.
 	if res.GetLocation() != nil {
 		dirPath := filepath.Dir(*res.GetLocation())
 		if _, err := os.Stat(dirPath); err != nil {
-			return ign.NewErrorMessageWithBase(ign.ErrorNonExistentResource, err)
+			return gz.NewErrorMessageWithBase(gz.ErrorNonExistentResource, err)
 		}
 	} else if globals.ResourceDir != "" {
-		return ign.NewErrorMessage(ign.ErrorNonExistentResource)
+		return gz.NewErrorMessage(gz.ErrorNonExistentResource)
 	}
 
 	// NOTE: we are not removing the files.
 
 	// Remove the resource from the database (soft-delete).
 	if err := tx.Delete(res).Error; err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorDbDelete, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
 	return nil
@@ -211,7 +211,7 @@ func Remove(tx *gorm.DB, res Resource, user string) *ign.ErrMsg {
 // ZipResourceTip creates a new zip file for the given resource. Returns the zip
 // Filesize or an error.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
-func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, *ign.ErrMsg) {
+func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, *gz.ErrMsg) {
 	zipPath := getOrCreateZipLocation(res, subfolder, "")
 
 	// If the zippath doesn't exist, then this is the first version. Recompute
@@ -223,13 +223,13 @@ func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder s
 	// Zip the model and compute its size
 	_, err := repo.Zip(ctx, "", zipPath)
 	if err != nil {
-		ign.LoggerFromContext(ctx).Info("Error trying to zip resource", err)
-		return -1, ign.NewErrorMessageWithBase(ign.ErrorCreatingFile, err)
+		gz.LoggerFromContext(ctx).Info("Error trying to zip resource", err)
+		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
 	fInfo, err := os.Stat(zipPath)
 	if err != nil {
-		ign.LoggerFromContext(ctx).Info("Error getting zip file info / stat", err)
-		return -1, ign.NewErrorMessageWithBase(ign.ErrorCreatingFile, err)
+		gz.LoggerFromContext(ctx).Info("Error getting zip file info / stat", err)
+		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
 	return fInfo.Size(), nil
 }
@@ -255,7 +255,7 @@ func getOrCreateZipLocation(res Resource, subfolder, version string) string {
 // GetZip returns a path to the existing resource zip for the given version.
 // It creates the zip if it does not exist.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
-func GetZip(ctx context.Context, res Resource, subfolder string, version string) (*string, int, *ign.ErrMsg) {
+func GetZip(ctx context.Context, res Resource, subfolder string, version string) (*string, int, *gz.ErrMsg) {
 
 	rev, resolvedVersion, em := GetRevisionFromVersion(ctx, res, version)
 	if em != nil {
@@ -270,7 +270,7 @@ func GetZip(ctx context.Context, res Resource, subfolder string, version string)
 		var err error
 		zipPath, err = repo.Zip(ctx, rev, path)
 		if err != nil {
-			return nil, 0, ign.NewErrorMessageWithBase(ign.ErrorZipNotAvailable, err)
+			return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 		}
 	}
 
@@ -279,26 +279,26 @@ func GetZip(ctx context.Context, res Resource, subfolder string, version string)
 
 // CreateResourceRepo creates the VCS repository for a given resource
 // Returns the created VCS repository.
-func CreateResourceRepo(ctx context.Context, res Resource, filesPath string) (vcs.VCS, *ign.ErrMsg) {
+func CreateResourceRepo(ctx context.Context, res Resource, filesPath string) (vcs.VCS, *gz.ErrMsg) {
 	// Create the world repository
 	repo := globals.VCSRepoFactory(ctx, filesPath)
 	if err := repo.InitRepo(ctx); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 	}
 	// Tag the repo with the world's UUID
 	if err := repo.Tag(ctx, *res.GetUUID()); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorRepo, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 	}
 	return repo, nil
 }
 
 // CloneResourceRepo clones the VCS repository of a given resource.
 // Returns the VCS respository of the clone.
-func CloneResourceRepo(ctx context.Context, res, clone Resource) (vcs.VCS, *ign.ErrMsg) {
+func CloneResourceRepo(ctx context.Context, res, clone Resource) (vcs.VCS, *gz.ErrMsg) {
 	// Open the VCS repo of the source world and clone it
 	repo := globals.VCSRepoFactory(ctx, *res.GetLocation())
 	if err := repo.CloneTo(ctx, *clone.GetLocation()); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
 	// Now get the VCS repository of the clone (it is a different repo)
@@ -306,7 +306,7 @@ func CloneResourceRepo(ctx context.Context, res, clone Resource) (vcs.VCS, *ign.
 	// and tag it with the clone's UUID
 	if err := repo.Tag(ctx, *clone.GetUUID()); err != nil {
 		os.Remove(*clone.GetLocation())
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 	return repo, nil
 }
@@ -363,19 +363,19 @@ func QueryForResourceVisibility(tx, q *gorm.DB, owner *string, user *users.User)
 }
 
 // MoveResource will move a resource's on-disk location from sourceOwner to destOwner.
-func MoveResource(resource Resource, destOwner string) *ign.ErrMsg {
+func MoveResource(resource Resource, destOwner string) *gz.ErrMsg {
 	searchStr := "/" + *resource.GetOwner() + "/"
 	replaceStr := "/" + destOwner + "/"
 	newLocation := strings.Replace(*resource.GetLocation(), searchStr, replaceStr, 1)
 
 	if newLocation == *resource.GetLocation() {
 		extra := fmt.Sprintf("Source and destination owners are identical")
-		return ign.NewErrorMessageWithArgs(ign.ErrorUnauthorized, nil, []string{extra})
+		return gz.NewErrorMessageWithArgs(gz.ErrorUnauthorized, nil, []string{extra})
 	}
 
 	// Move resource on disk
 	if err := os.Rename(*resource.GetLocation(), newLocation); err != nil {
-		return ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
 	// Set the new location and owner

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/gazebo-web/gz-go/v7"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,14 +13,14 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
 	"github.com/gazebo-web/fuel-server/globals"
 	fuel "github.com/gazebo-web/fuel-server/proto"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	igntest "gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
 )
 
 // Tests for worlds related routes
@@ -69,9 +70,9 @@ func TestGetWorlds(t *testing.T) {
 			"</1.0/worlds?order=asc&page=3&per_page=1>; rel=\"next\", </1.0/worlds?order=asc&page=3&per_page=1>; rel=\"last\", </1.0/worlds?order=asc&page=1&per_page=1>; rel=\"first\", </1.0/worlds?order=asc&page=1&per_page=1>; rel=\"prev\""},
 		{uriTest{"get page #3", uri + "?order=desc&per_page=1&page=3", nil, nil, false}, 1, "world1",
 			"</1.0/worlds?order=desc&page=1&per_page=1>; rel=\"first\", </1.0/worlds?order=desc&page=2&per_page=1>; rel=\"prev\""},
-		{uriTest{"invalid page", uri + "?per_page=1&page=7", nil, ign.NewErrorMessage(ign.ErrorPaginationPageNotFound), false}, 0, "", ""},
+		{uriTest{"invalid page", uri + "?per_page=1&page=7", nil, gz.NewErrorMessage(gz.ErrorPaginationPageNotFound), false}, 0, "", ""},
 		// LIKED MODELS
-		{uriTest{"liked worlds with non-existent user", "/1.0/invaliduser/likes/worlds", nil, ign.NewErrorMessage(ign.ErrorUserUnknown), false}, 0, "", ""},
+		{uriTest{"liked worlds with non-existent user", "/1.0/invaliduser/likes/worlds", nil, gz.NewErrorMessage(gz.ErrorUserUnknown), false}, 0, "", ""},
 		{uriTest{"liked world OK but empty", likedURI, nil, nil, false}, 0, "", ""},
 	}
 
@@ -113,7 +114,7 @@ func TestGetWorlds(t *testing.T) {
 	defer removeUserWithJWT(testUser3, jwt3, t)
 
 	m2Likes := "/1.0/" + testUser2 + "/worlds/world2/likes"
-	igntest.AssertRouteMultipleArgs("POST", m2Likes, nil, http.StatusOK, &jwt3, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("POST", m2Likes, nil, http.StatusOK, &jwt3, "text/plain; charset=utf-8", t)
 
 	user2TestsData := []resourceSearchTest{
 		{uriTest{"all user2 worlds", "/1.0/" + testUser2 + "/worlds", nil, nil, false}, 3, "world3", ""},
@@ -198,12 +199,12 @@ func runSubtestWithWorldSearchTestData(t *testing.T, test resourceSearchTest) {
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	assert.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var worlds []fuel.World
 		assert.NoError(t, json.Unmarshal(*bslice, &worlds), "Unable to get all resources: %s", string(*bslice))
@@ -270,30 +271,30 @@ func TestWorldLikeCreateAndDelete(t *testing.T) {
 	jwt4 := createValidJWTForIdentity("unexistent-user", t)
 
 	likeTestData := []resourceLikeTest{
-		{uriTest{"like no jwt", w1URI + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
-		{uriTest{"invalid jwt", w1URI + "/likes", newJWT("invalid"), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
-		{uriTest{"non-existent user jwt", w1URI + "/likes", newJWT(jwt4), ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, "POST", "", "", 0},
-		{uriTest{"non-existent world", worldURL(username, "non-existent", "") + "/likes", defaultJWT, ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "POST", "", "", 0},
+		{uriTest{"like no jwt", w1URI + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"invalid jwt", w1URI + "/likes", newJWT("invalid"), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"non-existent user jwt", w1URI + "/likes", newJWT(jwt4), gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, "POST", "", "", 0},
+		{uriTest{"non-existent world", worldURL(username, "non-existent", "") + "/likes", defaultJWT, gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "POST", "", "", 0},
 		{uriTest{"valid public asset like from another user", w1URI + "/likes", newJWT(jwt3), nil, false}, "POST", username, "world1", 1},
-		{uriTest{"user cannot like world twice", w1URI + "/likes", newJWT(jwt3), ign.NewErrorMessage(ign.ErrorDbSave), false}, "POST", "", "", 0},
-		{uriTest{"cannot like user private asset with no jwt", puWorld + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
-		{uriTest{"cannot like user private asset with another jwt", puWorld + "/likes", newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
-		{uriTest{"cannot like org private asset with no jwt", orgWorld + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"user cannot like world twice", w1URI + "/likes", newJWT(jwt3), gz.NewErrorMessage(gz.ErrorDbSave), false}, "POST", "", "", 0},
+		{uriTest{"cannot like user private asset with no jwt", puWorld + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"cannot like user private asset with another jwt", puWorld + "/likes", newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"cannot like org private asset with no jwt", orgWorld + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
 		{uriTest{"valid private org asset like by member", orgWorld + "/likes", newJWT(jwt2), nil, false}, "POST", testOrg, "org_private", 1},
-		{uriTest{"cannot like org private asset by non member", orgWorld + "/likes", newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "POST", "", "", 0},
+		{uriTest{"cannot like org private asset by non member", orgWorld + "/likes", newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "POST", "", "", 0},
 		// DELETE tests
-		{uriTest{"unlike no jwt", w1URI + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
-		{uriTest{"unlike invalid jwt", w1URI + "/likes", newJWT("invalid"), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
-		{uriTest{"unlike with non-existent user jwt", w1URI + "/likes", newJWT(jwt4), ign.NewErrorMessage(ign.ErrorAuthNoUser), false}, "DELETE", "", "", 0},
-		{uriTest{"unlike non-existent world", worldURL(username, "non-existent", "") + "/likes", defaultJWT, ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "DELETE", "", "", 0},
+		{uriTest{"unlike no jwt", w1URI + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"unlike invalid jwt", w1URI + "/likes", newJWT("invalid"), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"unlike with non-existent user jwt", w1URI + "/likes", newJWT(jwt4), gz.NewErrorMessage(gz.ErrorAuthNoUser), false}, "DELETE", "", "", 0},
+		{uriTest{"unlike non-existent world", worldURL(username, "non-existent", "") + "/likes", defaultJWT, gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "DELETE", "", "", 0},
 		{uriTest{"valid public asset unlike", w1URI + "/likes", newJWT(jwt3), nil, false}, "DELETE", username, "world1", 0},
 		{uriTest{"valid public asset unlike twice", w1URI + "/likes", newJWT(jwt3), nil, false}, "DELETE", username, "world1", 0},
 		{uriTest{"valid unlike of world with no likes", worldURL(username, "world2", "") + "/likes", defaultJWT, nil, false}, "DELETE", username, "world2", 0},
-		{uriTest{"cannot unlike user private asset with no jwt", puWorld + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
-		{uriTest{"cannot unlike user private asset with another jwt", puWorld + "/likes", newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
-		{uriTest{"cannot unlike org private asset with no jwt", orgWorld + "/likes", nil, ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"cannot unlike user private asset with no jwt", puWorld + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"cannot unlike user private asset with another jwt", puWorld + "/likes", newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"cannot unlike org private asset with no jwt", orgWorld + "/likes", nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
 		{uriTest{"valid unlike of private org asset by member", orgWorld + "/likes", newJWT(jwt2), nil, false}, "DELETE", testOrg, "org_private", 0},
-		{uriTest{"cannot unlike org private asset by non member", orgWorld + "/likes", newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), true}, "DELETE", "", "", 0},
+		{uriTest{"cannot unlike org private asset by non member", orgWorld + "/likes", newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "DELETE", "", "", 0},
 	}
 
 	for _, test := range likeTestData {
@@ -301,12 +302,12 @@ func TestWorldLikeCreateAndDelete(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctTextPlain)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: test.method, Route: test.URL, Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: test.method, Route: test.URL, Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			require.Equal(t, expStatus, resp.RespRecorder.Code)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name()+" "+test.method, bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name()+" "+test.method, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				// Verify that the response contains the new number of likes
 				likesCounter, err := strconv.Atoi(string(*bslice))
@@ -325,7 +326,7 @@ func TestAPIWorld(t *testing.T) {
 	// General test setup
 	setup()
 	uri := "/1.0/worlds"
-	igntest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
+	gztest.AssertRoute("OPTIONS", uri, http.StatusOK, t)
 }
 
 // TODO try to MERGE with TestGetOwnerModel.
@@ -396,13 +397,13 @@ func TestGetOwnerWorld(t *testing.T) {
 	indexTestData := []worldIndexTest{
 		{uriTest{"get world", worldURL(testUser, "world1", ""), nil, nil, false}, testUser, "world1", expTags, expThumbURL},
 		{uriTest{"get world with no thumbnails", worldURL(testUser, "world2", ""), nil, nil, false}, testUser, "world2", expTags, ""},
-		{uriTest{"invalid name", worldURL(testUser, "invalidname", ""), nil, ign.NewErrorMessage(ign.ErrorNameNotFound), false}, "", "", nil, ""},
+		{uriTest{"invalid name", worldURL(testUser, "invalidname", ""), nil, gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "", "", nil, ""},
 		{uriTest{"get world with special char", worldURL(testUser, worldSpecialCharName, ""), nil, nil, false}, testUser, worldSpecialCharName, expTags, expSpecialCharThumbURL},
 		{uriTest{"get private org world by org owner", worldURL(testOrg, "private", ""), defaultJWT, nil, false}, testOrg, "private", expTags, expPrivateThumbURL},
 		{uriTest{"get private org world by admin", worldURL(testOrg, "private", ""), newJWT(jwt4), nil, false}, testOrg, "private", expTags, expPrivateThumbURL},
 		{uriTest{"get private org world by member", worldURL(testOrg, "private", ""), newJWT(jwt2), nil, false}, testOrg, "private", expTags, expPrivateThumbURL},
-		{uriTest{"get private org world by non member", worldURL(testOrg, "private", ""), newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "", "", nil, ""},
-		{uriTest{"get private user world with another jwt ", worldURL(testUser, "user_private", ""), newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, "", "", nil, ""},
+		{uriTest{"get private org world by non member", worldURL(testOrg, "private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "", "", nil, ""},
+		{uriTest{"get private user world with another jwt ", worldURL(testUser, "user_private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "", "", nil, ""},
 	}
 
 	for _, test := range indexTestData {
@@ -425,12 +426,12 @@ func runSubtestWithWorldIndexTestData(t *testing.T, test worldIndexTest) {
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
-	reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
-	resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, Body: nil, SignedToken: jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	bslice := resp.BodyAsBytes
 	require.Equal(t, expStatus, resp.RespRecorder.Code)
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
-		igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		var got fuel.World
 		assert.NoError(t, json.Unmarshal(*bslice, &got), "Unable to unmarshal the world: %s", string(*bslice))
@@ -444,7 +445,7 @@ func runSubtestWithWorldIndexTestData(t *testing.T, test worldIndexTest) {
 		world := getWorldFromDb(t, test.expOwner, test.expName)
 		assertFuelWorld(&got, world, t)
 		actualTags := models.TagsToStrSlice(world.Tags)
-		assert.True(t, ign.SameElements(test.expTags, actualTags), "Returned Tags are not the expected. Expected: %v. Got: %v", test.expTags, actualTags)
+		assert.True(t, gz.SameElements(test.expTags, actualTags), "Returned Tags are not the expected. Expected: %v. Got: %v", test.expTags, actualTags)
 		// check expected thumbnails
 		if test.expThumbURL == "" {
 			assert.Nil(t, got.ThumbnailUrl)
@@ -513,17 +514,17 @@ func TestGetWorldAsZip(t *testing.T) {
 		{uriTest{"/owner/worlds/name style", worldURL(testUser, *world.Name, ""), &testJWT{jwt: &myJWT}, nil, false}, testUser, *world.Name, 1, files, 1, testUser},
 		{uriTest{"with explicit world version", worldURL(testUser, *world.Name, "1"), &testJWT{jwt: &myJWT}, nil, false}, testUser, *world.Name, 1, files, 2, testUser},
 		{uriTest{"with no JWT", worldURL(testUser, *world.Name, "tip"), nil, nil, false}, testUser, *world.Name, 1, files, 3, ""},
-		{uriTest{"invalid (negative) version", worldURL(testUser, *world.Name, "-4"), nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testUser, *world.Name, 1, files, 3, ""},
-		{uriTest{"invalid (alpha) version", worldURL(testUser, *world.Name, "a"), nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testUser, *world.Name, 1, files, 3, ""},
-		{uriTest{"0 version", worldURL(testUser, *world.Name, "0"), nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, testUser, *world.Name, 1, files, 3, ""},
-		{uriTest{"version not found", worldURL(testUser, *world.Name, "5"), nil, ign.NewErrorMessage(ign.ErrorVersionNotFound), false}, testUser, *world.Name, 1, files, 3, ""},
+		{uriTest{"invalid (negative) version", worldURL(testUser, *world.Name, "-4"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *world.Name, 1, files, 3, ""},
+		{uriTest{"invalid (alpha) version", worldURL(testUser, *world.Name, "a"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *world.Name, 1, files, 3, ""},
+		{uriTest{"0 version", worldURL(testUser, *world.Name, "0"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *world.Name, 1, files, 3, ""},
+		{uriTest{"version not found", worldURL(testUser, *world.Name, "5"), nil, gz.NewErrorMessage(gz.ErrorVersionNotFound), false}, testUser, *world.Name, 1, files, 3, ""},
 		{uriTest{"get private org world by org owner", worldURL(testOrg, "private", ""), &testJWT{jwt: &myJWT}, nil, false}, testOrg, "private", 1, files, 1, testUser},
 		{uriTest{"get private org world by admin", worldURL(testOrg, "private", ""), newJWT(jwt4), nil, false}, testOrg, "private", 1, files, 2, user4},
 		{uriTest{"get private org world by member", worldURL(testOrg, "private", ""), newJWT(jwt2), nil, false}, testOrg, "private", 1, files, 3, user2},
-		{uriTest{"get private org world by non member", worldURL(testOrg, "private", ""), newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
-		{uriTest{"get private org world with no jwt", worldURL(testOrg, "private", ""), nil, ign.NewErrorMessage(ign.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
-		{uriTest{"get private user world with no jwt", worldURL(testUser, "user_private", ""), nil, ign.NewErrorMessage(ign.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
-		{uriTest{"get private user world with another jwt", worldURL(testUser, "user_private", ""), newJWT(jwt3), ign.NewErrorMessage(ign.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
+		{uriTest{"get private org world by non member", worldURL(testOrg, "private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
+		{uriTest{"get private org world with no jwt", worldURL(testOrg, "private", ""), nil, gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
+		{uriTest{"get private user world with no jwt", worldURL(testUser, "user_private", ""), nil, gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
+		{uriTest{"get private user world with another jwt", worldURL(testUser, "user_private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
 	}
 
 	for _, test := range downloadAsZipTestsData {
@@ -531,12 +532,12 @@ func TestGetWorldAsZip(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctZip)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL + ".zip", Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL + ".zip", Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			require.Equal(t, expStatus, resp.RespRecorder.Code)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				assert.True(t, resp.Ok, "World Zip Download request didn't succeed")
 				ensureIgnResourceVersionHeader(resp.RespRecorder, test.ignVersionHeader, t)
@@ -596,17 +597,17 @@ func TestReportWorldCreate(t *testing.T) {
 
 	// Try to report a non-existent model.
 	testURI := fmt.Sprintf("%s/report", worldURL(testUser, "non-existent-model", ""))
-	expErr := ign.ErrorMessage(ign.ErrorNameNotFound)
+	expErr := gz.ErrorMessage(gz.ErrorNameNotFound)
 
-	_, bslice, _ := igntest.SendMultipartPOST(t.Name(), t, testURI, nil, body, nil)
-	igntest.AssertBackendErrorCode(t.Name(), bslice, expErr.ErrCode, t)
+	_, bslice, _ := gztest.SendMultipartPOST(t.Name(), t, testURI, nil, body, nil)
+	gztest.AssertBackendErrorCode(t.Name(), bslice, expErr.ErrCode, t)
 
-	_, bslice, _ = igntest.SendMultipartPOST(t.Name(), t, testURI, &jwt, body, nil)
-	igntest.AssertBackendErrorCode(t.Name(), bslice, expErr.ErrCode, t)
+	_, bslice, _ = gztest.SendMultipartPOST(t.Name(), t, testURI, &jwt, body, nil)
+	gztest.AssertBackendErrorCode(t.Name(), bslice, expErr.ErrCode, t)
 
 	// Try to report the world
-	igntest.SendMultipartPOST(t.Name(), t, uri, nil, body, nil)
-	igntest.SendMultipartPOST(t.Name(), t, uri, &jwt, body, nil)
+	gztest.SendMultipartPOST(t.Name(), t, uri, nil, body, nil)
+	gztest.SendMultipartPOST(t.Name(), t, uri, &jwt, body, nil)
 }
 
 type worldModelIncludesTest struct {
@@ -643,13 +644,13 @@ func TestGetModelReferences(t *testing.T) {
 		{uriTest{"with no JWT", worldURL(testUser, *world.Name, "tip"), nil, nil,
 			false}, includes},
 		{uriTest{"invalid (negative) version", worldURL(testUser, *world.Name, "-4"),
-			nil, ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, includes},
+			nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, includes},
 		{uriTest{"invalid (alpha) version", worldURL(testUser, *world.Name, "a"), nil,
-			ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, includes},
+			gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, includes},
 		{uriTest{"0 version", worldURL(testUser, *world.Name, "0"), nil,
-			ign.NewErrorMessage(ign.ErrorFormInvalidValue), false}, includes},
+			gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, includes},
 		{uriTest{"version not found", worldURL(testUser, *world.Name, "5"), nil,
-			ign.NewErrorMessage(ign.ErrorVersionNotFound), false}, includes},
+			gz.NewErrorMessage(gz.ErrorVersionNotFound), false}, includes},
 	}
 
 	for _, test := range worldModelIncludesTestsData {
@@ -657,12 +658,12 @@ func TestGetModelReferences(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
-			reqArgs := igntest.RequestArgs{Method: "GET", Route: test.URL + "/modelrefs", Body: nil, SignedToken: jwt}
-			resp := igntest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
+			reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL + "/modelrefs", Body: nil, SignedToken: jwt}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			require.Equal(t, expStatus, resp.RespRecorder.Code)
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
-				igntest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
 				require.Equal(t, http.StatusOK, resp.RespRecorder.Code)
 				var mis []worlds.ModelInclude

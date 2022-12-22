@@ -1,9 +1,9 @@
 package collections
 
 import (
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
 	"time"
 )
 
@@ -62,10 +62,10 @@ type Collection struct {
 type Collections []Collection
 
 // validateAssetType validates that the given string is a valid asset type.
-// Returns an ign.ErrMsg otherwise.
-func validateAssetType(aType string) *ign.ErrMsg {
+// Returns an gz.ErrMsg otherwise.
+func validateAssetType(aType string) *gz.ErrMsg {
 	if aType != TModel && aType != TWorld {
-		return ign.NewErrorMessageWithArgs(ign.ErrorFormInvalidValue, nil, []string{aType})
+		return gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, nil, []string{aType})
 	}
 	return nil
 }

@@ -7,15 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/cmd/token-generator/generator"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/proto"
 	"github.com/gazebo-web/fuel-server/vcs"
-	"gitlab.com/ignitionrobotics/web/ign-go"
-	"gitlab.com/ignitionrobotics/web/ign-go/testhelpers"
+	"github.com/gazebo-web/gz-go/v7"
+	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -46,13 +47,13 @@ func iptr(i int) *int {
 
 // errMsgAndContentType is a helper that given an optional errMsg and a content type to use
 // when OK (ie. http status code 200), it returns a tuple with the ErrMsg and contentType to use
-// in a subsequent call to 'igntest.AssertRouteMultipleArgs'.
+// in a subsequent call to 'gztest.AssertRouteMultipleArgs'.
 // It was created to reduce LOC.
-func errMsgAndContentType(em *ign.ErrMsg, successCT string) (ign.ErrMsg, string) {
+func errMsgAndContentType(em *gz.ErrMsg, successCT string) (gz.ErrMsg, string) {
 	if em != nil {
 		return *em, ctTextPlain
 	}
-	return ign.ErrorMessageOK(), successCT
+	return gz.ErrorMessageOK(), successCT
 }
 
 // setup helper function
@@ -64,8 +65,8 @@ type customInitializer func(ctx context.Context)
 
 // setup helper function
 func setupWithCustomInitalizer(customFn customInitializer) {
-	logger := ign.NewLoggerNoRollbar("test", ign.VerbosityDebug)
-	logCtx := ign.NewContextWithLogger(context.Background(), logger)
+	logger := gz.NewLoggerNoRollbar("test", gz.VerbosityDebug)
+	logCtx := gz.NewContextWithLogger(context.Background(), logger)
 	// Make sure we don't have data from other tests.
 	// For this we drop db tables and recreate them.
 	// cleanDBTables(logCtx)
@@ -83,7 +84,7 @@ func setupWithCustomInitalizer(customFn customInitializer) {
 	}
 
 	// Create the router, and indicate that we are testing
-	igntest.SetupTest(globals.Server.Router)
+	gztest.SetupTest(globals.Server.Router)
 }
 
 //////////////////////////////
@@ -93,8 +94,8 @@ func setupWithCustomInitalizer(customFn customInitializer) {
 // postWithArgs is an test helper function to POST resources to backend.
 // posts a file-based resource for testing and returns the result.
 func postWithArgs(t *testing.T, uri string, jwt *string,
-	params map[string]string, files []igntest.FileDesc) (int, *[]byte) {
-	code, bslice, _ := igntest.SendMultipartPOST(t.Name(), t, uri, jwt, params, files)
+	params map[string]string, files []gztest.FileDesc) (int, *[]byte) {
+	code, bslice, _ := gztest.SendMultipartPOST(t.Name(), t, uri, jwt, params, files)
 	return code, bslice
 }
 
@@ -102,7 +103,7 @@ func postWithArgs(t *testing.T, uri string, jwt *string,
 // Create a file-based resource (model, world) for testing.
 // extraParams and extraFiles args can be used to customize the resource that will be created.
 func createResourceWithArgs(testName string, uri string, aJWT *string,
-	extraParams map[string]string, extraFiles []igntest.FileDesc, t *testing.T) {
+	extraParams map[string]string, extraFiles []gztest.FileDesc, t *testing.T) {
 
 	var jwt string
 	if aJWT != nil {
@@ -110,7 +111,7 @@ func createResourceWithArgs(testName string, uri string, aJWT *string,
 	} else {
 		jwt = os.Getenv("IGN_TEST_JWT")
 	}
-	code, bslice, ok := igntest.SendMultipartPOST(testName, t, uri, &jwt, extraParams, extraFiles)
+	code, bslice, ok := gztest.SendMultipartPOST(testName, t, uri, &jwt, extraParams, extraFiles)
 	assert.True(t, ok, "Failed POST request %s %s", testName, string(*bslice))
 	assert.Equal(t, http.StatusOK, code, "Did not receive expected http code after sending POST! %s %d %d %s", testName, http.StatusOK, code, string(*bslice))
 }
@@ -135,7 +136,7 @@ type postTest struct {
 	uri        string
 	jwt        *string
 	postParams map[string]string
-	postFiles  []igntest.FileDesc
+	postFiles  []gztest.FileDesc
 	expStatus  int
 	// optional: possible values are the code or -1 (to ignore)
 	expErrCode int
@@ -174,11 +175,11 @@ func testResourcePOST(t *testing.T, testCases []postTest, shareUser bool, rmRout
 				assert.NotEmpty(t, testUser, "Could not create shared user")
 			}
 			// Create model
-			code, bslice, ok := igntest.SendMultipartPOST(t.Name(), t, test.uri, &testJWT, test.postParams, test.postFiles)
+			code, bslice, ok := gztest.SendMultipartPOST(t.Name(), t, test.uri, &testJWT, test.postParams, test.postFiles)
 			assert.True(t, ok, "Failed POST request")
 			require.Equal(t, test.expStatus, code, "Did not receive expected http code [%d] after sending POST. Got:[%d]. Response body [%s]", test.expStatus, code, string(*bslice))
 			if test.expErrCode != -1 {
-				igntest.AssertBackendErrorCode(t.Name(), bslice, test.expErrCode, t)
+				gztest.AssertBackendErrorCode(t.Name(), bslice, test.expErrCode, t)
 			}
 			// Get the created Model
 			if code == http.StatusOK {
@@ -191,7 +192,7 @@ func testResourcePOST(t *testing.T, testCases []postTest, shareUser bool, rmRout
 				}
 				if rmRoute != nil {
 					uri := fmt.Sprintf(*rmRoute, *m.GetOwner(), *m.GetName())
-					igntest.AssertRoute("DELETE", uri, http.StatusOK, t)
+					gztest.AssertRoute("DELETE", uri, http.StatusOK, t)
 				}
 			}
 			if test.jwt == nil && !shareUser {
@@ -352,7 +353,7 @@ func createNamedUserWithJWT(username, jwt string, t *testing.T) string {
 
 // Create a random user with a given JWT for testing purposes
 func createUserWithJWT(jwt string, t *testing.T) string {
-	username := ign.RandomString(8)
+	username := gz.RandomString(8)
 	return createNamedUserWithJWT(username, jwt, t)
 }
 
@@ -383,7 +384,7 @@ func dbGetUser(username string) *users.User {
 }
 
 // Reads user from DB
-func getUserFromDb(username string, t *testing.T) (*users.User, *ign.ErrMsg) {
+func getUserFromDb(username string, t *testing.T) (*users.User, *gz.ErrMsg) {
 	// Get the created model
 	return users.ByUsername(globals.Server.Db, username, false)
 }
@@ -416,7 +417,7 @@ func removeUserWithJWT(username string, jwt string, t *testing.T) {
 }
 
 // Reads organization from DB
-func getOrganizationFromDb(name string, t *testing.T) (*users.Organization, *ign.ErrMsg) {
+func getOrganizationFromDb(name string, t *testing.T) (*users.Organization, *gz.ErrMsg) {
 	// Get the created organization
 	return users.ByOrganizationName(globals.Server.Db, name, false)
 }
@@ -424,7 +425,7 @@ func getOrganizationFromDb(name string, t *testing.T) (*users.Organization, *ign
 // Create a random organization for testing purposes
 // PRE-REQ: a user with the default JWT should have been created before.
 func createOrganization(t *testing.T) string {
-	name := ign.RandomString(8)
+	name := gz.RandomString(8)
 	createOrganizationWithName(t, name)
 	return name
 }
@@ -508,7 +509,7 @@ func addUserToOrg(user, role, org string, t *testing.T) {
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(add)
 	uri := fmt.Sprintf("/1.0/organizations/%s/users", org)
-	igntest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
+	gztest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }
 
 // adds a team to an org
@@ -516,7 +517,7 @@ func addTeamToOrg(org, jwt string, team users.CreateTeamForm, t *testing.T) {
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(team)
 	uri := fmt.Sprintf("/1.0/organizations/%s/teams", org)
-	igntest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
+	gztest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }
 
 // updates a team of an org
@@ -524,7 +525,7 @@ func updateOrgTeam(org, team, jwt string, ut users.UpdateTeamForm, t *testing.T)
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(ut)
 	uri := fmt.Sprintf("/1.0/organizations/%s/teams/%s", org, team)
-	igntest.AssertRouteMultipleArgs("PATCH", uri, b, http.StatusOK, &jwt, ctJSON, t)
+	gztest.AssertRouteMultipleArgs("PATCH", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }
 
 // returns the len of a FileNode's children (recursively).

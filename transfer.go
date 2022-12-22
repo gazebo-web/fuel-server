@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
+
 	"net/http"
 )
 
@@ -21,7 +22,7 @@ type TransferAsset struct {
 // processTransferRequest reads the request data into a TransferAsset struct,
 // and checks permissions. A pointer to the TransferAsset is returned, or
 // nil on error.
-func processTransferRequest(sourceOwner string, tx *gorm.DB, r *http.Request) (*TransferAsset, *ign.ErrMsg) {
+func processTransferRequest(sourceOwner string, tx *gorm.DB, r *http.Request) (*TransferAsset, *gz.ErrMsg) {
 	// TransferAsset is the input data
 	var transferAsset TransferAsset
 	if em := ParseStruct(&transferAsset, r, false); em != nil {
@@ -32,14 +33,14 @@ func processTransferRequest(sourceOwner string, tx *gorm.DB, r *http.Request) (*
 	_, em := users.ByOrganizationName(tx, transferAsset.DestOwner, false)
 	if em != nil {
 		extra := fmt.Sprintf("Organization [%s] not found", transferAsset.DestOwner)
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorNameNotFound, em.BaseError, []string{extra})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorNameNotFound, em.BaseError, []string{extra})
 	}
 
 	// Step 2: check write permissions of the requesting user
 	if ok, em := globals.Permissions.IsAuthorized(sourceOwner,
 		transferAsset.DestOwner, permissions.Write); !ok {
 		extra := fmt.Sprintf("User [%s] is not authorized", sourceOwner)
-		return nil, ign.NewErrorMessageWithArgs(ign.ErrorUnauthorized, em.BaseError, []string{extra})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorUnauthorized, em.BaseError, []string{extra})
 	}
 
 	return &transferAsset, nil
@@ -47,7 +48,7 @@ func processTransferRequest(sourceOwner string, tx *gorm.DB, r *http.Request) (*
 
 // transferMoveResource will move an resource, such as a model, world, or collection,
 // from a user to an organization.
-func transferMoveResource(tx *gorm.DB, resource commonres.Resource, sourceOwner, destOwner string) *ign.ErrMsg {
+func transferMoveResource(tx *gorm.DB, resource commonres.Resource, sourceOwner, destOwner string) *gz.ErrMsg {
 
 	// Attempt to move the resource
 	if em := commonres.MoveResource(resource, destOwner); em != nil {
@@ -59,14 +60,14 @@ func transferMoveResource(tx *gorm.DB, resource commonres.Resource, sourceOwner,
 	if err != nil {
 		// Revert move
 		commonres.MoveResource(resource, sourceOwner)
-		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	_, err = globals.Permissions.AddPermission(destOwner, *resource.GetUUID(), permissions.Write)
 	if err != nil {
 		// Revert move
 		commonres.MoveResource(resource, sourceOwner)
-		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	// Remove permissions from original owner
@@ -74,14 +75,14 @@ func transferMoveResource(tx *gorm.DB, resource commonres.Resource, sourceOwner,
 	if err != nil {
 		// Revert move
 		commonres.MoveResource(resource, sourceOwner)
-		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	_, err = globals.Permissions.RemovePermission(sourceOwner, *resource.GetUUID(), permissions.Write)
 	if err != nil {
 		// Revert move
 		commonres.MoveResource(resource, sourceOwner)
-		return ign.NewErrorMessageWithBase(ign.ErrorUnexpected, err)
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	return nil

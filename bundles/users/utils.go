@@ -2,9 +2,9 @@ package users
 
 import (
 	"context"
-	"github.com/satori/go.uuid"
 	"github.com/gazebo-web/fuel-server/globals"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/satori/go.uuid"
 	"os"
 	"path"
 )
@@ -48,41 +48,41 @@ func newUUID() (uuidStr string, err error) {
 // have models and worls subfolders.
 // Fails if already exists.
 // Returns the path pointing to the created owner's folder (eg. /fuel/owner)
-func CreateOwnerFolder(ctx context.Context, owner string, failIfDirExist bool) (*string, *ign.ErrMsg) {
+func CreateOwnerFolder(ctx context.Context, owner string, failIfDirExist bool) (*string, *gz.ErrMsg) {
 	dirpath := path.Join(globals.ResourceDir, owner)
-	ign.LoggerFromContext(ctx).Info("Request for creating owner folder [" + dirpath + "]")
+	gz.LoggerFromContext(ctx).Info("Request for creating owner folder [" + dirpath + "]")
 
 	// Sanity check: The directory shouldn't exist
 	var userDirExist bool
 	if _, err := os.Stat(dirpath); err == nil {
 		userDirExist = true
 		if failIfDirExist {
-			return nil, ign.NewErrorMessage(ign.ErrorResourceExists)
+			return nil, gz.NewErrorMessage(gz.ErrorResourceExists)
 		}
 	}
 
 	if !userDirExist {
 		// Create the directory to store the user
 		if err := os.MkdirAll(dirpath, 0711); err != nil {
-			return nil, ign.NewErrorMessage(ign.ErrorCreatingDir)
+			return nil, gz.NewErrorMessage(gz.ErrorCreatingDir)
 		}
 
 		// Create the directory to store the models
 		dirModels := path.Join(dirpath, "models")
 		if err := os.Mkdir(dirModels, 0711); err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 		}
 
 		// Create the directory to store the worlds
 		dirWorlds := path.Join(dirpath, "worlds")
 		if err := os.Mkdir(dirWorlds, 0711); err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 		}
 
 		// Create the directory to store collections
 		dirCols := path.Join(dirpath, "collections")
 		if err := os.Mkdir(dirCols, 0711); err != nil {
-			return nil, ign.NewErrorMessageWithBase(ign.ErrorCreatingDir, err)
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 		}
 	}
 	return &dirpath, nil

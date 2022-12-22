@@ -1,18 +1,18 @@
 package main
 
 import (
+	"github.com/gazebo-web/gz-go/v7"
 	"net/http"
 
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/reviews"
 	"github.com/gazebo-web/fuel-server/bundles/users"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 )
 
 // extract actual model review process
-func reviewFn(cmr reviews.CreateModelReview, tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*reviews.ModelReview, *ign.ErrMsg) {
+func reviewFn(cmr reviews.CreateModelReview, tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*reviews.ModelReview, *gz.ErrMsg) {
 	// call review_service.CreateReview using cmr which already has modelID
 	rs := &reviews.Service{}
 	modelReview, em := rs.CreateModelReview(cmr, tx, jwtUser)
@@ -24,10 +24,10 @@ func reviewFn(cmr reviews.CreateModelReview, tx *gorm.DB, jwtUser *users.User, w
 }
 
 // ModelReviewCreate creates a new model and a new review
-func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
 	defer r.MultipartForm.RemoveAll()
@@ -59,7 +59,7 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 
 	// A branch is required
 	if cmr.Branch == nil {
-		em := ign.NewErrorMessageWithArgs(ign.ErrorMissingField, nil, []string{"Missing branch field"})
+		em := gz.NewErrorMessageWithArgs(gz.ErrorMissingField, nil, []string{"Missing branch field"})
 		return nil, em
 	}
 
@@ -77,10 +77,10 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 }
 
 // ReviewCreate creates a new review for an existing model
-func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *ign.ErrMsg) {
+func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {
-		return nil, ign.NewErrorMessageWithBase(ign.ErrorForm, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
 	defer r.MultipartForm.RemoveAll()
@@ -99,7 +99,7 @@ func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interfac
 
 	// A branch is required
 	if cmr.Branch == nil {
-		em := ign.NewErrorMessageWithArgs(ign.ErrorMissingField, nil, []string{"Missing branch field"})
+		em := gz.NewErrorMessageWithArgs(gz.ErrorMissingField, nil, []string{"Missing branch field"})
 		return nil, em
 	}
 
@@ -109,7 +109,7 @@ func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interfac
 	model, err := models.GetModelByName(tx, modelName, owner)
 	if err != nil {
 		// how do we know what class of error it returns?
-		errMsg := ign.ErrorMessage(ign.ErrorUnexpected)
+		errMsg := gz.ErrorMessage(gz.ErrorUnexpected)
 		return nil, &errMsg
 	}
 	cmr.ModelID = &model.ID

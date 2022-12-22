@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/stretchr/testify/assert"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"
-	"gitlab.com/ignitionrobotics/web/ign-go"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -25,7 +25,7 @@ type userResourcePermissionsTest struct {
 	expAuthorized bool
 
 	// expected error message
-	expErrMsg *ign.ErrMsg
+	expErrMsg *gz.ErrMsg
 }
 
 // TestPermissionsSetSystemAdmin test configuring system admins
@@ -33,7 +33,7 @@ func TestPermissionsSetSystemAdmin(t *testing.T) {
 
 	setup()
 
-	unauth := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	unauth := gz.NewErrorMessage(gz.ErrorUnauthorized)
 
 	// test system admin role
 
@@ -97,7 +97,7 @@ func TestUserResourcePermissions(t *testing.T) {
 
 	setup()
 
-	unauthorizedErrMsg := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	unauthorizedErrMsg := gz.NewErrorMessage(gz.ErrorUnauthorized)
 
 	// test add read permission
 	globals.Permissions.AddPermission("user1", "resource1", permissions.Read)
@@ -199,7 +199,7 @@ func TestUserRolePermissions(t *testing.T) {
 
 	setup()
 
-	unauthorizedErrMsg := ign.NewErrorMessage(ign.ErrorUnauthorized)
+	unauthorizedErrMsg := gz.NewErrorMessage(gz.ErrorUnauthorized)
 
 	// test basic role read/write permissions
 	globals.Permissions.AddUserGroupRole("ownerA", "groupA", permissions.Owner)
