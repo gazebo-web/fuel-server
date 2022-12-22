@@ -4,8 +4,8 @@ import (
 	"github.com/gazebo-web/gz-go/v7"
 )
 
-// ///////////////////////////////////////////////
-// / Declare the routes. See also router.go
+/////////////////////////////////////////////////
+/// Declare the routes. See also router.go
 var routes = gz.Routes{
 
 	////////////
