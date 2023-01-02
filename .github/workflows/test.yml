@@ -38,7 +38,7 @@ jobs:
 
       - name: Install git
         run: |
-          apt-get install -y git
+          sudo apt-get install -y git
           git --version
           git config --global user.name "gz-fuelserver"
           git config --global user.email "gz-fuelserver@test.org"
