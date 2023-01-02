@@ -36,6 +36,13 @@ jobs:
             sleep 1
           done          
 
+      - name: Install git
+        run: |
+          apt-get install -y git
+          git --version
+          git config --global user.name "gz-fuelserver"
+          git config --global user.email "gz-fuelserver@test.org"
+
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
