@@ -55,7 +55,7 @@ jobs:
           AWS_BUCKET_USE_IN_TESTS: "false"
           AWS_DEFAULT_REGION: "us-east-1"
           IGN_FUEL_MIGRATE_UNIQUEOWNERS_TABLE: "true"
-          IGN_POPULATE_PATH: /tmp/.gazebo/models/
+          IGN_POPULATE_PATH: ./.gazebo/models/
           TOKEN_GENERATOR_PRIVATE_RSA256_KEY: ${{ secrets.TOKEN_GENERATOR_PRIVATE_RSA256_KEY }}
         run: |
           go test -covermode=atomic -coverprofile=coverage.tx -v ./...
