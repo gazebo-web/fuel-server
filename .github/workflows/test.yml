@@ -11,6 +11,7 @@ jobs:
       IGN_DB_USERNAME: gazebo
       IGN_DB_PASSWORD: 1234
       IGN_DB_NAME: gazebo_db
+      IGN_DB_MAX_OPEN_CONNS: 66
     services:
       mysql:
         image: mysql:5.7
@@ -46,6 +47,16 @@ jobs:
           IGN_FUEL_RESOURCE_DIR: /tmp
           TEST_RSA256_PUBLIC_KEY: ${{ secrets.TEST_RSA256_PUBLIC_KEY }}
           IGN_TEST_JWT: ${{ secrets.IGN_TEST_JWT }}
+          IGN_FUEL_MIGRATE_MODEL_REPOSITORIES: "true"
+          IGN_FUEL_MIGRATE_CASBIN: "true"
+          IGN_FUEL_MIGRATE_RESET_LIKE_AND_DOWNLOADS: "true"
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AWS_BUCKET_PREFIX_TEST: "myFuelServer-tests-"
+          AWS_BUCKET_USE_IN_TESTS: "false"
+          AWS_DEFAULT_REGION: "us-east-1"
+          IGN_FUEL_MIGRATE_UNIQUEOWNERS_TABLE: "true"
+          IGN_POPULATE_PATH: /tmp/.gazebo/models/
+          TOKEN_GENERATOR_PRIVATE_RSA256_KEY: ${{ secrets.TOKEN_GENERATOR_PRIVATE_RSA256_KEY }}
         run: |
           go test -covermode=atomic -coverprofile=coverage.tx -v ./...
           go tool cover -func=coverage.tx -o=coverage.out
