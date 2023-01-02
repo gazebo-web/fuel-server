@@ -17,9 +17,9 @@ jobs:
         ports:
           - 3306
         env:
-          MYSQL_USER: gazebo
-          MYSQL_PASSWORD: 1234
-          MYSQL_DATABASE: gazebo_db
+          MYSQL_USER: ${{ env.IGN_DB_USERNAME }}
+          MYSQL_PASSWORD: ${{ env.IGN_DB_PASSWORD }}
+          MYSQL_DATABASE: "${{env.IGN_DB_NAME}}_test"
           MYSQL_RANDOM_ROOT_PASSWORD: true
         options: --health-cmd="mysqladmin ping" --health-interval=5s --health-timeout=2s --health-retries=3
 
@@ -43,9 +43,6 @@ jobs:
       - name: Test
         env:
           IGN_DB_ADDRESS: "127.0.0.1:${{ job.services.mysql.ports[3306] }}"
-          IGN_DB_USERNAME: ${{ job.services.mysql.env.MYSQL_USER }}
-          IGN_DB_PASSWORD: ${{ job.services.mysql.env.MYSQL_PASSWORD }}
-          IGN_DB_NAME: ${{ job.services.mysql.env.MYSQL_DATABASE }}
           IGN_FUEL_RESOURCE_DIR: /tmp
           TEST_RSA256_PUBLIC_KEY: ${{ secrets.TEST_RSA256_PUBLIC_KEY }}
           IGN_TEST_JWT: ${{ secrets.IGN_TEST_JWT }}
