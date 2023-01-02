@@ -138,8 +138,15 @@ func (p *Permissions) Init(db *gorm.DB, sysAdmin string) error {
 
 	var adapter *gormadapter.Adapter
 
-	adapter, _ = gormadapter.NewAdapterByDB(db)
-	enforcer, _ := casbin.NewEnforcer("permissions/policy.conf", adapter)
+	adapter, err := gormadapter.NewAdapterByDB(db)
+	if err != nil {
+		return err
+	}
+
+	enforcer, err := casbin.NewEnforcer("permissions/policy.conf", adapter)
+	if err != nil {
+		return err
+	}
 
 	return p.InitWithEnforcerAndAdapter(enforcer, adapter, sysAdmin)
 }

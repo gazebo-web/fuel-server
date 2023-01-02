@@ -172,8 +172,7 @@ func init() {
 			"No system administrator role will be created")
 	}
 	globals.Permissions = &permissions.Permissions{}
-	globals.Permissions.Init(globals.Server.Db, sysAdmin)
-
+	err = globals.Permissions.Init(globals.Server.Db, sysAdmin)
 	if err != nil {
 		logger.Error(err)
 	} else {
@@ -251,7 +250,7 @@ func initValidator() *validator.Validate {
 	return validate
 }
 
-/////////////////////////////////////////////////
+// ///////////////////////////////////////////////
 // Run the router and server
 func main() {
 	globals.Server.Run()
