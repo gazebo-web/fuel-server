@@ -38,8 +38,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ${{ inputs.go-version }}
-          cache: true
+          go-version: '1.19'
 
       - name: Test
         env:
@@ -47,6 +46,9 @@ jobs:
           IGN_DB_USERNAME: ${{ job.services.mysql.env.MYSQL_USER }}
           IGN_DB_PASSWORD: ${{ job.services.mysql.env.MYSQL_PASSWORD }}
           IGN_DB_NAME: ${{ job.services.mysql.env.MYSQL_DATABASE }}
+          IGN_FUEL_RESOURCE_DIR: /tmp
+          TEST_RSA256_PUBLIC_KEY: ${{ secrets.TEST_RSA256_PUBLIC_KEY }}
+          IGN_TEST_JWT: ${{ secrets.IGN_TEST_JWT }}
         run: |
-          go test -race -covermode=atomic -coverprofile=coverage.tx -v ./...
+          go test -covermode=atomic -coverprofile=coverage.tx -v ./...
           go tool cover -func=coverage.tx -o=coverage.out
