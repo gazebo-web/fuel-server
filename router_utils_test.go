@@ -318,7 +318,7 @@ func createNamedUserWithJWT(username, jwt string, t *testing.T) string {
 	org := "My organization"
 	u := users.User{Name: &name, Username: &username, Email: &email, Organization: &org}
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(u)
+	assert.NoError(t, json.NewEncoder(b).Encode(u))
 
 	req, _ := http.NewRequest("POST", "/1.0/users", b)
 	req.Header.Add("Content-Type", "application/json")
@@ -346,7 +346,7 @@ func createNamedUserWithJWT(username, jwt string, t *testing.T) string {
 
 	decoder := json.NewDecoder(respRec.Body)
 	var userResponse users.UserResponse
-	decoder.Decode(&userResponse)
+	assert.NoError(t, decoder.Decode(&userResponse))
 	assert.Equal(t, username, userResponse.Username, "Expected username[%s] != response username[%s]", username, userResponse.Username)
 	return username
 }
@@ -393,12 +393,11 @@ func getUserFromDb(username string, t *testing.T) (*users.User, *gz.ErrMsg) {
 func removeUserWithJWT(username string, jwt string, t *testing.T) {
 
 	// Find the user
-	var user *users.User
-	user = dbGetUser(username)
+	user := dbGetUser(username)
 	require.NotNil(t, user, "removeUser error: Unable to remove user [%s]", username)
 
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(*user)
+	assert.NoError(t, json.NewEncoder(b).Encode(*user))
 	req, _ := http.NewRequest("DELETE", "/1.0/users/"+username, b)
 	// Add the authorization token
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -408,7 +407,7 @@ func removeUserWithJWT(username string, jwt string, t *testing.T) {
 	assert.Equal(t, http.StatusOK, respRec.Code, "Server error: returned [%d] instead of [%d]", respRec.Code, http.StatusOK)
 	decoder := json.NewDecoder(respRec.Body)
 	var userResponse users.UserResponse
-	decoder.Decode(&userResponse)
+	assert.NoError(t, decoder.Decode(&userResponse))
 	assert.Equal(t, username, userResponse.Username, "Expected username[%s] != response username[%s]", username, userResponse.Username)
 	// Confirm the user deletion
 	var aUser users.User
@@ -466,7 +465,7 @@ func createOrganizationWithName(t *testing.T, name string) string {
 
 	decoder := json.NewDecoder(respRec.Body)
 	var organizationResponse users.OrganizationResponse
-	decoder.Decode(&organizationResponse)
+	assert.NoError(t, decoder.Decode(&organizationResponse))
 
 	assert.Equal(t, name, organizationResponse.Name, "Expected organization name[%s] != response name[%s]", name, organizationResponse.Name)
 
@@ -497,7 +496,7 @@ func removeOrganization(name string, t *testing.T) {
 
 	decoder := json.NewDecoder(respRec.Body)
 	var organizationResponse users.OrganizationResponse
-	decoder.Decode(&organizationResponse)
+	assert.NoError(t, decoder.Decode(&organizationResponse))
 	assert.Equal(t, name, organizationResponse.Name, "Expected Org name[%s] != got name[%s]",
 		name, organizationResponse.Name)
 }

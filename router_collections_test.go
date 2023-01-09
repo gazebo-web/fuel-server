@@ -27,7 +27,7 @@ func addAssetToCollection(t *testing.T, jwt, colOwner, colName, owner, name,
 	aType string) {
 	nameOwner := collections.NameOwnerPair{Name: name, Owner: owner}
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(nameOwner)
+	assert.NoError(t, json.NewEncoder(b).Encode(nameOwner))
 	uri := fmt.Sprintf("/1.0/%s/collections/%s/%ss", colOwner, colName, aType)
 	gztest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }
@@ -59,7 +59,7 @@ func createTestCollectionWithOwner(t *testing.T, jwt *string, name,
 	cc := collections.CreateCollection{Name: name, Owner: owner, Description: desc,
 		Private: &private}
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(cc)
+	assert.NoError(t, json.NewEncoder(b).Encode(cc))
 	gztest.AssertRouteMultipleArgs("POST", "/1.0/collections", b, http.StatusOK, jwt, ctJSON, t)
 }
 
@@ -662,7 +662,7 @@ func TestCollectionTransfer(t *testing.T) {
 		t.Run(test.testDesc, func(t *testing.T) {
 
 			b := new(bytes.Buffer)
-			json.NewEncoder(b).Encode(test.postParams)
+			assert.NoError(t, json.NewEncoder(b).Encode(test.postParams))
 
 			if test.expStatus != http.StatusOK {
 				gztest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwt, "text/plain; charset=utf-8", t)
@@ -796,7 +796,7 @@ func TestCollectionClone(t *testing.T) {
 func runSubTestWithCreateCollectionTestData(test createCollectionTest, t *testing.T) {
 	cc := test.col
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(cc)
+	assert.NoError(t, json.NewEncoder(b).Encode(cc))
 
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
@@ -816,7 +816,7 @@ func runSubTestWithCreateCollectionTestData(test createCollectionTest, t *testin
 func runSubTestWithCloneCollectionTestData(test cloneCollectionTest, t *testing.T) {
 	cloneCollection := test.clone
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(cloneCollection)
+	assert.NoError(t, json.NewEncoder(b).Encode(cloneCollection))
 
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
@@ -1106,7 +1106,7 @@ func TestCollectionAssetAdd(t *testing.T) {
 		for _, test := range tests {
 			t.Run(test.testDesc, func(t *testing.T) {
 				b := new(bytes.Buffer)
-				json.NewEncoder(b).Encode(test.nameOwner)
+				assert.NoError(t, json.NewEncoder(b).Encode(test.nameOwner))
 
 				jwt := getJWTToken(t, test.jwtGen)
 				expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)

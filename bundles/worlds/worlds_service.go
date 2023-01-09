@@ -23,9 +23,9 @@ import (
 	"github.com/gazebo-web/fuel-server/permissions"
 	fuel "github.com/gazebo-web/fuel-server/proto"
 	"github.com/gazebo-web/fuel-server/vcs"
-	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/proto"
 )
 
 // ParseWorldContentsEnvVar holds the name of the boolean env var to check if parsing

@@ -84,8 +84,8 @@ func runSubTestWithModelReviewData(t *testing.T, test reviewSearchTest, jwt *str
 	reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL, SignedToken: jwt}
 	gztest.AssertRoute("OPTIONS", test.URL, http.StatusOK, t)
 	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
-	respJSON := make([]map[string]interface{}, 0, 0)
-	json.Unmarshal(*resp.BodyAsBytes, &respJSON)
+	respJSON := make([]map[string]interface{}, 0)
+	assert.NoError(t, json.Unmarshal(*resp.BodyAsBytes, &respJSON))
 	review := respJSON[0]["review"].(map[string]interface{})
 	assert.Equal(t, len(respJSON), 1)
 	assert.Equal(t, review["title"], "test title")

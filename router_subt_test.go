@@ -512,7 +512,7 @@ func runSubTestWithSubTRegistrationData(test subtRegistrationTest, t *testing.T)
 	jwt := getJWTToken(t, test.jwtGen)
 	b := new(bytes.Buffer)
 	rc := subt.RegistrationCreate{Participant: test.organization}
-	json.NewEncoder(b).Encode(rc)
+	assert.NoError(t, json.NewEncoder(b).Encode(rc))
 
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
@@ -547,7 +547,7 @@ func runSubTestWithSubTResolveRegistrationData(test subtResolveRegistrationTest,
 	var b *bytes.Buffer
 	if test.ru != nil {
 		b = new(bytes.Buffer)
-		json.NewEncoder(b).Encode(*test.ru)
+		assert.NoError(t, json.NewEncoder(b).Encode(*test.ru))
 	}
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
@@ -729,7 +729,7 @@ func runSubTestWithSubTUpdateLogFile(test subtUpdateLogFileTest, t *testing.T) {
 	var b *bytes.Buffer
 	if test.su != nil {
 		b = new(bytes.Buffer)
-		json.NewEncoder(b).Encode(*test.su)
+		assert.NoError(t, json.NewEncoder(b).Encode(*test.su))
 	}
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode

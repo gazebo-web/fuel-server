@@ -188,9 +188,7 @@ func CreateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 		return nil, em
 	}
 
-	var dbConfig ElasticSearchConfig
-
-	dbConfig = ElasticSearchConfig{
+	dbConfig := ElasticSearchConfig{
 		Address:   request.Address,
 		Username:  request.Username,
 		Password:  request.Password,
@@ -856,7 +854,7 @@ func createWorldResults(ctx context.Context, user *users.User, tx *gorm.DB, elas
 		}
 	}
 
-	return &worldsProto, count
+	return worldsProto, count
 }
 
 func createModelResults(ctx context.Context, user *users.User, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {

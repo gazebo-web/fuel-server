@@ -3,6 +3,7 @@ package main
 // Import this file's dependencies
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
@@ -338,7 +339,12 @@ func indexIsPresent(db *gorm.DB, table string, idxName string) (bool, error) {
 	// Raw SQL
 	rows, err := db.Raw("select * from information_schema.statistics where table_schema=database() and table_name=? and index_name=?;",
 		table, idxName).Rows() //(*sql.Rows, error)
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			log.Println("Failed to close rows:", err)
+		}
+	}(rows)
 	if err != nil {
 		return false, err
 	}

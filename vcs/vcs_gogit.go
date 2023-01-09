@@ -200,7 +200,7 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 	}
 
 	visitedFolders := make(map[string]bool)
-	iter.ForEach(func(f *object.File) error {
+	return iter.ForEach(func(f *object.File) error {
 		// Skip ".git" folder and its contents
 		if strings.HasPrefix(f.Name, ".git") {
 			return nil
@@ -237,7 +237,6 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 		}
 		return nil
 	})
-	return nil
 }
 
 // Zip - creates a zip with the repository files, at a given revision.

@@ -14,7 +14,7 @@ import (
 // It will run the test and then clean the database.
 func TestMain(m *testing.M) {
 	code := m.Run()
-	packageTearDown(nil)
+	packageTearDown(context.TODO())
 	log.Println("Cleaned database tables after all tests")
 	os.Exit(code)
 }

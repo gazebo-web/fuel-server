@@ -10,6 +10,8 @@ import (
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"log"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 )
@@ -90,9 +92,12 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 		return nil, em
 	}
 
-	writeIgnResourceVersionHeader(strconv.Itoa(int(*modelProto.Version)), w, r)
+	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*modelProto.Version)), w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
-	return modelProto, em
+	return modelProto, nil
 }
 
 // ModelOwnerIndex returns a single model. The returned value will be of
@@ -270,7 +275,12 @@ func ReportModelCreate(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 
 	var createModelReport models.CreateReport
 

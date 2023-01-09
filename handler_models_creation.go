@@ -8,6 +8,8 @@ import (
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
 	"io/ioutil"
+	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
@@ -29,7 +31,10 @@ func parseMetadata(r *http.Request) *models.ModelMetadata {
 
 			// Unmarshall the meta data
 			var unmarshalled models.ModelMetadatum
-			json.Unmarshal([]byte(meta), &unmarshalled)
+			err := json.Unmarshal([]byte(meta), &unmarshalled)
+			if err != nil {
+				continue
+			}
 			// Create the metadata array, if it is null.
 			if metadata == nil {
 				metadata = new(models.ModelMetadata)
@@ -134,7 +139,12 @@ func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 
 	// models.CreateModel is the input form
 	var cm models.CreateModel
@@ -194,7 +204,12 @@ func ModelClone(owner, modelName string, ignored *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 	// models.CloneModel is the input form
 	var cm models.CloneModel
 	if em := ParseStruct(&cm, r, true); em != nil {
@@ -223,7 +238,10 @@ func ModelClone(owner, modelName string, ignored *users.User, tx *gorm.DB,
 func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	r.ParseMultipartForm(0)
+	err := r.ParseMultipartForm(0)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 	// Delete temporary files from r.ParseMultipartForm(0)
 	defer r.MultipartForm.RemoveAll()
 	// models.UpdateModel is the input form

@@ -30,7 +30,10 @@ func parseWorldMetadata(r *http.Request) *worlds.WorldMetadata {
 
 			// Unmarshall the meta data
 			var unmarshalled worlds.WorldMetadatum
-			json.Unmarshal([]byte(meta), &unmarshalled)
+			err := json.Unmarshal([]byte(meta), &unmarshalled)
+			if err != nil {
+				continue
+			}
 			// Create the metadata array, if it is null.
 			if metadata == nil {
 				metadata = new(worlds.WorldMetadata)
@@ -450,7 +453,10 @@ func WorldClone(owner, name string, ignored *users.User, tx *gorm.DB,
 func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	r.ParseMultipartForm(0)
+	err := r.ParseMultipartForm(0)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 	// Delete temporary files from r.ParseMultipartForm(0)
 	defer r.MultipartForm.RemoveAll()
 	// worlds.UpdateWorld is the input form

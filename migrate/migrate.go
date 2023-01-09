@@ -200,7 +200,10 @@ func CasbinPermissions(ctx context.Context, db *gorm.DB) {
 		log.Fatal("[MIGRATION] Error finding organizations to create groups", err)
 	}
 	for _, org := range orgs {
-		globals.Permissions.AddUserGroupRole(*org.Creator, *org.Name, permissions.Owner)
+		_, em := globals.Permissions.AddUserGroupRole(*org.Creator, *org.Name, permissions.Owner)
+		if em != nil {
+			log.Println("Failed to AddUserGroupRole:", em.LogString())
+		}
 	}
 
 	var modelList models.Models
@@ -209,8 +212,14 @@ func CasbinPermissions(ctx context.Context, db *gorm.DB) {
 	}
 	for _, model := range modelList {
 		// add read and write permissions
-		globals.Permissions.AddPermission(*model.Owner, *model.UUID, permissions.Read)
-		globals.Permissions.AddPermission(*model.Owner, *model.UUID, permissions.Write)
+		_, err := globals.Permissions.AddPermission(*model.Owner, *model.UUID, permissions.Read)
+		if err != nil {
+			log.Println("Failed to add read permissions on model to owner", err)
+		}
+		_, err = globals.Permissions.AddPermission(*model.Owner, *model.UUID, permissions.Write)
+		if err != nil {
+			log.Println("Failed to add write permissions on model to owner", err)
+		}
 	}
 
 	var worldList worlds.Worlds
@@ -219,8 +228,14 @@ func CasbinPermissions(ctx context.Context, db *gorm.DB) {
 	}
 	for _, w := range worldList {
 		// add read and write permissions
-		globals.Permissions.AddPermission(*w.Owner, *w.UUID, permissions.Read)
-		globals.Permissions.AddPermission(*w.Owner, *w.UUID, permissions.Write)
+		_, err := globals.Permissions.AddPermission(*w.Owner, *w.UUID, permissions.Read)
+		if err != nil {
+			log.Println("Failed to add read permissions on model to owner", err)
+		}
+		_, err = globals.Permissions.AddPermission(*w.Owner, *w.UUID, permissions.Write)
+		if err != nil {
+			log.Println("Failed to add write permissions on model to owner", err)
+		}
 	}
 }
 

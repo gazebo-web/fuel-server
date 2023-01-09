@@ -38,8 +38,10 @@ func TestPermissionsSetSystemAdmin(t *testing.T) {
 	// test system admin role
 
 	// create test group and resource
-	globals.Permissions.AddUserGroupRole("owner3", "group3", permissions.Owner)
-	globals.Permissions.AddPermission("owner3", "resource3", permissions.Read)
+	_, em := globals.Permissions.AddUserGroupRole("owner3", "group3", permissions.Owner)
+	assert.NoError(t, em.BaseError)
+	_, err := globals.Permissions.AddPermission("owner3", "resource3", permissions.Read)
+	assert.NoError(t, err)
 
 	// system admin should have full permission
 	sysAdminPermissionsTestsData := []userResourcePermissionsTest{
@@ -60,7 +62,7 @@ func TestPermissionsSetSystemAdmin(t *testing.T) {
 	testUserResourcePermissions(t, user2DoesntHavePermissionsTestsData)
 
 	otherSA := "user2"
-	globals.Permissions.Reload(otherSA)
+	assert.NoError(t, globals.Permissions.Reload(otherSA))
 
 	oldSysAdminPermissionsTestsData := []userResourcePermissionsTest{
 		{"old sys admin cannot read group", sysAdminForTest, "group3", permissions.Read, false, unauth},
@@ -79,7 +81,7 @@ func TestPermissionsSetSystemAdmin(t *testing.T) {
 	testUserResourcePermissions(t, newSysAdminPermissionsTestsData)
 
 	// Test with multiple system admins
-	globals.Permissions.Reload("user3, user2,    ")
+	assert.NoError(t, globals.Permissions.Reload("user3, user2,    "))
 	// user2 should still be the system admin
 	testUserResourcePermissions(t, newSysAdminPermissionsTestsData)
 	// and also user3 should be a sysadmin
@@ -100,7 +102,8 @@ func TestUserResourcePermissions(t *testing.T) {
 	unauthorizedErrMsg := gz.NewErrorMessage(gz.ErrorUnauthorized)
 
 	// test add read permission
-	globals.Permissions.AddPermission("user1", "resource1", permissions.Read)
+	_, err := globals.Permissions.AddPermission("user1", "resource1", permissions.Read)
+	assert.NoError(t, err)
 
 	readPermissionsTestsData := []userResourcePermissionsTest{
 		{"user can read", "user1", "resource1", permissions.Read, true, nil},
@@ -111,8 +114,10 @@ func TestUserResourcePermissions(t *testing.T) {
 	testUserResourcePermissions(t, readPermissionsTestsData)
 
 	// test add read and write permissions
-	globals.Permissions.AddPermission("user2", "resource2", permissions.Read)
-	globals.Permissions.AddPermission("user2", "resource2", permissions.Write)
+	_, err = globals.Permissions.AddPermission("user2", "resource2", permissions.Read)
+	assert.NoError(t, err)
+	_, err = globals.Permissions.AddPermission("user2", "resource2", permissions.Write)
+	assert.NoError(t, err)
 
 	writePermissionsTestsData := []userResourcePermissionsTest{
 		{"user can read", "user2", "resource2", permissions.Read, true, nil},
@@ -123,7 +128,8 @@ func TestUserResourcePermissions(t *testing.T) {
 	testUserResourcePermissions(t, writePermissionsTestsData)
 
 	// test remove read permission
-	globals.Permissions.RemovePermission("user1", "resource1", permissions.Read)
+	_, err = globals.Permissions.RemovePermission("user1", "resource1", permissions.Read)
+	assert.NoError(t, err)
 
 	removeReadPermissionsTestsData := []userResourcePermissionsTest{
 		{"user can't read", "user1", "resource1", permissions.Read, false, unauthorizedErrMsg},
@@ -134,7 +140,8 @@ func TestUserResourcePermissions(t *testing.T) {
 	testUserResourcePermissions(t, removeReadPermissionsTestsData)
 
 	// test remove write permission
-	globals.Permissions.RemovePermission("user2", "resource2", permissions.Write)
+	_, err = globals.Permissions.RemovePermission("user2", "resource2", permissions.Write)
+	assert.NoError(t, err)
 
 	removeWritePermissionsTestsData := []userResourcePermissionsTest{
 		{"user can read", "user2", "resource2", permissions.Read, true, nil},
@@ -146,8 +153,10 @@ func TestUserResourcePermissions(t *testing.T) {
 
 	// test remove write permission when user has read only permission
 	// this should have no effect
-	globals.Permissions.AddPermission("user3", "resource3", permissions.Read)
-	globals.Permissions.RemovePermission("user3", "resource3", permissions.Write)
+	_, err = globals.Permissions.AddPermission("user3", "resource3", permissions.Read)
+	assert.NoError(t, err)
+	_, err = globals.Permissions.RemovePermission("user3", "resource3", permissions.Write)
+	assert.NoError(t, err)
 
 	removeWriteOnReadPermissionsTestsData := []userResourcePermissionsTest{
 		{"user can read", "user3", "resource3", permissions.Read, true, nil},
@@ -156,8 +165,10 @@ func TestUserResourcePermissions(t *testing.T) {
 	testUserResourcePermissions(t, removeWriteOnReadPermissionsTestsData)
 
 	// test remove read permission when user has read and write permission
-	globals.Permissions.AddPermission("user4", "resource4", permissions.Write)
-	globals.Permissions.RemovePermission("user4", "resource4", permissions.Read)
+	_, err = globals.Permissions.AddPermission("user4", "resource4", permissions.Write)
+	assert.NoError(t, err)
+	_, err = globals.Permissions.RemovePermission("user4", "resource4", permissions.Read)
+	assert.NoError(t, err)
 
 	removeReadOnWritePermissionsTestsData := []userResourcePermissionsTest{
 		{"user can't read", "user4", "resource4", permissions.Read, false, unauthorizedErrMsg},
@@ -169,10 +180,14 @@ func TestUserResourcePermissions(t *testing.T) {
 	// Test remove resource and verify all associated permissions are also be
 	// removed.
 	// first add user permissions to the same resource and verify
-	globals.Permissions.AddPermission("userA", "resourceA", permissions.Read)
-	globals.Permissions.AddPermission("userB", "resourceA", permissions.Write)
-	globals.Permissions.AddPermission("userC", "resourceA", permissions.Read)
-	globals.Permissions.AddPermission("userC", "resourceA", permissions.Write)
+	_, err = globals.Permissions.AddPermission("userA", "resourceA", permissions.Read)
+	assert.NoError(t, err)
+	_, err = globals.Permissions.AddPermission("userB", "resourceA", permissions.Write)
+	assert.NoError(t, err)
+	_, err = globals.Permissions.AddPermission("userC", "resourceA", permissions.Read)
+	assert.NoError(t, err)
+	_, err = globals.Permissions.AddPermission("userC", "resourceA", permissions.Write)
+	assert.NoError(t, err)
 
 	addResourcePermissionsTestsData := []userResourcePermissionsTest{
 		{"userA can read", "userA", "resourceA", permissions.Read, true, nil},
@@ -183,7 +198,8 @@ func TestUserResourcePermissions(t *testing.T) {
 	testUserResourcePermissions(t, addResourcePermissionsTestsData)
 
 	// now remove the resource
-	globals.Permissions.RemoveResource("resourceA")
+	_, em := globals.Permissions.RemoveResource("resourceA")
+	assert.NoError(t, em.BaseError)
 	removeResourcePermissionsTestsData := []userResourcePermissionsTest{
 		{"userA can't read", "userA", "resourceA", permissions.Read, false, unauthorizedErrMsg},
 		{"userB can't write", "userA", "resourceA", permissions.Write, false, unauthorizedErrMsg},
@@ -202,9 +218,12 @@ func TestUserRolePermissions(t *testing.T) {
 	unauthorizedErrMsg := gz.NewErrorMessage(gz.ErrorUnauthorized)
 
 	// test basic role read/write permissions
-	globals.Permissions.AddUserGroupRole("ownerA", "groupA", permissions.Owner)
-	globals.Permissions.AddUserGroupRole("adminA", "groupA", permissions.Admin)
-	globals.Permissions.AddUserGroupRole("memberA", "groupA", permissions.Member)
+	_, em := globals.Permissions.AddUserGroupRole("ownerA", "groupA", permissions.Owner)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("adminA", "groupA", permissions.Admin)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("memberA", "groupA", permissions.Member)
+	assert.NoError(t, em.BaseError)
 
 	rolePermissionsTestsData := []userResourcePermissionsTest{
 		{"owner can read", "ownerA", "groupA", permissions.Read, true, nil},
@@ -219,10 +238,14 @@ func TestUserRolePermissions(t *testing.T) {
 	testUserResourcePermissions(t, rolePermissionsTestsData)
 
 	// test role read permission
-	globals.Permissions.AddUserGroupRole("owner1", "group1", permissions.Owner)
-	globals.Permissions.AddUserGroupRole("admin1", "group1", permissions.Admin)
-	globals.Permissions.AddUserGroupRole("member1", "group1", permissions.Member)
-	globals.Permissions.AddPermission("group1", "resource1", permissions.Read)
+	_, em = globals.Permissions.AddUserGroupRole("owner1", "group1", permissions.Owner)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("admin1", "group1", permissions.Admin)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("member1", "group1", permissions.Member)
+	assert.NoError(t, em.BaseError)
+	_, err := globals.Permissions.AddPermission("group1", "resource1", permissions.Read)
+	assert.NoError(t, err)
 
 	readPermissionsTestsData := []userResourcePermissionsTest{
 		{"group can read", "group1", "resource1", permissions.Read, true, nil},
@@ -238,10 +261,14 @@ func TestUserRolePermissions(t *testing.T) {
 	testUserResourcePermissions(t, readPermissionsTestsData)
 
 	// test role write permission
-	globals.Permissions.AddUserGroupRole("owner2", "group2", permissions.Owner)
-	globals.Permissions.AddUserGroupRole("admin2", "group2", permissions.Admin)
-	globals.Permissions.AddUserGroupRole("member2", "group2", permissions.Member)
-	globals.Permissions.AddPermission("group2", "resource2", permissions.Write)
+	_, em = globals.Permissions.AddUserGroupRole("owner2", "group2", permissions.Owner)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("admin2", "group2", permissions.Admin)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("member2", "group2", permissions.Member)
+	assert.NoError(t, em.BaseError)
+	_, err = globals.Permissions.AddPermission("group2", "resource2", permissions.Write)
+	assert.NoError(t, err)
 
 	writePermissionsTestsData := []userResourcePermissionsTest{
 		{"group can write", "group2", "resource2", permissions.Write, true, nil},
@@ -256,8 +283,10 @@ func TestUserRolePermissions(t *testing.T) {
 	// system admin should have full permission
 
 	// create test group and resource
-	globals.Permissions.AddUserGroupRole("owner3", "group3", permissions.Owner)
-	globals.Permissions.AddPermission("owner3", "resource3", permissions.Read)
+	_, em = globals.Permissions.AddUserGroupRole("owner3", "group3", permissions.Owner)
+	assert.NoError(t, em.BaseError)
+	_, err = globals.Permissions.AddPermission("owner3", "resource3", permissions.Read)
+	assert.NoError(t, err)
 
 	// NOTE: 'rootfortests' is the built-in system administrator username used only in tests
 	sysAdminPermissionsTestsData := []userResourcePermissionsTest{
@@ -299,21 +328,29 @@ type userGroupsTest struct {
 // TestGetGroupsAndRolesForUser test returning the groups of an user.
 func TestGetGroupsAndRolesForUser(t *testing.T) {
 	// test basic role read/write permissions
-	globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Owner)
-	globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Admin)
-	globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Member)
-	globals.Permissions.AddUserGroupRole("userA", "group2", permissions.Admin)
-	globals.Permissions.AddUserGroupRole("userB", "groupA", permissions.Member)
-	globals.Permissions.AddUserGroupRole("userB", "group2", permissions.Owner)
-	globals.Permissions.AddUserGroupRole("userC", "group2", permissions.Member)
-	globals.Permissions.AddUserGroupRole("userU", "group_with-underscore_", permissions.Member)
+	_, em := globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Owner)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Admin)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Member)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("userA", "group2", permissions.Admin)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("userB", "groupA", permissions.Member)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("userB", "group2", permissions.Owner)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("userC", "group2", permissions.Member)
+	assert.NoError(t, em.BaseError)
+	_, em = globals.Permissions.AddUserGroupRole("userU", "group_with-underscore_", permissions.Member)
+	assert.NoError(t, em.BaseError)
 
 	userGroupsTestData := []userGroupsTest{
-		{"groups of userA", "userA", map[string]string{"groupA": "owner", "group2": "admin"}},
-		{"groups of userB", "userB", map[string]string{"groupA": "member", "group2": "owner"}},
-		{"groups of userC", "userC", map[string]string{"group2": "member"}},
-		{"groups of unexistent userD", "userD", map[string]string{}},
-		{"group name with underscore", "userU", map[string]string{"group_with-underscore_": "member"}},
+		{testDesc: "groups of userA", user: "userA", expGroups: map[string]string{"groupA": "owner", "group2": "admin"}},
+		{testDesc: "groups of userB", user: "userB", expGroups: map[string]string{"groupA": "member", "group2": "owner"}},
+		{testDesc: "groups of userC", user: "userC", expGroups: map[string]string{"group2": "member"}},
+		{testDesc: "groups of unexistent userD", user: "userD", expGroups: map[string]string{}},
+		{testDesc: "group name with underscore", user: "userU", expGroups: map[string]string{"group_with-underscore_": "member"}},
 	}
 	testGetUserGroups(t, userGroupsTestData)
 }

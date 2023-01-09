@@ -295,7 +295,7 @@ func collectionAssetAdd(colOwner, colName, assetType string, user *users.User,
 			return nil, em
 		}
 		models.ElasticSearchUpdateModel(r.Context(), tx, *model)
-	} else if assetType == collections.TModel {
+	} else if assetType == collections.TWorld {
 		world, em := (&worlds.Service{}).GetWorld(tx, no.Owner, no.Name, user)
 		if em != nil {
 			return nil, em

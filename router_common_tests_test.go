@@ -9,9 +9,9 @@ import (
 	"github.com/gazebo-web/fuel-server/proto"
 	"github.com/gazebo-web/gz-go/v7"
 	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"net/http"
 	"os"
@@ -375,14 +375,14 @@ func TestGetFileTree(t *testing.T) {
 	// remove some files in server and make it fail
 	model := getOwnerModelFromDb(t, testUser, "model1")
 	modelPath := path.Join(globals.ResourceDir, testUser, "models", fmt.Sprint(*model.UUID))
-	os.Rename(modelPath, modelPath+"-tmp")
+	assert.NoError(t, os.Rename(modelPath, modelPath+"-tmp"))
 	brokenModel := getFileTreeTest{uriTest{"broken model1 filetree", modelURL(testUser, "model1", "") + "/tip/files", nil, gz.NewErrorMessage(gz.ErrorUnexpected), false}, 0, 1, nil}
 	runSubtestWithFileTreeTestData(t, brokenModel)
 
 	// remove files from world in server and make it fail
 	w := getWorldFromDb(t, testUser, "world1")
 	worldPath := path.Join(globals.ResourceDir, testUser, "worlds", fmt.Sprint(*w.UUID))
-	os.Rename(worldPath, worldPath+"-tmp")
+	assert.NoError(t, os.Rename(worldPath, worldPath+"-tmp"))
 	brokenWorld := getFileTreeTest{uriTest{"broken world1 filetree", worldURL(testUser, "world1", "") + "/tip/files", nil, gz.NewErrorMessage(gz.ErrorUnexpected), false}, 0, 1, nil}
 	runSubtestWithFileTreeTestData(t, brokenWorld)
 }
@@ -430,10 +430,10 @@ func TestFileTreeProto(t *testing.T) {
 	myJWT := os.Getenv("IGN_TEST_JWT")
 
 	tests := []protoFileTree{
-		{fmt.Sprintf("/1.0/%s/models/model1/tip/files.proto", testUser), 3},
-		{fmt.Sprintf("/1.0/%s/models/model1/1/files.proto", testUser), 3},
-		{fmt.Sprintf("/1.0/%s/worlds/world2/tip/files.proto", testUser), 4},
-		{fmt.Sprintf("/1.0/%s/worlds/world1/1/files.proto", testUser), 3},
+		{uri: fmt.Sprintf("/1.0/%s/models/model1/tip/files.proto", testUser), expLen: 3},
+		{uri: fmt.Sprintf("/1.0/%s/models/model1/1/files.proto", testUser), expLen: 3},
+		{uri: fmt.Sprintf("/1.0/%s/worlds/world2/tip/files.proto", testUser), expLen: 4},
+		{uri: fmt.Sprintf("/1.0/%s/worlds/world1/1/files.proto", testUser), expLen: 3},
 	}
 
 	for _, test := range tests {
