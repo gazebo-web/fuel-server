@@ -5,7 +5,6 @@ import (
 )
 
 // ModelDownload represents a single download of a model.
-//
 type ModelDownload struct {
 	gorm.Model
 

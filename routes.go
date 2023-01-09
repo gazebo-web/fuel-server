@@ -4,8 +4,8 @@ import (
 	"github.com/gazebo-web/gz-go/v7"
 )
 
-/////////////////////////////////////////////////
-/// Declare the routes. See also router.go
+// ///////////////////////////////////////////////
+// / Declare the routes. See also router.go
 var routes = gz.Routes{
 
 	////////////
@@ -14,11 +14,11 @@ var routes = gz.Routes{
 
 	// Route for all models
 	gz.Route{
-		"Models",
-		"Information about all models",
-		"/models",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "Models",
+		Description: "Information about all models",
+		URI:         "/models",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /models models listModels
 			//
 			// Get list of models.
@@ -42,16 +42,16 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: jsonModels
 			gz.Method{
-				"GET",
-				"Get all models",
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONListResult("Models", SearchHandler(ModelList))},
-					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(ModelList))},
-					gz.FormatHandler{"", gz.JSONListResult("Models", SearchHandler(ModelList))},
+				Type:        "GET",
+				Description: "Get all models",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONListResult("Models", SearchHandler(ModelList))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(SearchHandler(ModelList))},
+					gz.FormatHandler{Handler: gz.JSONListResult("Models", SearchHandler(ModelList))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /models models createModel
 			//
 			// Create model
@@ -75,10 +75,10 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbModel
 			gz.Method{
-				"POST",
-				"Create a new model",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(ModelCreate)},
+				Type:        "POST",
+				Description: "Create a new model",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(ModelCreate)},
 				},
 			},
 		},
@@ -86,11 +86,11 @@ var routes = gz.Routes{
 
 	// Route that returns a list of models from a team/user (ie. an 'owner')
 	gz.Route{
-		"OwnerModels",
-		"Information about models belonging to an owner. The {username} URI option will limit the scope to the specified user/team. Otherwise all models are considered.",
-		"/{username}/models",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "OwnerModels",
+		Description: "Information about models belonging to an owner. The {username} URI option will limit the scope to the specified user/team. Otherwise all models are considered.",
+		URI:         "/{username}/models",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/models models listOwnerModels
 			//
 			// Get owner's models
@@ -116,27 +116,27 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: jsonModels
 			gz.Method{
-				"GET",
-				"Get all models of the specified team/user",
+				Type:        "GET",
+				Description: "Get all models of the specified team/user",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONListResult("Models", SearchHandler(ModelList))},
-					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(ModelList))},
-					gz.FormatHandler{"", gz.JSONListResult("Models", SearchHandler(ModelList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONListResult("Models", SearchHandler(ModelList))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(SearchHandler(ModelList))},
+					gz.FormatHandler{Handler: gz.JSONListResult("Models", SearchHandler(ModelList))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that handles likes to a model from an owner
 	gz.Route{
-		"ModelLikes",
-		"Handles the likes of a model.",
-		"/{username}/models/{model}/likes",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "ModelLikes",
+		Description: "Handles the likes of a model.",
+		URI:         "/{username}/models/{model}/likes",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/models/{model}/likes models modelLikeCreate
 			//
 			// Like a model
@@ -150,11 +150,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: Model
 			gz.Method{
-				"POST",
-				"Like a model",
+				Type:        "POST",
+				Description: "Like a model",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerLikeCreate)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerLikeCreate)))},
 				},
 			},
 			// swagger:route DELETE /{username}/models/{model}/likes models modelUnlike
@@ -170,11 +170,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: Model
 			gz.Method{
-				"DELETE",
-				"Unlike a model",
+				Type:        "DELETE",
+				Description: "Unlike a model",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerLikeRemove)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerLikeRemove)))},
 				},
 			},
 		},
@@ -182,11 +182,11 @@ var routes = gz.Routes{
 
 	// Route that returns a list of models liked by a user.
 	gz.Route{
-		"ModelLikeList",
-		"Models liked by a user.",
-		"/{username}/likes/models",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "ModelLikeList",
+		Description: "Models liked by a user.",
+		URI:         "/{username}/likes/models",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/likes/models models modelLikeList
 			//
 			// Get models liked by a user.
@@ -209,25 +209,25 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: jsonModels
 			gz.Method{
-				"GET",
-				"Get all models liked by the specified user",
+				Type:        "GET",
+				Description: "Get all models liked by the specified user",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONListResult("Models", SearchHandler(ModelLikeList))},
-					gz.FormatHandler{"", gz.JSONListResult("Models", SearchHandler(ModelLikeList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONListResult("Models", SearchHandler(ModelLikeList))},
+					gz.FormatHandler{Handler: gz.JSONListResult("Models", SearchHandler(ModelLikeList))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that returns the files tree of a single model based on owner, model name, and version
 	gz.Route{
-		"ModelOwnerVersionFileTree",
-		"Route that returns the files tree of a single model.",
-		"/{username}/models/{model}/{version}/files",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "ModelOwnerVersionFileTree",
+		Description: "Route that returns the files tree of a single model.",
+		URI:         "/{username}/models/{model}/{version}/files",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/models/{model}/{version}/files models modelFileTree
 			//
 			// Model's file tree.
@@ -244,25 +244,25 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: ModelFileTree
 			gz.Method{
-				"GET",
-				"Get file tree",
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
-					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
+				Type:        "GET",
+				Description: "Get file tree",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerVersionFileTree))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that downloads an individual file from a model based on owner, model name, and version
 	gz.Route{
-		"ModelOwnerVersionIndividualFileDownload",
-		"Download individual file from a model.",
-		"/{username}/models/{model}/{version}/files/{path:.+}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "ModelOwnerVersionIndividualFileDownload",
+		Description: "Download individual file from a model.",
+		URI:         "/{username}/models/{model}/{version}/files/{path:.+}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/models/{model}/{version}/files/{path} models downloadModelFile
 			//
 			// Download an individual file from a model.
@@ -276,23 +276,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: fileResponse
 			gz.Method{
-				"GET",
-				"GET a file",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionIndividualFileDownload)))},
+				Type:        "GET",
+				Description: "GET a file",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionIndividualFileDownload)))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that returns a model, by name, from a team/user
 	gz.Route{
-		"OwnerModelIndex",
-		"Information about a model belonging to an owner.",
-		"/{username}/models/{model}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "OwnerModelIndex",
+		Description: "Information about a model belonging to an owner.",
+		URI:         "/{username}/models/{model}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/models/{model} models singleOwnerModel
 			//
 			// Get a single model from an owner
@@ -310,18 +310,18 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: Model
 			gz.Method{
-				"GET",
-				"Get a model belonging to the specified team/user",
+				Type:        "GET",
+				Description: "Get a model belonging to the specified team/user",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
-					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
-					gz.FormatHandler{".zip", gz.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionZip)))},
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
+					gz.FormatHandler{Extension: ".zip", Handler: gz.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionZip)))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route PATCH /{username}/models/{model} models modelUpdate
 			//
 			// Update a model
@@ -340,11 +340,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: Model
 			gz.Method{
-				"PATCH",
-				"Edit a model",
+				Type:        "PATCH",
+				Description: "Edit a model",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", true, ModelUpdate))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("model", true, ModelUpdate))},
 				},
 			},
 			// swagger:route DELETE /{username}/models/{model} models deleteModel
@@ -359,11 +359,11 @@ var routes = gz.Routes{
 			//   Schemes: https
 			//
 			gz.Method{
-				"DELETE",
-				"Deletes a single model",
+				Type:        "DELETE",
+				Description: "Deletes a single model",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerRemove)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("model", true, ModelOwnerRemove)))},
 				},
 			},
 		},
@@ -371,12 +371,12 @@ var routes = gz.Routes{
 
 	// Route that transfers a model
 	gz.Route{
-		"OwnerModelIndex",
-		"Transfer a model to another owner.",
-		"/{username}/models/{model}/transfer",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "OwnerModelIndex",
+		Description: "Transfer a model to another owner.",
+		URI:         "/{username}/models/{model}/transfer",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/models/{model}/transfer models modelTransfer
 			//
 			// Transfer a model
@@ -393,11 +393,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: Model
 			gz.Method{
-				"POST",
-				"Transfer a model",
+				Type:        "POST",
+				Description: "Transfer a model",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", true, ModelTransfer))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("model", true, ModelTransfer))},
 				},
 			},
 		},
@@ -405,11 +405,11 @@ var routes = gz.Routes{
 
 	// Route that returns a model zip file from a team/user
 	gz.Route{
-		"OwnerModelVersion",
-		"Download a versioned model zip file belonging to an owner.",
-		"/{username}/models/{model}/{version}/{model}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "OwnerModelVersion",
+		Description: "Download a versioned model zip file belonging to an owner.",
+		URI:         "/{username}/models/{model}/{version}/{model}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/models/{model}/{version}/{model} models singleOwnerModel
 			//
 			// Get a single model zip file from an owner
@@ -425,28 +425,28 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: Model
 			gz.Method{
-				"GET",
-				"Get a model of specified version belonging to the specified team/user",
+				Type:        "GET",
+				Description: "Get a model of specified version belonging to the specified team/user",
 				// Format handlers
 				// if empty file extension is given, it returns model's meta data
 				// and {version} is then ignored
-				gz.FormatHandlers{
-					gz.FormatHandler{".zip", gz.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionZip)))},
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".zip", Handler: gz.Handler(NoResult(NameOwnerHandler("model", false, ModelOwnerVersionZip)))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("model", false, ModelOwnerIndex))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that clones a model
 	gz.Route{
-		"CloneModel",
-		"Clone a model",
-		"/{username}/models/{model}/clone",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "CloneModel",
+		Description: "Clone a model",
+		URI:         "/{username}/models/{model}/clone",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/models/{model}/clone models cloneModel
 			//
 			// Clones a models
@@ -465,10 +465,10 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OK
 			gz.Method{
-				"POST",
-				"Clones a model",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", false, ModelClone))},
+				Type:        "POST",
+				Description: "Clones a model",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("model", false, ModelClone))},
 				},
 			},
 		},
@@ -476,11 +476,11 @@ var routes = gz.Routes{
 
 	// Route that handles model reports
 	gz.Route{
-		"ReportModel",
-		"Report a model",
-		"/{username}/models/{model}/report",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "ReportModel",
+		Description: "Report a model",
+		URI:         "/{username}/models/{model}/report",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route POST /{username}/models/{model}/report models reportModel
 			//
 			// Reports a model.
@@ -497,14 +497,14 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OK
 			gz.Method{
-				"POST",
-				"Reports a model",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("model", false, ReportModelCreate)))},
+				Type:        "POST",
+				Description: "Reports a model",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("model", false, ReportModelCreate)))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	////////////
@@ -513,11 +513,11 @@ var routes = gz.Routes{
 
 	// Route for all worlds
 	gz.Route{
-		"Worlds",
-		"Information about all worlds",
-		"/worlds",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "Worlds",
+		Description: "Information about all worlds",
+		URI:         "/worlds",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /worlds worlds listWorlds
 			//
 			// Get list of worlds.
@@ -541,16 +541,16 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: jsonWorlds
 			gz.Method{
-				"GET",
-				"Get all worlds",
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONListResult("Worlds", SearchHandler(WorldList))},
-					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(WorldList))},
-					gz.FormatHandler{"", gz.JSONListResult("Worlds", SearchHandler(WorldList))},
+				Type:        "GET",
+				Description: "Get all worlds",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONListResult("Worlds", SearchHandler(WorldList))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(SearchHandler(WorldList))},
+					gz.FormatHandler{Handler: gz.JSONListResult("Worlds", SearchHandler(WorldList))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /worlds worlds createWorld
 			//
 			// Create world
@@ -574,10 +574,10 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbWorld
 			gz.Method{
-				"POST",
-				"Create a new world",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(WorldCreate)},
+				Type:        "POST",
+				Description: "Create a new world",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(WorldCreate)},
 				},
 			},
 		},
@@ -585,11 +585,11 @@ var routes = gz.Routes{
 
 	// Route that returns a list of worlds from a team/user (ie. an 'owner')
 	gz.Route{
-		"OwnerWorlds",
-		"Information about worlds belonging to an owner. The {username} URI option will limit the scope to the specified user/team. Otherwise all worlds are considered.",
-		"/{username}/worlds",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "OwnerWorlds",
+		Description: "Information about worlds belonging to an owner. The {username} URI option will limit the scope to the specified user/team. Otherwise all worlds are considered.",
+		URI:         "/{username}/worlds",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/worlds worlds listOwnerWorlds
 			//
 			// Get owner's worlds
@@ -615,27 +615,27 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: jsonWorlds
 			gz.Method{
-				"GET",
-				"Get all worlds of the specified team/user",
+				Type:        "GET",
+				Description: "Get all worlds of the specified team/user",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONListResult("Worlds", SearchHandler(WorldList))},
-					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(WorldList))},
-					gz.FormatHandler{"", gz.JSONListResult("Worlds", SearchHandler(WorldList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONListResult("Worlds", SearchHandler(WorldList))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(SearchHandler(WorldList))},
+					gz.FormatHandler{Handler: gz.JSONListResult("Worlds", SearchHandler(WorldList))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that handles likes to a world from an owner
 	gz.Route{
-		"WorldLikes",
-		"Handles the likes of a world.",
-		"/{username}/worlds/{world}/likes",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "WorldLikes",
+		Description: "Handles the likes of a world.",
+		URI:         "/{username}/worlds/{world}/likes",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/worlds/{world}/likes worlds worldLikeCreate
 			//
 			// Like a world
@@ -649,11 +649,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: World
 			gz.Method{
-				"POST",
-				"Like a world",
+				Type:        "POST",
+				Description: "Like a world",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("world", true, WorldLikeCreate)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("world", true, WorldLikeCreate)))},
 				},
 			},
 			// swagger:route DELETE /{username}/worlds/{world}/likes worlds worldUnlike
@@ -669,11 +669,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: World
 			gz.Method{
-				"DELETE",
-				"Unlike a world",
+				Type:        "DELETE",
+				Description: "Unlike a world",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("world", true, WorldLikeRemove)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("world", true, WorldLikeRemove)))},
 				},
 			},
 		},
@@ -681,11 +681,11 @@ var routes = gz.Routes{
 
 	// Route that returns a list of worlds liked by a user.
 	gz.Route{
-		"WorldLikeList",
-		"Worlds liked by a user.",
-		"/{username}/likes/worlds",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "WorldLikeList",
+		Description: "Worlds liked by a user.",
+		URI:         "/{username}/likes/worlds",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/likes/worlds worlds worldLikeList
 			//
 			// Get worlds liked by a user.
@@ -708,25 +708,25 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: jsonWorlds
 			gz.Method{
-				"GET",
-				"Get all worlds liked by the specified user",
+				Type:        "GET",
+				Description: "Get all worlds liked by the specified user",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONListResult("Worlds", SearchHandler(WorldLikeList))},
-					gz.FormatHandler{"", gz.JSONListResult("Worlds", SearchHandler(WorldLikeList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONListResult("Worlds", SearchHandler(WorldLikeList))},
+					gz.FormatHandler{Handler: gz.JSONListResult("Worlds", SearchHandler(WorldLikeList))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that returns the files tree of a single world based on owner, name, and version
 	gz.Route{
-		"WorldFileTree",
-		"Route that returns the files tree of a single world.",
-		"/{username}/worlds/{world}/{version}/files",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "WorldFileTree",
+		Description: "Route that returns the files tree of a single world.",
+		URI:         "/{username}/worlds/{world}/{version}/files",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/worlds/{world}/{version}/files worlds worldFileTree
 			//
 			// World's file tree.
@@ -743,25 +743,25 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: WorldFileTree
 			gz.Method{
-				"GET",
-				"Get file tree",
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("world", false, WorldFileTree))},
-					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("world", false, WorldFileTree))},
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldFileTree))},
+				Type:        "GET",
+				Description: "Get file tree",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameOwnerHandler("world", false, WorldFileTree))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(NameOwnerHandler("world", false, WorldFileTree))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("world", false, WorldFileTree))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that downloads an individual file from a world based on owner, name, and version
 	gz.Route{
-		"WorldIndividualFileDownload",
-		"Download individual file from a world.",
-		"/{username}/worlds/{world}/{version}/files/{path:.+}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "WorldIndividualFileDownload",
+		Description: "Download individual file from a world.",
+		URI:         "/{username}/worlds/{world}/{version}/files/{path:.+}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/worlds/{world}/{version}/files/{path} worlds downloadWorldFile
 			//
 			// Download an individual file from a world.
@@ -775,23 +775,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: fileResponse
 			gz.Method{
-				"GET",
-				"GET a file",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("world", false, WorldIndividualFileDownload)))},
+				Type:        "GET",
+				Description: "GET a file",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("world", false, WorldIndividualFileDownload)))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that returns a world, by name, from a team/user
 	gz.Route{
-		"WorldIndex",
-		"Information about a world belonging to an owner.",
-		"/{username}/worlds/{world}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "WorldIndex",
+		Description: "Information about a world belonging to an owner.",
+		URI:         "/{username}/worlds/{world}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/worlds/{world} worlds singleOwnerWorld
 			//
 			// Get a single world from an owner
@@ -809,18 +809,18 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: World
 			gz.Method{
-				"GET",
-				"Get a world belonging to the specified team/user",
+				Type:        "GET",
+				Description: "Get a world belonging to the specified team/user",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
-					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("world", false, WorldIndex))},
-					gz.FormatHandler{".zip", gz.Handler(NoResult(NameOwnerHandler("world", false, WorldZip)))},
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(NameOwnerHandler("world", false, WorldIndex))},
+					gz.FormatHandler{Extension: ".zip", Handler: gz.Handler(NoResult(NameOwnerHandler("world", false, WorldZip)))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route PATCH /{username}/worlds/{world} worlds worldUpdate
 			//
 			// Update a world
@@ -839,11 +839,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: World
 			gz.Method{
-				"PATCH",
-				"Edit a world",
+				Type:        "PATCH",
+				Description: "Edit a world",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", true, WorldUpdate))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("world", true, WorldUpdate))},
 				},
 			},
 			// swagger:route DELETE /{username}/worlds/{world} world deleteWorld
@@ -858,11 +858,11 @@ var routes = gz.Routes{
 			//   Schemes: https
 			//
 			gz.Method{
-				"DELETE",
-				"Deletes a single world",
+				Type:        "DELETE",
+				Description: "Deletes a single world",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("world", true, WorldRemove)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("world", true, WorldRemove)))},
 				},
 			},
 		},
@@ -870,12 +870,12 @@ var routes = gz.Routes{
 
 	// Route that transfers a world
 	gz.Route{
-		"OwnerWorldTransfer",
-		"Transfer a world to another owner.",
-		"/{username}/worlds/{world}/transfer",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "OwnerWorldTransfer",
+		Description: "Transfer a world to another owner.",
+		URI:         "/{username}/worlds/{world}/transfer",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/worlds/{world}/transfer models worldTransfer
 			//
 			// Transfer a world
@@ -892,11 +892,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: Model
 			gz.Method{
-				"POST",
-				"Transfer a world",
+				Type:        "POST",
+				Description: "Transfer a world",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", true, WorldTransfer))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("world", true, WorldTransfer))},
 				},
 			},
 		},
@@ -904,11 +904,11 @@ var routes = gz.Routes{
 
 	// Route that returns a world zip file from a team/user
 	gz.Route{
-		"WorldVersion",
-		"Download a versioned world zip file belonging to an owner.",
-		"/{username}/worlds/{world}/{version}/{world}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "WorldVersion",
+		Description: "Download a versioned world zip file belonging to an owner.",
+		URI:         "/{username}/worlds/{world}/{version}/{world}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/worlds/{world}/{version}/{world} worlds singleOwnerWorld
 			//
 			// Get a single world zip file from an owner
@@ -924,28 +924,28 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: World
 			gz.Method{
-				"GET",
-				"Get a world of specified version belonging to the specified team/user",
+				Type:        "GET",
+				Description: "Get a world of specified version belonging to the specified team/user",
 				// Format handlers
 				// if empty file extension is given, it returns world's meta data
 				// and {version} is then ignored
-				gz.FormatHandlers{
-					gz.FormatHandler{".zip", gz.Handler(NoResult(NameOwnerHandler("world", false, WorldZip)))},
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".zip", Handler: gz.Handler(NoResult(NameOwnerHandler("world", false, WorldZip)))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("world", false, WorldIndex))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that clones a world
 	gz.Route{
-		"CloneWorld",
-		"Clone a world",
-		"/{username}/worlds/{world}/clone",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "CloneWorld",
+		Description: "Clone a world",
+		URI:         "/{username}/worlds/{world}/clone",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/worlds/{world}/clone worlds cloneWorld
 			//
 			// Clones a world
@@ -964,10 +964,10 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OK
 			gz.Method{
-				"POST",
-				"Clones a world",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldClone))},
+				Type:        "POST",
+				Description: "Clones a world",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("world", false, WorldClone))},
 				},
 			},
 		},
@@ -975,11 +975,11 @@ var routes = gz.Routes{
 
 	// Route that handles world reports
 	gz.Route{
-		"ReportWorld",
-		"Report a world",
-		"/{username}/worlds/{world}/report",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "ReportWorld",
+		Description: "Report a world",
+		URI:         "/{username}/worlds/{world}/report",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route POST /{username}/worlds/{world}/report worlds reportWorld
 			//
 			// Reports a world.
@@ -996,23 +996,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OK
 			gz.Method{
-				"POST",
-				"Reports a world",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("world", false, ReportWorldCreate)))},
+				Type:        "POST",
+				Description: "Reports a world",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("world", false, ReportWorldCreate)))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that returns the modelIncludes of a world.
 	gz.Route{
-		"WorldModelIncludes",
-		"Route that returns the external models referenced by a world",
-		"/{username}/worlds/{world}/{version}/{world}/modelrefs",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "WorldModelIncludes",
+		Description: "Route that returns the external models referenced by a world",
+		URI:         "/{username}/worlds/{world}/{version}/{world}/modelrefs",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/worlds/{world}/{version}/{world}/modelrefs worlds worldModelIncludes
 			//
 			// World's model references.
@@ -1028,15 +1028,15 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: ModelIncludes
 			gz.Method{
-				"GET",
-				"World's ModelIncludes ",
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("world", false, WorldModelReferences))},
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldModelReferences))},
+				Type:        "GET",
+				Description: "World's ModelIncludes ",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameOwnerHandler("world", false, WorldModelReferences))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("world", false, WorldModelReferences))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	/////////////////
@@ -1045,11 +1045,11 @@ var routes = gz.Routes{
 
 	// Route for all Collections
 	gz.Route{
-		"Collection",
-		"Information about all collections",
-		"/collections",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "Collection",
+		Description: "Information about all collections",
+		URI:         "/collections",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /collections collections listCollections
 			//
 			// Get list of collections.
@@ -1072,15 +1072,15 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbCollections
 			gz.Method{
-				"GET",
-				"Get all collections",
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(SearchHandler(CollectionList))},
-					gz.FormatHandler{"", gz.JSONResult(SearchHandler(CollectionList))},
+				Type:        "GET",
+				Description: "Get all collections",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(SearchHandler(CollectionList))},
+					gz.FormatHandler{Handler: gz.JSONResult(SearchHandler(CollectionList))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /collections collections createCollection
 			//
 			// Create collection
@@ -1101,10 +1101,10 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbCollection
 			gz.Method{
-				"POST",
-				"Create a new collection",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(CollectionCreate)},
+				Type:        "POST",
+				Description: "Create a new collection",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(CollectionCreate)},
 				},
 			},
 		},
@@ -1112,12 +1112,12 @@ var routes = gz.Routes{
 
 	// Route that returns a list of collections from a team/user (ie. an 'owner')
 	gz.Route{
-		"OwnerCollections",
-		"Information about worlds belonging to an owner. The {username} URI option " +
+		Name: "OwnerCollections",
+		Description: "Information about worlds belonging to an owner. The {username} URI option " +
 			"will limit the scope to the specified user/team. Otherwise all collections are considered.",
-		"/{username}/collections",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		URI:     "/{username}/collections",
+		Headers: gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/collections collections listOwnerCollections
 			//
 			// Get owner's collections
@@ -1142,25 +1142,25 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbCollections
 			gz.Method{
-				"GET",
-				"Get all collections of the specified team/user",
+				Type:        "GET",
+				Description: "Get all collections of the specified team/user",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(SearchHandler(CollectionList))},
-					gz.FormatHandler{"", gz.JSONResult(SearchHandler(CollectionList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(SearchHandler(CollectionList))},
+					gz.FormatHandler{Handler: gz.JSONResult(SearchHandler(CollectionList))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that returns a Collection, by name, from a team/user
 	gz.Route{
-		"CollectionIndex",
-		"Information about a collection belonging to an owner.",
-		"/{username}/collections/{collection}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "CollectionIndex",
+		Description: "Information about a collection belonging to an owner.",
+		URI:         "/{username}/collections/{collection}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/collections/{collection} collections singleOwnerCollection
 			//
 			// Get a single collection from an owner
@@ -1176,16 +1176,16 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbCollection
 			gz.Method{
-				"GET",
-				"Get a collection belonging to the specified team/user",
+				Type:        "GET",
+				Description: "Get a collection belonging to the specified team/user",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("collection", false, CollectionIndex))},
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("collection", false, CollectionIndex))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameOwnerHandler("collection", false, CollectionIndex))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("collection", false, CollectionIndex))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route PATCH /{username}/collections/{collection} collections collectionUpdate
 			//
 			// Update a collection
@@ -1204,11 +1204,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbCollection
 			gz.Method{
-				"PATCH",
-				"Edit a collection",
+				Type:        "PATCH",
+				Description: "Edit a collection",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("collection", true, CollectionUpdate))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("collection", true, CollectionUpdate))},
 				},
 			},
 			// swagger:route DELETE /{username}/collections/{collection} collection deleteCollection
@@ -1226,23 +1226,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OK
 			gz.Method{
-				"DELETE",
-				"Deletes a single collection",
+				Type:        "DELETE",
+				Description: "Deletes a single collection",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionRemove)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionRemove)))},
 				},
 			},
 		},
 	},
 
 	gz.Route{
-		"OwnerCollectionTransfer",
-		"Transfer a collection to another owner.",
-		"/{username}/collections/{collection}/transfer",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "OwnerCollectionTransfer",
+		Description: "Transfer a collection to another owner.",
+		URI:         "/{username}/collections/{collection}/transfer",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/collections/{collection}/transfer collections collectionTransfer
 			//
 			// Transfer a collection
@@ -1259,23 +1259,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: Model
 			gz.Method{
-				"POST",
-				"Transfer a collection",
+				Type:        "POST",
+				Description: "Transfer a collection",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("collection", true, CollectionTransfer))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("collection", true, CollectionTransfer))},
 				},
 			},
 		},
 	},
 	// Route that clones a collection
 	gz.Route{
-		"CloneCollection",
-		"Clone a collection",
-		"/{username}/collections/{collection}/clone",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "CloneCollection",
+		Description: "Clone a collection",
+		URI:         "/{username}/collections/{collection}/clone",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/collections/{collection}/clone collections cloneCollection
 			//
 			// Clones a collection
@@ -1292,10 +1292,10 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OK
 			gz.Method{
-				"POST",
-				"Clones a collection",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("collection", false, CollectionClone))},
+				Type:        "POST",
+				Description: "Clones a collection",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("collection", false, CollectionClone))},
 				},
 			},
 		},
@@ -1304,11 +1304,11 @@ var routes = gz.Routes{
 	// Route that downloads an individual file from a collection.
 	// It is used to download the collection logo and banner.
 	gz.Route{
-		"CollectionIndividualFileDownload",
-		"Download individual file from a collection.",
-		"/{username}/collections/{collection}/{version}/files/{path:.+}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "CollectionIndividualFileDownload",
+		Description: "Download individual file from a collection.",
+		URI:         "/{username}/collections/{collection}/{version}/files/{path:.+}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/collections/{collection}/{version}/files/{path} collections downloadColFile
 			//
 			// Download an individual file from a collection.
@@ -1322,23 +1322,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: fileResponse
 			gz.Method{
-				"GET",
-				"GET a file",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", false, CollectionIndividualFileDownload)))},
+				Type:        "GET",
+				Description: "GET a file",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("collection", false, CollectionIndividualFileDownload)))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route to list, add and remove models from collections.
 	gz.Route{
-		"CollectionModels",
-		"Information about models from a collection",
-		"/{username}/collections/{collection}/models",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "CollectionModels",
+		Description: "Information about models from a collection",
+		URI:         "/{username}/collections/{collection}/models",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/collections/{collection}/models collections collectionModels
 			//
 			// Lists the models of a collection
@@ -1354,17 +1354,17 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbCollectionAssets
 			gz.Method{
-				"GET",
-				"Get the models associated to a collection",
+				Type:        "GET",
+				Description: "Get the models associated to a collection",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONListResult("Models", NameOwnerHandler("collection", false, CollectionModelsList))},
-					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("collection", false, CollectionModelsList))},
-					gz.FormatHandler{"", gz.JSONListResult("Models", NameOwnerHandler("collection", false, CollectionModelsList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONListResult("Models", NameOwnerHandler("collection", false, CollectionModelsList))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(NameOwnerHandler("collection", false, CollectionModelsList))},
+					gz.FormatHandler{Handler: gz.JSONListResult("Models", NameOwnerHandler("collection", false, CollectionModelsList))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/collections/{collection}/models collections collectionModelAdd
 			//
 			// Add a model to a collection
@@ -1383,11 +1383,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OK
 			gz.Method{
-				"POST",
-				"Add a model to a collection",
+				Type:        "POST",
+				Description: "Add a model to a collection",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionModelAdd)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionModelAdd)))},
 				},
 			},
 			// swagger:route DELETE /{username}/collections/{collection}/models collection collectionModelRemove
@@ -1408,11 +1408,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OK
 			gz.Method{
-				"DELETE",
-				"Removes a model from a collection",
+				Type:        "DELETE",
+				Description: "Removes a model from a collection",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionModelRemove)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionModelRemove)))},
 				},
 			},
 		},
@@ -1420,11 +1420,11 @@ var routes = gz.Routes{
 
 	// Route to list, add and remove worlds from collections.
 	gz.Route{
-		"CollectionWorlds",
-		"Information about Worlds from a collection",
-		"/{username}/collections/{collection}/worlds",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "CollectionWorlds",
+		Description: "Information about Worlds from a collection",
+		URI:         "/{username}/collections/{collection}/worlds",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/collections/{collection}/worlds collections collectionWorlds
 			//
 			// Lists the worlds of a collection
@@ -1440,17 +1440,17 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbCollectionAssets
 			gz.Method{
-				"GET",
-				"Get the worlds associated to a collection",
+				Type:        "GET",
+				Description: "Get the worlds associated to a collection",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONListResult("Worlds", NameOwnerHandler("collection", false, CollectionWorldsList))},
-					gz.FormatHandler{".proto", gz.ProtoResult(NameOwnerHandler("collection", false, CollectionWorldsList))},
-					gz.FormatHandler{"", gz.JSONListResult("Worlds", NameOwnerHandler("collection", false, CollectionWorldsList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONListResult("Worlds", NameOwnerHandler("collection", false, CollectionWorldsList))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(NameOwnerHandler("collection", false, CollectionWorldsList))},
+					gz.FormatHandler{Handler: gz.JSONListResult("Worlds", NameOwnerHandler("collection", false, CollectionWorldsList))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/collections/{collection}/worlds collections collectionWorldAdd
 			//
 			// Add a world to a collection
@@ -1469,11 +1469,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OK
 			gz.Method{
-				"POST",
-				"Add a world to a collection",
+				Type:        "POST",
+				Description: "Add a world to a collection",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionWorldAdd)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionWorldAdd)))},
 				},
 			},
 			// swagger:route DELETE /{username}/collections/{collection}/worlds collection collectionWorldRemove
@@ -1494,11 +1494,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OK
 			gz.Method{
-				"DELETE",
-				"Removes a world from a collection",
+				Type:        "DELETE",
+				Description: "Removes a world from a collection",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionWorldRemove)))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameOwnerHandler("collection", true, CollectionWorldRemove)))},
 				},
 			},
 		},
@@ -1506,11 +1506,11 @@ var routes = gz.Routes{
 
 	// Route that returns the list of collections associated to a model
 	gz.Route{
-		"ModelCollections",
-		"List of collections associated to a model.",
-		"/{username}/models/{model}/collections",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "ModelCollections",
+		Description: "List of collections associated to a model.",
+		URI:         "/{username}/models/{model}/collections",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/models/{model}/collections collections modelCollections
 			//
 			// List of collections associated to a model.
@@ -1526,25 +1526,25 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbCollections
 			gz.Method{
-				"GET",
-				"List of collections associated to a model",
+				Type:        "GET",
+				Description: "List of collections associated to a model",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("model", false, ModelCollections))},
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("model", false, ModelCollections))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameOwnerHandler("model", false, ModelCollections))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("model", false, ModelCollections))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	// Route that returns the list of collections associated to a world
 	gz.Route{
-		"WorldCollections",
-		"List of collections associated to a world.",
-		"/{username}/worlds/{world}/collections",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "WorldCollections",
+		Description: "List of collections associated to a world.",
+		URI:         "/{username}/worlds/{world}/collections",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/worlds/{world}/collections collections worldCollections
 			//
 			// List of collections associated to a world.
@@ -1560,16 +1560,16 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: dbCollections
 			gz.Method{
-				"GET",
-				"List of collections associated to a world",
+				Type:        "GET",
+				Description: "List of collections associated to a world",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameOwnerHandler("world", false, WorldCollections))},
-					gz.FormatHandler{"", gz.JSONResult(NameOwnerHandler("world", false, WorldCollections))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameOwnerHandler("world", false, WorldCollections))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameOwnerHandler("world", false, WorldCollections))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	///////////
@@ -1578,12 +1578,12 @@ var routes = gz.Routes{
 
 	// Route that returns login information for a given JWT
 	gz.Route{
-		"Login",
-		"Login a user",
-		"/login",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "Login",
+		Description: "Login a user",
+		URI:         "/login",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /login users loginUser
 			//
 			// Login user
@@ -1599,10 +1599,10 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: UserResponse
 			gz.Method{
-				"GET",
-				"Login a user",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(Login)},
+				Type:        "GET",
+				Description: "Login a user",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(Login)},
 				},
 			},
 		},
@@ -1610,12 +1610,12 @@ var routes = gz.Routes{
 
 	// Route that returns information about all users
 	gz.Route{
-		"Users",
-		"Route for all users",
-		"/users",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "Users",
+		Description: "Route for all users",
+		URI:         "/users",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /users users listUsers
 			//
 			// Get a list of users. Access limited to administrators.
@@ -1648,12 +1648,12 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: UserResponses
 			gz.Method{
-				"GET",
-				"Get all users information",
+				Type:        "GET",
+				Description: "Get all users information",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(PaginationHandler(UserList))},
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(UserList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(PaginationHandler(UserList))},
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandler(UserList))},
 				},
 			},
 			// swagger:route POST /users users createUser
@@ -1674,10 +1674,10 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: UserResponse
 			gz.Method{
-				"POST",
-				"Create a new user",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(UserCreate)},
+				Type:        "POST",
+				Description: "Create a new user",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(UserCreate)},
 				},
 			},
 		},
@@ -1685,11 +1685,11 @@ var routes = gz.Routes{
 
 	// Route that returns information about a user
 	gz.Route{
-		"UserIndex",
-		"Access information about a single user.",
-		"/users/{username}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "UserIndex",
+		Description: "Access information about a single user.",
+		URI:         "/users/{username}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /users/{username} users singleUser
 			//
 			// Get a user
@@ -1705,17 +1705,17 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: UserResponse
 			gz.Method{
-				"GET",
-				"Get user information",
+				Type:        "GET",
+				Description: "Get user information",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameHandler("username", false, UserIndex))},
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", false, UserIndex))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameHandler("username", false, UserIndex))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("username", false, UserIndex))},
 				},
 			},
 		},
 
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route DELETE /users/{username} users deleteUser
 			//
 			// Delete a user
@@ -1728,11 +1728,11 @@ var routes = gz.Routes{
 			//   Schemes: https
 			//
 			gz.Method{
-				"DELETE",
-				"Remove a user",
+				Type:        "DELETE",
+				Description: "Remove a user",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", true, UserRemove))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("username", true, UserRemove))},
 				},
 			},
 
@@ -1751,11 +1751,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: UserResponse
 			gz.Method{
-				"PATCH",
-				"Update a user",
+				Type:        "PATCH",
+				Description: "Update a user",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", true, UserUpdate))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("username", true, UserUpdate))},
 				},
 			},
 		},
@@ -1763,13 +1763,13 @@ var routes = gz.Routes{
 
 	// Routes to get and create access tokens.
 	gz.Route{
-		"AccessTokens",
-		"Routes to get and create access tokens.",
-		"/users/{username}/access-tokens",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
+		Name:        "AccessTokens",
+		Description: "Routes to get and create access tokens.",
+		URI:         "/users/{username}/access-tokens",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
 
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /users/{username}/access-tokens users getAccessToken
 			//
 			// Get the acccess tokens for a user.
@@ -1780,11 +1780,11 @@ var routes = gz.Routes{
 			//   Schemes: https
 			//
 			gz.Method{
-				"GET",
-				"Get a user's access tokens",
+				Type:        "GET",
+				Description: "Get a user's access tokens",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandlerWithUser(AccessTokenList, true))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandlerWithUser(AccessTokenList, true))},
 				},
 			},
 
@@ -1800,11 +1800,11 @@ var routes = gz.Routes{
 			//   Schemes: https
 			//
 			gz.Method{
-				"POST",
-				"Create an access token",
+				Type:        "POST",
+				Description: "Create an access token",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", true, AccessTokenCreate))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("username", true, AccessTokenCreate))},
 				},
 			},
 		},
@@ -1812,13 +1812,13 @@ var routes = gz.Routes{
 
 	// Routes to revoke access tokens
 	gz.Route{
-		"AccessTokens",
-		"Route to revoke access tokens.",
-		"/users/{username}/access-tokens/revoke",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
+		Name:        "AccessTokens",
+		Description: "Route to revoke access tokens.",
+		URI:         "/users/{username}/access-tokens/revoke",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
 
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /users/{username}/access-tokens/revoke users revokeAccessToken
 			//
 			// Delete an acccess token that belongs to a user.
@@ -1829,11 +1829,11 @@ var routes = gz.Routes{
 			//   Schemes: https
 			//
 			gz.Method{
-				"POST",
-				"Delete a user's access token",
+				Type:        "POST",
+				Description: "Delete a user's access token",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", true, AccessTokenDelete))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("username", true, AccessTokenDelete))},
 				},
 			},
 		},
@@ -1841,11 +1841,11 @@ var routes = gz.Routes{
 
 	// Route that returns the details of a single user or organization
 	gz.Route{
-		"OwnerProfile",
-		"Access the details of a single user OR organization.",
-		"/profile/{username}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "OwnerProfile",
+		Description: "Access the details of a single user OR organization.",
+		URI:         "/profile/{username}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /profile/{username} users ownerProfile
 			//
 			// Get the profile of an owner
@@ -1861,16 +1861,16 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OwnerProfile
 			gz.Method{
-				"GET",
-				"Get profile information",
+				Type:        "GET",
+				Description: "Get profile information",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameHandler("username", false, OwnerProfile))},
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("username", false, OwnerProfile))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameHandler("username", false, OwnerProfile))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("username", false, OwnerProfile))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	//////////////
@@ -1879,11 +1879,11 @@ var routes = gz.Routes{
 
 	// Route that returns information about all available licenses
 	gz.Route{
-		"Licenses",
-		"Route for all licenses",
-		"/licenses",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "Licenses",
+		Description: "Route for all licenses",
+		URI:         "/licenses",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /licenses licenses listLicenses
 			//
 			// List licenses
@@ -1903,16 +1903,16 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: Licenses
 			gz.Method{
-				"GET",
-				"Get all licenses",
+				Type:        "GET",
+				Description: "Get all licenses",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(PaginationHandler(LicenseList))},
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(LicenseList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(PaginationHandler(LicenseList))},
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandler(LicenseList))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 
 	//////////////
@@ -1996,11 +1996,11 @@ var routes = gz.Routes{
 
 	// Route that returns information about all organizations
 	gz.Route{
-		"Organizations",
-		"Route for all organizations",
-		"/organizations",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "Organizations",
+		Description: "Route for all organizations",
+		URI:         "/organizations",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /organizations organizations listOrganizations
 			//
 			// List organizations
@@ -2020,16 +2020,16 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OrganizationResponses
 			gz.Method{
-				"GET",
-				"Get all organizations information",
+				Type:        "GET",
+				Description: "Get all organizations information",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(PaginationHandler(OrganizationList))},
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(OrganizationList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(PaginationHandler(OrganizationList))},
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandler(OrganizationList))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /organizations organizations createOrganization
 			//
 			// Create organization
@@ -2048,10 +2048,10 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OrganizationResponse
 			gz.Method{
-				"POST",
-				"Create a new organization",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(OrganizationCreate)},
+				Type:        "POST",
+				Description: "Create a new organization",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(OrganizationCreate)},
 				},
 			},
 		},
@@ -2059,11 +2059,11 @@ var routes = gz.Routes{
 
 	// Route that returns information about an organization
 	gz.Route{
-		"OrganizationIndex",
-		"Access information about a single organization.",
-		"/organizations/{name}",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "OrganizationIndex",
+		Description: "Access information about a single organization.",
+		URI:         "/organizations/{name}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /organizations/{name} organizations singleOrganization
 			//
 			// Get an organization
@@ -2079,16 +2079,16 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OrganizationResponse
 			gz.Method{
-				"GET",
-				"Get organization information",
+				Type:        "GET",
+				Description: "Get organization information",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameHandler("name", false, OrganizationIndex))},
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", false, OrganizationIndex))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameHandler("name", false, OrganizationIndex))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", false, OrganizationIndex))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route DELETE /organizations/{name} organizations deleteOrganizations
 			//
 			// Delete an organization
@@ -2104,11 +2104,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OrganizationResponse
 			gz.Method{
-				"DELETE",
-				"Remove an organization",
+				Type:        "DELETE",
+				Description: "Remove an organization",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationRemove))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationRemove))},
 				},
 			},
 			// swagger:route PATCH /organizations/{name} organizations organizationUpdate
@@ -2129,22 +2129,22 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: OrganizationResponse
 			gz.Method{
-				"PATCH",
-				"Edit an organization",
+				Type:        "PATCH",
+				Description: "Edit an organization",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationUpdate))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationUpdate))},
 				},
 			},
 		},
 	},
 	// Route that returns information about organization users
 	gz.Route{
-		"OrganizationUsers",
-		"Base route to list of users of an Organization",
-		"/organizations/{name}/users",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "OrganizationUsers",
+		Description: "Base route to list of users of an Organization",
+		URI:         "/organizations/{name}/users",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /organizations/{name}/users organizations orgUsers
 			//
 			// Get the list of users of an organization
@@ -2160,16 +2160,16 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: UserResponses
 			gz.Method{
-				"GET",
-				"Get the list of users of an organization",
+				Type:        "GET",
+				Description: "Get the list of users of an organization",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(PaginationHandler(OrganizationUserList))},
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(OrganizationUserList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(PaginationHandler(OrganizationUserList))},
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandler(OrganizationUserList))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /organizations/{name}/users organizations addUserToOrganization
 			//
 			// Adds a user to an organization
@@ -2188,22 +2188,22 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: UserResponse
 			gz.Method{
-				"POST",
-				"Adds a user to an Organization",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationUserCreate))},
+				Type:        "POST",
+				Description: "Adds a user to an Organization",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationUserCreate))},
 				},
 			},
 		},
 	},
 	// Route that returns information about organization users
 	gz.Route{
-		"OrganizationUserUpdate",
-		"Route to update and delete a member of an organization",
-		"/organizations/{name}/users/{username}",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "OrganizationUserUpdate",
+		Description: "Route to update and delete a member of an organization",
+		URI:         "/organizations/{name}/users/{username}",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route DELETE /organizations/{name}/users/{username} organizations orgUserDelete
 			//
 			// Removes a user from an organization
@@ -2219,11 +2219,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: UserResponse
 			gz.Method{
-				"DELETE",
-				"Removes a user from an organization",
+				Type:        "DELETE",
+				Description: "Removes a user from an organization",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationUserRemove))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationUserRemove))},
 				},
 			},
 		},
@@ -2231,12 +2231,12 @@ var routes = gz.Routes{
 
 	// Route that returns information about organization teams
 	gz.Route{
-		"OrganizationTeams",
-		"Base route to list of teams of an Organization",
-		"/organizations/{name}/teams",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "OrganizationTeams",
+		Description: "Base route to list of teams of an Organization",
+		URI:         "/organizations/{name}/teams",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /organizations/{name}/teams organizations orgTeams
 			//
 			// Get the list of teams of an organization
@@ -2252,12 +2252,12 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: TeamResponses
 			gz.Method{
-				"GET",
-				"Get the list of teams of an organization",
+				Type:        "GET",
+				Description: "Get the list of teams of an organization",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(PaginationHandler(OrganizationTeamsList))},
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(OrganizationTeamsList))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(PaginationHandler(OrganizationTeamsList))},
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandler(OrganizationTeamsList))},
 				},
 			},
 			// swagger:route POST /organizations/{name}/teams organizations addTeamToOrganization
@@ -2278,22 +2278,22 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: TeamResponse
 			gz.Method{
-				"POST",
-				"Adds a team to an Organization",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationTeamCreate))},
+				Type:        "POST",
+				Description: "Adds a team to an Organization",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationTeamCreate))},
 				},
 			},
 		},
 	},
 	// Route that returns information about an organization team
 	gz.Route{
-		"OrganizationTeamIndex",
-		"Route to get, update and delete a team of an organization",
-		"/organizations/{name}/teams/{teamname}",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "OrganizationTeamIndex",
+		Description: "Route to get, update and delete a team of an organization",
+		URI:         "/organizations/{name}/teams/{teamname}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /organizations/{name}/teams/{teamname} organizations singleTeam
 			//
 			// Get a single team of an organization
@@ -2309,12 +2309,12 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: TeamResponse
 			gz.Method{
-				"GET",
-				"Get a team from an organization",
+				Type:        "GET",
+				Description: "Get a team from an organization",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(NameHandler("name", true, OrganizationTeamIndex))},
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationTeamIndex))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(NameHandler("name", true, OrganizationTeamIndex))},
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationTeamIndex))},
 				},
 			},
 			// swagger:route PATCH /organizations/{name}/teams/{teamname} organizations orgTeamUpdate
@@ -2332,11 +2332,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: TeamResponse
 			gz.Method{
-				"PATCH",
-				"Updates a team",
+				Type:        "PATCH",
+				Description: "Updates a team",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationTeamUpdate))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationTeamUpdate))},
 				},
 			},
 			// swagger:route DELETE /organizations/{name}/teams/{teamname} organizations orgTeamDelete
@@ -2354,23 +2354,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: TeamResponse
 			gz.Method{
-				"DELETE",
-				"Removes a team",
+				Type:        "DELETE",
+				Description: "Removes a team",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, OrganizationTeamRemove))},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationTeamRemove))},
 				},
 			},
 		},
 	},
 	// Route to create an elastic search config
 	gz.Route{
-		"ElasticSearch",
-		"Route to create an ElasticSearch config",
-		"/admin/search",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "ElasticSearch",
+		Description: "Route to create an ElasticSearch config",
+		URI:         "/admin/search",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /admin/search search elasticSearchUpdate
 			//
 			// Get a list of the available ElasticSearch configurations.
@@ -2394,11 +2394,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: ElasticSearchConfigs
 			gz.Method{
-				"GET",
-				"Gets a list of the ElasticSearch configs",
+				Type:        "GET",
+				Description: "Gets a list of the ElasticSearch configs",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(ListElasticSearchHandler)},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(ListElasticSearchHandler)},
 				},
 			},
 
@@ -2445,23 +2445,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: ElasticSearchConfig
 			gz.Method{
-				"POST",
-				"Creates an ElasticSearch config",
+				Type:        "POST",
+				Description: "Creates an ElasticSearch config",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(CreateElasticSearchHandler)},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(CreateElasticSearchHandler)},
 				},
 			},
 		},
 	},
 	// Route to reconnect to the primary elastic search config
 	gz.Route{
-		"ElasticSearch",
-		"Route to reconnect to the primary elastic search config",
-		"/admin/search/reconnect",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "ElasticSearch",
+		Description: "Route to reconnect to the primary elastic search config",
+		URI:         "/admin/search/reconnect",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /admin/search/reconnect search elasticSearchUpdate
 			//
 			// Reconnects to the primary ElasticSearch server.
@@ -2482,23 +2482,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: AdminSearchResponse
 			gz.Method{
-				"GET",
-				"Reconnect to the primary ElasticSearch config",
+				Type:        "GET",
+				Description: "Reconnect to the primary ElasticSearch config",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(ReconnectElasticSearchHandler)},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(ReconnectElasticSearchHandler)},
 				},
 			},
 		},
 	},
 	// Route to rebuild to the primary elastic search indices
 	gz.Route{
-		"ElasticSearch",
-		"Route to rebuild to the primary elastic search indices",
-		"/admin/search/rebuild",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "ElasticSearch",
+		Description: "Route to rebuild to the primary elastic search indices",
+		URI:         "/admin/search/rebuild",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /admin/search/rebuild search elasticSearchUpdate
 			//
 			// Rebuilds the primary ElasticSearch indices.
@@ -2522,23 +2522,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: AdminSearchResponse
 			gz.Method{
-				"GET",
-				"Rebuild the primary ElasticSearch indices",
+				Type:        "GET",
+				Description: "Rebuild the primary ElasticSearch indices",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(RebuildElasticSearchHandler)},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(RebuildElasticSearchHandler)},
 				},
 			},
 		},
 	},
 	// Route to update to the primary elastic search indices
 	gz.Route{
-		"ElasticSearch",
-		"Route to update to the primary elastic search indices",
-		"/admin/search/update",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "ElasticSearch",
+		Description: "Route to update to the primary elastic search indices",
+		URI:         "/admin/search/update",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /admin/search/update search elasticSearchUpdate
 			//
 			// Updates the primary ElasticSearch servers indices.
@@ -2563,23 +2563,23 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: AdminSearchResponse
 			gz.Method{
-				"GET",
-				"Update the primary ElasticSearch indices",
+				Type:        "GET",
+				Description: "Update the primary ElasticSearch indices",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(UpdateElasticSearchHandler)},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(UpdateElasticSearchHandler)},
 				},
 			},
 		},
 	},
 	// Route to manage an elastic search config
 	gz.Route{
-		"ElasticSearch",
-		"Route to manage an ElasticSearch config",
-		"/admin/search/{config_id}",
-		gz.AuthHeadersOptional,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "ElasticSearch",
+		Description: "Route to manage an ElasticSearch config",
+		URI:         "/admin/search/{config_id}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route DELETE /admin/search/{config_id} search elasticSearchUpdate
 			//
 			// Deletes an ElasticSearch server configuration.
@@ -2607,11 +2607,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: ElasticSearchConfig
 			gz.Method{
-				"DELETE",
-				"Deletes an ElasticSearch config",
+				Type:        "DELETE",
+				Description: "Deletes an ElasticSearch config",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(DeleteElasticSearchHandler)},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(DeleteElasticSearchHandler)},
 				},
 			},
 			// swagger:route PATCH /admin/search/{config_id} search elasticSearchUpdate
@@ -2663,11 +2663,11 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: ElasticSearchConfig
 			gz.Method{
-				"PATCH",
-				"Modify an ElasticSearch config",
+				Type:        "PATCH",
+				Description: "Modify an ElasticSearch config",
 				// Format handlers
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(ModifyElasticSearchHandler)},
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(ModifyElasticSearchHandler)},
 				},
 			},
 		},
@@ -2679,11 +2679,11 @@ var routes = gz.Routes{
 
 	// Route for all model reviews
 	gz.Route{
-		"ModelReviews",
-		"Information about all model reviews",
-		"/models/reviews",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "ModelReviews",
+		Description: "Information about all model reviews",
+		URI:         "/models/reviews",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /models/reviews reviews listModelReviews
 			//
 			// Get list of reviews for models.
@@ -2707,36 +2707,36 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: jsonReviews
 			gz.Method{
-				"GET",
-				"Get all reviews for models",
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(SearchHandler(ModelReviewList))},
-					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(ModelReviewList))},
-					gz.FormatHandler{"", gz.JSONResult(SearchHandler(ModelReviewList))},
+				Type:        "GET",
+				Description: "Get all reviews for models",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(SearchHandler(ModelReviewList))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(SearchHandler(ModelReviewList))},
+					gz.FormatHandler{Handler: gz.JSONResult(SearchHandler(ModelReviewList))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /models/reviews reviews createModelReview
 			//
 			// Create a new model and a new review.
 			//
 			gz.Method{
-				"POST",
-				"Post a review and a new model",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(ModelReviewCreate)},
+				Type:        "POST",
+				Description: "Post a review and a new model",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(ModelReviewCreate)},
 				},
 			},
 		},
 	},
 
 	gz.Route{
-		"Review",
-		"Information about reviews for a model",
-		"/{username}/models/{model}/reviews",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "Review",
+		Description: "Information about reviews for a model",
+		URI:         "/{username}/models/{model}/reviews",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			// swagger:route GET /{username}/models/{model}/reviews reviews listUserModelReviews
 			//
 			// Get list of reviews for a model.
@@ -2760,25 +2760,25 @@ var routes = gz.Routes{
 			//     default: fuelError
 			//     200: jsonReviews
 			gz.Method{
-				"GET",
-				"Get all reviews for a selected model",
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(SearchHandler(UserModelReview))},
-					gz.FormatHandler{".proto", gz.ProtoResult(SearchHandler(UserModelReview))},
-					gz.FormatHandler{"", gz.JSONResult(SearchHandler(UserModelReview))},
+				Type:        "GET",
+				Description: "Get all reviews for a selected model",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(SearchHandler(UserModelReview))},
+					gz.FormatHandler{Extension: ".proto", Handler: gz.ProtoResult(SearchHandler(UserModelReview))},
+					gz.FormatHandler{Handler: gz.JSONResult(SearchHandler(UserModelReview))},
 				},
 			},
 		},
-		gz.SecureMethods{
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /{username}/models/{model}/reviews reviews createUserModelReview
 			//
 			// Create a new review for an existing model.
 			//
 			gz.Method{
-				"POST",
-				"Post a review for a model",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(ReviewCreate)},
+				Type:        "POST",
+				Description: "Post a review for a model",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(ReviewCreate)},
 				},
 			},
 		},
