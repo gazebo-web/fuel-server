@@ -50,10 +50,10 @@ func TestUserLogin(t *testing.T) {
 	loginUserTestsData := []loginUserTest{
 		{uriTest{"valid login", uri, newJWT(myJWT), nil, false}, username,
 			[]string{orgName, orgName2}, map[string]string{orgName: "owner",
-				orgName2: "owner"}},
+			orgName2: "owner"}},
 		{uriTest{"login user2", uri, newJWT(jwt2), nil, false}, username2,
 			[]string{orgName, orgName2}, map[string]string{orgName: "member",
-				orgName2: "admin"}},
+			orgName2: "admin"}},
 		{uriTest{"invalid token", uri, newJWT("pahjtrkjfd"),
 			gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "", nil, nil},
 		{uriTest{"invalid claims - no sub", uri,
@@ -556,10 +556,10 @@ func TestUserPagination(t *testing.T) {
 	userListTestsData := []userListTest{
 		{uriTest{"no jwt - get all users with only public info", uri, nil, &invJwt, true},
 			"", []expResUser{
-				{user1, []string{}, false, nil},
-				{user2, []string{}, false, nil},
-				{user3, []string{}, false, nil},
-			}},
+			{user1, []string{}, false, nil},
+			{user2, []string{}, false, nil},
+			{user3, []string{}, false, nil},
+		}},
 		{uriTest{"no jwt - get pages of 1, page 1", uri, nil, &invJwt, true}, "?per_page=1",
 			[]expResUser{
 				{user1, []string{}, false, nil},
@@ -646,9 +646,9 @@ func TestUserPaginationAdmin(t *testing.T) {
 	userListTestsData := []userListTest{
 		{uriTest{"admin - get all users with only public info", uri, jwtDef, nil, false},
 			"", []expResUser{
-				{admin, []string{}, false, map[string]string{}},
-				{user2, []string{}, false, map[string]string{}},
-			}},
+			{admin, []string{}, false, map[string]string{}},
+			{user2, []string{}, false, map[string]string{}},
+		}},
 		{uriTest{"admin - get pages of 1, page 1", uri, jwtDef, nil, false}, "?per_page=1",
 			[]expResUser{
 				{admin, []string{}, false, map[string]string{}},
@@ -701,7 +701,7 @@ func TestUserPaginationAdmin(t *testing.T) {
 }
 
 // TestPersonalAccessToken tests the /users/{username}/access-tokens and
-// /users/{username}/access-tokens/revoke route.
+///users/{username}/access-tokens/revoke route.
 func TestPersonalAccessToken(t *testing.T) {
 	setup()
 
