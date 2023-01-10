@@ -25,7 +25,7 @@ import (
 // (model / world) to an existing collection.
 func addAssetToCollection(t *testing.T, jwt, colOwner, colName, owner, name,
 	aType string) {
-	nameOwner := collections.NameOwnerPair{name, owner}
+	nameOwner := collections.NameOwnerPair{Name: name, Owner: owner}
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(nameOwner)
 	uri := fmt.Sprintf("/1.0/%s/collections/%s/%ss", colOwner, colName, aType)
@@ -896,9 +896,9 @@ func TestCollectionUpdate(t *testing.T) {
 	priv := true
 	upd := collections.UpdateCollection{Description: &description, Private: &priv}
 	updDescOnly := collections.UpdateCollection{Description: &description}
-	emptyFiles := []gztest.FileDesc{}
+	var emptyFiles []gztest.FileDesc
 	withLogo := []gztest.FileDesc{
-		{"thumbnails/col.sdf", constModelSDFFileContents},
+		{Path: "thumbnails/col.sdf", Contents: constModelSDFFileContents},
 	}
 	expThumbCT := "chemical/x-mdl-sdfile"
 
@@ -1067,36 +1067,36 @@ func TestCollectionAssetAdd(t *testing.T) {
 
 	testListGen := func(aType string) []collectionAssetAddTest {
 		return []collectionAssetAddTest{
-			{uriTest{aType + "| no jwt", assetsURL(username, cName, aType), nil,
+			{uriTest: uriTest{aType + "| no jwt", assetsURL(username, cName, aType), nil,
 				gz.NewErrorMessage(gz.ErrorUnauthorized), true},
-				collections.NameOwnerPair{aType + "1", username}},
-			{uriTest{aType + "| collection doest not exist", assetsURL(username, "inv", aType),
+				nameOwner: collections.NameOwnerPair{Name: aType + "1", Owner: username}},
+			{uriTest: uriTest{aType + "| collection doest not exist", assetsURL(username, "inv", aType),
 				jwtDef, gz.NewErrorMessage(gz.ErrorNameNotFound), false},
-				collections.NameOwnerPair{aType + "1", username}},
-			{uriTest{aType + "| invalid jwt token", assetsURL(username, cName, aType),
+				nameOwner: collections.NameOwnerPair{Name: aType + "1", Owner: username}},
+			{uriTest: uriTest{aType + "| invalid jwt token", assetsURL(username, cName, aType),
 				&testJWT{jwt: sptr("invalid")},
 				gz.NewErrorMessage(gz.ErrorUnauthorized), true},
-				collections.NameOwnerPair{aType + "1", username}},
-			{uriTest{aType + " doest not exist", assetsURL(username, cName, aType), jwtDef,
+				nameOwner: collections.NameOwnerPair{Name: aType + "1", Owner: username}},
+			{uriTest: uriTest{aType + " doest not exist", assetsURL(username, cName, aType), jwtDef,
 				gz.NewErrorMessage(gz.ErrorNameNotFound), true},
-				collections.NameOwnerPair{"inv", username}},
-			{uriTest{aType + " already in collection", assetsURL(username, cName, aType), jwtDef,
+				nameOwner: collections.NameOwnerPair{Name: "inv", Owner: username}},
+			{uriTest: uriTest{aType + " already in collection", assetsURL(username, cName, aType), jwtDef,
 				gz.NewErrorMessage(gz.ErrorResourceExists), true},
-				collections.NameOwnerPair{aType + "1", username}},
-			{uriTest{aType + "| non owner user should not be able to add asset to user collection",
+				nameOwner: collections.NameOwnerPair{Name: aType + "1", Owner: username}},
+			{uriTest: uriTest{aType + "| non owner user should not be able to add asset to user collection",
 				assetsURL(username, cName, aType), newJWT(jwt2),
 				gz.NewErrorMessage(gz.ErrorUnauthorized), false},
-				collections.NameOwnerPair{aType + "2", username}},
-			{uriTest{aType + "| success adding asset to user collection",
+				nameOwner: collections.NameOwnerPair{Name: aType + "2", Owner: username}},
+			{uriTest: uriTest{aType + "| success adding asset to user collection",
 				assetsURL(username, cName, aType), jwtDef, nil, false},
-				collections.NameOwnerPair{aType + "2", username}},
-			{uriTest{aType + "| non org member should not be able to add asset to org collection",
+				nameOwner: collections.NameOwnerPair{Name: aType + "2", Owner: username}},
+			{uriTest: uriTest{aType + "| non org member should not be able to add asset to org collection",
 				assetsURL(testOrg, orgCol, aType), newJWT(jwt2),
 				gz.NewErrorMessage(gz.ErrorUnauthorized), false},
-				collections.NameOwnerPair{aType + "3", username}},
-			{uriTest{aType + "| org member should be able to add asset to org collection",
+				nameOwner: collections.NameOwnerPair{Name: aType + "3", Owner: username}},
+			{uriTest: uriTest{aType + "| org member should be able to add asset to org collection",
 				assetsURL(testOrg, orgCol, aType), newJWT(jwt3), nil, true},
-				collections.NameOwnerPair{aType + "3", username}},
+				nameOwner: collections.NameOwnerPair{Name: aType + "3", Owner: username}},
 		}
 	}
 
@@ -1186,50 +1186,50 @@ func TestCollectionAssetRemove(t *testing.T) {
 
 	testListGen := func(aType string) []collectionAssetRemoveTest {
 		return []collectionAssetRemoveTest{
-			{uriTest{aType + "| no jwt", assetsURL(username, cName, aType), nil,
+			{uriTest: uriTest{aType + "| no jwt", assetsURL(username, cName, aType), nil,
 				gz.NewErrorMessage(gz.ErrorUnauthorized), true},
-				&collections.NameOwnerPair{aType + "1", username}},
-			{uriTest{aType + "| col doest not exist", assetsURL(username, "inv", aType),
+				nameOwner: &collections.NameOwnerPair{Name: aType + "1", Owner: username}},
+			{uriTest: uriTest{aType + "| col doest not exist", assetsURL(username, "inv", aType),
 				jwtDef, gz.NewErrorMessage(gz.ErrorNameNotFound), false},
-				&collections.NameOwnerPair{aType + "1", username}},
-			{uriTest{aType + "| invalid jwt token", assetsURL(username, cName, aType),
+				nameOwner: &collections.NameOwnerPair{Name: aType + "1", Owner: username}},
+			{uriTest: uriTest{aType + "| invalid jwt token", assetsURL(username, cName, aType),
 				&testJWT{jwt: sptr("invalid")},
 				gz.NewErrorMessage(gz.ErrorUnauthorized), true},
-				&collections.NameOwnerPair{aType + "1", username}},
-			{uriTest{aType + " empty asset owner", assetsURL(username, cName, aType), jwtDef,
+				nameOwner: &collections.NameOwnerPair{Name: aType + "1", Owner: username}},
+			{uriTest: uriTest{aType + " empty asset owner", assetsURL(username, cName, aType), jwtDef,
 				gz.NewErrorMessage(gz.ErrorFormInvalidValue), false},
-				&collections.NameOwnerPair{"model1", ""}},
-			{uriTest{aType + " empty asset name", assetsURL(username, cName, aType), jwtDef,
+				nameOwner: &collections.NameOwnerPair{Name: "model1"}},
+			{uriTest: uriTest{aType + " empty asset name", assetsURL(username, cName, aType), jwtDef,
 				gz.NewErrorMessage(gz.ErrorFormInvalidValue), false},
-				&collections.NameOwnerPair{"", "username"}},
+				nameOwner: &collections.NameOwnerPair{Owner: "username"}},
 			{uriTest{aType + " no parameters", assetsURL(username, cName, aType), jwtDef,
 				gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, nil},
-			{uriTest{aType + " doest not exist", assetsURL(username, cName, aType), jwtDef,
+			{uriTest: uriTest{aType + " doest not exist", assetsURL(username, cName, aType), jwtDef,
 				gz.NewErrorMessage(gz.ErrorNonExistentResource), false},
-				&collections.NameOwnerPair{"inv", username}},
-			{uriTest{aType + " does not belong to col", assetsURL(username, cName, aType),
+				nameOwner: &collections.NameOwnerPair{Name: "inv", Owner: username}},
+			{uriTest: uriTest{aType + " does not belong to col", assetsURL(username, cName, aType),
 				jwtDef, gz.NewErrorMessage(gz.ErrorNonExistentResource), true},
-				&collections.NameOwnerPair{aType + "2", username}},
-			{uriTest{aType + "| non owner user should not be able to remove asset from user col",
+				nameOwner: &collections.NameOwnerPair{Name: aType + "2", Owner: username}},
+			{uriTest: uriTest{aType + "| non owner user should not be able to remove asset from user col",
 				assetsURL(username, cName, aType), newJWT(jwt2),
 				gz.NewErrorMessage(gz.ErrorUnauthorized), true},
-				&collections.NameOwnerPair{aType + "1", username}},
-			{uriTest{aType + "| success removing asset from user col",
+				nameOwner: &collections.NameOwnerPair{Name: aType + "1", Owner: username}},
+			{uriTest: uriTest{aType + "| success removing asset from user col",
 				assetsURL(username, cName, aType), jwtDef, nil, false},
-				&collections.NameOwnerPair{aType + "1", username}},
-			{uriTest{aType + "| non org member should not be able to remove asset from org col",
+				nameOwner: &collections.NameOwnerPair{Name: aType + "1", Owner: username}},
+			{uriTest: uriTest{aType + "| non org member should not be able to remove asset from org col",
 				assetsURL(testOrg, orgCol, aType), newJWT(jwt2),
 				gz.NewErrorMessage(gz.ErrorUnauthorized), false},
-				&collections.NameOwnerPair{aType + "1", username}},
-			{uriTest{aType + "| org member should be able to remove asset from org col",
+				nameOwner: &collections.NameOwnerPair{Name: aType + "1", Owner: username}},
+			{uriTest: uriTest{aType + "| org member should be able to remove asset from org col",
 				assetsURL(testOrg, orgCol, aType), newJWT(jwt3),
-				nil, false}, &collections.NameOwnerPair{aType + "1", username}},
+				nil, false}, nameOwner: &collections.NameOwnerPair{Name: aType + "1", Owner: username}},
 			{uriTest{aType + "| org admin should be able to remove asset from org col",
 				assetsURL(testOrg, orgCol, aType), newJWT(jwt4), nil, true},
-				&collections.NameOwnerPair{aType + "2", username}},
+				&collections.NameOwnerPair{Name: aType + "2", Owner: username}},
 			{uriTest{aType + "| org owner should be able to remove asset from org col",
 				assetsURL(testOrg, orgCol, aType), jwtDef, nil, true},
-				&collections.NameOwnerPair{aType + "3", username}},
+				&collections.NameOwnerPair{Name: aType + "3", Owner: username}},
 		}
 	}
 
@@ -1380,19 +1380,19 @@ func runSubtestWithCollectionAssetListTestData(t *testing.T, test collectionAsse
 		gztest.AssertBackendErrorCode(t.Name()+" GET assets", bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
 		if aType == collections.TModel {
-			var results []fuel.Model
+			var results []*fuel.Model
 			require.NoError(t, json.Unmarshal(*bslice, &results), "Unable to unmarshal response", string(*bslice))
 			require.Len(t, results, len(test.expNames))
-			names := []string{}
+			var names []string
 			for _, r := range results {
 				names = append(names, r.GetName())
 			}
 			assert.ElementsMatch(t, test.expNames, names)
 		} else if aType == collections.TWorld {
-			var results []fuel.World
+			var results []*fuel.World
 			require.NoError(t, json.Unmarshal(*bslice, &results), "Unable to unmarshal response", string(*bslice))
 			require.Len(t, results, len(test.expNames))
-			names := []string{}
+			var names []string
 			for _, r := range results {
 				names = append(names, r.GetName())
 			}

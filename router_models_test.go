@@ -89,8 +89,8 @@ func createTestModelWithOwner(t *testing.T, jwt *string, modelName, owner string
 		"private":     strconv.FormatBool(private),
 	}
 	var withThumbnails = []gztest.FileDesc{
-		{"model.config", constModelConfigFileContents},
-		{"thumbnails/model.sdf", constModelSDFFileContents},
+		{Path: "model.config", Contents: constModelConfigFileContents},
+		{Path: "thumbnails/model.sdf", Contents: constModelSDFFileContents},
 	}
 
 	uri := "/1.0/models"
@@ -110,15 +110,15 @@ func createThreeTestModels(t *testing.T, jwt *string) {
 		"permission":  "0",
 	}
 	var withThumbnails = []gztest.FileDesc{
-		{"model.config", constModelConfigFileContents},
-		{"thumbnails/model.sdf", constModelSDFFileContents},
+		{Path: "model.config", Contents: constModelConfigFileContents},
+		{Path: "thumbnails/model.sdf", Contents: constModelSDFFileContents},
 	}
 	// These model files are within a singleroot folder to always test the server
 	// being able to handle single folder uploads.
 	var modelFiles = []gztest.FileDesc{
-		{"singleroot/model.config", constModelConfigFileContents},
-		{"singleroot/model.sdf", constModelSDFFileContents},
-		{"singleroot/subfolder/test.txt", "test string"},
+		{Path: "singleroot/model.config", Contents: constModelConfigFileContents},
+		{Path: "singleroot/model.sdf", Contents: constModelSDFFileContents},
+		{Path: "singleroot/subfolder/test.txt", Contents: "test string"},
 	}
 
 	uri := "/1.0/models"
@@ -347,7 +347,7 @@ func runSubtestWithModelSearchTestData(t *testing.T, test resourceSearchTest) {
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
 		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
-		var models []fuel.Model
+		var models []*fuel.Model
 		assert.NoError(t, json.Unmarshal(*bslice, &models), "Unable to get all models: %s", string(*bslice))
 		require.Len(t, models, test.expCount, "There should be %d Models. Got: %d", test.expCount, len(models))
 		if test.expCount > 0 {

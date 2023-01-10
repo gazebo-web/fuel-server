@@ -505,7 +505,7 @@ func removeOrganization(name string, t *testing.T) {
 // adds a user to an org with a role (owner/admin/member)
 func addUserToOrg(user, role, org string, t *testing.T) {
 	jwt := os.Getenv("IGN_TEST_JWT")
-	add := users.AddUserToOrgInput{user, role}
+	add := users.AddUserToOrgInput{Username: user, Role: role}
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(add)
 	uri := fmt.Sprintf("/1.0/organizations/%s/users", org)

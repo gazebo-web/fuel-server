@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	mocket "github.com/Selvatico/go-mocket"
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/globals"
+	"github.com/jinzhu/gorm"
 )
 
 const (

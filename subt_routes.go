@@ -7,12 +7,12 @@ var subTRoutes = gz.Routes{
 	// REGISTRATIONS
 
 	gz.Route{
-		"Registrations",
-		"Information about all SubT registrations",
-		"/registrations",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "Registrations",
+		Description: "Information about all SubT registrations",
+		URI:         "/registrations",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /subt/registrations subtRegistrations applySubtReg
 			//
 			// Apply a SubT registration
@@ -28,10 +28,10 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: Registration
 			gz.Method{
-				"POST",
-				"Create a new subt registration",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(SubTRegistrationCreate)},
+				Type:        "POST",
+				Description: "Create a new subt registration",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(SubTRegistrationCreate)},
 				},
 			},
 			// swagger:route GET /subt/registrations registrations listRegistrations
@@ -49,23 +49,23 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: Registrations
 			gz.Method{
-				"GET",
-				"Get all subt registrations",
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(PaginationHandlerWithUser(RegistrationsList, true))},
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandlerWithUser(RegistrationsList, true))},
+				Type:        "GET",
+				Description: "Get all subt registrations",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(PaginationHandlerWithUser(RegistrationsList, true))},
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandlerWithUser(RegistrationsList, true))},
 				},
 			},
 		},
 	},
 
 	gz.Route{
-		"Single Registration",
-		"Update a registration",
-		"/registrations/{competition}/{name}",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "Single Registration",
+		Description: "Update a registration",
+		URI:         "/registrations/{competition}/{name}",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route PATCH /subt/registrations/{competition}/{name} subtRegistrations resolveSubtReg
 			//
 			// Resolves a SubT registration
@@ -81,10 +81,10 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: Registration
 			gz.Method{
-				"PATCH",
-				"Resolves a subt registration",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, SubTRegistrationUpdate))},
+				Type:        "PATCH",
+				Description: "Resolves a subt registration",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, SubTRegistrationUpdate))},
 				},
 			},
 			// swagger:route DELETE /subt/registrations/{competition}/{name} subtRegistrations deleteSubtReg
@@ -102,10 +102,10 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: Registration
 			gz.Method{
-				"DELETE",
-				"Deletes a subt registration",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, SubTRegistrationDelete))},
+				Type:        "DELETE",
+				Description: "Deletes a subt registration",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, SubTRegistrationDelete))},
 				},
 			},
 		},
@@ -114,12 +114,12 @@ var subTRoutes = gz.Routes{
 	// PARTICIPANTS
 
 	gz.Route{
-		"Participants",
-		"Information about all SubT participants",
-		"/participants",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "Participants",
+		Description: "Information about all SubT participants",
+		URI:         "/participants",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /subt/participants participants listParticipants
 			//
 			// Get list of Subt participants.
@@ -135,23 +135,23 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: OrganizationResponses
 			gz.Method{
-				"GET",
-				"Get all subt participants",
-				gz.FormatHandlers{
-					gz.FormatHandler{".json", gz.JSONResult(PaginationHandlerWithUser(SubTParticipantsList, true))},
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandlerWithUser(SubTParticipantsList, true))},
+				Type:        "GET",
+				Description: "Get all subt participants",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Extension: ".json", Handler: gz.JSONResult(PaginationHandlerWithUser(SubTParticipantsList, true))},
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandlerWithUser(SubTParticipantsList, true))},
 				},
 			},
 		},
 	},
 
 	gz.Route{
-		"Single Participant",
-		"Update a participant",
-		"/participants/{competition}/{name}",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "Single Participant",
+		Description: "Update a participant",
+		URI:         "/participants/{competition}/{name}",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route DELETE /subt/participants/{competition}/{name} participants deleteSubtParticipants
 			//
 			// Delete a Subt participant.
@@ -165,21 +165,21 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: CompetitionParticipant
 			gz.Method{
-				"DELETE",
-				"Delete a subt participant",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(NameHandler("name", true, SubTParticipantDelete))},
+				Type:        "DELETE",
+				Description: "Delete a subt participant",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, SubTParticipantDelete))},
 				},
 			},
 		},
 	},
 	gz.Route{
-		"Participant Log Files",
-		"SubT log files submissions from a participant",
-		"/participants/{name}/logfiles",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "Participant Log Files",
+		Description: "SubT log files submissions from a participant",
+		URI:         "/participants/{name}/logfiles",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /subt/participants/{name}/logfiles logfiles listPartLogfiles
 			//
 			// Get list of Subt log files.
@@ -195,10 +195,10 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: LogFiles
 			gz.Method{
-				"GET",
-				"Get a list of subt logfiles",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandlerWithUser(SubTLogFileList, true))},
+				Type:        "GET",
+				Description: "Get a list of subt logfiles",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandlerWithUser(SubTLogFileList, true))},
 				},
 			},
 		},
@@ -207,12 +207,12 @@ var subTRoutes = gz.Routes{
 	// LOG FILES
 
 	gz.Route{
-		"Log Files",
-		"SubT log files submissions",
-		"/logfiles",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "Log Files",
+		Description: "SubT log files submissions",
+		URI:         "/logfiles",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route POST /subt/logfiles logfiles submitLog
 			//
 			// Submit a SubT log file
@@ -231,10 +231,10 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: LogFile
 			gz.Method{
-				"POST",
-				"Create a new subt log file",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(SubTSubmitLogFile)},
+				Type:        "POST",
+				Description: "Create a new subt log file",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(SubTSubmitLogFile)},
 				},
 			},
 			// swagger:route GET /subt/logfiles logfiles listLogfiles
@@ -252,22 +252,22 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: LogFiles
 			gz.Method{
-				"GET",
-				"Get all subt logfiles",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandlerWithUser(SubTLogFileList, true))},
+				Type:        "GET",
+				Description: "Get all subt logfiles",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandlerWithUser(SubTLogFileList, true))},
 				},
 			},
 		},
 	},
 
 	gz.Route{
-		"Single Log File",
-		"Single log files",
-		"/logfiles/{id}",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "Single Log File",
+		Description: "Single log files",
+		URI:         "/logfiles/{id}",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /subt/logfiles/{id} logfiles getLogFile
 			//
 			// Update a log file
@@ -283,10 +283,10 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: LogFile
 			gz.Method{
-				"GET",
-				"Get a log file",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(SubTGetLogFile)},
+				Type:        "GET",
+				Description: "Get a log file",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(SubTGetLogFile)},
 				},
 			},
 			// swagger:route PATCH /subt/logfiles/{id} logfiles updateLogFile
@@ -304,10 +304,10 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: LogFile
 			gz.Method{
-				"PATCH",
-				"Update a subt log file",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(SubTUpdateLogFile)},
+				Type:        "PATCH",
+				Description: "Update a subt log file",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(SubTUpdateLogFile)},
 				},
 			},
 			// swagger:route DELETE /subt/logfiles/{id} logfiles deleteLogFile
@@ -325,22 +325,22 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: LogFile
 			gz.Method{
-				"DELETE",
-				"Delete a log file",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(SubTDeleteLogFile)},
+				Type:        "DELETE",
+				Description: "Delete a log file",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(SubTDeleteLogFile)},
 				},
 			},
 		},
 	},
 
 	gz.Route{
-		"Download Single Log File",
-		"Download Single log files",
-		"/logfiles/{id}/file",
-		gz.AuthHeadersRequired,
-		gz.Methods{},
-		gz.SecureMethods{
+		Name:        "Download Single Log File",
+		Description: "Download Single log files",
+		URI:         "/logfiles/{id}/file",
+		Headers:     gz.AuthHeadersRequired,
+		Methods:     gz.Methods{},
+		SecureMethods: gz.SecureMethods{
 			// swagger:route GET /subt/logfiles/{id}/file logfiles downloadLogFile
 			//
 			// Downloads a log file
@@ -353,10 +353,10 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: File
 			gz.Method{
-				"GET",
-				"Get a log file",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(SubTLogFileDownload)},
+				Type:        "GET",
+				Description: "Get a log file",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(SubTLogFileDownload)},
 				},
 			},
 		},
@@ -365,11 +365,11 @@ var subTRoutes = gz.Routes{
 	// LEADERBOARD
 
 	gz.Route{
-		"Leaderboard",
-		"SubT leaderboard",
-		"/leaderboard",
-		gz.AuthHeadersRequired,
-		gz.Methods{
+		Name:        "Leaderboard",
+		Description: "SubT leaderboard",
+		URI:         "/leaderboard",
+		Headers:     gz.AuthHeadersRequired,
+		Methods: gz.Methods{
 			// swagger:route GET /subt/leaderboard leaderboard listLeaderboard
 			//
 			// Get the Subt leaderboard.
@@ -385,13 +385,13 @@ var subTRoutes = gz.Routes{
 			//     default: fuelError
 			//     200: Leaderboard
 			gz.Method{
-				"GET",
-				"Get the leaderboard",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.JSONResult(PaginationHandler(Leaderboard))},
+				Type:        "GET",
+				Description: "Get the leaderboard",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandler(Leaderboard))},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 } // routes

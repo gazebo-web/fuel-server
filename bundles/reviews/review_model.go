@@ -3,9 +3,9 @@ package reviews
 import (
 	"time"
 
+	fuel "github.com/gazebo-web/fuel-server/proto"
 	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
-	fuel "github.com/gazebo-web/fuel-server/proto"
 )
 
 // ModelReview contains information to create a review for a model
