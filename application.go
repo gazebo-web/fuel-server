@@ -55,12 +55,13 @@ const sysAdminForTest = "rootfortests"
 // init initializes the config for the web fuel server.
 //
 // Environment variables:
-//    IGN_DB_USERNAME  : Mysql username
-//    IGN_DB_PASSWORD  : Mysql password
-//    IGN_DB_ADDRESS   : Mysql address (host:port)
-//    IGN_DB_NAME      : Mysql database name (such as "fuel")
-//    IGN_FUEL_RESOURCE_DIR : Directory with all resources (models, worlds)
-//    AUTH0_RSA256_PUBLIC_KEY   : Auth0 public RSA 256 key
+//
+//	IGN_DB_USERNAME  : Mysql username
+//	IGN_DB_PASSWORD  : Mysql password
+//	IGN_DB_ADDRESS   : Mysql address (host:port)
+//	IGN_DB_NAME      : Mysql database name (such as "fuel")
+//	IGN_FUEL_RESOURCE_DIR : Directory with all resources (models, worlds)
+//	AUTH0_RSA256_PUBLIC_KEY   : Auth0 public RSA 256 key
 func init() {
 	var err error
 	var popPath string
@@ -250,7 +251,7 @@ func initValidator() *validator.Validate {
 	return validate
 }
 
-////////////////////////////////////////////////
+// //////////////////////////////////////////////
 // Run the router and server
 func main() {
 	globals.Server.Run()
