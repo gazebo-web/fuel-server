@@ -701,7 +701,7 @@ func TestUserPaginationAdmin(t *testing.T) {
 }
 
 // TestPersonalAccessToken tests the /users/{username}/access-tokens and
-// /users/{username}/access-tokens/revoke route.
+// users/{username}/access-tokens/revoke route.
 func TestPersonalAccessToken(t *testing.T) {
 	setup()
 
