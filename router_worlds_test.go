@@ -206,7 +206,7 @@ func runSubtestWithWorldSearchTestData(t *testing.T, test resourceSearchTest) {
 	if expStatus != http.StatusOK && !test.ignoreErrorBody {
 		gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
 	} else if expStatus == http.StatusOK {
-		var worlds []fuel.World
+		var worlds []*fuel.World
 		assert.NoError(t, json.Unmarshal(*bslice, &worlds), "Unable to get all resources: %s", string(*bslice))
 		require.Len(t, worlds, test.expCount, "There should be %d items. Got: %d", test.expCount, len(worlds))
 		if test.expCount > 0 {

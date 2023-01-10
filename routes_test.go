@@ -17,20 +17,20 @@ import (
 var routesAPI2 = gz.Routes{
 	// Test api 2.0
 	gz.Route{
-		"Test api 2.0",
-		"example route",
-		"/testapi",
-		gz.AuthHeadersOptional,
-		gz.Methods{
+		Name:        "Test api 2.0",
+		Description: "example route",
+		URI:         "/testapi",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
 			gz.Method{
-				"GET",
-				"Test api",
-				gz.FormatHandlers{
-					gz.FormatHandler{"", gz.Handler(handlerAPI2)},
+				Type:        "GET",
+				Description: "Test api",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(handlerAPI2)},
 				},
 			},
 		},
-		gz.SecureMethods{},
+		SecureMethods: gz.SecureMethods{},
 	},
 }
 

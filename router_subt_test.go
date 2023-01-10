@@ -318,7 +318,7 @@ func TestSubTRoutes(t *testing.T) {
 
 	// Test submitting log files
 	lfURI := "/1.0/subt/logfiles"
-	file := []gztest.FileDesc{{"log.txt", "test content"}}
+	file := []gztest.FileDesc{{Path: "log.txt", Contents: "test content"}}
 	b := true
 	logFileTests := []subtLogFileSubmitTest{
 		{uriTest{"no jwt", lfURI, nil, unauth, true}, nil, nil},

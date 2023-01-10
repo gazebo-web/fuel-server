@@ -92,8 +92,8 @@ func createTestWorldWithOwner(t *testing.T, jwt *string, wName, owner string, pr
 		"private":     strconv.FormatBool(private),
 	}
 	var withThumbnails = []gztest.FileDesc{
-		{"world.world", constWorldMainFileContents},
-		{"thumbnails/world.sdf", constModelSDFFileContents},
+		{Path: "world.world", Contents: constWorldMainFileContents},
+		{Path: "thumbnails/world.sdf", Contents: constModelSDFFileContents},
 	}
 
 	uri := "/1.0/worlds"
@@ -112,15 +112,15 @@ func createThreeTestWorlds(t *testing.T, jwt *string) {
 		"permission":  "0",
 	}
 	var withThumbnails = []gztest.FileDesc{
-		{"world.world", constWorldMainFileContents},
-		{"thumbnails/world.sdf", constModelSDFFileContents},
+		{Path: "world.world", Contents: constWorldMainFileContents},
+		{Path: "thumbnails/world.sdf", Contents: constModelSDFFileContents},
 	}
 	// These world files are within a singleroot folder to always test the server
 	// being able to handle single folder uploads.
 	var files = []gztest.FileDesc{
-		{"singleroot/world.world", constWorldMainFileContents},
-		{"singleroot/world.sdf", constModelSDFFileContents},
-		{"singleroot/subfolder/test.txt", "test string"},
+		{Path: "singleroot/world.world", Contents: constWorldMainFileContents},
+		{Path: "singleroot/world.sdf", Contents: constModelSDFFileContents},
+		{Path: "singleroot/subfolder/test.txt", Contents: "test string"},
 	}
 	uri := "/1.0/worlds"
 	testName := t.Name()
@@ -172,66 +172,66 @@ func TestWorldCreateVariants(t *testing.T) {
 
 	// Files to upload
 	var dupFiles = []gztest.FileDesc{
-		{"world.config", constModelConfigFileContents},
-		{"world.sdf", constModelSDFFileContents},
-		{"world.sdf", constModelSDFFileContents},
+		{Path: "world.config", Contents: constModelConfigFileContents},
+		{Path: "world.sdf", Contents: constModelSDFFileContents},
+		{Path: "world.sdf", Contents: constModelSDFFileContents},
 	}
 
 	var okFiles = []gztest.FileDesc{
-		{"world.world", constWorldMainFileContents},
-		{"world.sdf", constModelSDFFileContents},
+		{Path: "world.world", Contents: constWorldMainFileContents},
+		{Path: "world.sdf", Contents: constModelSDFFileContents},
 	}
 
 	var noWorldFiles = []gztest.FileDesc{
-		{"world.conf", constWorldMainFileContents},
-		{"world.sdf", constModelSDFFileContents},
+		{Path: "world.conf", Contents: constWorldMainFileContents},
+		{Path: "world.sdf", Contents: constModelSDFFileContents},
 	}
 
 	var invalidWorldContents = []gztest.FileDesc{
-		{"world.world", constInvalidWorldModelIncludes},
+		{Path: "world.world", Contents: constInvalidWorldModelIncludes},
 	}
 
 	var invalidHgFiles = []gztest.FileDesc{
-		{"single/a.txt", constModelConfigFileContents},
-		{"single/.hg/test.txt", constModelConfigFileContents},
+		{Path: "single/a.txt", Contents: constModelConfigFileContents},
+		{Path: "single/.hg/test.txt", Contents: constModelConfigFileContents},
 	}
 	var invalidGitFiles = []gztest.FileDesc{
-		{"a.txt", constModelConfigFileContents},
-		{".git", constModelConfigFileContents},
+		{Path: "a.txt", Contents: constModelConfigFileContents},
+		{Path: ".git", Contents: constModelConfigFileContents},
 	}
 
 	worldTests := []postTest{
-		{"TestFilesPostOK", uri, nil, extraParams, okFiles, http.StatusOK, -1, &extraParams, &worlds.World{}},
+		{testDesc: "TestFilesPostOK", uri: uri, postParams: extraParams, postFiles: okFiles, expStatus: http.StatusOK, expErrCode: -1, expParams: &extraParams, unmarshal: &worlds.World{}},
 		// We should be able to save the exact same World if the previous one was removed.
-		{"TestFilesPostOK2", uri, nil, extraParams, okFiles, http.StatusOK, -1, &extraParams, &worlds.World{}},
-		{"TestFilesPostOK3", uri, nil, extraParams, okFiles, http.StatusOK, -1, &extraParams, &worlds.World{}},
-		{"TestInvalidHgFilesPost", uri, nil, extraParams, invalidHgFiles, http.StatusBadRequest,
-			gz.ErrorFormInvalidValue, nil, nil},
-		{"TestInvalidGitFilesPost", uri, nil, extraParams, invalidGitFiles, http.StatusBadRequest,
-			gz.ErrorFormInvalidValue, nil, nil},
-		{"TestDuplicateFilesPost", uri, nil, extraParams, dupFiles, http.StatusBadRequest,
-			gz.ErrorFormDuplicateFile, nil, nil},
-		{"TestEmptyFilesInPost", uri, nil, extraParams, []gztest.FileDesc{}, http.StatusBadRequest,
-			gz.ErrorFormMissingFiles, nil, &worlds.World{}},
+		{testDesc: "TestFilesPostOK2", uri: uri, postParams: extraParams, postFiles: okFiles, expStatus: http.StatusOK, expErrCode: -1, expParams: &extraParams, unmarshal: &worlds.World{}},
+		{testDesc: "TestFilesPostOK3", uri: uri, postParams: extraParams, postFiles: okFiles, expStatus: http.StatusOK, expErrCode: -1, expParams: &extraParams, unmarshal: &worlds.World{}},
+		{testDesc: "TestInvalidHgFilesPost", uri: uri, postParams: extraParams, postFiles: invalidHgFiles, expStatus: http.StatusBadRequest,
+			expErrCode: gz.ErrorFormInvalidValue},
+		{testDesc: "TestInvalidGitFilesPost", uri: uri, postParams: extraParams, postFiles: invalidGitFiles, expStatus: http.StatusBadRequest,
+			expErrCode: gz.ErrorFormInvalidValue},
+		{testDesc: "TestDuplicateFilesPost", uri: uri, postParams: extraParams, postFiles: dupFiles, expStatus: http.StatusBadRequest,
+			expErrCode: gz.ErrorFormDuplicateFile},
+		{testDesc: "TestEmptyFilesInPost", uri: uri, postParams: extraParams, postFiles: []gztest.FileDesc{}, expStatus: http.StatusBadRequest,
+			expErrCode: gz.ErrorFormMissingFiles, unmarshal: &worlds.World{}},
 		// TestCreateInvalidData checks the world creation route fails when an incomplete post is sent.
-		{"TestCreateMissingData", uri, nil, map[string]string{}, []gztest.FileDesc{}, http.StatusBadRequest,
-			gz.ErrorFormInvalidValue, nil, &worlds.World{}},
-		{"TestCreateInvalidValueLicense", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "a", "permission": "0"}, okFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &worlds.World{}},
-		{"TestCreateNonExistentLicense", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "1000", "permission": "0"}, okFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &worlds.World{}},
-		{"TestCreateInvalidValuePermission", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "2", "permission": "public"}, okFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &worlds.World{}},
-		{"TestCreateInvalidRangePermission", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "2", "permission": "2"}, okFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &worlds.World{}},
-		{"TestCreateInvalidRangePermission2", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "2", "permission": "-1"}, okFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &worlds.World{}},
-		{"TestDescriptionMoreThan255Chars", uri, nil, longDescriptionParams, okFiles, http.StatusOK, -1, nil, &worlds.World{}},
+		{testDesc: "TestCreateMissingData", uri: uri, postParams: map[string]string{}, postFiles: []gztest.FileDesc{}, expStatus: http.StatusBadRequest,
+			expErrCode: gz.ErrorFormInvalidValue, unmarshal: &worlds.World{}},
+		{testDesc: "TestCreateInvalidValueLicense", uri: uri, postParams: map[string]string{"name": "test", "tags": "",
+			"license": "a", "permission": "0"}, postFiles: okFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &worlds.World{}},
+		{testDesc: "TestCreateNonExistentLicense", uri: uri, postParams: map[string]string{"name": "test", "tags": "",
+			"license": "1000", "permission": "0"}, postFiles: okFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &worlds.World{}},
+		{testDesc: "TestCreateInvalidValuePermission", uri: uri, postParams: map[string]string{"name": "test", "tags": "",
+			"license": "2", "permission": "public"}, postFiles: okFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &worlds.World{}},
+		{testDesc: "TestCreateInvalidRangePermission", uri: uri, postParams: map[string]string{"name": "test", "tags": "",
+			"license": "2", "permission": "2"}, postFiles: okFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &worlds.World{}},
+		{testDesc: "TestCreateInvalidRangePermission2", uri: uri, postParams: map[string]string{"name": "test", "tags": "",
+			"license": "2", "permission": "-1"}, postFiles: okFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &worlds.World{}},
+		{testDesc: "TestDescriptionMoreThan255Chars", uri: uri, postParams: longDescriptionParams, postFiles: okFiles, expStatus: http.StatusOK, expErrCode: -1, unmarshal: &worlds.World{}},
 	}
 
 	if shouldParseModelIncludes() {
-		tc1 := postTest{"TestInvalidWorldContents", uri, nil, extraParams, invalidWorldContents, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, nil}
-		tc2 := postTest{"TestMissingWorldFile", uri, nil, extraParams, noWorldFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, nil}
+		tc1 := postTest{testDesc: "TestInvalidWorldContents", uri: uri, postParams: extraParams, postFiles: invalidWorldContents, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue}
+		tc2 := postTest{testDesc: "TestMissingWorldFile", uri: uri, postParams: extraParams, postFiles: noWorldFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue}
 		worldTests = append(worldTests, tc1, tc2)
 	}
 
@@ -506,12 +506,12 @@ func TestWorldUpdate(t *testing.T) {
 	descParams := map[string]string{
 		"description": newDescription,
 	}
-	emptyFiles := []gztest.FileDesc{}
+	var emptyFiles []gztest.FileDesc
 	var okFiles = []gztest.FileDesc{
-		{"world.world", constWorldMainFileContents},
-		{"world.sdf", "test changed contents\n"},
-		{"world1.sdf", constModelSDFFileContents},
-		{"world2.sdf", constModelSDFFileContents},
+		{Path: "world.world", Contents: constWorldMainFileContents},
+		{Path: "world.sdf", Contents: "test changed contents\n"},
+		{Path: "world1.sdf", Contents: constModelSDFFileContents},
+		{Path: "world2.sdf", Contents: constModelSDFFileContents},
 	}
 	okRootPaths := []string{"/world.sdf", "/world.world", "/world1.sdf", "/world2.sdf"}
 
@@ -521,21 +521,20 @@ func TestWorldUpdate(t *testing.T) {
 	}
 
 	var otherFiles = []gztest.FileDesc{
-		{"world1.world", constWorldMainFileContents},
+		{Path: "world1.world", Contents: constWorldMainFileContents},
 	}
 
 	var noWorldFiles = []gztest.FileDesc{
-		{"world.conf", constWorldMainFileContents},
-		{"world.sdf", constModelSDFFileContents},
+		{Path: "world.conf", Contents: constWorldMainFileContents},
+		{Path: "world.sdf", Contents: constModelSDFFileContents},
 	}
 
 	var invalidWorldContents = []gztest.FileDesc{
-		{"world.world", constInvalidWorldModelIncludes},
+		{Path: "world.world", Contents: constInvalidWorldModelIncludes},
 	}
 
-	newPrivacy := true
 	privacyParams := map[string]string{
-		"private": strconv.FormatBool(newPrivacy),
+		"private": strconv.FormatBool(true),
 	}
 
 	// world1 filetree root paths

@@ -169,8 +169,8 @@ func createModelWithCategories(t *testing.T, jwt *string, name string, categorie
 		"categories":  cats,
 	}
 	withThumbnails := []gztest.FileDesc{
-		{"model.config", constModelConfigFileContents},
-		{"thumbnails/model.sdf", constModelSDFFileContents},
+		{Path: "model.config", Contents: constModelConfigFileContents},
+		{Path: "thumbnails/model.sdf", Contents: constModelSDFFileContents},
 	}
 
 	uri := "/1.0/models"
@@ -188,8 +188,8 @@ func updateModelWithCategories(t *testing.T, jwt *string, owner, model string, c
 		"categories": joinedCategories,
 	}
 	withThumbnails := []gztest.FileDesc{
-		{"model.config", constModelConfigFileContents},
-		{"thumbnails/model.sdf", constModelSDFFileContents},
+		{Path: "model.config", Contents: constModelConfigFileContents},
+		{Path: "thumbnails/model.sdf", Contents: constModelSDFFileContents},
 	}
 
 	return gztest.SendMultipartMethod(testName, t, "PATCH", uri, jwt, extraParams, withThumbnails)

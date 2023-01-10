@@ -5,7 +5,6 @@ import (
 )
 
 // WorldDownload represents a single download of a world.
-//
 type WorldDownload struct {
 	gorm.Model
 
