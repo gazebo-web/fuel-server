@@ -251,8 +251,7 @@ func initValidator() *validator.Validate {
 	return validate
 }
 
-// //////////////////////////////////////////////
-// Run the router and server
+// main runs the router and server
 func main() {
 	globals.Server.Run()
 }
