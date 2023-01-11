@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gosimple/slug"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -417,7 +417,7 @@ func DBPopulate(ctx context.Context, path string, db *gorm.DB, onlyWhenEmpty boo
 				}
 
 				defer xmlFile.Close()
-				b, _ := ioutil.ReadAll(xmlFile)
+				b, _ := io.ReadAll(xmlFile)
 
 				var mc modelConfig
 				xml.Unmarshal(b, &mc)

@@ -41,7 +41,6 @@ import (
 	"github.com/go-playground/form"
 
 	"gopkg.in/go-playground/validator.v9"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -86,7 +85,7 @@ func init() {
 
 	if isGoTest {
 		// Override globals.ResourceDir with a newly created /tmp folder
-		globals.ResourceDir, err = ioutil.TempDir("", "fuel-")
+		globals.ResourceDir, err = os.MkdirTemp("", "fuel-")
 		if err != nil {
 			log.Fatal("Could not initialize test globals.ResourceDir. Resources will not be available")
 		}

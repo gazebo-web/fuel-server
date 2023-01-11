@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -658,15 +658,14 @@ func populateModelIncludes(ctx context.Context, tx *gorm.DB, world *World,
 // Otherwise it returns an error.
 func getWorldMainFile(worldDirPath string) (*string, error) {
 	// TODO: an uploaded world folder can have multiple world files (with extension .world/.sdf)
-	files, err := ioutil.ReadDir(worldDirPath)
+	files, err := os.ReadDir(worldDirPath)
 	if err != nil {
 		return nil, err
 	}
 	for _, f := range files {
 		ext := filepath.Ext(f.Name())
 		if ext == ".world" {
-			res := filepath.Join(worldDirPath, f.Name())
-			return &res, nil
+			return gz.String(filepath.Join(worldDirPath, f.Name())), nil
 		}
 	}
 	return nil, errors.New(".world file not found")
@@ -695,7 +694,7 @@ func parseModelIncludes(tx *gorm.DB, world *World,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 	}
 	defer xmlFile.Close()
-	b, _ := ioutil.ReadAll(xmlFile)
+	b, _ := io.ReadAll(xmlFile)
 	var w worldFile
 	xml.Unmarshal(b, &w)
 

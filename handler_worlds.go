@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -116,7 +115,7 @@ func WorldFileTree(owner, name string, user *users.User, tx *gorm.DB,
 func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	ws := (&worlds.Service{})
+	ws := &worlds.Service{}
 	fuelWorld, em := ws.GetWorldProto(r.Context(), tx, owner, name, user)
 	if em != nil {
 		return nil, em
@@ -473,7 +472,7 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 	if r.MultipartForm != nil && len(getRequestFiles(r)) > 0 {
 		// first, populate files into tmp dir to avoid overriding world
 		// files in case of error.
-		tmpDir, err := ioutil.TempDir("", worldName)
+		tmpDir, err := os.MkdirTemp("", worldName)
 		defer os.Remove(tmpDir)
 		if err != nil {
 			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
