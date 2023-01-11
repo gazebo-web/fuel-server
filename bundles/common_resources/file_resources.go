@@ -2,7 +2,6 @@ package commonres
 
 import (
 	"context"
-	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"os"
 	"path/filepath"
@@ -239,7 +238,10 @@ func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder s
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
 func getOrCreateZipLocation(res Resource, subfolder, version string) string {
 	zipsFolder := filepath.Join(globals.ResourceDir, *res.GetOwner(), subfolder, ".zips")
-	os.Mkdir(zipsFolder, 0711)
+	err := os.Mkdir(zipsFolder, 0711)
+	if err != nil {
+		return ""
+	}
 
 	if version == "" || version == "tip" {
 		version = ""
@@ -369,8 +371,7 @@ func MoveResource(resource Resource, destOwner string) *gz.ErrMsg {
 	newLocation := strings.Replace(*resource.GetLocation(), searchStr, replaceStr, 1)
 
 	if newLocation == *resource.GetLocation() {
-		extra := fmt.Sprintf("Source and destination owners are identical")
-		return gz.NewErrorMessageWithArgs(gz.ErrorUnauthorized, nil, []string{extra})
+		return gz.NewErrorMessageWithArgs(gz.ErrorUnauthorized, nil, []string{"Source and destination owners are identical"})
 	}
 
 	// Move resource on disk

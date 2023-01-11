@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"io"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -693,10 +694,18 @@ func parseModelIncludes(tx *gorm.DB, world *World,
 	if err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 	}
-	defer xmlFile.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			log.Println("Failed to close file:", err)
+		}
+	}(xmlFile)
 	b, _ := io.ReadAll(xmlFile)
 	var w worldFile
-	xml.Unmarshal(b, &w)
+
+	if err := xml.Unmarshal(b, &w); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	// Types of Model Includes:
 	// 1) Full URI format: <server>/(owner)/models/(model_name)/(version_number)

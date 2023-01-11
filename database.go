@@ -406,21 +406,30 @@ func DBPopulate(ctx context.Context, path string, db *gorm.DB, onlyWhenEmpty boo
 	owner := "anonymous"
 	var ownerDbUser users.User
 	db.Where("username = ?", owner).First(&ownerDbUser)
-	filepath.Walk(path,
+	err := filepath.Walk(path,
 		func(path string, f os.FileInfo, err error) error {
-			if strings.Contains(path, "model.config") &&
-				!strings.Contains(path, ".hg") {
-
+			if strings.Contains(path, "model.config") && !strings.Contains(path, ".hg") {
 				xmlFile, err := os.Open(path)
 				if err != nil {
 					return err
 				}
 
-				defer xmlFile.Close()
-				b, _ := io.ReadAll(xmlFile)
+				defer func(f *os.File) {
+					err := f.Close()
+					if err != nil {
+						log.Println("Failed to close file:", err)
+					}
+				}(xmlFile)
+				b, err := io.ReadAll(xmlFile)
+				if err != nil {
+					return err
+				}
 
 				var mc modelConfig
-				xml.Unmarshal(b, &mc)
+				err = xml.Unmarshal(b, &mc)
+				if err != nil {
+					return err
+				}
 
 				fmt.Printf("Inserting Model %s\n", mc.Name)
 
@@ -441,4 +450,7 @@ func DBPopulate(ctx context.Context, path string, db *gorm.DB, onlyWhenEmpty boo
 			}
 			return nil
 		})
+	if err != nil {
+		return
+	}
 }

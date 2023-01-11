@@ -33,7 +33,11 @@ func CollectionsSetDefaultLocation(ctx context.Context, db *gorm.DB) {
 	for _, col := range colList {
 		if col.Location == nil {
 			loc := users.GetResourcePath(*col.GetOwner(), *col.GetUUID(), "collections")
-			os.MkdirAll(loc, 0711)
+			err := os.MkdirAll(loc, 0711)
+			if err != nil {
+				log.Println("[MIGRATION] Failed to create collection folder:", loc)
+				continue
+			}
 			tx.Model(&col).Update("Location", &loc)
 			_, em := res.CreateResourceRepo(ctx, &col, *col.GetLocation())
 			if em != nil {
@@ -78,7 +82,11 @@ func RecomputeZipFileSizes(ctx context.Context, db *gorm.DB) {
 			continue
 		}
 		modelsFolder := filepath.Join(globals.ResourceDir, *model.GetOwner(), "models")
-		os.MkdirAll(modelsFolder, 0711)
+		err := os.MkdirAll(modelsFolder, 0711)
+		if err != nil {
+			log.Println("[MIGRATION] Failed to create model folder:", modelsFolder)
+			return
+		}
 
 		zipPath, _, em := res.GetZip(ctx, &model, "models", "tip")
 		if em != nil {
@@ -106,7 +114,11 @@ func RecomputeZipFileSizes(ctx context.Context, db *gorm.DB) {
 			continue
 		}
 		worldsFolder := filepath.Join(globals.ResourceDir, *w.GetOwner(), "worlds")
-		os.MkdirAll(worldsFolder, 0711)
+		err := os.MkdirAll(worldsFolder, 0711)
+		if err != nil {
+			log.Println("[MIGRATION] Failed to create world folder:", worldsFolder)
+			continue
+		}
 
 		zipPath, _, em := res.GetZip(ctx, &w, "worlds", "tip")
 		if em != nil {

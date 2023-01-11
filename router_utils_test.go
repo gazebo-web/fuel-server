@@ -236,7 +236,7 @@ func (g *FailingVCS) RevisionCount(ctx context.Context, rev string) (int, error)
 
 // origVCSFactory is a private variable to backup original server's VCS repo
 // when a test switches the VCS factory to FailingVCS.
-var origVCSFactory (func(ctx context.Context, dirpath string) vcs.VCS)
+var origVCSFactory func(ctx context.Context, dirpath string) vcs.VCS
 
 func SetFailingVCSFactory() {
 	if origVCSFactory == nil {
@@ -437,7 +437,7 @@ func createOrganizationWithName(t *testing.T, name string) string {
 	description := "a random organization"
 	o := users.Organization{Name: &name, Description: &description}
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(o)
+	assert.NoError(t, json.NewEncoder(b).Encode(o))
 
 	req, _ := http.NewRequest("POST", "/1.0/organizations", b)
 	req.Header.Add("Content-Type", "application/json")
@@ -481,7 +481,7 @@ func removeOrganization(name string, t *testing.T) {
 	require.NotNil(t, organization, "removeOrganization error: Unable to remove organization[%s]", name)
 
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(*organization)
+	assert.NoError(t, json.NewEncoder(b).Encode(*organization))
 
 	req, _ := http.NewRequest("DELETE", "/1.0/organizations/"+name, b)
 
@@ -506,7 +506,7 @@ func addUserToOrg(user, role, org string, t *testing.T) {
 	jwt := os.Getenv("IGN_TEST_JWT")
 	add := users.AddUserToOrgInput{Username: user, Role: role}
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(add)
+	assert.NoError(t, json.NewEncoder(b).Encode(add))
 	uri := fmt.Sprintf("/1.0/organizations/%s/users", org)
 	gztest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }
@@ -514,7 +514,7 @@ func addUserToOrg(user, role, org string, t *testing.T) {
 // adds a team to an org
 func addTeamToOrg(org, jwt string, team users.CreateTeamForm, t *testing.T) {
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(team)
+	assert.NoError(t, json.NewEncoder(b).Encode(team))
 	uri := fmt.Sprintf("/1.0/organizations/%s/teams", org)
 	gztest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }
@@ -522,7 +522,7 @@ func addTeamToOrg(org, jwt string, team users.CreateTeamForm, t *testing.T) {
 // updates a team of an org
 func updateOrgTeam(org, team, jwt string, ut users.UpdateTeamForm, t *testing.T) {
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(ut)
+	assert.NoError(t, json.NewEncoder(b).Encode(ut))
 	uri := fmt.Sprintf("/1.0/organizations/%s/teams/%s", org, team)
 	gztest.AssertRouteMultipleArgs("PATCH", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }

@@ -55,7 +55,7 @@ var LeaderboardCircuitFilter []string
 // VCSRepoFactory is the factory function used to create new
 // repositories to manage versions of Models, Worlds, Plugins, etc.
 // Our current implementation uses go-git.
-var VCSRepoFactory (func(ctx context.Context, dirpath string) vcs.VCS)
+var VCSRepoFactory func(ctx context.Context, dirpath string) vcs.VCS
 
 // Permissions manages permissions for users, roles and resources.
 var Permissions *permissions.Permissions

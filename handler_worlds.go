@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
+	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
@@ -102,7 +104,10 @@ func WorldFileTree(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	writeIgnResourceVersionHeader(strconv.Itoa(int(*worldProto.Version)), w, r)
+	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*worldProto.Version)), w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	return worldProto, em
 }
@@ -121,7 +126,10 @@ func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	writeIgnResourceVersionHeader(strconv.Itoa(int(*fuelWorld.Version)), w, r)
+	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*fuelWorld.Version)), w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	return fuelWorld, nil
 }
@@ -254,7 +262,10 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 	// Set zip response headers
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
-	writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
+	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
@@ -283,7 +294,12 @@ func ReportWorldCreate(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 
 	var createWorldReport worlds.CreateReport
 
@@ -365,7 +381,12 @@ func WorldCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 	// worlds.CreateWorld is the input form
 	var cw worlds.CreateWorld
 	if em := ParseStruct(&cw, r, true); em != nil {
@@ -423,7 +444,12 @@ func WorldClone(owner, name string, ignored *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 	// worlds.CloneWorld is the input form
 	var cw worlds.CloneWorld
 	if em := ParseStruct(&cw, r, true); em != nil {
@@ -457,7 +483,12 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 	// worlds.UpdateWorld is the input form
 	var uw worlds.UpdateWorld
 	if errMsg := ParseStruct(&uw, r, true); errMsg != nil {
@@ -536,7 +567,10 @@ func WorldModelReferences(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	gz.WritePaginationHeaders(*pagination, w, r)
+	err := gz.WritePaginationHeaders(*pagination, w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 	return refs, nil
 }
 

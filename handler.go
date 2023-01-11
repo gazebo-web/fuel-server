@@ -105,7 +105,10 @@ func SearchHandler(handler searchFnHandler) gz.HandlerWithResult {
 		}
 
 		if pagination != nil {
-			gz.WritePaginationHeaders(*pagination, w, r)
+			err := gz.WritePaginationHeaders(*pagination, w, r)
+			if err != nil {
+				return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+			}
 		}
 
 		return list, nil
@@ -144,7 +147,10 @@ func PaginationHandlerWithUser(handler pagHandler, failIfNoUser bool) gz.Handler
 			return nil, em
 		}
 
-		gz.WritePaginationHeaders(*pagination, w, r)
+		err := gz.WritePaginationHeaders(*pagination, w, r)
+		if err != nil {
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+		}
 		return list, nil
 	}
 }

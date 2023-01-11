@@ -242,7 +242,12 @@ func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 	// models.UpdateModel is the input form
 	var um models.UpdateModel
 	if errMsg := ParseStruct(&um, r, true); errMsg != nil {

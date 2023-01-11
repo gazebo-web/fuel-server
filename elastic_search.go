@@ -630,7 +630,6 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 					}
 				}
 			} else if len(parts) > 1 {
-
 				// We are ignoring parts beyond the first two. A user could request
 				// ?q=p1:p2:p3:p4. Instead of returning an error, we will just pick
 				// out p1 and p2.
@@ -683,7 +682,7 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 					// using the text before the "AND" clause and the "value" field
 					// using the text after the "AND".
 					if len(queryStr) > 0 {
-						queryStr = queryStr + " AND "
+						queryStr += " AND "
 					}
 					queryStr += *metadatum.Value
 				}
@@ -808,7 +807,10 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 	page.PageFound = count > 0 || (page.Page == 1 && count == 0)
 
 	// Write the pagination headers
-	gz.WritePaginationHeaders(page, w, r)
+	err = gz.WritePaginationHeaders(page, w, r)
+	if err != nil {
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	// Debug
 	// fmt.Printf("--- End of ElasticSearch ---\n")
@@ -840,7 +842,6 @@ func createWorldResults(ctx context.Context, user *users.User, tx *gorm.DB, elas
 	// \todo: Add categories to world, and add back in `.Preload("Categories")` to the following line.
 	if err := tx.Preload("Tags").Preload("License").Where(resourceIDs).Find(&foundWorlds).Error; err == nil {
 		for _, world := range foundWorlds {
-
 			if ok, _ := users.CheckPermissions(tx, *world.UUID, user, *world.Private, permissions.Read); ok {
 				count++
 				// Encode world into a protobuf message and add it to the list.
@@ -854,7 +855,7 @@ func createWorldResults(ctx context.Context, user *users.User, tx *gorm.DB, elas
 		}
 	}
 
-	return worldsProto, count
+	return &worldsProto, count
 }
 
 func createModelResults(ctx context.Context, user *users.User, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {

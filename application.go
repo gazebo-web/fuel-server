@@ -97,6 +97,9 @@ func init() {
 	}
 
 	globals.Server, err = gz.Init(auth0RsaPublickey, "", nil)
+	if err != nil {
+		log.Fatal("Failed to initialize web server:", err)
+	}
 	// Create the main Router and set it to the server.
 	// Note: here it is the place to define multiple APIs
 	s := globals.Server
@@ -240,7 +243,11 @@ func init() {
 	migrate.ToModelGitRepositories(logCtx)
 
 	// Connect to ElasticSearch.
-	connectToElasticSearch(logCtx)
+	err = connectToElasticSearch(logCtx)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
 }
 
 func initValidator() *validator.Validate {
