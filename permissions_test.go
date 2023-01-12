@@ -39,7 +39,7 @@ func TestPermissionsSetSystemAdmin(t *testing.T) {
 
 	// create test group and resource
 	_, em := globals.Permissions.AddUserGroupRole("owner3", "group3", permissions.Owner)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, err := globals.Permissions.AddPermission("owner3", "resource3", permissions.Read)
 	assert.NoError(t, err)
 
