@@ -700,9 +700,13 @@ func parseModelIncludes(tx *gorm.DB, world *World,
 			log.Println("Failed to close file:", err)
 		}
 	}(xmlFile)
-	b, _ := io.ReadAll(xmlFile)
-	var w worldFile
 
+	b, err := io.ReadAll(xmlFile)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
+	}
+
+	var w worldFile
 	if err := xml.Unmarshal(b, &w); err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
