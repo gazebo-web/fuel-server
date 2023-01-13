@@ -199,7 +199,7 @@ func TestUserResourcePermissions(t *testing.T) {
 
 	// now remove the resource
 	_, em := globals.Permissions.RemoveResource("resourceA")
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	removeResourcePermissionsTestsData := []userResourcePermissionsTest{
 		{"userA can't read", "userA", "resourceA", permissions.Read, false, unauthorizedErrMsg},
 		{"userB can't write", "userA", "resourceA", permissions.Write, false, unauthorizedErrMsg},
@@ -219,11 +219,11 @@ func TestUserRolePermissions(t *testing.T) {
 
 	// test basic role read/write permissions
 	_, em := globals.Permissions.AddUserGroupRole("ownerA", "groupA", permissions.Owner)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("adminA", "groupA", permissions.Admin)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("memberA", "groupA", permissions.Member)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 
 	rolePermissionsTestsData := []userResourcePermissionsTest{
 		{"owner can read", "ownerA", "groupA", permissions.Read, true, nil},
@@ -239,11 +239,11 @@ func TestUserRolePermissions(t *testing.T) {
 
 	// test role read permission
 	_, em = globals.Permissions.AddUserGroupRole("owner1", "group1", permissions.Owner)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("admin1", "group1", permissions.Admin)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("member1", "group1", permissions.Member)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, err := globals.Permissions.AddPermission("group1", "resource1", permissions.Read)
 	assert.NoError(t, err)
 
@@ -262,11 +262,11 @@ func TestUserRolePermissions(t *testing.T) {
 
 	// test role write permission
 	_, em = globals.Permissions.AddUserGroupRole("owner2", "group2", permissions.Owner)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("admin2", "group2", permissions.Admin)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("member2", "group2", permissions.Member)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, err = globals.Permissions.AddPermission("group2", "resource2", permissions.Write)
 	assert.NoError(t, err)
 
@@ -284,7 +284,7 @@ func TestUserRolePermissions(t *testing.T) {
 
 	// create test group and resource
 	_, em = globals.Permissions.AddUserGroupRole("owner3", "group3", permissions.Owner)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, err = globals.Permissions.AddPermission("owner3", "resource3", permissions.Read)
 	assert.NoError(t, err)
 
@@ -329,21 +329,21 @@ type userGroupsTest struct {
 func TestGetGroupsAndRolesForUser(t *testing.T) {
 	// test basic role read/write permissions
 	_, em := globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Owner)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Admin)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Member)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("userA", "group2", permissions.Admin)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("userB", "groupA", permissions.Member)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("userB", "group2", permissions.Owner)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("userC", "group2", permissions.Member)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 	_, em = globals.Permissions.AddUserGroupRole("userU", "group_with-underscore_", permissions.Member)
-	assert.NoError(t, em.BaseError)
+	assert.Nil(t, em)
 
 	userGroupsTestData := []userGroupsTest{
 		{testDesc: "groups of userA", user: "userA", expGroups: map[string]string{"groupA": "owner", "group2": "admin"}},
