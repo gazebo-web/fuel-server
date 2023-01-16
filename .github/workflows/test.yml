@@ -34,7 +34,11 @@ jobs:
         run: |
           while ! mysqladmin ping -h"127.0.0.1" -P"$PORT" --silent; do
             sleep 1
-          done          
+          done
+
+      - name: Install zip
+        run: |
+          sudo apt-get install -y zip 
 
       - name: Install git
         run: |
