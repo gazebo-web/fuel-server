@@ -62,7 +62,7 @@ jobs:
           IGN_DB_ADDRESS: "127.0.0.1:${{ job.services.mysql.ports[3306] }}"
           IGN_FUEL_RESOURCE_DIR: "./tmp/fuel"
           IGN_TEST_JWT: ${{ secrets.IGN_TEST_JWT }}
-          IGN_FUEL_MIGRATE_UNIQUEOWNERS_TABLE: "true"
+          IGN_FUEL_MIGRATE_UNIQUEOWNERS_TABLE: "false"
           IGN_POPULATE_PATH: ./.gazebo/models/
 
           AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
