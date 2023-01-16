@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"os"
 	"testing"
@@ -86,7 +87,8 @@ func runSubTestWithModelReviewData(t *testing.T, test reviewSearchTest, jwt *str
 	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 	respJSON := make([]map[string]interface{}, 0)
 	assert.NoError(t, json.Unmarshal(*resp.BodyAsBytes, &respJSON))
-	review := respJSON[0]["review"].(map[string]interface{})
+	review, ok := respJSON[0]["review"].(map[string]interface{})
+	require.True(t, ok)
 	assert.Equal(t, len(respJSON), 1)
 	assert.Equal(t, review["title"], "test title")
 }
