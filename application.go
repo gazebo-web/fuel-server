@@ -243,11 +243,7 @@ func init() {
 	migrate.ToModelGitRepositories(logCtx)
 
 	// Connect to ElasticSearch.
-	err = connectToElasticSearch(logCtx)
-	if err != nil {
-		logger.Error(err)
-		return
-	}
+	_ = connectToElasticSearch(logCtx)
 }
 
 func initValidator() *validator.Validate {
