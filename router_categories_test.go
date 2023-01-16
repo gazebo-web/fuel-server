@@ -224,7 +224,7 @@ func TestCategoriesDeleteAdminRemoveParentId(t *testing.T) {
 func getCategoriesWithCount(t *testing.T) (count int, bslice *[]byte, ok bool) {
 	uri := "/1.0/categories"
 	categories := category.Categories{}
-	bslice, _ = gztest.AssertRoute("GET", uri, http.StatusOK, t)
+	bslice, ok = gztest.AssertRoute("GET", uri, http.StatusOK, t)
 	assert.NoError(t, json.Unmarshal(*bslice, &categories))
 	count = len(categories)
 	return
