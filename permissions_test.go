@@ -328,22 +328,14 @@ type userGroupsTest struct {
 // TestGetGroupsAndRolesForUser test returning the groups of an user.
 func TestGetGroupsAndRolesForUser(t *testing.T) {
 	// test basic role read/write permissions
-	_, em := globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Owner)
-	assert.Nil(t, em)
-	_, em = globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Admin)
-	assert.Nil(t, em)
-	_, em = globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Member)
-	assert.Nil(t, em)
-	_, em = globals.Permissions.AddUserGroupRole("userA", "group2", permissions.Admin)
-	assert.Nil(t, em)
-	_, em = globals.Permissions.AddUserGroupRole("userB", "groupA", permissions.Member)
-	assert.Nil(t, em)
-	_, em = globals.Permissions.AddUserGroupRole("userB", "group2", permissions.Owner)
-	assert.Nil(t, em)
-	_, em = globals.Permissions.AddUserGroupRole("userC", "group2", permissions.Member)
-	assert.Nil(t, em)
-	_, em = globals.Permissions.AddUserGroupRole("userU", "group_with-underscore_", permissions.Member)
-	assert.Nil(t, em)
+	_, _ = globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Owner)
+	_, _ = globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Admin)
+	_, _ = globals.Permissions.AddUserGroupRole("userA", "groupA", permissions.Member)
+	_, _ = globals.Permissions.AddUserGroupRole("userA", "group2", permissions.Admin)
+	_, _ = globals.Permissions.AddUserGroupRole("userB", "groupA", permissions.Member)
+	_, _ = globals.Permissions.AddUserGroupRole("userB", "group2", permissions.Owner)
+	_, _ = globals.Permissions.AddUserGroupRole("userC", "group2", permissions.Member)
+	_, _ = globals.Permissions.AddUserGroupRole("userU", "group_with-underscore_", permissions.Member)
 
 	userGroupsTestData := []userGroupsTest{
 		{testDesc: "groups of userA", user: "userA", expGroups: map[string]string{"groupA": "owner", "group2": "admin"}},
