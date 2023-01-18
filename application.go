@@ -79,7 +79,7 @@ func init() {
 	isGoTest = strings.Contains(strings.ToLower(os.Args[0]), "test")
 
 	// Get the root resource directory.
-	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil {
+	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil && !isGoTest {
 		log.Fatal("Missing IGN_FUEL_RESOURCE_DIR env variable. Resources will not be available. Quitting.")
 	}
 

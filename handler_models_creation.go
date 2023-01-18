@@ -110,7 +110,7 @@ func modelFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.Res
 	// move files from multipart form into new model's folder
 	_, em := populateTmpDir(r, true, modelPath)
 	if em != nil {
-		os.Remove(modelPath)
+		_ = os.Remove(modelPath)
 		return nil, em
 	}
 
@@ -118,7 +118,7 @@ func modelFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.Res
 	ms := &models.Service{}
 	model, em := ms.CreateModel(r.Context(), tx, cm, uuidStr, modelPath, jwtUser)
 	if em != nil {
-		os.Remove(modelPath)
+		_ = os.Remove(modelPath)
 		return nil, em
 	}
 	return model, nil

@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.8.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/go-playground/validator.v9 v9.31.0
-	gopkg.in/src-d/go-billy.v4 v4.3.2
+	gopkg.in/src-d/go-billy.v4 v4.3.2 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
 )
 
