@@ -26,7 +26,7 @@ package vcs
 import (
 	"fmt"
 	"io"
-	"io/fs"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -101,21 +101,12 @@ func CopyDir(src string, dst string) error {
 		}
 	}
 
-	dir, err := os.ReadDir(src)
+	dir, err := ioutil.ReadDir(src)
 	if err != nil {
 		return err
 	}
 
-	entries := make([]fs.FileInfo, 0, len(dir))
-	for _, f := range dir {
-		info, err := f.Info()
-		if err != nil {
-			return err
-		}
-		entries = append(entries, info)
-	}
-
-	for _, entry := range entries {
+	for _, entry := range dir {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
 

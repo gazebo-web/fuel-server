@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -182,7 +183,7 @@ func archive(ctx context.Context, repoPath, rev, output string) (*string, error)
 	var err error
 
 	if output == "" {
-		folder, err = os.MkdirTemp("", "repo")
+		folder, err = ioutil.TempDir("", "repo")
 		zipPath = filepath.Join(folder, rev+".os.Filezip")
 	} else {
 		zipPath = output

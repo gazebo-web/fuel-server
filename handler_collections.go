@@ -8,6 +8,7 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
+	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -186,7 +187,7 @@ func CollectionUpdate(owner, name string, user *users.User, tx *gorm.DB,
 	if bFiles {
 		// first, populate files into tmp dir to avoid overriding original
 		// files in case of error.
-		tmpDir, err := os.MkdirTemp("", name)
+		tmpDir, err := ioutil.TempDir("", name)
 		defer os.Remove(tmpDir)
 		if err != nil {
 			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)

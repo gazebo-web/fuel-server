@@ -8,7 +8,8 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,7 +125,7 @@ func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string)
 		return nil, err
 	}
 	var bs []byte
-	bs, err = io.ReadAll(reader)
+	bs, err = ioutil.ReadAll(reader)
 	if err != nil {
 		err = gz.WithStack(err)
 	}
@@ -153,7 +154,7 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 	}
 
 	visitedFolders := make(map[string]bool)
-	return iter.ForEach(func(f *object.File) error {
+	_ = iter.ForEach(func(f *object.File) error {
 		// Skip ".git" folder and its contents
 		if strings.HasPrefix(f.Name, ".git") {
 			return nil
@@ -190,6 +191,7 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 		}
 		return nil
 	})
+	return nil
 }
 
 // Zip - creates a zip with the repository files, at a given revision.
@@ -205,6 +207,7 @@ func (g *GoGitVCS) Zip(ctx context.Context, rev, output string) (*string, error)
 // owner is an optional argument used to set the git commit user. If empty, then the default
 // git user will be used.
 func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error {
+	log.Println("Replacing files from git repository")
 	if err := g.assertValidRepo(); err != nil {
 		return err
 	}

@@ -541,8 +541,8 @@ func getLenFileTreeChildren(node *fuel.FileTree_FileNode) int {
 
 // asserts that the length of a FileTree (recursive) matches the given length.
 func assertFileTreeLen(t *testing.T, ft *fuel.FileTree, length int, msgAndArgs ...interface{}) bool {
-	l := len(ft.FileTree)
-	for _, node := range ft.FileTree {
+	l := len(ft.GetFileTree())
+	for _, node := range ft.GetFileTree() {
 		l += getLenFileTreeChildren(node)
 	}
 	if l != length {

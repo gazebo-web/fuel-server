@@ -7,6 +7,7 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
+	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -262,7 +263,7 @@ func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 	if r.MultipartForm != nil && len(getRequestFiles(r)) > 0 {
 		// first, populate files into tmp dir to avoid overriding model
 		// files in case of error.
-		tmpDir, err := os.MkdirTemp("", modelName)
+		tmpDir, err := ioutil.TempDir("", modelName)
 		defer os.Remove(tmpDir)
 		if err != nil {
 			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)

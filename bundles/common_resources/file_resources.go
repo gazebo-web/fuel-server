@@ -238,11 +238,7 @@ func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder s
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
 func getOrCreateZipLocation(res Resource, subfolder, version string) string {
 	zipsFolder := filepath.Join(globals.ResourceDir, *res.GetOwner(), subfolder, ".zips")
-	if _, err := os.Stat(zipsFolder); errors.Is(err, os.ErrNotExist) {
-		if err := os.Mkdir(zipsFolder, 0711); err != nil {
-			return ""
-		}
-	}
+	_ = os.Mkdir(zipsFolder, 0711)
 
 	if version == "" || version == "tip" {
 		version = ""
@@ -308,10 +304,7 @@ func CloneResourceRepo(ctx context.Context, res, clone Resource) (vcs.VCS, *gz.E
 	repo = globals.VCSRepoFactory(ctx, *clone.GetLocation())
 	// and tag it with the clone's UUID
 	if err := repo.Tag(ctx, *clone.GetUUID()); err != nil {
-		err := os.Remove(*clone.GetLocation())
-		if err != nil {
-			return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
-		}
+		_ = os.Remove(*clone.GetLocation())
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 	return repo, nil

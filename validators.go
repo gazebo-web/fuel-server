@@ -3,9 +3,8 @@ package main
 import (
 	"encoding/json"
 	"github.com/gazebo-web/gz-go/v7"
-	"os"
-
 	"gopkg.in/go-playground/validator.v9"
+	"io/ioutil"
 	"log"
 	"regexp"
 	"strings"
@@ -52,7 +51,7 @@ func InstallCustomValidators(validate *validator.Validate) {
 }
 
 func loadBlacklist() {
-	data, err := os.ReadFile("validators_owners_blacklist.json")
+	data, err := ioutil.ReadFile("validators_owners_blacklist.json")
 	if err != nil {
 		log.Fatal("Couldn't read blacklist file", err)
 		return
