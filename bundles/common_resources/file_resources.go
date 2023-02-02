@@ -210,7 +210,7 @@ func Remove(tx *gorm.DB, res Resource, user string) *gz.ErrMsg {
 // ZipResourceTip creates a new zip file for the given resource. Returns the zip
 // Filesize or an error.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
-func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, *gz.ErrMsg) {
+func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, string, *gz.ErrMsg) {
 	zipPath := getOrCreateZipLocation(res, subfolder, "")
 
 	// If the zippath doesn't exist, then this is the first version. Recompute
@@ -223,14 +223,14 @@ func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder s
 	_, err := repo.Zip(ctx, "", zipPath)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Info("Error trying to zip resource", err)
-		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		return -1, "", gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
 	fInfo, err := os.Stat(zipPath)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Info("Error getting zip file info / stat", err)
-		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		return -1, "", gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
-	return fInfo.Size(), nil
+	return fInfo.Size(), zipPath, nil
 }
 
 // getOrCreateZipLocation either returns the path to an existing resource's zip

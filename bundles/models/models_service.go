@@ -13,6 +13,7 @@ import (
 	"github.com/gazebo-web/fuel-server/proto"
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/jinzhu/gorm"
 	"google.golang.org/protobuf/proto"
 	"net/url"
@@ -23,7 +24,9 @@ import (
 
 // Service is the main struct exported by this Models Service.
 // It was meant as a way to structure code and help future extensions.
-type Service struct{}
+type Service struct {
+	Storage storage.Storage
+}
 
 // GetModel returns a model by its name and owner's name.
 func (ms *Service) GetModel(tx *gorm.DB, owner, name string,
@@ -465,8 +468,17 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 	if errorMsg != nil {
 		return nil, nil, 0, errorMsg
 	}
-	path, resolvedVersion, em := res.GetZip(ctx, model, "models", version)
-	return model, path, resolvedVersion, em
+
+	//_, resolvedVersion, em := res.GetZip(ctx, model, "models", version)
+	_, resolvedVersion, em := res.GetRevisionFromVersion(ctx, model, version)
+	if em != nil {
+		return nil, nil, 0, em
+	}
+	link, err := ms.Storage.Download(ctx, model.toStorage(uint64(resolvedVersion)))
+	if err != nil {
+		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+	return model, &link, resolvedVersion, em
 }
 
 // UpdateModel updates a model. The user argument is the requesting user. It
@@ -572,10 +584,21 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 // updates its Filesize field in DB.
 func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS,
 	model *Model) *gz.ErrMsg {
-	zSize, em := res.ZipResourceTip(ctx, repo, model, "models")
+
+	zSize, path, em := res.ZipResourceTip(ctx, repo, model, "models")
 	if em != nil {
 		return em
 	}
+	f, err := os.Open(path)
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+
+	err = ms.Storage.UploadZip(ctx, model.toStorage(1), f)
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+
 	model.Filesize = int(zSize)
 	return nil
 }

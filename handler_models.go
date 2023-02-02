@@ -7,7 +7,9 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/generics"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"log"
@@ -235,20 +237,26 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	if !valid {
 		modelVersion = ""
 	}
-
-	model, zipPath, ver, em := (&models.Service{}).DownloadZip(r.Context(), tx,
+	svc := &models.Service{
+		Storage: storage.NewS3v1(
+			globals.S3,
+			globals.UploaderS3,
+			globals.BucketS3,
+		),
+	}
+	_, zipPath, ver, em := svc.DownloadZip(r.Context(), tx,
 		owner, name, modelVersion, user, r.UserAgent())
 	if em != nil {
 		return nil, em
 	}
 
-	zipFileName := fmt.Sprintf("model-%sv%d.zip", *model.UUID, ver)
+	//zipFileName := fmt.Sprintf("model-%sv%d.zip", *model.UUID, ver)
 
 	// Remove request header to always serve fresh
-	r.Header.Del("If-Modified-Since")
+	//r.Header.Del("If-Modified-Since")
 	// Set zip response headers
 	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
+	//w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
 	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
 	if err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
@@ -262,9 +270,8 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	// Serve the zip file contents
-	// Note: ServeFile should be always last line, after all headers were set.
-	http.ServeFile(w, r, *zipPath)
+	// Redirect to the cloud storage
+	http.Redirect(w, r, *zipPath, http.StatusTemporaryRedirect)
 	return nil, nil
 }
 

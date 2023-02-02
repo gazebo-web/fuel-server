@@ -535,7 +535,7 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 // updateZip creates a new zip file for the given world and also
 // updates its Filesize field in DB.
 func (ws *Service) updateZip(ctx context.Context, repo vcs.VCS, world *World) *gz.ErrMsg {
-	zSize, em := res.ZipResourceTip(ctx, repo, world, worlds)
+	zSize, _, em := res.ZipResourceTip(ctx, repo, world, worlds)
 	if em != nil {
 		return em
 	}

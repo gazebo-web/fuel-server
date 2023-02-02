@@ -2,6 +2,9 @@ package globals
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/vcs"
@@ -65,3 +68,11 @@ var MaxCategoriesPerModel int
 
 // ElasticSearch is a pointer to the Elastic Search client.
 var ElasticSearch *elasticsearch.Client
+
+var SessionS3 *session.Session
+
+var S3 *s3.S3
+
+var UploaderS3 *s3manager.Uploader
+
+var BucketS3 string

@@ -32,6 +32,9 @@ package main
 // Import this file's dependencies
 import (
 	"context"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/gazebo-web/fuel-server/bundles/subt"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/migrate"
@@ -224,6 +227,10 @@ func init() {
 			if err != nil {
 				panic("error reading " + awsBucketEnvVar)
 			}
+			globals.SessionS3 = session.Must(session.NewSession())
+			globals.S3 = s3.New(globals.SessionS3)
+			globals.UploaderS3 = s3manager.NewUploader(globals.SessionS3)
+			globals.BucketS3 = p
 			subt.BucketServerImpl = subt.NewS3Bucket(p)
 		}
 	}
