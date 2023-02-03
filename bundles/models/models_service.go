@@ -582,8 +582,7 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 
 // updateModelZip creates a new zip file for the given model and also
 // updates its Filesize field in DB.
-func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS,
-	model *Model) *gz.ErrMsg {
+func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS, model *Model) *gz.ErrMsg {
 
 	zSize, path, em := res.ZipResourceTip(ctx, repo, model, "models")
 	if em != nil {
