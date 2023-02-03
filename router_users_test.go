@@ -177,7 +177,7 @@ func runSubTestWithCreateUserTestData(test createUserTest, t *testing.T) {
 	jwt := getJWTToken(t, test.jwtGen)
 	u := test.user
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(u)
+	assert.NoError(t, json.NewEncoder(b).Encode(u))
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 	expStatus := expEm.StatusCode
 	bslice, _ := gztest.AssertRouteMultipleArgs("POST", test.URL, b, expStatus, jwt, expCt, t)
@@ -332,7 +332,7 @@ func runSubTestWithUpdateUserTestData(test updateUserTest, t *testing.T) {
 	var b *bytes.Buffer
 	if test.uu != nil {
 		b = new(bytes.Buffer)
-		json.NewEncoder(b).Encode(*test.uu)
+		assert.NoError(t, json.NewEncoder(b).Encode(*test.uu))
 	}
 
 	jwt := getJWTToken(t, test.jwtGen)
@@ -701,7 +701,7 @@ func TestUserPaginationAdmin(t *testing.T) {
 }
 
 // TestPersonalAccessToken tests the /users/{username}/access-tokens and
-// /users/{username}/access-tokens/revoke route.
+// users/{username}/access-tokens/revoke route.
 func TestPersonalAccessToken(t *testing.T) {
 	setup()
 
@@ -724,7 +724,7 @@ func TestPersonalAccessToken(t *testing.T) {
 		Name: "myName",
 	}
 	body := new(bytes.Buffer)
-	json.NewEncoder(body).Encode(accessTokenCreateInfo)
+	assert.NoError(t, json.NewEncoder(body).Encode(accessTokenCreateInfo))
 
 	// A non-existant user should return an error.
 	gztest.AssertRouteMultipleArgs("POST", "/1.0/users/BAD/access-tokens", body,
@@ -760,7 +760,7 @@ func TestPersonalAccessToken(t *testing.T) {
 
 	// Revoke the token
 	body = new(bytes.Buffer)
-	json.NewEncoder(body).Encode(newToken)
+	assert.NoError(t, json.NewEncoder(body).Encode(newToken))
 
 	// A non-existant user should return an error.
 	gztest.AssertRouteMultipleArgs("POST", "/1.0/users/BAD/access-tokens/revoke", body,
@@ -776,7 +776,7 @@ func TestPersonalAccessToken(t *testing.T) {
 	// Get the list of tokens, and make sure that the length is zero.
 	response, _ = gztest.AssertRouteMultipleArgs("GET", "/1.0/users/"+username+"/access-tokens", nil,
 		200, &myJWT, "application/json", t)
-	json.Unmarshal(*response, &tokens)
+	assert.NoError(t, json.Unmarshal(*response, &tokens))
 	assert.Equal(t, 0, len(tokens), "There should be no token after the revoke.")
 
 	// now try to remove the 2nd user

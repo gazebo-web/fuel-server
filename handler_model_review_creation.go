@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/gazebo-web/gz-go/v7"
+	"log"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/gazebo-web/fuel-server/bundles/models"
@@ -30,7 +32,12 @@ func ModelReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (int
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 
 	// Extract the creator of the new modelReview from the request.
 	jwtUser, ok, errMsg := getUserFromJWT(tx, r)
@@ -83,7 +90,12 @@ func ReviewCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interfac
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 
 	// Extract the creator of the new modelReview from the request.
 	jwtUser, ok, errMsg := getUserFromJWT(tx, r)

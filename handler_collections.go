@@ -9,6 +9,8 @@ import (
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
 	"io/ioutil"
+	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
@@ -158,9 +160,17 @@ func CollectionCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (inte
 func CollectionUpdate(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	r.ParseMultipartForm(0)
+	err := r.ParseMultipartForm(0)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 
 	var uc collections.UpdateCollection
 	if errMsg := ParseStruct(&uc, r, true); errMsg != nil {
@@ -295,7 +305,7 @@ func collectionAssetAdd(colOwner, colName, assetType string, user *users.User,
 			return nil, em
 		}
 		models.ElasticSearchUpdateModel(r.Context(), tx, *model)
-	} else if assetType == collections.TModel {
+	} else if assetType == collections.TWorld {
 		world, em := (&worlds.Service{}).GetWorld(tx, no.Owner, no.Name, user)
 		if em != nil {
 			return nil, em
@@ -370,7 +380,10 @@ func collectionAssetList(colOwner, colName, assetType string, user *users.User,
 		return nil, em
 	}
 
-	gz.WritePaginationHeaders(*pagination, w, r)
+	err := gz.WritePaginationHeaders(*pagination, w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	return assets, nil
 }
@@ -415,7 +428,10 @@ func associatedCollectionsList(assetType string, no collections.NameOwnerPair,
 		return nil, em
 	}
 
-	gz.WritePaginationHeaders(*pagination, w, r)
+	err := gz.WritePaginationHeaders(*pagination, w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	return cols, nil
 }

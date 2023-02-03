@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"io/ioutil"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -23,9 +24,9 @@ import (
 	"github.com/gazebo-web/fuel-server/permissions"
 	fuel "github.com/gazebo-web/fuel-server/proto"
 	"github.com/gazebo-web/fuel-server/vcs"
-	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/proto"
 )
 
 // ParseWorldContentsEnvVar holds the name of the boolean env var to check if parsing
@@ -665,8 +666,7 @@ func getWorldMainFile(worldDirPath string) (*string, error) {
 	for _, f := range files {
 		ext := filepath.Ext(f.Name())
 		if ext == ".world" {
-			res := filepath.Join(worldDirPath, f.Name())
-			return &res, nil
+			return gz.String(filepath.Join(worldDirPath, f.Name())), nil
 		}
 	}
 	return nil, errors.New(".world file not found")
@@ -694,10 +694,22 @@ func parseModelIncludes(tx *gorm.DB, world *World,
 	if err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 	}
-	defer xmlFile.Close()
-	b, _ := ioutil.ReadAll(xmlFile)
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			log.Println("Failed to close file:", err)
+		}
+	}(xmlFile)
+
+	b, err := ioutil.ReadAll(xmlFile)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
+	}
+
 	var w worldFile
-	xml.Unmarshal(b, &w)
+	if err := xml.Unmarshal(b, &w); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	// Types of Model Includes:
 	// 1) Full URI format: <server>/(owner)/models/(model_name)/(version_number)

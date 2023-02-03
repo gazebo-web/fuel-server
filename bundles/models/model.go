@@ -4,12 +4,12 @@ import (
 	"path"
 	"time"
 
-	"github.com/jinzhu/gorm"
 	"github.com/gazebo-web/fuel-server/bundles/category"
-	"github.com/gazebo-web/fuel-server/bundles/common_resources"
+	commonres "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/license"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
+	"github.com/jinzhu/gorm"
 )
 
 // TODO: move DB related functions to a DB Accessor. Inject the db accessor to the models service.
@@ -149,7 +149,6 @@ func (m *Model) GetUUID() *string {
 }
 
 // Models is an array of Model
-//
 type Models []Model
 
 // QueryForModels returns a gorm query configured to query Models with

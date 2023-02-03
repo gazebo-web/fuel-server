@@ -378,7 +378,7 @@ run (from the proto folder):
     protoc --go_out=. *.proto
     ```
 
-    Then update the generated import proto from code.google... to "github.com/golang/protobuf/proto"
+    Then update the generated import proto from code.google... to "google.golang.org/protobuf/proto"
 
 
 # Coverage

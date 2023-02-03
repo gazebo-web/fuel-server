@@ -188,6 +188,7 @@ func TestCategoriesDeleteAdmin(t *testing.T) {
 		assert.True(t, ok)
 
 		postCount, _, ok := getCategoriesWithCount(t)
+		assert.True(t, ok)
 		assert.Equal(t, postCount, count-1)
 	})
 }
@@ -208,7 +209,7 @@ func TestCategoriesDeleteAdminRemoveParentId(t *testing.T) {
 		assert.NoError(t, json.Unmarshal(*bslice, &result))
 		assert.True(t, ok)
 
-		_, bslice, ok = getCategoriesWithCount(t)
+		_, bslice, _ = getCategoriesWithCount(t)
 		assert.NoError(t, json.Unmarshal(*bslice, &categories))
 		for _, c := range categories {
 			if c.ParentID == nil {
@@ -225,7 +226,7 @@ func getCategoriesWithCount(t *testing.T) (count int, bslice *[]byte, ok bool) {
 	uri := "/1.0/categories"
 	categories := category.Categories{}
 	bslice, ok = gztest.AssertRoute("GET", uri, http.StatusOK, t)
-	ok = assert.NoError(t, json.Unmarshal(*bslice, &categories))
+	assert.NoError(t, json.Unmarshal(*bslice, &categories))
 	count = len(categories)
 	return
 }

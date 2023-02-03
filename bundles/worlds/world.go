@@ -1,11 +1,11 @@
 package worlds
 
 import (
-	"github.com/jinzhu/gorm"
-	"github.com/gazebo-web/fuel-server/bundles/common_resources"
+	commonres "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/license"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/jinzhu/gorm"
 	"time"
 )
 
@@ -157,7 +157,6 @@ func (w *World) GetUUID() *string {
 }
 
 // Worlds is an array of World
-//
 type Worlds []World
 
 // QueryForWorlds returns a gorm query configured to query Worlds with

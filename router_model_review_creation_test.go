@@ -64,8 +64,8 @@ func TestModelReviewCreateNewModel(t *testing.T) {
 	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
 
 	body := *resp.BodyAsBytes
-	respJSON := make([]map[string]interface{}, 0, 0)
-	json.Unmarshal(body, &respJSON)
+	respJSON := make([]map[string]interface{}, 0)
+	assert.NoError(t, json.Unmarshal(body, &respJSON))
 	assert.Len(t, respJSON, 1)
 	review := respJSON[0]["review"].(map[string]interface{})
 	assert.NotNil(t, review)

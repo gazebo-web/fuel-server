@@ -11,6 +11,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"gopkg.in/go-playground/validator.v9"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -104,7 +105,10 @@ func SearchHandler(handler searchFnHandler) gz.HandlerWithResult {
 		}
 
 		if pagination != nil {
-			gz.WritePaginationHeaders(*pagination, w, r)
+			err := gz.WritePaginationHeaders(*pagination, w, r)
+			if err != nil {
+				return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+			}
 		}
 
 		return list, nil
@@ -143,7 +147,10 @@ func PaginationHandlerWithUser(handler pagHandler, failIfNoUser bool) gz.Handler
 			return nil, em
 		}
 
-		gz.WritePaginationHeaders(*pagination, w, r)
+		err := gz.WritePaginationHeaders(*pagination, w, r)
+		if err != nil {
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+		}
 		return list, nil
 	}
 }
@@ -443,7 +450,7 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 
 	// First check if all files are in the same root dir and if we should rm it.
 	var outDir string
-	if strings.Index(files[0].Filename, "/") < 0 {
+	if !strings.Contains(files[0].Filename, "/") {
 		// No folder in first file, then there is no common folder
 		rmDir = false
 	} else {
@@ -461,7 +468,12 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 	// Process files
 	for _, fh := range files {
 		file, err := fh.Open()
-		defer file.Close()
+		defer func(file multipart.File) {
+			err := file.Close()
+			if err != nil {
+				log.Println("Failed to close file:", err)
+			}
+		}(file)
 		if err != nil {
 			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 		}
@@ -486,7 +498,12 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 			return "", gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 		}
 		dest, err := os.Create(fileFullPath)
-		defer dest.Close()
+		defer func(dest *os.File) {
+			err := dest.Close()
+			if err != nil {
+				log.Println("Failed to close file:", err)
+			}
+		}(dest)
 		if err != nil {
 			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 		}

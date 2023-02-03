@@ -39,9 +39,9 @@ import (
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/go-playground/form"
+	"io/ioutil"
 
 	"gopkg.in/go-playground/validator.v9"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -52,16 +52,16 @@ import (
 // Impl note: we move this as a constant as it is used by tests.
 const sysAdminForTest = "rootfortests"
 
-/////////////////////////////////////////////////
-/// Initialize this package
-///
-/// Environment variables:
-///    IGN_DB_USERNAME  : Mysql username
-///    IGN_DB_PASSWORD  : Mysql password
-///    IGN_DB_ADDRESS   : Mysql address (host:port)
-///    IGN_DB_NAME      : Mysql database name (such as "fuel")
-///    IGN_FUEL_RESOURCE_DIR : Directory with all resources (models, worlds)
-///    AUTH0_RSA256_PUBLIC_KEY   : Auth0 public RSA 256 key
+// init initializes the config for the web fuel server.
+//
+// Environment variables:
+//
+//	IGN_DB_USERNAME  : Mysql username
+//	IGN_DB_PASSWORD  : Mysql password
+//	IGN_DB_ADDRESS   : Mysql address (host:port)
+//	IGN_DB_NAME      : Mysql database name (such as "fuel")
+//	IGN_FUEL_RESOURCE_DIR : Directory with all resources (models, worlds)
+//	AUTH0_RSA256_PUBLIC_KEY   : Auth0 public RSA 256 key
 func init() {
 	var err error
 	var popPath string
@@ -80,7 +80,7 @@ func init() {
 	isGoTest = strings.Contains(strings.ToLower(os.Args[0]), "test")
 
 	// Get the root resource directory.
-	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil {
+	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil && !isGoTest {
 		log.Fatal("Missing IGN_FUEL_RESOURCE_DIR env variable. Resources will not be available. Quitting.")
 	}
 
@@ -98,6 +98,9 @@ func init() {
 	}
 
 	globals.Server, err = gz.Init(auth0RsaPublickey, "", nil)
+	if err != nil {
+		log.Fatal("Failed to initialize web server:", err)
+	}
 	// Create the main Router and set it to the server.
 	// Note: here it is the place to define multiple APIs
 	s := globals.Server
@@ -241,7 +244,7 @@ func init() {
 	migrate.ToModelGitRepositories(logCtx)
 
 	// Connect to ElasticSearch.
-	connectToElasticSearch(logCtx)
+	_ = connectToElasticSearch(logCtx)
 }
 
 func initValidator() *validator.Validate {
@@ -250,8 +253,7 @@ func initValidator() *validator.Validate {
 	return validate
 }
 
-// ///////////////////////////////////////////////
-// Run the router and server
+// main runs the router and server
 func main() {
 	globals.Server.Run()
 }

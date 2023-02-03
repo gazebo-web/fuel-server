@@ -236,7 +236,7 @@ func (g *FailingVCS) RevisionCount(ctx context.Context, rev string) (int, error)
 
 // origVCSFactory is a private variable to backup original server's VCS repo
 // when a test switches the VCS factory to FailingVCS.
-var origVCSFactory (func(ctx context.Context, dirpath string) vcs.VCS)
+var origVCSFactory func(ctx context.Context, dirpath string) vcs.VCS
 
 func SetFailingVCSFactory() {
 	if origVCSFactory == nil {
@@ -318,7 +318,7 @@ func createNamedUserWithJWT(username, jwt string, t *testing.T) string {
 	org := "My organization"
 	u := users.User{Name: &name, Username: &username, Email: &email, Organization: &org}
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(u)
+	assert.NoError(t, json.NewEncoder(b).Encode(u))
 
 	req, _ := http.NewRequest("POST", "/1.0/users", b)
 	req.Header.Add("Content-Type", "application/json")
@@ -346,7 +346,7 @@ func createNamedUserWithJWT(username, jwt string, t *testing.T) string {
 
 	decoder := json.NewDecoder(respRec.Body)
 	var userResponse users.UserResponse
-	decoder.Decode(&userResponse)
+	assert.NoError(t, decoder.Decode(&userResponse))
 	assert.Equal(t, username, userResponse.Username, "Expected username[%s] != response username[%s]", username, userResponse.Username)
 	return username
 }
@@ -393,12 +393,11 @@ func getUserFromDb(username string, t *testing.T) (*users.User, *gz.ErrMsg) {
 func removeUserWithJWT(username string, jwt string, t *testing.T) {
 
 	// Find the user
-	var user *users.User
-	user = dbGetUser(username)
+	user := dbGetUser(username)
 	require.NotNil(t, user, "removeUser error: Unable to remove user [%s]", username)
 
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(*user)
+	assert.NoError(t, json.NewEncoder(b).Encode(*user))
 	req, _ := http.NewRequest("DELETE", "/1.0/users/"+username, b)
 	// Add the authorization token
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -408,7 +407,7 @@ func removeUserWithJWT(username string, jwt string, t *testing.T) {
 	assert.Equal(t, http.StatusOK, respRec.Code, "Server error: returned [%d] instead of [%d]", respRec.Code, http.StatusOK)
 	decoder := json.NewDecoder(respRec.Body)
 	var userResponse users.UserResponse
-	decoder.Decode(&userResponse)
+	assert.NoError(t, decoder.Decode(&userResponse))
 	assert.Equal(t, username, userResponse.Username, "Expected username[%s] != response username[%s]", username, userResponse.Username)
 	// Confirm the user deletion
 	var aUser users.User
@@ -438,7 +437,7 @@ func createOrganizationWithName(t *testing.T, name string) string {
 	description := "a random organization"
 	o := users.Organization{Name: &name, Description: &description}
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(o)
+	assert.NoError(t, json.NewEncoder(b).Encode(o))
 
 	req, _ := http.NewRequest("POST", "/1.0/organizations", b)
 	req.Header.Add("Content-Type", "application/json")
@@ -466,7 +465,7 @@ func createOrganizationWithName(t *testing.T, name string) string {
 
 	decoder := json.NewDecoder(respRec.Body)
 	var organizationResponse users.OrganizationResponse
-	decoder.Decode(&organizationResponse)
+	assert.NoError(t, decoder.Decode(&organizationResponse))
 
 	assert.Equal(t, name, organizationResponse.Name, "Expected organization name[%s] != response name[%s]", name, organizationResponse.Name)
 
@@ -482,7 +481,7 @@ func removeOrganization(name string, t *testing.T) {
 	require.NotNil(t, organization, "removeOrganization error: Unable to remove organization[%s]", name)
 
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(*organization)
+	assert.NoError(t, json.NewEncoder(b).Encode(*organization))
 
 	req, _ := http.NewRequest("DELETE", "/1.0/organizations/"+name, b)
 
@@ -497,7 +496,7 @@ func removeOrganization(name string, t *testing.T) {
 
 	decoder := json.NewDecoder(respRec.Body)
 	var organizationResponse users.OrganizationResponse
-	decoder.Decode(&organizationResponse)
+	assert.NoError(t, decoder.Decode(&organizationResponse))
 	assert.Equal(t, name, organizationResponse.Name, "Expected Org name[%s] != got name[%s]",
 		name, organizationResponse.Name)
 }
@@ -505,9 +504,9 @@ func removeOrganization(name string, t *testing.T) {
 // adds a user to an org with a role (owner/admin/member)
 func addUserToOrg(user, role, org string, t *testing.T) {
 	jwt := os.Getenv("IGN_TEST_JWT")
-	add := users.AddUserToOrgInput{user, role}
+	add := users.AddUserToOrgInput{Username: user, Role: role}
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(add)
+	assert.NoError(t, json.NewEncoder(b).Encode(add))
 	uri := fmt.Sprintf("/1.0/organizations/%s/users", org)
 	gztest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }
@@ -515,7 +514,7 @@ func addUserToOrg(user, role, org string, t *testing.T) {
 // adds a team to an org
 func addTeamToOrg(org, jwt string, team users.CreateTeamForm, t *testing.T) {
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(team)
+	assert.NoError(t, json.NewEncoder(b).Encode(team))
 	uri := fmt.Sprintf("/1.0/organizations/%s/teams", org)
 	gztest.AssertRouteMultipleArgs("POST", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }
@@ -523,7 +522,7 @@ func addTeamToOrg(org, jwt string, team users.CreateTeamForm, t *testing.T) {
 // updates a team of an org
 func updateOrgTeam(org, team, jwt string, ut users.UpdateTeamForm, t *testing.T) {
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(ut)
+	assert.NoError(t, json.NewEncoder(b).Encode(ut))
 	uri := fmt.Sprintf("/1.0/organizations/%s/teams/%s", org, team)
 	gztest.AssertRouteMultipleArgs("PATCH", uri, b, http.StatusOK, &jwt, ctJSON, t)
 }
@@ -542,8 +541,8 @@ func getLenFileTreeChildren(node *fuel.FileTree_FileNode) int {
 
 // asserts that the length of a FileTree (recursive) matches the given length.
 func assertFileTreeLen(t *testing.T, ft *fuel.FileTree, length int, msgAndArgs ...interface{}) bool {
-	l := len(ft.FileTree)
-	for _, node := range ft.FileTree {
+	l := len(ft.GetFileTree())
+	for _, node := range ft.GetFileTree() {
 		l += getLenFileTreeChildren(node)
 	}
 	if l != length {

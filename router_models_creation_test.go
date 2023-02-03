@@ -63,51 +63,51 @@ func TestModelCreateVariants(t *testing.T) {
 
 	// Files to upload
 	var dupModelFiles = []gztest.FileDesc{
-		{"model.config", constModelConfigFileContents},
-		{"model.sdf", constModelSDFFileContents},
-		{"model.config", constModelConfigFileContents},
+		{Path: "model.config", Contents: constModelConfigFileContents},
+		{Path: "model.sdf", Contents: constModelSDFFileContents},
+		{Path: "model.config", Contents: constModelConfigFileContents},
 	}
 
 	var okModelFiles = []gztest.FileDesc{
-		{"model.config", constModelConfigFileContents},
-		{"model.sdf", constModelSDFFileContents},
+		{Path: "model.config", Contents: constModelConfigFileContents},
+		{Path: "model.sdf", Contents: constModelSDFFileContents},
 	}
 
 	var invalidHgFiles = []gztest.FileDesc{
-		{".hg/test.txt", constModelConfigFileContents},
+		{Path: ".hg/test.txt", Contents: constModelConfigFileContents},
 	}
 	var invalidGitFiles = []gztest.FileDesc{
-		{".git/test.txt", constModelConfigFileContents},
+		{Path: ".git/test.txt", Contents: constModelConfigFileContents},
 	}
 
 	modelTests := []postTest{
-		{"TestFilesPostOK", uri, nil, extraParams, okModelFiles, http.StatusOK, -1, nil, &models.Model{}},
+		{testDesc: "TestFilesPostOK", uri: uri, postParams: extraParams, postFiles: okModelFiles, expStatus: http.StatusOK, expErrCode: -1, unmarshal: &models.Model{}},
 		// We should be able to save the exact same Model if the previous one was removed.
-		{"TestFilesPostOK2", uri, nil, extraParams, okModelFiles, http.StatusOK, -1, nil, &models.Model{}},
-		{"TestFilesPostOK3", uri, nil, extraParams, okModelFiles, http.StatusOK, -1, nil, &models.Model{}},
-		{"TestInvalidGitFile", uri, nil, extraParams, invalidGitFiles, http.StatusBadRequest,
-			gz.ErrorFormInvalidValue, nil, &models.Model{}},
-		{"TestInvalidHgFile", uri, nil, extraParams, invalidHgFiles, http.StatusBadRequest,
-			gz.ErrorFormInvalidValue, nil, &models.Model{}},
-		{"TestDuplicateFilesPost", uri, nil, extraParams, dupModelFiles, http.StatusBadRequest,
-			gz.ErrorFormDuplicateFile, nil, &models.Model{}},
-		{"TestEmptyFilesInPost", uri, nil, extraParams, []gztest.FileDesc{}, http.StatusBadRequest,
-			gz.ErrorFormMissingFiles, nil, &models.Model{}},
+		{testDesc: "TestFilesPostOK2", uri: uri, postParams: extraParams, postFiles: okModelFiles, expStatus: http.StatusOK, expErrCode: -1, unmarshal: &models.Model{}},
+		{testDesc: "TestFilesPostOK3", uri: uri, postParams: extraParams, postFiles: okModelFiles, expStatus: http.StatusOK, expErrCode: -1, unmarshal: &models.Model{}},
+		{testDesc: "TestInvalidGitFile", uri: uri, postParams: extraParams, postFiles: invalidGitFiles, expStatus: http.StatusBadRequest,
+			expErrCode: gz.ErrorFormInvalidValue, unmarshal: &models.Model{}},
+		{testDesc: "TestInvalidHgFile", uri: uri, postParams: extraParams, postFiles: invalidHgFiles, expStatus: http.StatusBadRequest,
+			expErrCode: gz.ErrorFormInvalidValue, unmarshal: &models.Model{}},
+		{testDesc: "TestDuplicateFilesPost", uri: uri, postParams: extraParams, postFiles: dupModelFiles, expStatus: http.StatusBadRequest,
+			expErrCode: gz.ErrorFormDuplicateFile, unmarshal: &models.Model{}},
+		{testDesc: "TestEmptyFilesInPost", uri: uri, postParams: extraParams, postFiles: []gztest.FileDesc{}, expStatus: http.StatusBadRequest,
+			expErrCode: gz.ErrorFormMissingFiles, unmarshal: &models.Model{}},
 		// TestCreateModelInvalidData checks the model creation route fails when an incomplete post is sent.
-		{"TestCreateModelMissingData", uri, nil, map[string]string{}, []gztest.FileDesc{}, http.StatusBadRequest,
-			gz.ErrorFormInvalidValue, nil, &models.Model{}},
-		{"TestCreateModelInvalidValueLicense", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "a", "permission": "0"}, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
-		{"TestCreateModelNonExistentLicense", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "1000", "permission": "0"}, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
-		{"TestCreateModelInvalidValuePermission", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "2", "permission": "public"}, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
-		{"TestCreateModelInvalidRangePermission", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "2", "permission": "2"}, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
-		{"TestCreateModelInvalidRangePermission2", uri, nil, map[string]string{"name": "test", "tags": "",
-			"license": "2", "permission": "-1"}, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
-		{"TestDescriptionMoreThan255Chars", uri, nil, longDescriptionParams, okModelFiles, http.StatusOK, -1, nil, &models.Model{}},
-		{"TestNameContainsPercent", uri, nil, invalidNamePercentParams, okModelFiles, http.StatusBadRequest, gz.ErrorFormInvalidValue, nil, &models.Model{}},
+		{testDesc: "TestCreateModelMissingData", uri: uri, postParams: map[string]string{}, postFiles: []gztest.FileDesc{}, expStatus: http.StatusBadRequest,
+			expErrCode: gz.ErrorFormInvalidValue, unmarshal: &models.Model{}},
+		{testDesc: "TestCreateModelInvalidValueLicense", uri: uri, postParams: map[string]string{"name": "test", "tags": "",
+			"license": "a", "permission": "0"}, postFiles: okModelFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &models.Model{}},
+		{testDesc: "TestCreateModelNonExistentLicense", uri: uri, postParams: map[string]string{"name": "test", "tags": "",
+			"license": "1000", "permission": "0"}, postFiles: okModelFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &models.Model{}},
+		{testDesc: "TestCreateModelInvalidValuePermission", uri: uri, postParams: map[string]string{"name": "test", "tags": "",
+			"license": "2", "permission": "public"}, postFiles: okModelFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &models.Model{}},
+		{testDesc: "TestCreateModelInvalidRangePermission", uri: uri, postParams: map[string]string{"name": "test", "tags": "",
+			"license": "2", "permission": "2"}, postFiles: okModelFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &models.Model{}},
+		{testDesc: "TestCreateModelInvalidRangePermission2", uri: uri, postParams: map[string]string{"name": "test", "tags": "",
+			"license": "2", "permission": "-1"}, postFiles: okModelFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &models.Model{}},
+		{testDesc: "TestDescriptionMoreThan255Chars", uri: uri, postParams: longDescriptionParams, postFiles: okModelFiles, expStatus: http.StatusOK, expErrCode: -1, unmarshal: &models.Model{}},
+		{testDesc: "TestNameContainsPercent", uri: uri, postParams: invalidNamePercentParams, postFiles: okModelFiles, expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormInvalidValue, unmarshal: &models.Model{}},
 	}
 	// Run all tests under different users, and removing each model after creation
 	testResourcePOST(t, modelTests, false, &rmRoute)
@@ -118,10 +118,10 @@ func TestModelCreateVariants(t *testing.T) {
 
 	// Now test for duplicate model name
 	dupModelNameTests := []postTest{
-		{"TestFilesPostOK", uri, nil, extraParams, okModelFiles, http.StatusOK,
-			-1, nil, &models.Model{}},
-		{"TestDuplicateModelName", uri, nil, extraParams, okModelFiles,
-			http.StatusBadRequest, gz.ErrorFormDuplicateModelName, nil, &models.Model{}},
+		{testDesc: "TestFilesPostOK", uri: uri, postParams: extraParams, postFiles: okModelFiles, expStatus: http.StatusOK,
+			expErrCode: -1, unmarshal: &models.Model{}},
+		{testDesc: "TestDuplicateModelName", uri: uri, postParams: extraParams, postFiles: okModelFiles,
+			expStatus: http.StatusBadRequest, expErrCode: gz.ErrorFormDuplicateModelName, unmarshal: &models.Model{}},
 	}
 
 	testResourcePOST(t, dupModelNameTests, true, nil)
@@ -194,8 +194,7 @@ func TestModelTransfer(t *testing.T) {
 		t.Run(test.testDesc, func(t *testing.T) {
 
 			b := new(bytes.Buffer)
-			json.NewEncoder(b).Encode(test.postParams)
-
+			assert.NoError(t, json.NewEncoder(b).Encode(test.postParams))
 			if test.expStatus != http.StatusOK {
 				gztest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwtDef, "text/plain; charset=utf-8", t)
 			} else {
@@ -394,12 +393,12 @@ func TestModelUpdate(t *testing.T) {
 	descParams := map[string]string{
 		"description": newDescription,
 	}
-	emptyFiles := []gztest.FileDesc{}
+	var emptyFiles []gztest.FileDesc
 	var okModelFiles = []gztest.FileDesc{
-		{"model.config", constModelConfigFileContents},
-		{"model.sdf", "test changed contents\n"},
-		{"model1.sdf", constModelSDFFileContents},
-		{"model2.sdf", constModelSDFFileContents},
+		{Path: "model.config", Contents: constModelConfigFileContents},
+		{Path: "model.sdf", Contents: "test changed contents\n"},
+		{Path: "model1.sdf", Contents: constModelSDFFileContents},
+		{Path: "model2.sdf", Contents: constModelSDFFileContents},
 	}
 	okModelRootPaths := []string{"/model.config", "/model.sdf", "/model1.sdf", "/model2.sdf"}
 
@@ -409,12 +408,11 @@ func TestModelUpdate(t *testing.T) {
 	}
 
 	var otherFiles = []gztest.FileDesc{
-		{"model1.config", constModelConfigFileContents},
+		{Path: "model1.config", Contents: constModelConfigFileContents},
 	}
 
-	newPrivacy := true
 	privacyParams := map[string]string{
-		"private": strconv.FormatBool(newPrivacy),
+		"private": strconv.FormatBool(true),
 	}
 
 	// model1 filetree root paths
