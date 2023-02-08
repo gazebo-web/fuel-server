@@ -12,6 +12,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"io"
 	"log"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -467,17 +468,24 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 
 	// Process files
 	for _, fh := range files {
+		_, params, err := mime.ParseMediaType(fh.Header["Content-Disposition"][0])
+		if err != nil {
+			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+		}
+		fn := params["filename"]
+		if fn == "" {
+			continue
+		}
 		file, err := fh.Open()
+		if err != nil {
+			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+		}
 		defer func(file multipart.File) {
 			err := file.Close()
 			if err != nil {
 				log.Println("Failed to close file:", err)
 			}
 		}(file)
-		if err != nil {
-			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
-		}
-		fn := fh.Filename
 		// If file path includes any of the items from the list of invalid names,
 		// then error
 		if pathIncludesAny(fn, invalidFileNames) {
