@@ -472,8 +472,8 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 		if err != nil {
 			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 		}
-		fn := params["filename"]
-		if fn == "" {
+		fn, ok := params["filename"]
+		if !ok || len(fn) == 0 {
 			continue
 		}
 		file, err := fh.Open()
