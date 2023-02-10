@@ -53,10 +53,6 @@ func IndividualFileDownload(s getFileService, owner, name string, jwtUser *users
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
-	if filepath.Ext(filename) == ".sdf" {
-		w.Header().Set("Content-Type", "chemical/x-mdl-sdfile")
-	}
-
 	modtime := time.Now()
 	// Note: ServeContent should be always last line, after all headers were set.
 	http.ServeContent(w, r, filename, modtime, bytes.NewReader(*bs))

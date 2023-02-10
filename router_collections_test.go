@@ -900,7 +900,7 @@ func TestCollectionUpdate(t *testing.T) {
 	withLogo := []gztest.FileDesc{
 		{Path: "thumbnails/col.sdf", Contents: constModelSDFFileContents},
 	}
-	expThumbCT := "chemical/x-mdl-sdfile"
+	expThumbCT := "text/xml"
 
 	uri := colURL(username, cName)
 	unauth := gz.NewErrorMessage(gz.ErrorUnauthorized)
