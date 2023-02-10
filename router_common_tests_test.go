@@ -505,7 +505,7 @@ func TestGetIndividualFile(t *testing.T) {
 	individualFileTestsDaa := []individualFileTest{
 		// MODELS
 		{uriTest{"model config", m1URI + "/tip/files/model.config", nil, nil, false}, "text/xml; charset=utf-8", 1},
-		{uriTest{"model sdf", m2URI + "/tip/files/model.sdf", nil, nil, false}, "text/xml", 1},
+		{uriTest{"model sdf", m2URI + "/tip/files/model.sdf", nil, nil, false}, "text/xml; charset=utf-8", 1},
 		{uriTest{"model invalid file", m1URI + "/tip/files/invalid.sdf", nil, gz.NewErrorMessage(gz.ErrorFileNotFound), false}, "", 1},
 		{uriTest{"invalid model name", modelURL(testUser, "invalid", "") + "/tip/files/model.sdf", nil, gz.NewErrorMessage(gz.ErrorNameNotFound), false}, "", 1},
 		{uriTest{"model file from subfolder", m2URI + "/tip/files/subfolder/test.txt", nil, nil, false}, "text/plain; charset=utf-8", 1},
