@@ -450,30 +450,18 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 	}
 
 	// First check if all files are in the same root dir and if we should rm it.
-	var outDir string
-	if !strings.Contains(files[0].Filename, "/") {
-		// No folder in first file, then there is no common folder
-		rmDir = false
-	} else {
-		// Find out the folder name
-		if strings.HasPrefix(files[0].Filename, "/") {
-			outDir = "/" + strings.SplitAfter(filepath.Clean(files[0].Filename), "/")[1]
-		} else {
-			outDir = strings.SplitAfter(filepath.Clean(files[0].Filename), "/")[0]
-		}
-		for i := 0; i < fLen && rmDir; i++ {
-			rmDir = strings.HasPrefix(files[i].Filename, outDir)
-		}
+	rmDir, outDir, em := getOutterDir(files, rmDir)
+	if em != nil {
+		return "", em
 	}
 
 	// Process files
 	for _, fh := range files {
-		_, params, err := mime.ParseMediaType(fh.Header["Content-Disposition"][0])
+		fn, err := extractFilepath(fh)
 		if err != nil {
-			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+			continue
 		}
-		fn, ok := params["filename"]
-		if !ok || len(fn) == 0 {
+		if len(fn) == 0 {
 			continue
 		}
 		file, err := fh.Open()
@@ -522,6 +510,47 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 	}
 
 	return dirpath, nil
+}
+
+// extractFilepath extracts the full filename from the Content-Disposition header.
+// If it's not found, it returns the default Filename from the given multipart.FileHeader
+func extractFilepath(fh *multipart.FileHeader) (string, error) {
+	_, params, err := mime.ParseMediaType(fh.Header["Content-Disposition"][0])
+	if err != nil {
+		return "", err
+	}
+	fn, ok := params["filename"]
+	if !ok {
+		return fh.Filename, nil
+	}
+	return fn, nil
+}
+
+func getOutterDir(files []*multipart.FileHeader, remove bool) (bool, string, *gz.ErrMsg) {
+	var outDir string
+	first, err := extractFilepath(files[0])
+	if err != nil {
+		return false, "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+	}
+	if !strings.Contains(first, "/") {
+		// No folder in first file, then there is no common folder
+		remove = false
+	} else {
+		// Find out the folder name
+		if strings.HasPrefix(first, "/") {
+			outDir = "/" + strings.SplitAfter(filepath.Clean(first), "/")[1]
+		} else {
+			outDir = strings.SplitAfter(filepath.Clean(first), "/")[0]
+		}
+		for i := 0; i < len(files) && remove; i++ {
+			fn, err := extractFilepath(files[i])
+			if err != nil {
+				continue
+			}
+			remove = strings.HasPrefix(fn, outDir)
+		}
+	}
+	return remove, outDir, nil
 }
 
 // internal function that computes and sets the header X-Ign-Resource-Version.
