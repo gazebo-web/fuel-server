@@ -450,7 +450,7 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 	}
 
 	// First check if all files are in the same root dir and if we should rm it.
-	rmDir, outDir, em := getOutterDir(files, rmDir)
+	rmDir, outDir, em := getOuterDir(files, rmDir)
 	if em != nil {
 		return "", em
 	}
@@ -526,7 +526,9 @@ func extractFilepath(fh *multipart.FileHeader) (string, error) {
 	return fn, nil
 }
 
-func getOutterDir(files []*multipart.FileHeader, remove bool) (bool, string, *gz.ErrMsg) {
+// getOuterDir determines if the outer directory should be removed, if so, it returns the outer directory
+// name.
+func getOuterDir(files []*multipart.FileHeader, remove bool) (bool, string, *gz.ErrMsg) {
 	var outDir string
 	first, err := extractFilepath(files[0])
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/url"
 	"os"
@@ -659,7 +659,7 @@ func populateModelIncludes(ctx context.Context, tx *gorm.DB, world *World,
 // Otherwise it returns an error.
 func getWorldMainFile(worldDirPath string) (*string, error) {
 	// TODO: an uploaded world folder can have multiple world files (with extension .world/.sdf)
-	files, err := ioutil.ReadDir(worldDirPath)
+	files, err := os.ReadDir(worldDirPath)
 	if err != nil {
 		return nil, err
 	}
@@ -701,7 +701,7 @@ func parseModelIncludes(tx *gorm.DB, world *World,
 		}
 	}(xmlFile)
 
-	b, err := ioutil.ReadAll(xmlFile)
+	b, err := io.ReadAll(xmlFile)
 	if err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 	}

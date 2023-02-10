@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gosimple/slug"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -420,7 +420,7 @@ func DBPopulate(ctx context.Context, path string, db *gorm.DB, onlyWhenEmpty boo
 						log.Println("Failed to close file:", err)
 					}
 				}(xmlFile)
-				b, err := ioutil.ReadAll(xmlFile)
+				b, err := io.ReadAll(xmlFile)
 				if err != nil {
 					return err
 				}

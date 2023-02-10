@@ -39,8 +39,6 @@ import (
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/go-playground/form"
-	"io/ioutil"
-
 	"gopkg.in/go-playground/validator.v9"
 	"log"
 	"net/http"
@@ -86,7 +84,7 @@ func init() {
 
 	if isGoTest {
 		// Override globals.ResourceDir with a newly created /tmp folder
-		globals.ResourceDir, err = ioutil.TempDir("", "fuel-")
+		globals.ResourceDir, err = os.MkdirTemp("", "fuel-")
 		if err != nil {
 			log.Fatal("Could not initialize test globals.ResourceDir. Resources will not be available")
 		}
