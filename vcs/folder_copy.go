@@ -26,7 +26,6 @@ package vcs
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -101,7 +100,7 @@ func CopyDir(src string, dst string) error {
 		}
 	}
 
-	dir, err := ioutil.ReadDir(src)
+	dir, err := os.ReadDir(src)
 	if err != nil {
 		return err
 	}
@@ -116,8 +115,12 @@ func CopyDir(src string, dst string) error {
 				return err
 			}
 		} else {
+			info, err := entry.Info()
+			if err != nil {
+				return err
+			}
 			// Skip symlinks.
-			if entry.Mode()&os.ModeSymlink != 0 {
+			if info.Mode()&os.ModeSymlink != 0 {
 				continue
 			}
 

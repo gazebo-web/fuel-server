@@ -8,7 +8,7 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -125,7 +125,7 @@ func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string)
 		return nil, err
 	}
 	var bs []byte
-	bs, err = ioutil.ReadAll(reader)
+	bs, err = io.ReadAll(reader)
 	if err != nil {
 		err = gz.WithStack(err)
 	}

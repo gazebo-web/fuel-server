@@ -187,7 +187,8 @@ func TestCategoriesDeleteAdmin(t *testing.T) {
 		assert.NoError(t, json.Unmarshal(*bslice, &result))
 		assert.True(t, ok)
 
-		postCount, _, _ := getCategoriesWithCount(t)
+		postCount, _, ok := getCategoriesWithCount(t)
+		assert.True(t, ok)
 		assert.Equal(t, postCount, count-1)
 	})
 }
