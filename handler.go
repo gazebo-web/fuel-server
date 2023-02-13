@@ -515,7 +515,11 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 // extractFilepath extracts the full filename from the Content-Disposition header.
 // If it's not found, it returns the default Filename from the given multipart.FileHeader
 func extractFilepath(fh *multipart.FileHeader) (string, error) {
-	_, params, err := mime.ParseMediaType(fh.Header["Content-Disposition"][0])
+	cd, ok := fh.Header["Content-Disposition"]
+	if !ok || len(cd) == 0 {
+		return fh.Filename, nil
+	}
+	_, params, err := mime.ParseMediaType(cd[0])
 	if err != nil {
 		return "", err
 	}
