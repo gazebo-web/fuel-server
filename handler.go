@@ -12,6 +12,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"io"
 	"log"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -449,24 +450,20 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 	}
 
 	// First check if all files are in the same root dir and if we should rm it.
-	var outDir string
-	if !strings.Contains(files[0].Filename, "/") {
-		// No folder in first file, then there is no common folder
-		rmDir = false
-	} else {
-		// Find out the folder name
-		if strings.HasPrefix(files[0].Filename, "/") {
-			outDir = "/" + strings.SplitAfter(filepath.Clean(files[0].Filename), "/")[1]
-		} else {
-			outDir = strings.SplitAfter(filepath.Clean(files[0].Filename), "/")[0]
-		}
-		for i := 0; i < fLen && rmDir; i++ {
-			rmDir = strings.HasPrefix(files[i].Filename, outDir)
-		}
+	rmDir, outDir, em := getOuterDir(files, rmDir)
+	if em != nil {
+		return "", em
 	}
 
 	// Process files
 	for _, fh := range files {
+		fn, err := extractFilepath(fh)
+		if err != nil {
+			continue
+		}
+		if len(fn) == 0 {
+			continue
+		}
 		file, err := fh.Open()
 		defer func(file multipart.File) {
 			err := file.Close()
@@ -477,7 +474,6 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 		if err != nil {
 			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 		}
-		fn := fh.Filename
 		// If file path includes any of the items from the list of invalid names,
 		// then error
 		if pathIncludesAny(fn, invalidFileNames) {
@@ -514,6 +510,53 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 	}
 
 	return dirpath, nil
+}
+
+// extractFilepath extracts the full filename from the Content-Disposition header.
+// If it's not found, it returns the default Filename from the given multipart.FileHeader
+func extractFilepath(fh *multipart.FileHeader) (string, error) {
+	cd, ok := fh.Header["Content-Disposition"]
+	if !ok || len(cd) == 0 {
+		return fh.Filename, nil
+	}
+	_, params, err := mime.ParseMediaType(cd[0])
+	if err != nil {
+		return "", err
+	}
+	fn, ok := params["filename"]
+	if !ok {
+		return fh.Filename, nil
+	}
+	return fn, nil
+}
+
+// getOuterDir determines if the outer directory should be removed, if so, it returns the outer directory
+// name.
+func getOuterDir(files []*multipart.FileHeader, remove bool) (bool, string, *gz.ErrMsg) {
+	var outDir string
+	first, err := extractFilepath(files[0])
+	if err != nil {
+		return false, "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+	}
+	if !strings.Contains(first, "/") {
+		// No folder in first file, then there is no common folder
+		remove = false
+	} else {
+		// Find out the folder name
+		if strings.HasPrefix(first, "/") {
+			outDir = "/" + strings.SplitAfter(filepath.Clean(first), "/")[1]
+		} else {
+			outDir = strings.SplitAfter(filepath.Clean(first), "/")[0]
+		}
+		for i := 0; i < len(files) && remove; i++ {
+			fn, err := extractFilepath(files[i])
+			if err != nil {
+				continue
+			}
+			remove = strings.HasPrefix(fn, outDir)
+		}
+	}
+	return remove, outDir, nil
 }
 
 // internal function that computes and sets the header X-Ign-Resource-Version.

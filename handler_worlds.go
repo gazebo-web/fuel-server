@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
-	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -504,7 +503,7 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 	if r.MultipartForm != nil && len(getRequestFiles(r)) > 0 {
 		// first, populate files into tmp dir to avoid overriding world
 		// files in case of error.
-		tmpDir, err := ioutil.TempDir("", worldName)
+		tmpDir, err := os.MkdirTemp("", worldName)
 		defer os.Remove(tmpDir)
 		if err != nil {
 			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
