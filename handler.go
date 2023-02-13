@@ -465,15 +465,15 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 			continue
 		}
 		file, err := fh.Open()
-		if err != nil {
-			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
-		}
 		defer func(file multipart.File) {
 			err := file.Close()
 			if err != nil {
 				log.Println("Failed to close file:", err)
 			}
 		}(file)
+		if err != nil {
+			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+		}
 		// If file path includes any of the items from the list of invalid names,
 		// then error
 		if pathIncludesAny(fn, invalidFileNames) {
