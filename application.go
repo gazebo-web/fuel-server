@@ -32,6 +32,8 @@ package main
 // Import this file's dependencies
 import (
 	"context"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -41,10 +43,14 @@ import (
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/go-playground/form"
+	"github.com/johannesboyne/gofakes3"
+	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"gopkg.in/go-playground/validator.v9"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -219,8 +225,28 @@ func init() {
 			if useAwsInTests {
 				awsBucketEnvVar += "_TEST"
 			}
+			p, err := gz.ReadEnvVar("S3_BUCKET")
+			if err != nil {
+				panic("error reading bucket name")
+			}
+			globals.BucketS3 = p
+			globals.HTTPTestS3Server = httptest.NewServer(gofakes3.New(s3mem.New()).Server())
+			cfg := aws.Config{
+				Credentials:      credentials.NewStaticCredentials("YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ""),
+				Endpoint:         aws.String(globals.HTTPTestS3Server.URL),
+				Region:           aws.String("us-east-1"),
+				DisableSSL:       aws.Bool(true),
+				S3ForcePathStyle: aws.Bool(true),
+			}
+			globals.SessionS3 = session.Must(session.NewSession(&cfg))
+			globals.S3 = s3.New(globals.SessionS3)
+			globals.UploaderS3 = s3manager.NewUploader(globals.SessionS3)
+			_, err = globals.S3.CreateBucket(&s3.CreateBucketInput{Bucket: gz.String(globals.BucketS3)})
+			if err != nil {
+				panic("error creating test bucket:" + err.Error())
+			}
 		}
-		if !isGoTest || useAwsInTests {
+		if !isGoTest {
 			p, err := gz.ReadEnvVar(awsBucketEnvVar)
 			if err != nil {
 				panic("error reading " + awsBucketEnvVar)
@@ -232,6 +258,8 @@ func init() {
 			subt.BucketServerImpl = subt.NewS3Bucket(p)
 		}
 	}
+
+	globals.CloudStorage = storage.NewS3v1(globals.S3, globals.UploaderS3, globals.BucketS3)
 
 	// Set the default location to Collections (if missing).
 	migrate.CollectionsSetDefaultLocation(logCtx, globals.Server.Db)

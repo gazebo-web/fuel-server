@@ -9,8 +9,10 @@ import (
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/go-playground/form"
 	"gopkg.in/go-playground/validator.v9"
+	"net/http/httptest"
 )
 
 // TODO: remove as much as possible from globals
@@ -76,3 +78,7 @@ var S3 *s3.S3
 var UploaderS3 *s3manager.Uploader
 
 var BucketS3 string
+
+var HTTPTestS3Server *httptest.Server
+
+var CloudStorage storage.Storage

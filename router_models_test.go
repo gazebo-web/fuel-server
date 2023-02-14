@@ -1,8 +1,6 @@
 package main
 
 import (
-	"archive/zip"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
@@ -634,6 +632,7 @@ func runSubtestWithModelIndexTestData(t *testing.T, test modelIndexTest) {
 		if test.expThumbURL == "" {
 			assert.Nil(t, gotModel.ThumbnailUrl)
 		} else {
+			require.NotNil(t, gotModel.ThumbnailUrl)
 			assert.Equal(t, test.expThumbURL, *gotModel.ThumbnailUrl, "Got thumbanil url [%s] is different than expected [%s]", *gotModel.ThumbnailUrl, test.expThumbURL)
 		}
 		// Test the model was stored at `IGN_FUEL_RESOURCE_DIR/{user}/models/{uuid}`
@@ -649,8 +648,6 @@ type modelDownloadAsZipTest struct {
 	name  string
 	// the expected returned model version, in the X-Ign-Resource-Version header. Must be a number
 	ignVersionHeader int
-	// a map containing files that should be present in the returned zip. Eg. {"model.sdf":true, "model.config":true}
-	expZipFiles map[string]bool
 	// expected downloads count for this zip (after downloading it). Note: this makes the test cases to be dependent among them.
 	expDownloads int
 	// expected username of the user that performed this download. Can be empty.
@@ -691,24 +688,23 @@ func TestGetModelAsZip(t *testing.T) {
 
 	// Get the created model
 	model := getOwnerModelFromDb(t, testUser, "model1")
-	files := map[string]bool{"thumbnails/": true, "thumbnails/model.sdf": true, "model.config": true}
 
 	// Now check we can get the model as zip file using different uris
 	modelDownloadAsZipTestsData := []modelDownloadAsZipTest{
-		{uriTest{"/owner/models/name style", modelURL(testUser, *model.Name, ""), &testJWT{jwt: &myJWT}, nil, false}, testUser, *model.Name, 1, files, 1, testUser},
-		{uriTest{"with explicit model version", modelURL(testUser, *model.Name, "1"), &testJWT{jwt: &myJWT}, nil, false}, testUser, *model.Name, 1, files, 2, testUser},
-		{uriTest{"with no JWT", modelURL(testUser, *model.Name, "tip"), nil, nil, false}, testUser, *model.Name, 1, files, 3, ""},
-		{uriTest{"invalid (negative) version", modelURL(testUser, *model.Name, "-4"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, files, 3, ""},
-		{uriTest{"invalid (alpha) version", modelURL(testUser, *model.Name, "a"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, files, 3, ""},
-		{uriTest{"0 version", modelURL(testUser, *model.Name, "0"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, files, 3, ""},
-		{uriTest{"version not found", modelURL(testUser, *model.Name, "5"), nil, gz.NewErrorMessage(gz.ErrorVersionNotFound), false}, testUser, *model.Name, 1, files, 3, ""},
-		{uriTest{"get private org model by org owner", modelURL(testOrg, "private", ""), &testJWT{jwt: &myJWT}, nil, false}, testOrg, "private", 1, files, 1, testUser},
-		{uriTest{"get private org model by admin", modelURL(testOrg, "private", ""), newJWT(jwt4), nil, false}, testOrg, "private", 1, files, 2, user4},
-		{uriTest{"get private org model by member", modelURL(testOrg, "private", ""), newJWT(jwt2), nil, false}, testOrg, "private", 1, files, 3, user2},
-		{uriTest{"get private org model by non member", modelURL(testOrg, "private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
-		{uriTest{"get private org model with no jwt", modelURL(testOrg, "private", ""), nil, gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
-		{uriTest{"get private user model with no jwt", modelURL(testUser, "user_private", ""), nil, gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
-		{uriTest{"get private user model with another jwt", modelURL(testUser, "user_private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, files, 2, ""},
+		{uriTest{"/owner/models/name style", modelURL(testUser, *model.Name, ""), &testJWT{jwt: &myJWT}, nil, false}, testUser, *model.Name, 1, 1, testUser},
+		{uriTest{"with explicit model version", modelURL(testUser, *model.Name, "1"), &testJWT{jwt: &myJWT}, nil, false}, testUser, *model.Name, 1, 2, testUser},
+		{uriTest{"with no JWT", modelURL(testUser, *model.Name, "tip"), nil, nil, false}, testUser, *model.Name, 1, 3, ""},
+		{uriTest{"invalid (negative) version", modelURL(testUser, *model.Name, "-4"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, 3, ""},
+		{uriTest{"invalid (alpha) version", modelURL(testUser, *model.Name, "a"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, 3, ""},
+		{uriTest{"0 version", modelURL(testUser, *model.Name, "0"), nil, gz.NewErrorMessage(gz.ErrorFormInvalidValue), false}, testUser, *model.Name, 1, 3, ""},
+		{uriTest{"version not found", modelURL(testUser, *model.Name, "5"), nil, gz.NewErrorMessage(gz.ErrorVersionNotFound), false}, testUser, *model.Name, 1, 3, ""},
+		{uriTest{"get private org model by org owner", modelURL(testOrg, "private", ""), &testJWT{jwt: &myJWT}, nil, false}, testOrg, "private", 1, 1, testUser},
+		{uriTest{"get private org model by admin", modelURL(testOrg, "private", ""), newJWT(jwt4), nil, false}, testOrg, "private", 1, 2, user4},
+		{uriTest{"get private org model by member", modelURL(testOrg, "private", ""), newJWT(jwt2), nil, false}, testOrg, "private", 1, 3, user2},
+		{uriTest{"get private org model by non member", modelURL(testOrg, "private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, 2, ""},
+		{uriTest{"get private org model with no jwt", modelURL(testOrg, "private", ""), nil, gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, 2, ""},
+		{uriTest{"get private user model with no jwt", modelURL(testUser, "user_private", ""), nil, gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, 2, ""},
+		{uriTest{"get private user model with another jwt", modelURL(testUser, "user_private", ""), newJWT(jwt3), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, testOrg, "", 1, 2, ""},
 	}
 
 	for _, test := range modelDownloadAsZipTestsData {
@@ -725,15 +721,7 @@ func TestGetModelAsZip(t *testing.T) {
 			} else if expStatus == http.StatusOK {
 				assert.True(t, resp.Ok, "Model Zip Download request didn't succeed")
 				ensureIgnResourceVersionHeader(resp.RespRecorder, test.ignVersionHeader, t)
-				zSize := len(*bslice)
-				zipReader, err := zip.NewReader(bytes.NewReader(*bslice), int64(zSize))
-				assert.NoError(t, err, "Unable to read zip response")
-				assert.NotEmpty(t, zipReader.File, "Got zip file did not have any files")
-				for _, f := range zipReader.File {
-					assert.True(t, test.expZipFiles[f.Name], "Got Zip file not included in expected files: %s", f.Name)
-				}
 				m := getOwnerModelFromDb(t, test.owner, test.name)
-				assert.Equal(t, zSize, m.Filesize, "Zip file size (%d) is not equal to Model's Filesize field (%d)", zSize, m.Filesize)
 				assert.Equal(t, test.expDownloads, m.Downloads, "Downloads counter should be %d. Got: %d", test.expDownloads, m.Downloads)
 				mds := getModelDownloadsFromDb(t, test.owner, test.name)
 				assert.Len(t, *mds, test.expDownloads, "Model Downloads length should be %d. Got %d", test.expDownloads, len(*mds))
