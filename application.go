@@ -225,30 +225,28 @@ func init() {
 			if useAwsInTests {
 				awsBucketEnvVar += "_TEST"
 			}
-			if !useAwsInTests {
-				p, err := gz.ReadEnvVar("S3_BUCKET")
-				if err != nil {
-					panic("error reading bucket name")
-				}
-				globals.BucketS3 = p
-				globals.HTTPTestS3Server = httptest.NewServer(gofakes3.New(s3mem.New()).Server())
-				cfg := aws.Config{
-					Credentials:      credentials.NewStaticCredentials("YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ""),
-					Endpoint:         aws.String(globals.HTTPTestS3Server.URL),
-					Region:           aws.String("us-east-1"),
-					DisableSSL:       aws.Bool(true),
-					S3ForcePathStyle: aws.Bool(true),
-				}
-				globals.SessionS3 = session.Must(session.NewSession(&cfg))
-				globals.S3 = s3.New(globals.SessionS3)
-				globals.UploaderS3 = s3manager.NewUploader(globals.SessionS3)
-				_, err = globals.S3.CreateBucket(&s3.CreateBucketInput{Bucket: gz.String(globals.BucketS3)})
-				if err != nil {
-					panic("error creating test bucket:" + err.Error())
-				}
+			p, err := gz.ReadEnvVar("S3_BUCKET")
+			if err != nil {
+				panic("error reading bucket name")
+			}
+			globals.BucketS3 = p
+			globals.HTTPTestS3Server = httptest.NewServer(gofakes3.New(s3mem.New()).Server())
+			cfg := aws.Config{
+				Credentials:      credentials.NewStaticCredentials("YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ""),
+				Endpoint:         aws.String(globals.HTTPTestS3Server.URL),
+				Region:           aws.String("us-east-1"),
+				DisableSSL:       aws.Bool(true),
+				S3ForcePathStyle: aws.Bool(true),
+			}
+			globals.SessionS3 = session.Must(session.NewSession(&cfg))
+			globals.S3 = s3.New(globals.SessionS3)
+			globals.UploaderS3 = s3manager.NewUploader(globals.SessionS3)
+			_, err = globals.S3.CreateBucket(&s3.CreateBucketInput{Bucket: gz.String(globals.BucketS3)})
+			if err != nil {
+				panic("error creating test bucket:" + err.Error())
 			}
 		}
-		if !isGoTest || useAwsInTests {
+		if !isGoTest {
 			p, err := gz.ReadEnvVar(awsBucketEnvVar)
 			if err != nil {
 				panic("error reading " + awsBucketEnvVar)
