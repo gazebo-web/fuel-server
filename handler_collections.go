@@ -6,6 +6,7 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
+	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
 	"log"
@@ -299,7 +300,7 @@ func collectionAssetAdd(colOwner, colName, assetType string, user *users.User,
 
 	// Update elastic search with the new collection association information.
 	if assetType == collections.TModel {
-		model, em := (&models.Service{}).GetModel(tx, no.Owner, no.Name, user)
+		model, em := (&models.Service{Storage: globals.CloudStorage}).GetModel(tx, no.Owner, no.Name, user)
 		if em != nil {
 			return nil, em
 		}

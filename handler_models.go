@@ -9,7 +9,6 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
-	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"log"
@@ -32,8 +31,7 @@ import (
 func ModelList(p *gz.PaginationRequest, owner *string, order, search string,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
 	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
-
-	ms := &models.Service{}
+	ms := &models.Service{Storage: globals.CloudStorage}
 
 	var categories category.Categories
 
@@ -69,7 +67,7 @@ func ModelLikeList(p *gz.PaginationRequest, owner *string, order, search string,
 	if em != nil {
 		return nil, nil, em
 	}
-	ms := &models.Service{}
+	ms := &models.Service{Storage: globals.CloudStorage}
 	return ms.ModelList(p, tx, owner, order, search, likedBy, user, nil)
 }
 
@@ -88,7 +86,7 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 		return nil, gz.NewErrorMessage(gz.ErrorModelNotInRequest)
 	}
 
-	modelProto, em := (&models.Service{}).ModelFileTree(r.Context(), tx, owner,
+	modelProto, em := (&models.Service{Storage: globals.CloudStorage}).ModelFileTree(r.Context(), tx, owner,
 		modelName, modelVersion, user)
 	if em != nil {
 		return nil, em
@@ -110,7 +108,7 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	ms := &models.Service{}
+	ms := &models.Service{Storage: globals.CloudStorage}
 	fuelModel, em := ms.GetModelProto(r.Context(), tx, owner, modelName, user)
 	if em != nil {
 		return nil, em
@@ -132,13 +130,13 @@ func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the model
-	model, em := (&models.Service{}).GetModel(tx, owner, modelName, user)
+	model, em := (&models.Service{Storage: globals.CloudStorage}).GetModel(tx, owner, modelName, user)
 	if em != nil {
 		return nil, em
 	}
 
 	// Remove the model from the models table
-	if em = (&models.Service{}).RemoveModel(r.Context(), tx, owner, modelName, user); em != nil {
+	if em = (&models.Service{Storage: globals.CloudStorage}).RemoveModel(r.Context(), tx, owner, modelName, user); em != nil {
 		return nil, em
 	}
 
@@ -168,7 +166,7 @@ func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 func ModelOwnerLikeCreate(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&models.Service{}).CreateModelLike(tx, owner, name, user)
+	_, count, em := (&models.Service{Storage: globals.CloudStorage}).CreateModelLike(tx, owner, name, user)
 	if em != nil {
 		return nil, em
 	}
@@ -193,7 +191,7 @@ func ModelOwnerLikeCreate(owner, name string, user *users.User, tx *gorm.DB,
 func ModelOwnerLikeRemove(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&models.Service{}).RemoveModelLike(tx, owner, name, user)
+	_, count, em := (&models.Service{Storage: globals.CloudStorage}).RemoveModelLike(tx, owner, name, user)
 	if em != nil {
 		return nil, em
 	}
@@ -220,7 +218,7 @@ func ModelOwnerLikeRemove(owner, name string, user *users.User, tx *gorm.DB,
 // eg. curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model_name}/tip/files/model.config
 func ModelOwnerVersionIndividualFileDownload(owner, name string, user *users.User,
 	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
-	s := &models.Service{}
+	s := &models.Service{Storage: globals.CloudStorage}
 	return IndividualFileDownload(s, owner, name, user, tx, w, r)
 }
 
@@ -237,13 +235,7 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	if !valid {
 		modelVersion = ""
 	}
-	svc := &models.Service{
-		Storage: storage.NewS3v1(
-			globals.S3,
-			globals.UploaderS3,
-			globals.BucketS3,
-		),
-	}
+	svc := &models.Service{Storage: globals.CloudStorage}
 	_, zipPath, ver, em := svc.DownloadZip(r.Context(), tx,
 		owner, name, modelVersion, user, r.UserAgent())
 	if em != nil {
@@ -271,7 +263,7 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	// Redirect to the cloud storage
-	http.Redirect(w, r, *zipPath, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, *zipPath, http.StatusOK)
 	return nil, nil
 }
 
@@ -301,7 +293,7 @@ func ReportModelCreate(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	if _, em := (&models.Service{}).CreateModelReport(tx, owner, name, createModelReport.Reason); em != nil {
+	if _, em := (&models.Service{Storage: globals.CloudStorage}).CreateModelReport(tx, owner, name, createModelReport.Reason); em != nil {
 		return nil, em
 	}
 

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
@@ -886,7 +885,7 @@ func createModelResults(ctx context.Context, user *users.User, tx *gorm.DB, elas
 			if ok, _ := users.CheckPermissions(tx, *model.UUID, user, *model.Private, permissions.Read); ok {
 				count++
 				// Encode model into a protobuf message and add it to the list.
-				fuelModel := (&models.Service{}).ModelToProto(model)
+				fuelModel := (&models.Service{Storage: globals.CloudStorage}).ModelToProto(model)
 				modelsProto.Models = append(modelsProto.Models, fuelModel)
 				// Debug:
 				// fmt.Printf("* Fuel model ID=%s, %s\n",

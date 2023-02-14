@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
-	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/gosimple/slug"
 	"io"
 	"log"
@@ -447,9 +446,7 @@ func DBPopulate(ctx context.Context, path string, db *gorm.DB, onlyWhenEmpty boo
 				if err != nil {
 					return err
 				}
-				(&models.Service{
-					Storage: storage.NewS3v1(globals.S3, globals.UploaderS3, globals.BucketS3),
-				}).CreateModel(ctx, db, cm, uuidStr, location, &ownerDbUser)
+				(&models.Service{Storage: globals.CloudStorage}).CreateModel(ctx, db, cm, uuidStr, location, &ownerDbUser)
 			}
 			return nil
 		})
