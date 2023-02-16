@@ -225,11 +225,7 @@ func init() {
 			if useAwsInTests {
 				awsBucketEnvVar += "_TEST"
 			}
-			p, err := gz.ReadEnvVar("S3_BUCKET")
-			if err != nil {
-				panic("error reading bucket name")
-			}
-			globals.BucketS3 = p
+			globals.BucketS3 = "fuel-test"
 			globals.HTTPTestS3Server = httptest.NewServer(gofakes3.New(s3mem.New()).Server())
 			cfg := aws.Config{
 				Credentials:      credentials.NewStaticCredentials("YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ""),
@@ -247,7 +243,7 @@ func init() {
 			}
 		}
 		if !isGoTest {
-			p, err := gz.ReadEnvVar(awsBucketEnvVar)
+			p, err := gz.ReadEnvVar("S3_BUCKET")
 			if err != nil {
 				panic("error reading " + awsBucketEnvVar)
 			}
