@@ -81,4 +81,4 @@ var BucketS3 string
 
 var HTTPTestS3Server *httptest.Server
 
-var CloudStorage storage.Storage
+var Storage storage.Storage

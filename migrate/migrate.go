@@ -157,7 +157,7 @@ func RecomputeDownloadsAndLikes(ctx context.Context, db *gorm.DB) {
 	log.Println("[MIGRATION] Running 'Recompute Downloads And Likes' migration script")
 	tx := db.Begin()
 
-	if em := (&models.Service{Storage: globals.CloudStorage}).ComputeAllCounters(tx); em != nil {
+	if em := (&models.Service{Storage: globals.Storage}).ComputeAllCounters(tx); em != nil {
 		tx.Rollback()
 		log.Fatal("[MIGRATION] Error while recomputing likes and downloads", em.BaseError)
 	}

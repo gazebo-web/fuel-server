@@ -116,7 +116,7 @@ func modelFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.Res
 	}
 
 	// Create the model via the Models Service
-	ms := &models.Service{Storage: globals.CloudStorage}
+	ms := &models.Service{Storage: globals.Storage}
 	model, em := ms.CreateModel(r.Context(), tx, cm, uuidStr, modelPath, jwtUser)
 	if em != nil {
 		_ = os.Remove(modelPath)
@@ -218,7 +218,7 @@ func ModelClone(owner, modelName string, ignored *users.User, tx *gorm.DB,
 
 	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*models.Model, *gz.ErrMsg) {
 		// Ask the Models Service to clone the model
-		ms := &models.Service{Storage: globals.CloudStorage}
+		ms := &models.Service{Storage: globals.Storage}
 		clone, em := ms.CloneModel(r.Context(), tx, owner, modelName, cm, jwtUser)
 		if em != nil {
 			return nil, em
@@ -276,7 +276,7 @@ func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 
 	um.Metadata = parseMetadata(r)
 
-	model, em := (&models.Service{Storage: globals.CloudStorage}).UpdateModel(r.Context(), tx, owner, modelName,
+	model, em := (&models.Service{Storage: globals.Storage}).UpdateModel(r.Context(), tx, owner, modelName,
 		um.Description, um.Tags, newFilesPath, um.Private, user, um.Metadata, um.Categories)
 	if em != nil {
 		return nil, em
@@ -295,7 +295,7 @@ func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 	gz.LoggerFromRequest(r).Info(infoStr)
 
 	// Encode models into a protobuf message
-	fuelModel := (&models.Service{Storage: globals.CloudStorage}).ModelToProto(model)
+	fuelModel := (&models.Service{Storage: globals.Storage}).ModelToProto(model)
 	return &fuelModel, nil
 }
 
@@ -317,7 +317,7 @@ func ModelTransfer(sourceOwner, modelName string, user *users.User, tx *gorm.DB,
 	}
 
 	// Get the model
-	ms := &models.Service{Storage: globals.CloudStorage}
+	ms := &models.Service{Storage: globals.Storage}
 	model, em := ms.GetModel(tx, sourceOwner, modelName, user)
 	if em != nil {
 		extra := fmt.Sprintf("Model [%s] not found", modelName)

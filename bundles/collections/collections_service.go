@@ -158,7 +158,7 @@ func populateCollectionThumbnails(tx *gorm.DB,
 		var r res.Resource
 		var em *gz.ErrMsg
 		if a.Type == TModel {
-			s := &models.Service{Storage: globals.CloudStorage}
+			s := &models.Service{Storage: globals.Storage}
 			r, em = s.GetModel(tx, a.AssetOwner, a.AssetName, user)
 		} else if a.Type == TWorld {
 			s := &worlds.Service{}
@@ -369,7 +369,7 @@ func findAssociatedAsset(tx *gorm.DB, owner, name,
 	assetType string, user *users.User) (interface{}, *gz.ErrMsg) {
 
 	if assetType == TModel {
-		return (&models.Service{Storage: globals.CloudStorage}).GetModel(tx, owner, name, user)
+		return (&models.Service{Storage: globals.Storage}).GetModel(tx, owner, name, user)
 	}
 	return (&worlds.Service{}).GetWorld(tx, owner, name, user)
 }
@@ -437,7 +437,7 @@ func (s *Service) GetCollectionAssets(p *gz.PaginationRequest, tx *gorm.DB,
 
 	// Delegate to corresponding service based on type
 	if assetsType == TModel {
-		return (&models.Service{Storage: globals.CloudStorage}).ModelList(p, q, nil, "", "", nil, user, nil)
+		return (&models.Service{Storage: globals.Storage}).ModelList(p, q, nil, "", "", nil, user, nil)
 	}
 	return (&worlds.Service{}).WorldList(p, q, nil, "", "", nil, user)
 }
@@ -454,7 +454,7 @@ func (s *Service) GetAssociatedCollections(p *gz.PaginationRequest, tx *gorm.DB,
 		return nil, nil, em
 	}
 	if assetType == TModel {
-		if _, em := (&models.Service{Storage: globals.CloudStorage}).GetModel(tx, no.Owner, no.Name, user); em != nil {
+		if _, em := (&models.Service{Storage: globals.Storage}).GetModel(tx, no.Owner, no.Name, user); em != nil {
 			return nil, nil, em
 		}
 	} else if assetType == TWorld {

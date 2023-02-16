@@ -300,7 +300,7 @@ func collectionAssetAdd(colOwner, colName, assetType string, user *users.User,
 
 	// Update elastic search with the new collection association information.
 	if assetType == collections.TModel {
-		model, em := (&models.Service{Storage: globals.CloudStorage}).GetModel(tx, no.Owner, no.Name, user)
+		model, em := (&models.Service{Storage: globals.Storage}).GetModel(tx, no.Owner, no.Name, user)
 		if em != nil {
 			return nil, em
 		}

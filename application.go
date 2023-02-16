@@ -255,7 +255,7 @@ func init() {
 		}
 	}
 
-	globals.CloudStorage = storage.NewS3v1(globals.S3, globals.UploaderS3, globals.BucketS3)
+	globals.Storage = storage.NewS3v1(globals.S3, globals.UploaderS3, globals.BucketS3)
 
 	// Set the default location to Collections (if missing).
 	migrate.CollectionsSetDefaultLocation(logCtx, globals.Server.Db)
