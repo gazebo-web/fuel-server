@@ -469,7 +469,6 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 		return nil, nil, 0, errorMsg
 	}
 
-	//_, resolvedVersion, em := res.GetZip(ctx, model, "models", version)
 	_, resolvedVersion, em := res.GetRevisionFromVersion(ctx, model, version)
 	if em != nil {
 		return nil, nil, 0, em
