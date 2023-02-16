@@ -149,7 +149,8 @@ func (m *Model) GetUUID() *string {
 	return m.UUID
 }
 
-func (m *Model) toStorage(v uint64) storage.Resource {
+// newModelStorageResource creates a new storage.Resource for the given model associated to the given version.
+func newModelStorageResource(m *Model, v uint64) storage.Resource {
 	return storage.NewResource(*m.GetUUID(), storage.KindModels, *m.GetOwner(), v)
 }
 
