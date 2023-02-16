@@ -208,7 +208,7 @@ func Remove(tx *gorm.DB, res Resource, user string) *gz.ErrMsg {
 }
 
 // ZipResourceTip creates a new zip file for the given resource. Returns the zip
-// Filesize or an error.
+// Filesize and the path to the given zip file or an error.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
 func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, string, *gz.ErrMsg) {
 	zipPath := getOrCreateZipLocation(res, subfolder, "")
