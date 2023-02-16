@@ -23,9 +23,9 @@ type S3Bucket struct {
 	// each time the Session is created. Sharing the Session value across all of
 	// your service clients will ensure the configuration is loaded the fewest
 	// number of times possible.
-	Sess *session.Session
+	sess *session.Session
 	// s3 clients are safe to use concurrently.
-	Client *s3.S3
+	svc    *s3.S3
 	prefix string
 }
 
@@ -38,8 +38,8 @@ func NewS3Bucket(pre string) *S3Bucket {
 	svc := s3.New(sess)
 
 	b := S3Bucket{
-		Sess:   sess,
-		Client: svc,
+		sess:   sess,
+		svc:    svc,
 		prefix: pre,
 	}
 
@@ -77,7 +77,7 @@ func (s3b *S3Bucket) s3Upload(ctx context.Context, f io.Reader, bucket, fPath st
 
 	bucket = s3b.GetBucketName(bucket)
 
-	if _, err := s3b.Client.CreateBucket(&s3.CreateBucketInput{Bucket: &bucket}); err != nil {
+	if _, err := s3b.svc.CreateBucket(&s3.CreateBucketInput{Bucket: &bucket}); err != nil {
 		if aerr, ok := err.(awserr.Error); !ok {
 			return nil, err
 		} else if aerr.Code() != s3.ErrCodeBucketAlreadyExists {
@@ -85,7 +85,7 @@ func (s3b *S3Bucket) s3Upload(ctx context.Context, f io.Reader, bucket, fPath st
 		}
 	}
 
-	if err := s3b.Client.WaitUntilBucketExists(&s3.HeadBucketInput{Bucket: &bucket}); err != nil {
+	if err := s3b.svc.WaitUntilBucketExists(&s3.HeadBucketInput{Bucket: &bucket}); err != nil {
 		return nil, err
 	}
 
@@ -102,12 +102,12 @@ func (s3b *S3Bucket) s3Upload(ctx context.Context, f io.Reader, bucket, fPath st
 			CORSRules: []*s3.CORSRule{&rule},
 		},
 	}
-	if _, err := s3b.Client.PutBucketCors(&params); err != nil {
+	if _, err := s3b.svc.PutBucketCors(&params); err != nil {
 		return nil, err
 	}
 
 	// Create an uploader with S3 client and default options
-	uploader := s3manager.NewUploaderWithClient(s3b.Client)
+	uploader := s3manager.NewUploaderWithClient(s3b.svc)
 	result, err := uploader.Upload(&s3manager.UploadInput{
 		Body:   f,
 		Bucket: aws.String(bucket),
@@ -126,7 +126,7 @@ func (s3b *S3Bucket) s3RemoveFile(ctx context.Context, bucket, fPath string) err
 	bucket = s3b.GetBucketName(bucket)
 
 	// Delete the item
-	_, err := s3b.Client.DeleteObject(&s3.DeleteObjectInput{
+	_, err := s3b.svc.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(fPath),
 	})
@@ -134,7 +134,7 @@ func (s3b *S3Bucket) s3RemoveFile(ctx context.Context, bucket, fPath string) err
 		return err
 	}
 
-	err = s3b.Client.WaitUntilObjectNotExists(&s3.HeadObjectInput{
+	err = s3b.svc.WaitUntilObjectNotExists(&s3.HeadObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(fPath),
 	})
@@ -150,7 +150,7 @@ func (s3b *S3Bucket) s3GetPresignedURL(ctx context.Context, bucket, fPath string
 
 	// https://stackoverflow.com/questions/35245649/aws-s3-large-file-reverse-proxying-with-golangs-http-responsewriter
 	bucket = s3b.GetBucketName(bucket)
-	req, _ := s3b.Client.GetObjectRequest(&s3.GetObjectInput{
+	req, _ := s3b.svc.GetObjectRequest(&s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(fPath),
 	})
