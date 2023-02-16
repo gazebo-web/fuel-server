@@ -71,14 +71,20 @@ var MaxCategoriesPerModel int
 // ElasticSearch is a pointer to the Elastic Search client.
 var ElasticSearch *elasticsearch.Client
 
+// SessionS3 contains a AWS session handler.
 var SessionS3 *session.Session
 
+// S3 contains a reference to the S3 API using the AWS SDK v1 that allows you to interact with a buckets and objects.
 var S3 *s3.S3
 
+// UploaderS3 contains a reference to the S3 API using the AWS SDK v1 that allows you to upload objects to S3.
 var UploaderS3 *s3manager.Uploader
 
+// BucketS3 contains the name of the S3 bucket used to save models and worlds zip files.
 var BucketS3 string
 
+// HTTPTestS3Server is used as a testing web server for interacting with the S3 API on test suites.
 var HTTPTestS3Server *httptest.Server
 
+// Storage holds an implementation of storage.Storage that allows you to upload and download files.
 var Storage storage.Storage
