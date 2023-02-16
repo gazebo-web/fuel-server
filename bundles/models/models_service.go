@@ -474,7 +474,7 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 	if em != nil {
 		return nil, nil, 0, em
 	}
-	link, err := ms.Storage.Download(ctx, model.toStorage(uint64(resolvedVersion)))
+	link, err := ms.Storage.Download(ctx, newModelStorageResource(model, uint64(resolvedVersion)))
 	if err != nil {
 		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
@@ -593,7 +593,12 @@ func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS, model *Mode
 		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
-	err = ms.Storage.UploadZip(ctx, model.toStorage(1), f)
+	v, err := res.GetLatestVersion(ctx, model)
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+
+	err = ms.Storage.UploadZip(ctx, newModelStorageResource(model, uint64(v)), f)
 	if err != nil {
 		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
