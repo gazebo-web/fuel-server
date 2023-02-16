@@ -70,8 +70,8 @@ github.com/emirpasic/gods v1.12.0/go.mod h1:YfzfFFoVP/catgzJb4IKIqXjX78Ha8FMSDh3
 github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 h1:Yzb9+7DPaBjB8zlTR87/ElzFsnQfuHnVUVqpZZIcV5Y=
 github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5/go.mod h1:a2zkGnVExMxdzMo3M0Hi/3sEU+cWnZpSni0O6/Yb/P0=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
-github.com/gazebo-web/gz-go/v7 v7.0.2-0.20230203151057-29955f8f0445 h1:CuDphtD+A5hKLT55cDDIFu4LVSdlwOAQhvT7G7IH9jw=
-github.com/gazebo-web/gz-go/v7 v7.0.2-0.20230203151057-29955f8f0445/go.mod h1:BZhIkOJocIK+W2S1SEFS/u9QU3MZJOml2CW6XRN8D/o=
+github.com/gazebo-web/gz-go/v7 v7.0.2-0.20230216211237-a1e26c2c2cea h1:YZBj4oUZCnM2uDOxazL60n42coO9ibSovpJnvppFT1w=
+github.com/gazebo-web/gz-go/v7 v7.0.2-0.20230216211237-a1e26c2c2cea/go.mod h1:BZhIkOJocIK+W2S1SEFS/u9QU3MZJOml2CW6XRN8D/o=
 github.com/gliderlabs/ssh v0.2.2 h1:6zsha5zo/TWhRhwqCD3+EarCAgZ2yN28ipRnGPnwkI0=
 github.com/gliderlabs/ssh v0.2.2/go.mod h1:U7qILu1NlMHj9FlMhZLlkCdDnU1DBEAqr0aevW3Awn0=
 github.com/go-martini/martini v0.0.0-20170121215854-22fa46961aab/go.mod h1:/P9AEU963A2AYjv4d1V5eVL1CQbEJq6aCNHDDjibzu8=

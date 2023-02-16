@@ -245,7 +245,7 @@ func init() {
 		if !isGoTest {
 			p, err := gz.ReadEnvVar("S3_BUCKET")
 			if err != nil {
-				panic("error reading " + awsBucketEnvVar)
+				panic("error reading S3_BUCKET env var")
 			}
 			globals.SessionS3 = session.Must(session.NewSession())
 			globals.S3 = s3.New(globals.SessionS3)

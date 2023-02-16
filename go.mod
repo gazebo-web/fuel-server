@@ -9,7 +9,7 @@ require (
 	github.com/casbin/gorm-adapter/v2 v2.1.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/elastic/go-elasticsearch/v8 v8.0.0-20200508105138-fc4f6f3c7fc3
-	github.com/gazebo-web/gz-go/v7 v7.0.2-0.20230203151057-29955f8f0445
+	github.com/gazebo-web/gz-go/v7 v7.0.2-0.20230216211237-a1e26c2c2cea
 	github.com/go-playground/form v3.1.4+incompatible
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gorilla/mux v1.8.0
