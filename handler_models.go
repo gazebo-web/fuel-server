@@ -243,7 +243,11 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	// Set zip response headers
+	zipFileName := fmt.Sprintf("%d.zip", ver)
 	w.Header().Set("Content-Type", "application/zip")
+	r.Header.Del("If-Modified-Since")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
+
 	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
 	if err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
@@ -252,14 +256,13 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
-	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
 	// Redirect to the cloud storage
-	http.Redirect(w, r, *zipPath, http.StatusOK)
-	return nil, nil
+	http.Redirect(w, r, *zipPath, http.StatusSeeOther)
+	return zipPath, nil
 }
 
 // ReportModelCreate reports a model.
