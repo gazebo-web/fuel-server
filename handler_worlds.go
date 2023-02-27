@@ -250,13 +250,13 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 		version = ""
 	}
 
-	world, zipPath, ver, em := (&worlds.Service{Storage: globals.Storage}).DownloadZip(r.Context(), tx,
+	_, link, ver, em := (&worlds.Service{Storage: globals.Storage}).DownloadZip(r.Context(), tx,
 		owner, name, version, user, r.UserAgent())
 	if em != nil {
 		return nil, em
 	}
 
-	zipFileName := fmt.Sprintf("world-%s.zip", *world.UUID)
+	zipFileName := fmt.Sprintf("%d.zip", ver)
 
 	// Remove request header to always serve fresh
 	r.Header.Del("If-Modified-Since")
@@ -278,7 +278,7 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 
 	// Serve the zip file contents
 	// Note: ServeFile should be always last line, after all headers were set.
-	http.ServeFile(w, r, *zipPath)
+	http.Redirect(w, r, *link, http.StatusSeeOther)
 	return nil, nil
 }
 
