@@ -5,6 +5,7 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/license"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/jinzhu/gorm"
 	"time"
 )
@@ -210,6 +211,10 @@ func NewWorld(uuidStr, name, desc, location, owner, creator *string,
 		w.Metadata = *metadata
 	}
 	return w, nil
+}
+
+func newWorldStorageResource(w *World, v uint64) storage.Resource {
+	return storage.NewResource(*w.GetUUID(), *w.GetOwner(), v)
 }
 
 // CreateWorld encapsulates data required to create a world

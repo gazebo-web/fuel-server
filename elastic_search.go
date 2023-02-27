@@ -845,7 +845,7 @@ func createWorldResults(ctx context.Context, user *users.User, tx *gorm.DB, elas
 			if ok, _ := users.CheckPermissions(tx, *world.UUID, user, *world.Private, permissions.Read); ok {
 				count++
 				// Encode world into a protobuf message and add it to the list.
-				fuelWorld := (&worlds.Service{}).WorldToProto(&world)
+				fuelWorld := (&worlds.Service{Storage: globals.Storage}).WorldToProto(&world)
 				worldsProto.Worlds = append(worldsProto.Worlds, fuelWorld)
 
 				// Debug:
