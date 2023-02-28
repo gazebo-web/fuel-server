@@ -3,6 +3,7 @@ package commonres
 import (
 	"context"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,6 +31,11 @@ type Resource interface {
 	GetLocation() *string
 	SetLocation(location string)
 	GetUUID() *string
+}
+
+// CastResourceToStorageResource creates a new storage.Resource for the given resource associated to the given version.
+func CastResourceToStorageResource(r Resource, v uint64) storage.Resource {
+	return storage.NewResource(*r.GetUUID(), *r.GetOwner(), v)
 }
 
 // GetFile returns the contents (bytes) of a resource file. Given version is considered.
