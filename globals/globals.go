@@ -71,7 +71,7 @@ var MaxCategoriesPerModel int
 // ElasticSearch is a pointer to the Elastic Search client.
 var ElasticSearch *elasticsearch.Client
 
-// SessionS3 contains a AWS session handler.
+// SessionS3 contains an AWS session used to perform S3 operations.
 var SessionS3 *session.Session
 
 // S3 contains a reference to the S3 API using the AWS SDK v1 that allows you to interact with a buckets and objects.
