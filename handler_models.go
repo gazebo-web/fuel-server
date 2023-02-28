@@ -264,7 +264,7 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	// Redirect to the cloud storage
-	http.Redirect(w, r, *zipPath, http.StatusSeeOther)
+	http.Redirect(w, r, *zipPath, http.StatusFound)
 	return zipPath, nil
 }
 
