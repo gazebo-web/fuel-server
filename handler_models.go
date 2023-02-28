@@ -264,7 +264,7 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	// Redirect to the cloud storage
+	// Redirect to the storage containing the file for download.
 	http.Redirect(w, r, *zipPath, http.StatusFound)
 	return zipPath, nil
 }
