@@ -244,8 +244,11 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 
 	// Set zip response headers
 	zipFileName := fmt.Sprintf("%d.zip", ver)
-	w.Header().Set("Content-Type", "application/zip")
+
+	// Remove request header to always serve fresh
 	r.Header.Del("If-Modified-Since")
+
+	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
 
 	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
