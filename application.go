@@ -212,19 +212,7 @@ func init() {
 		// Initialize SubT database
 		subt.Initialize(logCtx, globals.Server.Db)
 		// Set SubT's default cloud implementation (S3)
-		useAwsInTests := false
-		awsBucketEnvVar := "AWS_BUCKET_PREFIX"
 		if isGoTest {
-			useStr, err := gz.ReadEnvVar("AWS_BUCKET_USE_IN_TESTS")
-			if err == nil {
-				flag, err2 := strconv.ParseBool(useStr)
-				if err2 == nil {
-					useAwsInTests = flag
-				}
-			}
-			if useAwsInTests {
-				awsBucketEnvVar += "_TEST"
-			}
 			globals.BucketS3 = "fuel-test"
 			globals.HTTPTestS3Server = httptest.NewServer(gofakes3.New(s3mem.New()).Server())
 			cfg := aws.Config{
