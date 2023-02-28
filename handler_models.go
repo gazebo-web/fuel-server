@@ -236,24 +236,10 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		modelVersion = ""
 	}
 	svc := &models.Service{Storage: globals.Storage}
-	_, zipPath, ver, em := svc.DownloadZip(r.Context(), tx,
+	_, link, _, em := svc.DownloadZip(r.Context(), tx,
 		owner, name, modelVersion, user, r.UserAgent())
 	if em != nil {
 		return nil, em
-	}
-
-	// Set zip response headers
-	zipFileName := fmt.Sprintf("%d.zip", ver)
-
-	// Remove request header to always serve fresh
-	r.Header.Del("If-Modified-Since")
-
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
-
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
 	// commit the DB transaction
@@ -265,8 +251,8 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	// Redirect to the storage containing the file for download.
-	http.Redirect(w, r, *zipPath, http.StatusFound)
-	return zipPath, nil
+	http.Redirect(w, r, *link, http.StatusFound)
+	return link, nil
 }
 
 // ReportModelCreate reports a model.
