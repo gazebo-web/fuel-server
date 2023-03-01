@@ -455,7 +455,7 @@ func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldNam
 	if em != nil {
 		return nil, nil, 0, em
 	}
-	link, err := ws.Storage.Download(ctx, newWorldStorageResource(world, uint64(resolvedVersion)))
+	link, err := ws.Storage.Download(ctx, res.CastResourceToStorageResource(world, uint64(resolvedVersion)))
 	if err != nil {
 		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
@@ -559,7 +559,7 @@ func (ws *Service) updateZip(ctx context.Context, repo vcs.VCS, world *World) *g
 		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
 
-	err = ws.Storage.UploadZip(ctx, newWorldStorageResource(world, uint64(v)), f)
+	err = ws.Storage.UploadZip(ctx, res.CastResourceToStorageResource(world, uint64(v)), f)
 	if err != nil {
 		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
