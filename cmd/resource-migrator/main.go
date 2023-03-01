@@ -1,4 +1,4 @@
-// The resource migrator allow us to migrate all the resources on saved on disk to a storage provider such as S3.
+// The resource migrator allow us to migrate all the resources saved on disk to a storage provider such as S3.
 package main
 
 import (
