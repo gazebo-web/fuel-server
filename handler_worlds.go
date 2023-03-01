@@ -259,7 +259,7 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
-	// into it the status code is set to 200 (OK).
+	// into it the status code is set to 302 (Found).
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
