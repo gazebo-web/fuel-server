@@ -236,33 +236,23 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		modelVersion = ""
 	}
 	svc := &models.Service{Storage: globals.Storage}
-	_, zipPath, ver, em := svc.DownloadZip(r.Context(), tx,
+	_, link, _, em := svc.DownloadZip(r.Context(), tx,
 		owner, name, modelVersion, user, r.UserAgent())
 	if em != nil {
 		return nil, em
 	}
 
-	// Set zip response headers
-	zipFileName := fmt.Sprintf("%d.zip", ver)
-	w.Header().Set("Content-Type", "application/zip")
-	r.Header.Del("If-Modified-Since")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
-
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
+	// into it the status code is set to 302 (Found).
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	// Redirect to the cloud storage
-	http.Redirect(w, r, *zipPath, http.StatusSeeOther)
-	return zipPath, nil
+	// Redirect to the storage containing the file for download.
+	http.Redirect(w, r, *link, http.StatusFound)
+	return link, nil
 }
 
 // ReportModelCreate reports a model.

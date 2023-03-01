@@ -711,14 +711,14 @@ func TestGetModelAsZip(t *testing.T) {
 		t.Run(test.testDesc, func(t *testing.T) {
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctZip)
-			expStatus := expEm.StatusCode
+			expStatus := http.StatusFound
 			reqArgs := gztest.RequestArgs{Method: "GET", Route: test.URL + ".zip", Body: nil, SignedToken: jwt}
 			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, expStatus, expCt, t)
 			bslice := resp.BodyAsBytes
 			assert.Equal(t, expStatus, resp.RespRecorder.Code)
-			if expStatus != http.StatusOK && !test.ignoreErrorBody {
+			if !test.ignoreErrorBody {
 				gztest.AssertBackendErrorCode(t.Name(), bslice, expEm.ErrCode, t)
-			} else if expStatus == http.StatusOK {
+			} else {
 				assert.True(t, resp.Ok, "Model Zip Download request didn't succeed")
 				ensureIgnResourceVersionHeader(resp.RespRecorder, test.ignVersionHeader, t)
 				m := getOwnerModelFromDb(t, test.owner, test.name)

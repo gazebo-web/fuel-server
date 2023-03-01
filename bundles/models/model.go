@@ -1,7 +1,6 @@
 package models
 
 import (
-	"github.com/gazebo-web/gz-go/v7/storage"
 	"path"
 	"time"
 
@@ -147,11 +146,6 @@ func (m *Model) SetLocation(location string) {
 // GetUUID returns the model's UUID
 func (m *Model) GetUUID() *string {
 	return m.UUID
-}
-
-// newModelStorageResource creates a new storage.Resource for the given model associated to the given version.
-func newModelStorageResource(m *Model, v uint64) storage.Resource {
-	return storage.NewResource(*m.GetUUID(), *m.GetOwner(), v)
 }
 
 // Models is an array of Model
