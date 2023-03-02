@@ -30,6 +30,9 @@ func main() {
 	if err != nil {
 		log.Fatalln("Failed to connect to MySQL database:", err)
 	}
+	defer gz.Close(db)
+
+	globals.ResourceDir = os.Getenv("FUEL_RESOURCE_DIR")
 
 	// Set up git
 	globals.VCSRepoFactory = func(ctx context.Context, dirpath string) vcs.VCS {
@@ -38,7 +41,7 @@ func main() {
 
 	// Initialize S3 config
 	s3session := session.Must(session.NewSession())
-	s := storage.NewS3v1(s3.New(s3session), s3manager.NewUploader(s3session), "gz-fuel-staging-resources")
+	s := storage.NewS3v1(s3.New(s3session), s3manager.NewUploader(s3session), os.Getenv("AWS_S3_BUCKET"))
 
 	// Upload all models available in the current instance
 	err = uploadModels(s, db)
@@ -63,9 +66,12 @@ func uploadWorlds(storage storage.Storage, db *gorm.DB) error {
 	}
 	for _, world := range list {
 		w := world
-		if err := uploadResources(context.Background(), storage, "worlds", &w); err != nil {
-			continue
-		}
+		go func() {
+			err := uploadResources(context.Background(), storage, "worlds", &w)
+			if err != nil {
+				log.Println("Failed to upload resource")
+			}
+		}()
 	}
 	return nil
 }
@@ -77,9 +83,12 @@ func uploadModels(storage storage.Storage, db *gorm.DB) error {
 	}
 	for _, model := range list {
 		m := model
-		if err := uploadResources(context.Background(), storage, "models", &m); err != nil {
-			continue
-		}
+		go func() {
+			err := uploadResources(context.Background(), storage, "models", &m)
+			if err != nil {
+				log.Println("Failed to upload resource")
+			}
+		}()
 	}
 	return nil
 }
