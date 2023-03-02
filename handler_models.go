@@ -250,6 +250,8 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
+	r.Header.Del("Authorization")
+
 	// Redirect to the storage containing the file for download.
 	http.Redirect(w, r, *link, http.StatusFound)
 	return link, nil

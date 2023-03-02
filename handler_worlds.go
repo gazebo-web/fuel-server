@@ -264,8 +264,9 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
+	r.Header.Del("Authorization")
+
 	// Serve the zip file contents
-	// Note: ServeFile should be always last line, after all headers were set.
 	http.Redirect(w, r, *link, http.StatusFound)
 	return nil, nil
 }
