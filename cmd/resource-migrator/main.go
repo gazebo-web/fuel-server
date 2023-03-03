@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 )
 
 func main() {
@@ -46,19 +47,20 @@ func main() {
 
 	// Upload all models available in the current instance
 	log.Println("Processing Models")
+	before := time.Now()
 	err = uploadModels(s, db)
 	if err != nil {
-		log.Fatalln("Failed to migrate models:", err)
+		log.Panicln("Failed to migrate models:", err)
 	}
+	log.Println("Models were successfully migrated. Took:", time.Since(before).Seconds(), "seconds")
 
 	// Upload all worlds
 	log.Println("Processing Worlds")
 	err = uploadWorlds(s, db)
 	if err != nil {
-		log.Fatalln("Failed to migrate models:", err)
+		log.Panicln("Failed to migrate worlds:", err)
 	}
-
-	log.Println("Successfully migrated all models and worlds")
+	log.Println("Worlds were successfully migrated. Took:", time.Since(before).Seconds(), "seconds")
 }
 
 // uploadWorlds uploads all the worlds found in the database.
@@ -90,12 +92,10 @@ func uploadModels(storage storage.Storage, db *gorm.DB) error {
 	for _, model := range list {
 		m := model
 		_ = bar.Add(1)
-		go func() {
-			err := uploadResources(context.Background(), storage, "models", &m)
-			if err != nil {
-				log.Println("Failed to upload resource")
-			}
-		}()
+		err := uploadResources(context.Background(), storage, "models", &m)
+		if err != nil {
+			log.Println("Failed to upload resource")
+		}
 	}
 	return nil
 }
