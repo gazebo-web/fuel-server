@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 )
 
 func main() {
@@ -64,15 +65,19 @@ func uploadWorlds(storage storage.Storage, db *gorm.DB) error {
 	if err := db.Model(&worlds.World{}).Find(&list).Error; err != nil {
 		return err
 	}
+	var wg sync.WaitGroup
+	wg.Add(len(list))
 	for _, world := range list {
 		w := world
-		go func() {
+		go func(waitGroup *sync.WaitGroup) {
+			defer waitGroup.Done()
 			err := uploadResources(context.Background(), storage, "worlds", &w)
 			if err != nil {
 				log.Println("Failed to upload resource")
 			}
-		}()
+		}(&wg)
 	}
+	wg.Wait()
 	return nil
 }
 
@@ -81,15 +86,19 @@ func uploadModels(storage storage.Storage, db *gorm.DB) error {
 	if err := db.Model(&models.Model{}).Find(&list).Error; err != nil {
 		return err
 	}
+	var wg sync.WaitGroup
+	wg.Add(len(list))
 	for _, model := range list {
 		m := model
-		go func() {
+		go func(waitGroup *sync.WaitGroup) {
+			defer waitGroup.Done()
 			err := uploadResources(context.Background(), storage, "models", &m)
 			if err != nil {
 				log.Println("Failed to upload resource")
 			}
-		}()
+		}(&wg)
 	}
+	wg.Wait()
 	return nil
 }
 
