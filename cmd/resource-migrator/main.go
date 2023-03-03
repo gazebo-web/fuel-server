@@ -15,10 +15,10 @@ import (
 	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"github.com/schollz/progressbar/v3"
 	"log"
 	"os"
 	"strconv"
-	"sync"
 )
 
 func main() {
@@ -45,12 +45,14 @@ func main() {
 	s := storage.NewS3v1(s3.New(s3session), s3manager.NewUploader(s3session), os.Getenv("AWS_S3_BUCKET"))
 
 	// Upload all models available in the current instance
+	log.Println("Processing Models")
 	err = uploadModels(s, db)
 	if err != nil {
 		log.Fatalln("Failed to migrate models:", err)
 	}
 
 	// Upload all worlds
+	log.Println("Processing Worlds")
 	err = uploadWorlds(s, db)
 	if err != nil {
 		log.Fatalln("Failed to migrate models:", err)
@@ -65,19 +67,16 @@ func uploadWorlds(storage storage.Storage, db *gorm.DB) error {
 	if err := db.Model(&worlds.World{}).Find(&list).Error; err != nil {
 		return err
 	}
-	var wg sync.WaitGroup
-	wg.Add(len(list))
+	log.Printf("Uploading a total number of %d worlds\n", len(list))
+	bar := progressbar.Default(int64(len(list)), "Uploading worlds")
 	for _, world := range list {
 		w := world
-		go func(waitGroup *sync.WaitGroup) {
-			defer waitGroup.Done()
-			err := uploadResources(context.Background(), storage, "worlds", &w)
-			if err != nil {
-				log.Println("Failed to upload resource")
-			}
-		}(&wg)
+		_ = bar.Add(1)
+		err := uploadResources(context.Background(), storage, "worlds", &w)
+		if err != nil {
+			log.Println("Failed to upload resource")
+		}
 	}
-	wg.Wait()
 	return nil
 }
 
@@ -86,19 +85,18 @@ func uploadModels(storage storage.Storage, db *gorm.DB) error {
 	if err := db.Model(&models.Model{}).Find(&list).Error; err != nil {
 		return err
 	}
-	var wg sync.WaitGroup
-	wg.Add(len(list))
+	log.Printf("Uploading a total number of %d models\n", len(list))
+	bar := progressbar.Default(int64(len(list)), "Uploading models")
 	for _, model := range list {
 		m := model
-		go func(waitGroup *sync.WaitGroup) {
-			defer waitGroup.Done()
+		_ = bar.Add(1)
+		go func() {
 			err := uploadResources(context.Background(), storage, "models", &m)
 			if err != nil {
 				log.Println("Failed to upload resource")
 			}
-		}(&wg)
+		}()
 	}
-	wg.Wait()
 	return nil
 }
 
