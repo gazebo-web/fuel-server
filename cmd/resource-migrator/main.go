@@ -36,8 +36,6 @@ func main() {
 }
 
 func run(s storage.Storage, db *gorm.DB) {
-	// Upload all models available in the current instance
-	log.Println("Processing Models")
 	started := time.Now()
 
 	// Get the list of resources to upload for: Models
