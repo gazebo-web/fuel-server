@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	maxParallelUploads = 20
+	maxParallelUploads = 30
 )
 
 func main() {
