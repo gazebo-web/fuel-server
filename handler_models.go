@@ -249,6 +249,8 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
+	r.Header.Del("Authorization")
+	r.Header.Del("Private-Token")
 
 	// Redirect to the storage containing the file for download.
 	http.Redirect(w, r, *link, http.StatusFound)
