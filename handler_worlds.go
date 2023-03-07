@@ -264,7 +264,9 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
+	// Remove auth-related tokens
 	r.Header.Del("Authorization")
+	r.Header.Del("Private-Token")
 
 	// Serve the zip file contents
 	http.Redirect(w, r, *link, http.StatusFound)
