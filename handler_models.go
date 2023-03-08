@@ -250,9 +250,15 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
+	// Set Content-Type
+	r.Header.Set("Content-Type", "application/zip")
+
 	// Remove auth-related tokens
 	r.Header.Del("Authorization")
 	r.Header.Del("Private-Token")
+
+	// TODO: Remove before merging
+	log.Println("Header token:", r.Header.Get("Authorization"))
 
 	// Redirect to the storage containing the file for download.
 	http.Redirect(w, r, *link, http.StatusFound)
