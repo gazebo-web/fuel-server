@@ -161,7 +161,7 @@ func populateCollectionThumbnails(tx *gorm.DB,
 			s := &models.Service{Storage: globals.Storage}
 			r, em = s.GetModel(tx, a.AssetOwner, a.AssetName, user)
 		} else if a.Type == TWorld {
-			s := &worlds.Service{}
+			s := &worlds.Service{Storage: globals.Storage}
 			r, em = s.GetWorld(tx, a.AssetOwner, a.AssetName, user)
 		}
 
@@ -371,7 +371,7 @@ func findAssociatedAsset(tx *gorm.DB, owner, name,
 	if assetType == TModel {
 		return (&models.Service{Storage: globals.Storage}).GetModel(tx, owner, name, user)
 	}
-	return (&worlds.Service{}).GetWorld(tx, owner, name, user)
+	return (&worlds.Service{Storage: globals.Storage}).GetWorld(tx, owner, name, user)
 }
 
 // RemoveAssetFromAllCollections will remove an asset with the provided assetId from all collections. This function assumes that the caller has permissions to perform a Delete on the `collection_assets` table.
@@ -439,7 +439,7 @@ func (s *Service) GetCollectionAssets(p *gz.PaginationRequest, tx *gorm.DB,
 	if assetsType == TModel {
 		return (&models.Service{Storage: globals.Storage}).ModelList(p, q, nil, "", "", nil, user, nil)
 	}
-	return (&worlds.Service{}).WorldList(p, q, nil, "", "", nil, user)
+	return (&worlds.Service{Storage: globals.Storage}).WorldList(p, q, nil, "", "", nil, user)
 }
 
 // GetAssociatedCollections returns a paginated list of collections given the
@@ -458,7 +458,7 @@ func (s *Service) GetAssociatedCollections(p *gz.PaginationRequest, tx *gorm.DB,
 			return nil, nil, em
 		}
 	} else if assetType == TWorld {
-		if _, em := (&worlds.Service{}).GetWorld(tx, no.Owner, no.Name, user); em != nil {
+		if _, em := (&worlds.Service{Storage: globals.Storage}).GetWorld(tx, no.Owner, no.Name, user); em != nil {
 			return nil, nil, em
 		}
 	}

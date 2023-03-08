@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
 	"log"
 	"mime/multipart"
@@ -62,7 +63,7 @@ func WorldList(p *gz.PaginationRequest, owner *string, order, search string,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
 	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
 
-	ws := &worlds.Service{}
+	ws := &worlds.Service{Storage: globals.Storage}
 	return ws.WorldList(p, tx, owner, order, search, nil, user)
 }
 
@@ -80,7 +81,7 @@ func WorldLikeList(p *gz.PaginationRequest, owner *string, order, search string,
 	if em != nil {
 		return nil, nil, em
 	}
-	ws := &worlds.Service{}
+	ws := &worlds.Service{Storage: globals.Storage}
 	return ws.WorldList(p, tx, owner, order, search, likedBy, user)
 }
 
@@ -99,7 +100,7 @@ func WorldFileTree(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessage(gz.ErrorWorldNotInRequest)
 	}
 
-	worldProto, em := (&worlds.Service{}).FileTree(r.Context(), tx, owner, name, version, user)
+	worldProto, em := (&worlds.Service{Storage: globals.Storage}).FileTree(r.Context(), tx, owner, name, version, user)
 	if em != nil {
 		return nil, em
 	}
@@ -120,7 +121,7 @@ func WorldFileTree(owner, name string, user *users.User, tx *gorm.DB,
 func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	ws := &worlds.Service{}
+	ws := &worlds.Service{Storage: globals.Storage}
 	fuelWorld, em := ws.GetWorldProto(r.Context(), tx, owner, name, user)
 	if em != nil {
 		return nil, em
@@ -142,13 +143,13 @@ func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the world
-	world, em := (&worlds.Service{}).GetWorld(tx, owner, name, user)
+	world, em := (&worlds.Service{Storage: globals.Storage}).GetWorld(tx, owner, name, user)
 	if em != nil {
 		return nil, em
 	}
 
 	// Remove the world from the worlds table
-	if em := (&worlds.Service{}).RemoveWorld(r.Context(), tx, owner, name, user); em != nil {
+	if em := (&worlds.Service{Storage: globals.Storage}).RemoveWorld(r.Context(), tx, owner, name, user); em != nil {
 		return nil, em
 	}
 
@@ -178,7 +179,7 @@ func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&worlds.Service{}).CreateWorldLike(tx, owner, worldName, user)
+	_, count, em := (&worlds.Service{Storage: globals.Storage}).CreateWorldLike(tx, owner, worldName, user)
 	if em != nil {
 		return nil, em
 	}
@@ -203,7 +204,7 @@ func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
 func WorldLikeRemove(owner, worldName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&worlds.Service{}).RemoveWorldLike(tx, owner, worldName, user)
+	_, count, em := (&worlds.Service{Storage: globals.Storage}).RemoveWorldLike(tx, owner, worldName, user)
 	if em != nil {
 		return nil, em
 	}
@@ -231,7 +232,7 @@ func WorldLikeRemove(owner, worldName string, user *users.User, tx *gorm.DB,
 func WorldIndividualFileDownload(owner, worldName string, user *users.User,
 	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	s := &worlds.Service{}
+	s := &worlds.Service{Storage: globals.Storage}
 	return IndividualFileDownload(s, owner, worldName, user, tx, w, r)
 }
 
@@ -249,35 +250,26 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 		version = ""
 	}
 
-	world, zipPath, ver, em := (&worlds.Service{}).DownloadZip(r.Context(), tx,
+	_, link, _, em := (&worlds.Service{Storage: globals.Storage}).DownloadZip(r.Context(), tx,
 		owner, name, version, user, r.UserAgent())
 	if em != nil {
 		return nil, em
 	}
 
-	zipFileName := fmt.Sprintf("world-%s.zip", *world.UUID)
-
-	// Remove request header to always serve fresh
-	r.Header.Del("If-Modified-Since")
-	// Set zip response headers
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
-	// into it the status code is set to 200 (OK).
+	// into it the status code is set to 302 (Found).
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
+	// Remove auth-related tokens
+	r.Header.Del("Authorization")
+	r.Header.Del("Private-Token")
+
 	// Serve the zip file contents
-	// Note: ServeFile should be always last line, after all headers were set.
-	http.ServeFile(w, r, *zipPath)
+	http.Redirect(w, r, *link, http.StatusFound)
 	return nil, nil
 }
 
@@ -307,7 +299,7 @@ func ReportWorldCreate(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	if _, em := (&worlds.Service{}).CreateWorldReport(tx, owner, name, createWorldReport.Reason); em != nil {
+	if _, em := (&worlds.Service{Storage: globals.Storage}).CreateWorldReport(tx, owner, name, createWorldReport.Reason); em != nil {
 		return nil, em
 	}
 
@@ -419,7 +411,7 @@ func WorldCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 		}
 
 		// Create the world via the Worlds Service
-		ws := &worlds.Service{}
+		ws := &worlds.Service{Storage: globals.Storage}
 		world, em := ws.CreateWorld(r.Context(), tx, cw, uuidStr, worldPath, jwtUser)
 		if em != nil {
 			os.Remove(worldPath)
@@ -458,7 +450,7 @@ func WorldClone(owner, name string, ignored *users.User, tx *gorm.DB,
 
 	createFn := func(tx *gorm.DB, jwtUser *users.User, w http.ResponseWriter, r *http.Request) (*worlds.World, *gz.ErrMsg) {
 		// Ask the Models Service to clone the model
-		ws := &worlds.Service{}
+		ws := &worlds.Service{Storage: globals.Storage}
 		clone, em := ws.CloneWorld(r.Context(), tx, owner, name, cw, jwtUser)
 		if em != nil {
 			return nil, em
@@ -516,7 +508,7 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 
 	uw.Metadata = parseWorldMetadata(r)
 
-	world, em := (&worlds.Service{}).UpdateWorld(r.Context(), tx, owner, worldName,
+	world, em := (&worlds.Service{Storage: globals.Storage}).UpdateWorld(r.Context(), tx, owner, worldName,
 		uw.Description, uw.Tags, newFilesPath, uw.Private, user, uw.Metadata)
 	if em != nil {
 		return nil, em
@@ -535,7 +527,7 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 	gz.LoggerFromRequest(r).Info(infoStr)
 
 	// Encode world into a protobuf message
-	fuelWorld := (&worlds.Service{}).WorldToProto(world)
+	fuelWorld := (&worlds.Service{Storage: globals.Storage}).WorldToProto(world)
 	return &fuelWorld, nil
 }
 
@@ -560,7 +552,7 @@ func WorldModelReferences(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	ws := &worlds.Service{}
+	ws := &worlds.Service{Storage: globals.Storage}
 	refs, pagination, em := ws.GetModelReferences(r.Context(), pr, tx, owner, name,
 		version, user)
 	if em != nil {
@@ -592,7 +584,7 @@ func WorldTransfer(sourceOwner, worldName string, user *users.User, tx *gorm.DB,
 	}
 
 	// Get the world
-	ws := &worlds.Service{}
+	ws := &worlds.Service{Storage: globals.Storage}
 	world, em := ws.GetWorld(tx, sourceOwner, worldName, user)
 	if em != nil {
 		extra := fmt.Sprintf("World [%s] not found", worldName)
