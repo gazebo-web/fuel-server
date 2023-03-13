@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gazebo-web/fuel-server/bundles/collections"
@@ -250,8 +251,9 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 		version = ""
 	}
 
-	_, link, _, em := (&worlds.Service{Storage: globals.Storage}).DownloadZip(r.Context(), tx,
-		owner, name, version, user, r.UserAgent())
+	linkRequested := strings.ToLower(r.URL.Query().Get("link")) == "true"
+
+	world, link, ver, em := (&worlds.Service{Storage: globals.Storage}).DownloadZip(r.Context(), tx, owner, name, version, user, r.UserAgent(), false)
 	if em != nil {
 		return nil, em
 	}
@@ -259,17 +261,13 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
-	// into it the status code is set to 302 (Found).
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	// Remove auth-related tokens
-	r.Header.Del("Authorization")
-	r.Header.Del("Private-Token")
-
-	// Serve the zip file contents
-	http.Redirect(w, r, *link, http.StatusFound)
+	if err := serveFileOrReturnLink(w, r, linkRequested, *link, world, ver); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
+	}
 	return nil, nil
 }
 

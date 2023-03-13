@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
@@ -17,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -566,4 +568,42 @@ func writeIgnResourceVersionHeader(versionStr string,
 	version = versionStr
 	w.Header().Set("X-Ign-Resource-Version", versionStr)
 	return
+}
+
+// serveFileOrReturnLink returns the link where the client can download the zip file from when linkRequested is set to true.
+// If set to false, it will stream the file from the host machine directly to the client.
+//
+//	link must contain the URL where to download the resource from when linkRequested is set to true or,
+//	link must contain the path to the zip file when linkRequested is set to false.
+func serveFileOrReturnLink(w http.ResponseWriter, r *http.Request, linkRequested bool, link string, res res.Resource, version int) error {
+	// If ?link=true, fuel will return a link to a cloud storage where the client can perform a subsequent request
+	// to download the resource. If ?link=false, it will serve the file directly to the client.
+	if linkRequested {
+		// Set Content-Type
+		w.Header().Set("Content-Type", "text/plain")
+
+		// Return the link
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte(link))
+		return err
+	}
+
+	// Set zip headers
+	w.Header().Set("Content-Type", "application/zip")
+	zipFileName := fmt.Sprintf("model-%sv%d.zip", *res.GetUUID(), version)
+	// Remove request header to always serve fresh
+	r.Header.Del("If-Modified-Since")
+	// Set zip response headers
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
+	_, err := writeIgnResourceVersionHeader(strconv.Itoa(version), w, r)
+	if err != nil {
+		return err
+	}
+	http.ServeFile(w, r, link)
+	return nil
+}
+
+// isLinkRequested returns true if a link was explicitly requested in the given HTTP request.
+func isLinkRequested(r *http.Request) bool {
+	return strings.ToLower(r.URL.Query().Get("link")) == "true"
 }

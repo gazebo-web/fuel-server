@@ -236,8 +236,10 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		modelVersion = ""
 	}
 	svc := &models.Service{Storage: globals.Storage}
-	_, link, _, em := svc.DownloadZip(r.Context(), tx,
-		owner, name, modelVersion, user, r.UserAgent())
+
+	requestLink := isLinkRequested(r)
+
+	model, link, ver, em := svc.DownloadZip(r.Context(), tx, owner, name, modelVersion, user, r.UserAgent(), requestLink)
 	if em != nil {
 		return nil, em
 	}
@@ -245,21 +247,15 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
-	// into it the status code is set to 302 (Found).
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	// Set Content-Type
-	r.Header.Set("Content-Type", "application/zip")
+	if err := serveFileOrReturnLink(w, r, requestLink, *link, model, ver); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
+	}
 
-	// Remove auth-related tokens
-	r.Header.Del("Authorization")
-	r.Header.Del("Private-Token")
-
-	// Redirect to the storage containing the file for download.
-	http.Redirect(w, r, *link, http.StatusFound)
-	return link, nil
+	return nil, nil
 }
 
 // ReportModelCreate reports a model.
