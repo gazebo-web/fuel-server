@@ -257,9 +257,6 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	r.Header.Del("Authorization")
 	r.Header.Del("Private-Token")
 
-	// TODO: Remove before merging
-	log.Println("Header token:", r.Header.Get("Authorization"))
-
 	// Redirect to the storage containing the file for download.
 	http.Redirect(w, r, *link, http.StatusFound)
 	return link, nil
