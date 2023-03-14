@@ -251,7 +251,7 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	if err := serveFileOrReturnLink(w, r, requestLink, *link, model, ver); err != nil {
+	if err := serveFileOrLink(w, r, requestLink, *link, model, ver); err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 

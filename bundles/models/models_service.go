@@ -476,8 +476,8 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 	var link string
 	var err error
 
-	// If request link is enabled, the user will perform a subsequent request to download the resource from a cloud provider.
-	// Otherwise, it will expect Fuel to serve the file directly.
+	// If the client requested a link, the client must perform a subsequent request to download the resource from a cloud provider.
+	// Otherwise, clients must expect Fuel to serve the file directly.
 	if linkRequested {
 		link, err = ms.Storage.Download(ctx, res.CastResourceToStorageResource(model, uint64(resolvedVersion)))
 	} else {

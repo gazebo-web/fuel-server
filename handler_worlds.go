@@ -265,7 +265,7 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	if err := serveFileOrReturnLink(w, r, linkRequested, *link, world, ver); err != nil {
+	if err := serveFileOrLink(w, r, linkRequested, *link, world, ver); err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 	return nil, nil

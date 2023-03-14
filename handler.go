@@ -570,24 +570,21 @@ func writeIgnResourceVersionHeader(versionStr string,
 	return
 }
 
-// serveFileOrReturnLink returns the link where the client can download the zip file from when linkRequested is set to true.
+// serveFileOrLink returns the link where the client can download the zip file from when linkRequested is set to true.
 // If set to false, it will stream the file from the host machine directly to the client.
 //
 //	link must contain the URL where to download the resource from when linkRequested is set to true or,
 //	link must contain the path to the zip file when linkRequested is set to false.
-func serveFileOrReturnLink(w http.ResponseWriter, r *http.Request, linkRequested bool, link string, res res.Resource, version int) error {
+func serveFileOrLink(w http.ResponseWriter, r *http.Request, linkRequested bool, link string, res res.Resource, version int) error {
 	// If ?link=true, fuel will return a link to a cloud storage where the client can perform a subsequent request
-	// to download the resource. If ?link=false, it will serve the file directly to the client.
+	// to download the resource. If ?link=false or if it is not included, it will serve the file directly to the client.
 	if linkRequested {
-		// Set Content-Type
-		w.Header().Set("Content-Type", "text/plain")
-
-		// Return the link
-		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte(link))
-		return err
+		return serveLink(w, link)
 	}
+	return serveFile(w, r, res, version, link)
+}
 
+func serveFile(w http.ResponseWriter, r *http.Request, res res.Resource, version int, link string) error {
 	// Set zip headers
 	w.Header().Set("Content-Type", "application/zip")
 	zipFileName := fmt.Sprintf("model-%sv%d.zip", *res.GetUUID(), version)
@@ -601,6 +598,16 @@ func serveFileOrReturnLink(w http.ResponseWriter, r *http.Request, linkRequested
 	}
 	http.ServeFile(w, r, link)
 	return nil
+}
+
+func serveLink(w http.ResponseWriter, link string) error {
+	// Set Content-Type
+	w.Header().Set("Content-Type", "text/plain")
+
+	// Return the link
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte(link))
+	return err
 }
 
 // isLinkRequested returns true if a link was explicitly requested in the given HTTP request.
