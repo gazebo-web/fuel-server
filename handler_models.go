@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
+	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/generics"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
@@ -14,7 +15,6 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
-	"strconv"
 )
 
 // ModelList returns the list of models from a team/user. The returned value
@@ -92,10 +92,7 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*modelProto.Version)), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, int(modelProto.GetVersion()))
 
 	return modelProto, nil
 }
@@ -114,10 +111,7 @@ func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*fuelModel.Version)), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, int(fuelModel.GetVersion()))
 
 	return fuelModel, nil
 }
@@ -237,9 +231,13 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	}
 	svc := &models.Service{Storage: globals.Storage}
 
-	requestLink := isLinkRequested(r)
+	zipGetter := res.DownloadZipFile
+	linkRequested := isLinkRequested(r)
+	if linkRequested {
+		zipGetter = res.GetZipLink(svc.Storage)
+	}
 
-	model, link, ver, em := svc.DownloadZip(r.Context(), tx, owner, name, modelVersion, user, r.UserAgent(), requestLink)
+	model, link, ver, em := svc.DownloadZip(r.Context(), tx, owner, name, modelVersion, user, r.UserAgent(), zipGetter)
 	if em != nil {
 		return nil, em
 	}
@@ -251,7 +249,7 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	if err := serveFileOrReturnLink(w, r, requestLink, *link, model, ver); err != nil {
+	if err := serveFileOrLink(w, r, linkRequested, *link, model, ver); err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 

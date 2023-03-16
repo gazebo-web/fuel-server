@@ -448,7 +448,8 @@ func (ms *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
 // Optional argument "user" represents the user (if any) requesting the operation.
 // Returns the model, as well as a pointer to the zip's filepath and the
 // resolved version.
-func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelName, version string, u *users.User, agent string, linkRequested bool) (*Model, *string, int, *gz.ErrMsg) {
+func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelName, version string,
+	u *users.User, agent string, zipGetter res.GetZipResource) (*Model, *string, int, *gz.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, modelName, u)
 	if em != nil {
@@ -473,21 +474,9 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 		return nil, nil, 0, em
 	}
 
-	var link string
-	var err error
-
 	// If request link is enabled, the user will perform a subsequent request to download the resource from a cloud provider.
 	// Otherwise, it will expect Fuel to serve the file directly.
-	if linkRequested {
-		link, err = ms.Storage.Download(ctx, res.CastResourceToStorageResource(model, uint64(resolvedVersion)))
-	} else {
-		l, _, em := res.GetZip(ctx, model, models, version)
-		if em != nil {
-			err = em.BaseError
-		} else {
-			link = *l
-		}
-	}
+	link, err := zipGetter(ctx, model, models, resolvedVersion)
 	if err != nil {
 		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}

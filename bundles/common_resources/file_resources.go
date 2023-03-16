@@ -388,3 +388,19 @@ func MoveResource(resource Resource, destOwner string) *gz.ErrMsg {
 
 	return nil
 }
+
+type GetZipResource func(ctx context.Context, resource Resource, kind string, version int) (string, error)
+
+func GetZipLink(storage storage.Storage) GetZipResource {
+	return func(ctx context.Context, resource Resource, kind string, version int) (string, error) {
+		return storage.Download(ctx, CastResourceToStorageResource(resource, uint64(version)))
+	}
+}
+
+func DownloadZipFile(ctx context.Context, resource Resource, kind string, version int) (string, error) {
+	l, _, em := GetZip(ctx, resource, kind, strconv.Itoa(version))
+	if em != nil {
+		return "", em.BaseError
+	}
+	return *l, nil
+}
