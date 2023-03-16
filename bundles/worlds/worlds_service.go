@@ -431,7 +431,8 @@ func (ws *Service) FileTree(ctx context.Context, tx *gorm.DB, owner, worldName,
 // Optional argument "user" represents the user (if any) requesting the operation.
 // Returns the world, as well as a pointer to the zip's filepath and the
 // resolved version.
-func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldName, version string, u *users.User, agent string, linkRequested bool) (*World, *string, int, *gz.ErrMsg) {
+func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldName, version string,
+	u *users.User, agent string, zipGetter res.GetZipResource) (*World, *string, int, *gz.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, worldName, u)
 	if em != nil {
@@ -454,20 +455,7 @@ func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldNam
 	if em != nil {
 		return nil, nil, 0, em
 	}
-	var link string
-	var err error
-	// If request link is enabled, the user will perform a subsequent request to download the resource from a cloud provider.
-	// Otherwise, it will expect Fuel to serve the file directly.
-	if linkRequested {
-		link, err = ws.Storage.Download(ctx, res.CastResourceToStorageResource(world, uint64(resolvedVersion)))
-	} else {
-		l, _, em := res.GetZip(ctx, world, worlds, version)
-		if em != nil {
-			err = em.BaseError
-		} else {
-			link = *l
-		}
-	}
+	link, err := zipGetter(ctx, world, worlds, resolvedVersion)
 	if err != nil {
 		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}

@@ -3,14 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gazebo-web/fuel-server/bundles/collections"
@@ -106,10 +105,7 @@ func WorldFileTree(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*worldProto.Version)), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, int(worldProto.GetVersion()))
 
 	return worldProto, em
 }
@@ -128,10 +124,7 @@ func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*fuelWorld.Version)), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, int(fuelWorld.GetVersion()))
 
 	return fuelWorld, nil
 }
@@ -251,9 +244,15 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 		version = ""
 	}
 
-	linkRequested := strings.ToLower(r.URL.Query().Get("link")) == "true"
+	svc := &worlds.Service{Storage: globals.Storage}
 
-	world, link, ver, em := (&worlds.Service{Storage: globals.Storage}).DownloadZip(r.Context(), tx, owner, name, version, user, r.UserAgent(), false)
+	zipGetter := res.DownloadZipFile
+	linkRequested := isLinkRequested(r)
+	if linkRequested {
+		zipGetter = res.GetZipLink(svc.Storage)
+	}
+
+	world, link, ver, em := svc.DownloadZip(r.Context(), tx, owner, name, version, user, r.UserAgent(), zipGetter)
 	if em != nil {
 		return nil, em
 	}

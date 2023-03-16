@@ -561,13 +561,9 @@ func getOuterDir(files []*multipart.FileHeader, remove bool) (bool, string, *gz.
 	return remove, outDir, nil
 }
 
-// internal function that computes and sets the header X-Ign-Resource-Version.
-// TODO: this is a strong candidate to move to a models-related middleware.
-func writeIgnResourceVersionHeader(versionStr string,
-	w http.ResponseWriter, r *http.Request) (version string, err error) {
-	version = versionStr
-	w.Header().Set("X-Ign-Resource-Version", versionStr)
-	return
+// writeIgnResourceVersionHeader writes the ign resource version header into the given response.
+func writeIgnResourceVersionHeader(w http.ResponseWriter, version int) {
+	w.Header().Set("X-Ign-Resource-Version", strconv.Itoa(version))
 }
 
 // serveFileOrLink returns the link where the client can download the zip file from when linkRequested is set to true.
@@ -576,15 +572,18 @@ func writeIgnResourceVersionHeader(versionStr string,
 //	link must contain the URL where to download the resource from when linkRequested is set to true or,
 //	link must contain the path to the zip file when linkRequested is set to false.
 func serveFileOrLink(w http.ResponseWriter, r *http.Request, linkRequested bool, link string, res res.Resource, version int) error {
+	writeIgnResourceVersionHeader(w, version)
+
 	// If ?link=true, fuel will return a link to a cloud storage where the client can perform a subsequent request
 	// to download the resource. If ?link=false or if it is not included, it will serve the file directly to the client.
 	if linkRequested {
 		return serveLink(w, link)
 	}
-	return serveFile(w, r, res, version, link)
+	return serveZipFile(w, r, res, version, link)
 }
 
-func serveFile(w http.ResponseWriter, r *http.Request, res res.Resource, version int, link string) error {
+// serveZipFile serves a zip file located in path in the HTTP response.
+func serveZipFile(w http.ResponseWriter, r *http.Request, res res.Resource, version int, path string) error {
 	// Set zip headers
 	w.Header().Set("Content-Type", "application/zip")
 	zipFileName := fmt.Sprintf("model-%sv%d.zip", *res.GetUUID(), version)
@@ -592,18 +591,14 @@ func serveFile(w http.ResponseWriter, r *http.Request, res res.Resource, version
 	r.Header.Del("If-Modified-Since")
 	// Set zip response headers
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(version), w, r)
-	if err != nil {
-		return err
-	}
-	http.ServeFile(w, r, link)
+	http.ServeFile(w, r, path)
 	return nil
 }
 
+// serveLink writes a link to a zip file into the HTTP response.
 func serveLink(w http.ResponseWriter, link string) error {
 	// Set Content-Type
 	w.Header().Set("Content-Type", "text/plain")
-
 	// Return the link
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(link))
