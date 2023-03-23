@@ -583,6 +583,7 @@ func serveFileOrLink(w http.ResponseWriter, r *http.Request, linkRequested bool,
 }
 
 // serveZipFile serves a zip file located in path in the HTTP response.
+// This function also writes the HTTP status code to 200 and sets the Content Type to application/zip.
 func serveZipFile(w http.ResponseWriter, r *http.Request, res res.Resource, version int, path string) error {
 	// Set content type so clients can identify a zip file will be downloaded
 	w.Header().Set("Content-Type", "application/zip")
@@ -596,6 +597,7 @@ func serveZipFile(w http.ResponseWriter, r *http.Request, res res.Resource, vers
 }
 
 // serveLink writes a link to a zip file into the HTTP response.
+// This function also writes the HTTP status code to 200 and sets the Content Type to text/plain.
 func serveLink(w http.ResponseWriter, link string) error {
 	// Set content type so clients can identify a link is being provided
 	w.Header().Set("Content-Type", "text/plain")
