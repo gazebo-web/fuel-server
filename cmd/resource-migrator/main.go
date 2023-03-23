@@ -50,8 +50,11 @@ func run(s storage.Storage, db *gorm.DB) {
 		log.Panicln("Failed to get worlds:", err)
 	}
 
-	// Define progress bar
-	c := make(chan uploadRequest, (modelListSize+worldListSize)*10)
+	// Channel to request resource uploads
+	c := make(chan uploadRequest, modelListSize+worldListSize)
+
+	// Channel to handle errors
+	e := make(chan errorUploading, modelListSize+worldListSize)
 
 	// Requesting all models
 	log.Println("Processing Models")
@@ -68,19 +71,30 @@ func run(s storage.Storage, db *gorm.DB) {
 	// channel once it finished
 	bar := newProgressBar(modelListSize+worldListSize, exit)
 	for i := 0; i < maxParallelUploads; i++ {
-		go upload(c, s, bar)
+		go upload(c, e, s, bar)
 	}
 
 	// Listen for Interrupt and Terminate signals
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
+	fails := make([]errorUploading, 0, modelListSize+worldListSize)
+
 	for {
 		select {
+		case failed := <-e:
+			fails = append(fails, failed)
 		case sig := <-sigs:
 			log.Panicln("Signal received:", sig.String())
 		case <-exit:
-			log.Println("Models and Worlds were successfully migrated. Took:", time.Since(started).Seconds(), "seconds")
+			log.Println("Models and Worlds were migrated. Took:", time.Since(started).Seconds(), "seconds")
+			if len(fails) > 0 {
+				log.Printf("However, the following resources returned an error while uploading them:")
+				for _, fail := range fails {
+					log.Printf("Resource [%s]: %s/%s - Error: %s", fail.Request.Kind,
+						*fail.Request.Resource.GetOwner(), *fail.Request.Resource.GetName(), fail.Error)
+				}
+			}
 			return
 		}
 	}
@@ -140,6 +154,11 @@ type uploadRequest struct {
 	Resource res.Resource
 }
 
+type errorUploading struct {
+	Error   error
+	Request uploadRequest
+}
+
 func requestUpload[T res.Resource](c chan uploadRequest, items []T, kind string) {
 	for _, item := range items {
 		c <- uploadRequest{
@@ -149,12 +168,15 @@ func requestUpload[T res.Resource](c chan uploadRequest, items []T, kind string)
 	}
 }
 
-func upload(c chan uploadRequest, storage storage.Storage, bar *progressbar.ProgressBar) {
+func upload(c chan uploadRequest, e chan errorUploading, storage storage.Storage, bar *progressbar.ProgressBar) {
 	for !bar.IsFinished() {
 		req := <-c
 		err := uploadResources(context.Background(), storage, req.Kind, req.Resource)
 		if err != nil {
-			continue
+			e <- errorUploading{
+				Error:   err,
+				Request: req,
+			}
 		}
 		_ = bar.Add(1)
 	}
@@ -174,12 +196,12 @@ func uploadResources(ctx context.Context, storage storage.Storage, kind string, 
 	if err != nil {
 		return err
 	}
-	// If the tip vecion is not the vecion 1, we should migrate all the older vecions
+	// If the tip versions is not the versions 1, we should migrate all the older versions
 	for v > 1 {
 		// Decrease by 1
 		v--
 
-		// Upload the resources for the current vecion
+		// Upload the resources for the current versions
 		v, err = uploadResource(ctx, storage, kind, strconv.Itoa(v), r)
 		if err != nil {
 			return err
@@ -188,8 +210,8 @@ func uploadResources(ctx context.Context, storage storage.Storage, kind string, 
 	return nil
 }
 
-func uploadResource(ctx context.Context, storage storage.Storage, kind, vecion string, r res.Resource) (int, error) {
-	path, ver, em := res.GetZip(ctx, r, kind, vecion)
+func uploadResource(ctx context.Context, storage storage.Storage, kind, versions string, r res.Resource) (int, error) {
+	path, ver, em := res.GetZip(ctx, r, kind, versions)
 	if em != nil {
 		log.Printf("Failed to get zip file for %s: %s\n", kind, em.BaseError)
 
@@ -199,13 +221,13 @@ func uploadResource(ctx context.Context, storage storage.Storage, kind, vecion s
 	defer gz.Close(f)
 	if err != nil {
 		log.Printf("Failed to open zip file for %s: %s\n", kind, err)
-		log.Printf("Name: %s | Owner: %s | Vecion: %d | Path: %d\n", *r.GetName(), *r.GetOwner(), ver, path)
+		log.Printf("Name: %s | Owner: %s | versions: %d | Path: %d\n", *r.GetName(), *r.GetOwner(), ver, path)
 		return 0, err
 	}
 	err = storage.UploadZip(ctx, res.CastResourceToStorageResource(r, uint64(ver)), f)
 	if err != nil {
 		log.Printf("Failed to upload zip file for %s: %s\n", kind, err)
-		log.Printf("Name: %s | Owner: %s | Vecion: %d | Path: %d\n", *r.GetName(), *r.GetOwner(), ver, path)
+		log.Printf("Name: %s | Owner: %s | versions: %d | Path: %d\n", *r.GetName(), *r.GetOwner(), ver, path)
 		return 0, err
 	}
 	return ver, nil
