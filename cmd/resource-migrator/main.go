@@ -49,12 +49,13 @@ func run(s storage.Storage, db *gorm.DB) {
 	if err != nil {
 		log.Panicln("Failed to get worlds:", err)
 	}
+	totalSize := modelListSize + worldListSize
 
 	// Channel to request resource uploads
-	c := make(chan uploadRequest, modelListSize+worldListSize)
+	c := make(chan uploadRequest, totalSize)
 
 	// Channel to handle errors
-	e := make(chan errorUploading, modelListSize+worldListSize)
+	e := make(chan errorUploading, totalSize)
 
 	// Requesting all models
 	log.Println("Processing Models")
@@ -69,7 +70,7 @@ func run(s storage.Storage, db *gorm.DB) {
 
 	// Begin parallel uploads and keep track of them using the progress bar. It will send a single item to the exit
 	// channel once it finished
-	bar := newProgressBar(modelListSize+worldListSize, exit)
+	bar := newProgressBar(totalSize, exit)
 	for i := 0; i < maxParallelUploads; i++ {
 		go upload(c, e, s, bar)
 	}
