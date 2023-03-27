@@ -567,10 +567,13 @@ func writeIgnResourceVersionHeader(w http.ResponseWriter, version int) {
 }
 
 // serveFileOrLink returns a link to download the provided zip file from if linkRequested is set to true.
-// If linkRequested is set to false, it will stream the file from the host machine directly to the client.
 //
-//	If linkRequested is set to true, link must contain the URL where to download the resource from when linkRequested is set to true or,
-//	if linkRequested is set to false, link must contain the path to the zip file when linkRequested is set to false.
+//	If linkRequested is set to true:
+//		- it will write the URL as a plain text.
+//		- link must contain the URL where to download the resource
+//	If linkRequested is set to false:
+//		- it will stream the file from the host machine directly to the client
+//		- link must contain the URL where to download the resource
 func serveFileOrLink(w http.ResponseWriter, r *http.Request, linkRequested bool, link string, res res.Resource, version int) error {
 	writeIgnResourceVersionHeader(w, version)
 
