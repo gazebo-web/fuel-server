@@ -566,11 +566,11 @@ func writeIgnResourceVersionHeader(w http.ResponseWriter, version int) {
 	w.Header().Set("X-Ign-Resource-Version", strconv.Itoa(version))
 }
 
-// serveFileOrLink returns a link to download the provided zip file from if `linkRequested` is set to true.
+// serveFileOrLink returns a link to download the provided zip file from if linkRequested is set to true.
 // If linkRequested is set to false, it will stream the file from the host machine directly to the client.
 //
-//	link must contain the URL where to download the resource from when linkRequested is set to true or,
-//	link must contain the path to the zip file when linkRequested is set to false.
+//	If linkRequested is set to true, link must contain the URL where to download the resource from when linkRequested is set to true or,
+//	if linkRequested is set to false, link must contain the path to the zip file when linkRequested is set to false.
 func serveFileOrLink(w http.ResponseWriter, r *http.Request, linkRequested bool, link string, res res.Resource, version int) error {
 	writeIgnResourceVersionHeader(w, version)
 
@@ -583,7 +583,8 @@ func serveFileOrLink(w http.ResponseWriter, r *http.Request, linkRequested bool,
 }
 
 // serveZipFile serves a zip file located in path in the HTTP response.
-// This function also writes the HTTP status code to 200 and sets the Content Type to application/zip.
+// This function also writes the HTTP status code to 200 and sets the Content Type to application/zip since
+// it's streaming the zip file directly to the client.
 func serveZipFile(w http.ResponseWriter, r *http.Request, res res.Resource, version int, path string) error {
 	// Set content type so clients can identify a zip file will be downloaded
 	w.Header().Set("Content-Type", "application/zip")
@@ -597,7 +598,8 @@ func serveZipFile(w http.ResponseWriter, r *http.Request, res res.Resource, vers
 }
 
 // serveLink writes a link to a zip file into the HTTP response.
-// This function also writes the HTTP status code to 200 and sets the Content Type to text/plain.
+// This function also writes the HTTP status code to 200 and sets the Content Type to text/plain given that
+// it's returning a link to the zip file.
 func serveLink(w http.ResponseWriter, link string) error {
 	// Set content type so clients can identify a link is being provided
 	w.Header().Set("Content-Type", "text/plain")
