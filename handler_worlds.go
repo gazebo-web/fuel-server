@@ -264,6 +264,8 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
+	// If ?link=true, fuel will return a link to a cloud storage where the client can perform a subsequent request
+	// to download the resource. If ?link=false or if it is not included, it will serve the file directly to the client.
 	if err := serveFileOrLink(w, r, linkRequested, *link, world, ver); err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}

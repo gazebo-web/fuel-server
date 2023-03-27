@@ -574,8 +574,6 @@ func writeIgnResourceVersionHeader(w http.ResponseWriter, version int) {
 func serveFileOrLink(w http.ResponseWriter, r *http.Request, linkRequested bool, link string, res res.Resource, version int) error {
 	writeIgnResourceVersionHeader(w, version)
 
-	// If ?link=true, fuel will return a link to a cloud storage where the client can perform a subsequent request
-	// to download the resource. If ?link=false or if it is not included, it will serve the file directly to the client.
 	if linkRequested {
 		return serveLink(w, link)
 	}
