@@ -197,7 +197,7 @@ func uploadResources(ctx context.Context, storage storage.Storage, kind string, 
 	if err != nil {
 		return err
 	}
-	// If the tip versions is not the versions 1, we should migrate all the older versions
+	// If the tip version is not the version 1, we should migrate all the older versions.
 	for v > 1 {
 		// Decrease by 1
 		v--
