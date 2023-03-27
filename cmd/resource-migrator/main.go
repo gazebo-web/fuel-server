@@ -91,7 +91,7 @@ func run(s storage.Storage, db *gorm.DB) {
 			if len(fails) > 0 {
 				log.Printf("However, the following resources returned an error while uploading them:")
 				for _, fail := range fails {
-					log.Printf("Resource [%s]: %s/%s - Error: %s", fail.Request.Kind,
+					log.Printf("Resource [%s]: %s/%s - Error: %s\n", fail.Request.Kind,
 						*fail.Request.Resource.GetOwner(), *fail.Request.Resource.GetName(), fail.Error)
 				}
 			}
