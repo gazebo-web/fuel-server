@@ -448,8 +448,8 @@ func (ms *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
 // Optional argument "user" represents the user (if any) requesting the operation.
 // Returns the model, as well as a pointer to the zip's filepath and the
 // resolved version.
-func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelName,
-	version string, u *users.User, agent string) (*Model, *string, int, *gz.ErrMsg) {
+func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelName, version string,
+	u *users.User, agent string, zipGetter res.GetZipResource) (*Model, *string, int, *gz.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, modelName, u)
 	if em != nil {
@@ -473,11 +473,15 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 	if em != nil {
 		return nil, nil, 0, em
 	}
-	link, err := ms.Storage.Download(ctx, res.CastResourceToStorageResource(model, uint64(resolvedVersion)))
+
+	// If request link is enabled, the user will perform a subsequent request to download the resource from a cloud provider.
+	// Otherwise, it will expect Fuel to serve the file directly.
+	link, err := zipGetter(ctx, model, models, resolvedVersion)
 	if err != nil {
 		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
-	return model, &link, resolvedVersion, em
+
+	return model, &link, resolvedVersion, nil
 }
 
 // UpdateModel updates a model. The user argument is the requesting user. It

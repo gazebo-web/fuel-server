@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
+	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/generics"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
@@ -14,7 +15,6 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
-	"strconv"
 )
 
 // ModelList returns the list of models from a team/user. The returned value
@@ -92,10 +92,7 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*modelProto.Version)), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, int(modelProto.GetVersion()))
 
 	return modelProto, nil
 }
@@ -114,10 +111,7 @@ func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*fuelModel.Version)), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, int(fuelModel.GetVersion()))
 
 	return fuelModel, nil
 }
@@ -236,23 +230,32 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 		modelVersion = ""
 	}
 	svc := &models.Service{Storage: globals.Storage}
-	_, link, _, em := svc.DownloadZip(r.Context(), tx,
-		owner, name, modelVersion, user, r.UserAgent())
+
+	zipGetter := res.DownloadZipFile
+	linkRequested := isLinkRequested(r)
+	if linkRequested {
+		zipGetter = res.GetZipLink(svc.Storage)
+	}
+
+	model, link, ver, em := svc.DownloadZip(r.Context(), tx, owner, name, modelVersion, user, r.UserAgent(), zipGetter)
 	if em != nil {
 		return nil, em
 	}
 
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
-	// before writing "data" to ResponseWriter. Once you write data (not headers)
-	// into it the status code is set to 302 (Found).
+	// before writing "data" to ResponseWriter.
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	// Redirect to the storage containing the file for download.
-	http.Redirect(w, r, *link, http.StatusFound)
-	return link, nil
+	// If ?link=true, fuel will return a link to a cloud storage where the client can perform a subsequent request
+	// to download the resource. If ?link=false or if it is not included, it will serve the file directly to the client.
+	if err := serveFileOrLink(w, r, linkRequested, *link, model, ver); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
+	}
+
+	return nil, nil
 }
 
 // ReportModelCreate reports a model.

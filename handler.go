@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
@@ -17,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -559,11 +561,56 @@ func getOuterDir(files []*multipart.FileHeader, remove bool) (bool, string, *gz.
 	return remove, outDir, nil
 }
 
-// internal function that computes and sets the header X-Ign-Resource-Version.
-// TODO: this is a strong candidate to move to a models-related middleware.
-func writeIgnResourceVersionHeader(versionStr string,
-	w http.ResponseWriter, r *http.Request) (version string, err error) {
-	version = versionStr
-	w.Header().Set("X-Ign-Resource-Version", versionStr)
-	return
+// writeIgnResourceVersionHeader writes the ign resource version header into the given response.
+func writeIgnResourceVersionHeader(w http.ResponseWriter, version int) {
+	w.Header().Set("X-Ign-Resource-Version", strconv.Itoa(version))
+}
+
+// serveFileOrLink streams or returns a link to a resource depending on the criteria defined below.
+//
+//	If linkRequested is set to true:
+//		- it will write the URL as a plain text.
+//		- link must contain the URL where to download the resource.
+//	If linkRequested is set to false:
+//		- it will stream the file from the host machine directly to the client.
+//		- link must contain the path in the host machine where to stream the resource from.
+func serveFileOrLink(w http.ResponseWriter, r *http.Request, linkRequested bool, link string, res res.Resource, version int) error {
+	writeIgnResourceVersionHeader(w, version)
+
+	if linkRequested {
+		return serveLink(w, link)
+	}
+	return serveZipFile(w, r, res, version, link)
+}
+
+// serveZipFile serves a zip file located in path in the HTTP response.
+// This function also writes the HTTP status code to 200 and sets the Content Type to application/zip since
+// it's streaming the zip file directly to the client.
+func serveZipFile(w http.ResponseWriter, r *http.Request, res res.Resource, version int, path string) error {
+	// Set content type so clients can identify a zip file will be downloaded
+	w.Header().Set("Content-Type", "application/zip")
+	// Remove request header to always serve fresh
+	r.Header.Del("If-Modified-Since")
+	// Set zip response headers
+	zipFileName := fmt.Sprintf("model-%sv%d.zip", *res.GetUUID(), version)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
+	http.ServeFile(w, r, path)
+	return nil
+}
+
+// serveLink writes a link to a zip file into the HTTP response.
+// This function also writes the HTTP status code to 200 and sets the Content Type to text/plain given that
+// it's returning a link to the zip file.
+func serveLink(w http.ResponseWriter, link string) error {
+	// Set content type so clients can identify a link is being provided
+	w.Header().Set("Content-Type", "text/plain")
+	// Return the link
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte(link))
+	return err
+}
+
+// isLinkRequested returns true if a link was explicitly requested in the given HTTP request.
+func isLinkRequested(r *http.Request) bool {
+	return strings.ToLower(r.URL.Query().Get("link")) == "true"
 }
