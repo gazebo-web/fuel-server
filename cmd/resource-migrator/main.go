@@ -55,7 +55,7 @@ func run(s storage.Storage, db *gorm.DB) {
 	c := make(chan uploadRequest, totalSize)
 
 	// Channel to handle errors
-	e := make(chan errorUploading, totalSize)
+	e := make(chan uploadError, totalSize)
 
 	// Requesting all models
 	log.Println("Processing Models")
@@ -79,7 +79,7 @@ func run(s storage.Storage, db *gorm.DB) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	fails := make([]errorUploading, 0, modelListSize+worldListSize)
+	fails := make([]uploadError, 0, modelListSize+worldListSize)
 
 	for {
 		select {
@@ -155,7 +155,7 @@ type uploadRequest struct {
 	Resource res.Resource
 }
 
-type errorUploading struct {
+type uploadError struct {
 	Error   error
 	Request uploadRequest
 }
@@ -169,12 +169,12 @@ func requestUpload[T res.Resource](c chan uploadRequest, items []T, kind string)
 	}
 }
 
-func upload(c chan uploadRequest, e chan errorUploading, storage storage.Storage, bar *progressbar.ProgressBar) {
+func upload(c chan uploadRequest, e chan uploadError, storage storage.Storage, bar *progressbar.ProgressBar) {
 	for !bar.IsFinished() {
 		req := <-c
 		err := uploadResources(context.Background(), storage, req.Kind, req.Resource)
 		if err != nil {
-			e <- errorUploading{
+			e <- uploadError{
 				Error:   err,
 				Request: req,
 			}
