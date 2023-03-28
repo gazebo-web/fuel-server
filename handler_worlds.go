@@ -3,13 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/gazebo-web/fuel-server/bundles/collections"
@@ -105,10 +105,7 @@ func WorldFileTree(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*worldProto.Version)), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, int(worldProto.GetVersion()))
 
 	return worldProto, em
 }
@@ -127,10 +124,7 @@ func WorldIndex(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*fuelWorld.Version)), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, int(fuelWorld.GetVersion()))
 
 	return fuelWorld, nil
 }
@@ -250,26 +244,31 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 		version = ""
 	}
 
-	_, link, _, em := (&worlds.Service{Storage: globals.Storage}).DownloadZip(r.Context(), tx,
-		owner, name, version, user, r.UserAgent())
+	svc := &worlds.Service{Storage: globals.Storage}
+
+	zipGetter := res.DownloadZipFile
+	linkRequested := isLinkRequested(r)
+	if linkRequested {
+		zipGetter = res.GetZipLink(svc.Storage)
+	}
+
+	world, link, ver, em := svc.DownloadZip(r.Context(), tx, owner, name, version, user, r.UserAgent(), zipGetter)
 	if em != nil {
 		return nil, em
 	}
 
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
-	// before writing "data" to ResponseWriter. Once you write data (not headers)
-	// into it the status code is set to 302 (Found).
+	// before writing "data" to ResponseWriter.
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	// Remove auth-related tokens
-	r.Header.Del("Authorization")
-	r.Header.Del("Private-Token")
-
-	// Serve the zip file contents
-	http.Redirect(w, r, *link, http.StatusFound)
+	// If a link was requested, fuel will return a link to a cloud storage where the client can perform a subsequent request
+	// to download the resource. If a link was not requested or if it is not included, it will serve the file directly to the client.
+	if err := serveFileOrLink(w, r, linkRequested, *link, world, ver); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
+	}
 	return nil, nil
 }
 

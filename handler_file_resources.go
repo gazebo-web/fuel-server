@@ -13,7 +13,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"net/http"
 	"path/filepath"
-	"strconv"
 	"time"
 )
 
@@ -48,10 +47,7 @@ func IndividualFileDownload(s getFileService, owner, name string, jwtUser *users
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, ver)
 
 	modtime := time.Now()
 	// Note: ServeContent should be always last line, after all headers were set.
