@@ -1,6 +1,8 @@
 syntax = "proto2";
 package fuel;
 
+option go_package = "github.com/gazebo-web/fuel-server/fuel";
+
 import "metadata.proto";
 
 // swagger:model

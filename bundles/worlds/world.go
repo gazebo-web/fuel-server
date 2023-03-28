@@ -1,7 +1,7 @@
 package worlds
 
 import (
-	"github.com/gazebo-web/fuel-server/bundles/common_resources"
+	commonres "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/license"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"

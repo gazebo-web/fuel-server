@@ -194,8 +194,7 @@ func TestModelTransfer(t *testing.T) {
 		t.Run(test.testDesc, func(t *testing.T) {
 
 			b := new(bytes.Buffer)
-			json.NewEncoder(b).Encode(test.postParams)
-
+			assert.NoError(t, json.NewEncoder(b).Encode(test.postParams))
 			if test.expStatus != http.StatusOK {
 				gztest.AssertRouteMultipleArgs("POST", test.uri, b, test.expStatus, &jwtDef, "text/plain; charset=utf-8", t)
 			} else {

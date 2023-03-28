@@ -3,10 +3,9 @@ package main
 import (
 	"encoding/json"
 	"github.com/gazebo-web/gz-go/v7"
-
 	"gopkg.in/go-playground/validator.v9"
-	"io/ioutil"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -28,16 +27,31 @@ var blacklist []string
 // InstallCustomValidators extends validator.v9 with custom validation functions
 // and meta tags for fields.
 func InstallCustomValidators(validate *validator.Validate) {
-	validate.RegisterValidation("noforwardslash", notIncludeForwardSlash)
-	validate.RegisterValidation("alphanumspace", isAlphanumSpace)
+	err := validate.RegisterValidation("noforwardslash", notIncludeForwardSlash)
+	if err != nil {
+		log.Fatalln("Failed to install custom validator:", err)
+	}
+	err = validate.RegisterValidation("alphanumspace", isAlphanumSpace)
+	if err != nil {
+		log.Fatalln("Failed to install custom validator:", err)
+	}
 	loadBlacklist()
-	validate.RegisterValidation("notinblacklist", notInBlacklist)
-	validate.RegisterValidation("expfeatures", isExpFeatures)
-	validate.RegisterValidation("nopercent", notIncludePercent)
+	err = validate.RegisterValidation("notinblacklist", notInBlacklist)
+	if err != nil {
+		log.Fatalln("Failed to install custom validator:", err)
+	}
+	err = validate.RegisterValidation("expfeatures", isExpFeatures)
+	if err != nil {
+		log.Fatalln("Failed to install custom validator:", err)
+	}
+	err = validate.RegisterValidation("nopercent", notIncludePercent)
+	if err != nil {
+		log.Fatalln("Failed to install custom validator:", err)
+	}
 }
 
 func loadBlacklist() {
-	data, err := ioutil.ReadFile("validators_owners_blacklist.json")
+	data, err := os.ReadFile("validators_owners_blacklist.json")
 	if err != nil {
 		log.Fatal("Couldn't read blacklist file", err)
 		return

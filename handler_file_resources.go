@@ -48,7 +48,10 @@ func IndividualFileDownload(s getFileService, owner, name string, jwtUser *users
 		return nil, em
 	}
 
-	writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
+	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	modtime := time.Now()
 	// Note: ServeContent should be always last line, after all headers were set.

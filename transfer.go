@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/gazebo-web/fuel-server/bundles/common_resources"
+	commonres "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"

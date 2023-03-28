@@ -7,7 +7,8 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
-	"io/ioutil"
+	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
@@ -29,7 +30,10 @@ func parseMetadata(r *http.Request) *models.ModelMetadata {
 
 			// Unmarshall the meta data
 			var unmarshalled models.ModelMetadatum
-			json.Unmarshal([]byte(meta), &unmarshalled)
+			err := json.Unmarshal([]byte(meta), &unmarshalled)
+			if err != nil {
+				continue
+			}
 			// Create the metadata array, if it is null.
 			if metadata == nil {
 				metadata = new(models.ModelMetadata)
@@ -106,7 +110,7 @@ func modelFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.Res
 	// move files from multipart form into new model's folder
 	_, em := populateTmpDir(r, true, modelPath)
 	if em != nil {
-		os.Remove(modelPath)
+		_ = os.Remove(modelPath)
 		return nil, em
 	}
 
@@ -114,7 +118,7 @@ func modelFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.Res
 	ms := &models.Service{}
 	model, em := ms.CreateModel(r.Context(), tx, cm, uuidStr, modelPath, jwtUser)
 	if em != nil {
-		os.Remove(modelPath)
+		_ = os.Remove(modelPath)
 		return nil, em
 	}
 	return model, nil
@@ -134,7 +138,12 @@ func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 
 	// models.CreateModel is the input form
 	var cm models.CreateModel
@@ -194,7 +203,12 @@ func ModelClone(owner, modelName string, ignored *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 	// models.CloneModel is the input form
 	var cm models.CloneModel
 	if em := ParseStruct(&cm, r, true); em != nil {
@@ -223,9 +237,17 @@ func ModelClone(owner, modelName string, ignored *users.User, tx *gorm.DB,
 func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	r.ParseMultipartForm(0)
+	err := r.ParseMultipartForm(0)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 	// models.UpdateModel is the input form
 	var um models.UpdateModel
 	if errMsg := ParseStruct(&um, r, true); errMsg != nil {
@@ -240,7 +262,7 @@ func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 	if r.MultipartForm != nil && len(getRequestFiles(r)) > 0 {
 		// first, populate files into tmp dir to avoid overriding model
 		// files in case of error.
-		tmpDir, err := ioutil.TempDir("", modelName)
+		tmpDir, err := os.MkdirTemp("", modelName)
 		defer os.Remove(tmpDir)
 		if err != nil {
 			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)

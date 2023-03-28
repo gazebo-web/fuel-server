@@ -6,13 +6,15 @@
 
 # Install
 
-1. [Go version 1.14](https://golang.org/dl/) or above.
+1. [Go version 1.19](https://golang.org/dl/) or above.
 
    Make sure to set the following environment variables:
 
-   1. `$PATH`:  Set environment variable to point to the `bin` directory of where you installed Go so your system can find the `go` executable.
+   1. `$PATH`:  Set environment variable to point to the `bin` directory of where you installed Go so your system can
+      find the `go` executable.
 
-   1. `$GOPATH`: This is the working directory of your go project. Project dependencies and binaries will be installed to this path. If the environment variable is unset, by default Go will point to the `$HOME/go` directory.
+   1. `$GOPATH`: This is the working directory of your go project. Project dependencies and binaries will be installed
+      to this path. If the environment variable is unset, by default Go will point to the `$HOME/go` directory.
 
 
 1. Download the server code
@@ -378,7 +380,7 @@ run (from the proto folder):
     protoc --go_out=. *.proto
     ```
 
-    Then update the generated import proto from code.google... to "github.com/golang/protobuf/proto"
+    Then update the generated import proto from code.google... to "google.golang.org/protobuf/proto"
 
 
 # Coverage

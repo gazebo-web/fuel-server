@@ -138,8 +138,15 @@ func (p *Permissions) Init(db *gorm.DB, sysAdmin string) error {
 
 	var adapter *gormadapter.Adapter
 
-	adapter, _ = gormadapter.NewAdapterByDB(db)
-	enforcer, _ := casbin.NewEnforcer("permissions/policy.conf", adapter)
+	adapter, err := gormadapter.NewAdapterByDB(db)
+	if err != nil {
+		return err
+	}
+
+	enforcer, err := casbin.NewEnforcer("permissions/policy.conf", adapter)
+	if err != nil {
+		return err
+	}
 
 	return p.InitWithEnforcerAndAdapter(enforcer, adapter, sysAdmin)
 }
@@ -155,7 +162,10 @@ func (p *Permissions) InitWithEnforcerAndAdapter(e casbin.IEnforcer, a *gormadap
 	gPermissionsObj = obj
 	p.data = gPermissionsObj
 
-	p.Reload(sysAdmin)
+	err := p.Reload(sysAdmin)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -163,7 +173,10 @@ func (p *Permissions) InitWithEnforcerAndAdapter(e casbin.IEnforcer, a *gormadap
 // sysAdmin argument can contain a list of usernames separated by comma.
 func (p *Permissions) Reload(sysAdmin string) error {
 	// Load the policy from DB.
-	p.data.enforcer.LoadPolicy()
+	err := p.data.enforcer.LoadPolicy()
+	if err != nil {
+		return err
+	}
 	p.setSystemAdmin(sysAdmin)
 	return nil
 }
@@ -172,7 +185,10 @@ func (p *Permissions) Reload(sysAdmin string) error {
 // sysAdmin argument can contain a list of usernames separated by comma.
 func (p *Permissions) setSystemAdmin(sysAdmin string) {
 	saRole := roleToString(SystemAdmin)
-	p.data.enforcer.DeleteRole(saRole)
+	_, err := p.data.enforcer.DeleteRole(saRole)
+	if err != nil {
+		return
+	}
 	if sysAdmin != "" {
 		users := gz.StrToSlice(sysAdmin)
 		for _, u := range users {
@@ -435,15 +451,30 @@ func (p *Permissions) SetRolePermissions(group string) (bool, *gz.ErrMsg) {
 	if p.data.enforcer.HasPermissionForUser(groupRole) {
 		return true, nil
 	}
-	p.AddPermission(groupRole, group, Read)
-	p.AddPermission(groupRole, group, Write)
+	_, err := p.AddPermission(groupRole, group, Read)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+	_, err = p.AddPermission(groupRole, group, Write)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	groupRole = getRoleForGroup(Admin, group)
-	p.AddPermission(groupRole, group, Read)
-	p.AddPermission(groupRole, group, Write)
+	_, err = p.AddPermission(groupRole, group, Read)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+	_, err = p.AddPermission(groupRole, group, Write)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	groupRole = getRoleForGroup(Member, group)
-	p.AddPermission(groupRole, group, Read)
+	_, err = p.AddPermission(groupRole, group, Read)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	return true, nil
 }
@@ -456,15 +487,30 @@ func (p *Permissions) RemoveRolePermissions(group string) (bool, *gz.ErrMsg) {
 	if !p.data.enforcer.HasPermissionForUser(groupRole) {
 		return true, nil
 	}
-	p.RemovePermission(groupRole, group, Read)
-	p.RemovePermission(groupRole, group, Write)
+	_, err := p.RemovePermission(groupRole, group, Read)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+	_, err = p.RemovePermission(groupRole, group, Write)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	groupRole = getRoleForGroup(Admin, group)
-	p.RemovePermission(groupRole, group, Read)
-	p.RemovePermission(groupRole, group, Write)
+	_, err = p.RemovePermission(groupRole, group, Read)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+	_, err = p.RemovePermission(groupRole, group, Write)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	groupRole = getRoleForGroup(Member, group)
-	p.RemovePermission(groupRole, group, Read)
+	_, err = p.RemovePermission(groupRole, group, Read)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	return true, nil
 }
@@ -472,9 +518,15 @@ func (p *Permissions) RemoveRolePermissions(group string) (bool, *gz.ErrMsg) {
 // RemoveUser removes all policies involving the user
 func (p *Permissions) RemoveUser(user string) (bool, *gz.ErrMsg) {
 	// remove user resource permissions
-	p.data.enforcer.DeleteUser(user)
+	_, err := p.data.enforcer.DeleteUser(user)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
+	}
 	// remove user roles
-	p.data.enforcer.DeletePermissionsForUser(user)
+	_, err = p.data.enforcer.DeletePermissionsForUser(user)
+	if err != nil {
+		return false, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
+	}
 	// the return results are not used as they don't necessarily mean
 	// removal failed. A false value may just mean that the user has no
 	// permissions or roles
@@ -491,7 +543,10 @@ func (p *Permissions) RemoveGroup(group string) (bool, *gz.ErrMsg) {
 // RemoveRole removes all policies involving the role
 func (p *Permissions) RemoveRole(role string) (bool, *gz.ErrMsg) {
 	// casbin does not return a value for deleting roles
-	p.data.enforcer.DeleteRole(role)
+	_, err := p.data.enforcer.DeleteRole(role)
+	if err != nil {
+		return false, nil
+	}
 	return true, nil
 }
 

@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-billy.v4/osfs"
-	git "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/cache"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/storage/filesystem"
-	"io/ioutil"
+	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,50 +79,6 @@ func (g *GoGitVCS) assertValidRepo() error {
 	return nil
 }
 
-func (g *GoGitVCS) goGitInitAndCommitAll(ctx context.Context, msg string) error {
-	if err := ensureFolderExists(g.Path); err != nil {
-		return err
-	}
-	if g.isRepoOpen() {
-		return errors.New("Repo already exists. Repo: " + g.Path)
-	}
-	fs := osfs.New(g.Path)
-	dot, _ := fs.Chroot(".git")
-	cache := cache.ObjectLRU{
-		MaxSize: 100 * cache.MiByte,
-	}
-	storage := filesystem.NewStorage(dot, &cache)
-	if storage == nil {
-		return errors.New("Unable to create new storage")
-	}
-	r, err := git.Init(storage, fs)
-	if err != nil {
-		err = gz.WithStack(err)
-		gz.LoggerFromContext(ctx).Info("Error while doing git Init. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
-		return err
-	}
-	g.r = r
-
-	// Add all files to git index
-	w, _ := r.Worktree()
-	if _, err := w.Add("."); err != nil {
-		return gz.WithStack(err)
-	}
-
-	// Commit
-	_, err = w.Commit(msg, &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  gitName,
-			Email: gitEmail,
-			When:  time.Now(),
-		},
-	})
-	if err != nil {
-		return gz.WithStack(err)
-	}
-	return nil
-}
-
 // getCommit gets a commit object from the given revision. If revision is empty
 // or "tip" then master is used.
 func (g *GoGitVCS) getCommit(ctx context.Context, rev string) (*object.Commit, error) {
@@ -171,7 +125,7 @@ func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string)
 		return nil, err
 	}
 	var bs []byte
-	bs, err = ioutil.ReadAll(reader)
+	bs, err = io.ReadAll(reader)
 	if err != nil {
 		err = gz.WithStack(err)
 	}
@@ -200,7 +154,7 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 	}
 
 	visitedFolders := make(map[string]bool)
-	iter.ForEach(func(f *object.File) error {
+	_ = iter.ForEach(func(f *object.File) error {
 		// Skip ".git" folder and its contents
 		if strings.HasPrefix(f.Name, ".git") {
 			return nil
@@ -253,6 +207,7 @@ func (g *GoGitVCS) Zip(ctx context.Context, rev, output string) (*string, error)
 // owner is an optional argument used to set the git commit user. If empty, then the default
 // git user will be used.
 func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error {
+	log.Println("Replacing files from git repository")
 	if err := g.assertValidRepo(); err != nil {
 		return err
 	}

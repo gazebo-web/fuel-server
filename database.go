@@ -3,11 +3,12 @@ package main
 // Import this file's dependencies
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gosimple/slug"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -338,7 +339,12 @@ func indexIsPresent(db *gorm.DB, table string, idxName string) (bool, error) {
 	// Raw SQL
 	rows, err := db.Raw("select * from information_schema.statistics where table_schema=database() and table_name=? and index_name=?;",
 		table, idxName).Rows() //(*sql.Rows, error)
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			log.Println("Failed to close rows:", err)
+		}
+	}(rows)
 	if err != nil {
 		return false, err
 	}
@@ -400,21 +406,30 @@ func DBPopulate(ctx context.Context, path string, db *gorm.DB, onlyWhenEmpty boo
 	owner := "anonymous"
 	var ownerDbUser users.User
 	db.Where("username = ?", owner).First(&ownerDbUser)
-	filepath.Walk(path,
+	err := filepath.Walk(path,
 		func(path string, f os.FileInfo, err error) error {
-			if strings.Contains(path, "model.config") &&
-				!strings.Contains(path, ".hg") {
-
+			if strings.Contains(path, "model.config") && !strings.Contains(path, ".hg") {
 				xmlFile, err := os.Open(path)
 				if err != nil {
 					return err
 				}
 
-				defer xmlFile.Close()
-				b, _ := ioutil.ReadAll(xmlFile)
+				defer func(f *os.File) {
+					err := f.Close()
+					if err != nil {
+						log.Println("Failed to close file:", err)
+					}
+				}(xmlFile)
+				b, err := io.ReadAll(xmlFile)
+				if err != nil {
+					return err
+				}
 
 				var mc modelConfig
-				xml.Unmarshal(b, &mc)
+				err = xml.Unmarshal(b, &mc)
+				if err != nil {
+					return err
+				}
 
 				fmt.Printf("Inserting Model %s\n", mc.Name)
 
@@ -435,4 +450,7 @@ func DBPopulate(ctx context.Context, path string, db *gorm.DB, onlyWhenEmpty boo
 			}
 			return nil
 		})
+	if err != nil {
+		return
+	}
 }

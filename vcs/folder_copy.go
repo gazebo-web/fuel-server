@@ -26,7 +26,6 @@ package vcs
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -78,7 +77,7 @@ func CopyFile(src, dst string) (err error) {
 // CopyDir recursively copies a directory tree, attempting to preserve permissions.
 // Source directory must exist.
 // Symlinks are ignored and skipped.
-func CopyDir(src string, dst string) (err error) {
+func CopyDir(src string, dst string) error {
 	src = filepath.Clean(src)
 	dst = filepath.Clean(dst)
 
@@ -92,41 +91,45 @@ func CopyDir(src string, dst string) (err error) {
 
 	_, err = os.Stat(dst)
 	if err != nil && !os.IsNotExist(err) {
-		return
+		return err
 	}
 	if os.IsNotExist(err) {
 		err = os.MkdirAll(dst, si.Mode())
 		if err != nil {
-			return
+			return err
 		}
 	}
 
-	entries, err := ioutil.ReadDir(src)
+	dir, err := os.ReadDir(src)
 	if err != nil {
-		return
+		return err
 	}
 
-	for _, entry := range entries {
+	for _, entry := range dir {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
 
 		if entry.IsDir() {
 			err = CopyDir(srcPath, dstPath)
 			if err != nil {
-				return
+				return err
 			}
 		} else {
+			info, err := entry.Info()
+			if err != nil {
+				return err
+			}
 			// Skip symlinks.
-			if entry.Mode()&os.ModeSymlink != 0 {
+			if info.Mode()&os.ModeSymlink != 0 {
 				continue
 			}
 
 			err = CopyFile(srcPath, dstPath)
 			if err != nil {
-				return
+				return err
 			}
 		}
 	}
 
-	return
+	return nil
 }

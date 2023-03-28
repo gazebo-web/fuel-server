@@ -148,7 +148,7 @@ func getOwnerModelFromDb(t *testing.T, owner, name string) *models.Model {
 	var model models.Model
 	err := globals.Server.Db.Preload("Tags").Where("owner = ? AND name = ?", owner, name).Find(&model).Error
 	assert.NoError(t, err)
-	assert.NotNil(t, model.Location)
+	require.NotNil(t, model.Location)
 	// Sanity check: Make sure that the model file exists.
 	_, err = os.Stat(*model.Location)
 	assert.NoError(t, err, "Model Location does not exist in disk and it should", *model.Location)

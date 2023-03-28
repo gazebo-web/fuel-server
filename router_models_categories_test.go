@@ -116,7 +116,7 @@ func TestUpdateModelWithNoCategories(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(*bslice, &model))
 	assert.True(t, ok)
 
-	respCode, bslice, ok := updateModelWithCategories(t, &jwt, *model.Owner, *model.Name, []string{})
+	respCode, _, ok := updateModelWithCategories(t, &jwt, *model.Owner, *model.Name, []string{})
 	assert.True(t, ok)
 	assert.Equal(t, http.StatusOK, respCode)
 
@@ -135,7 +135,7 @@ func TestUpdateModelWithLessThanTwoCategories(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(*bslice, &model))
 	assert.True(t, ok)
 
-	respCode, bslice, ok := updateModelWithCategories(t, &jwt, *model.Owner, *model.Name, []string{"Electronics"})
+	respCode, _, ok := updateModelWithCategories(t, &jwt, *model.Owner, *model.Name, []string{"Electronics"})
 	assert.True(t, ok)
 	assert.Equal(t, http.StatusOK, respCode)
 }

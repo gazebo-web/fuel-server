@@ -10,6 +10,8 @@ import (
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"log"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 )
@@ -90,9 +92,12 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 		return nil, em
 	}
 
-	writeIgnResourceVersionHeader(strconv.Itoa(int(*modelProto.Version)), w, r)
+	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*modelProto.Version)), w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
-	return modelProto, em
+	return modelProto, nil
 }
 
 // ModelOwnerIndex returns a single model. The returned value will be of
@@ -109,7 +114,10 @@ func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	writeIgnResourceVersionHeader(strconv.Itoa(int(*fuelModel.Version)), w, r)
+	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*fuelModel.Version)), w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	return fuelModel, nil
 }
@@ -241,7 +249,10 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	// Set zip response headers
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
-	writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
+	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
 
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
@@ -270,7 +281,12 @@ func ReportModelCreate(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	// Delete temporary files from r.ParseMultipartForm(0)
-	defer r.MultipartForm.RemoveAll()
+	defer func(form *multipart.Form) {
+		err := form.RemoveAll()
+		if err != nil {
+			log.Println("Failed to close form:", err)
+		}
+	}(r.MultipartForm)
 
 	var createModelReport models.CreateReport
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,7 +31,7 @@ type VCS interface {
 // WalkFn allows to process a repository file entry when using the Walk func.
 // WalkFn receives a file and its folder parent paths. isDir argument is true
 // when the given path is a folder.
-type WalkFn (func(path, parent string, isDir bool) error)
+type WalkFn func(path, parent string, isDir bool) error
 
 // NewRepo creates a new GitVCS repository object.
 func (g GitVCS) NewRepo(dirpath string) VCS {
@@ -183,7 +182,7 @@ func archive(ctx context.Context, repoPath, rev, output string) (*string, error)
 	var err error
 
 	if output == "" {
-		folder, err = ioutil.TempDir("", "repo")
+		folder, err = os.MkdirTemp("", "repo")
 		zipPath = filepath.Join(folder, rev+".os.Filezip")
 	} else {
 		zipPath = output

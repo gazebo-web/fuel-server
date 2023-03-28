@@ -39,9 +39,7 @@ import (
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/go-playground/form"
-
 	"gopkg.in/go-playground/validator.v9"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -80,13 +78,13 @@ func init() {
 	isGoTest = strings.Contains(strings.ToLower(os.Args[0]), "test")
 
 	// Get the root resource directory.
-	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil {
+	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil && !isGoTest {
 		log.Fatal("Missing IGN_FUEL_RESOURCE_DIR env variable. Resources will not be available. Quitting.")
 	}
 
 	if isGoTest {
 		// Override globals.ResourceDir with a newly created /tmp folder
-		globals.ResourceDir, err = ioutil.TempDir("", "fuel-")
+		globals.ResourceDir, err = os.MkdirTemp("", "fuel-")
 		if err != nil {
 			log.Fatal("Could not initialize test globals.ResourceDir. Resources will not be available")
 		}
@@ -98,6 +96,9 @@ func init() {
 	}
 
 	globals.Server, err = gz.Init(auth0RsaPublickey, "", nil)
+	if err != nil {
+		log.Fatal("Failed to initialize web server:", err)
+	}
 	// Create the main Router and set it to the server.
 	// Note: here it is the place to define multiple APIs
 	s := globals.Server
@@ -172,8 +173,7 @@ func init() {
 			"No system administrator role will be created")
 	}
 	globals.Permissions = &permissions.Permissions{}
-	globals.Permissions.Init(globals.Server.Db, sysAdmin)
-
+	err = globals.Permissions.Init(globals.Server.Db, sysAdmin)
 	if err != nil {
 		logger.Error(err)
 	} else {
@@ -242,7 +242,7 @@ func init() {
 	migrate.ToModelGitRepositories(logCtx)
 
 	// Connect to ElasticSearch.
-	connectToElasticSearch(logCtx)
+	_ = connectToElasticSearch(logCtx)
 }
 
 func initValidator() *validator.Validate {

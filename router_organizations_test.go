@@ -76,7 +76,7 @@ func TestOrganizationCreate(t *testing.T) {
 func runSubTestWithCreateOrganizationTestData(test createOrganizationTest, t *testing.T) {
 	o := test.organization
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(o)
+	assert.NoError(t, json.NewEncoder(b).Encode(o))
 
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
@@ -453,7 +453,7 @@ func runSubTestWithUpdateOrganizationTestData(test updateOrganizationTest, t *te
 	o.Description = test.description
 	o.Email = test.email
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(o)
+	assert.NoError(t, json.NewEncoder(b).Encode(o))
 
 	jwt := getJWTToken(t, test.jwtGen)
 	expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
@@ -549,7 +549,7 @@ func TestOrganizationUserAdd(t *testing.T) {
 			add.Username = test.username
 			add.Role = test.role
 			b := new(bytes.Buffer)
-			json.NewEncoder(b).Encode(add)
+			assert.NoError(t, json.NewEncoder(b).Encode(add))
 
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
@@ -919,7 +919,7 @@ func TestOrganizationTeamCreate(t *testing.T) {
 	for _, test := range teamCreateTestsData {
 		t.Run(test.testDesc, func(t *testing.T) {
 			b := new(bytes.Buffer)
-			json.NewEncoder(b).Encode(test.teamInput)
+			assert.NoError(t, json.NewEncoder(b).Encode(test.teamInput))
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode
@@ -1272,7 +1272,7 @@ func TestOrganizationTeamUpdate(t *testing.T) {
 	for _, test := range updateTeamTestsData {
 		t.Run(test.testDesc, func(t *testing.T) {
 			b := new(bytes.Buffer)
-			json.NewEncoder(b).Encode(test.teamInput)
+			assert.NoError(t, json.NewEncoder(b).Encode(test.teamInput))
 			jwt := getJWTToken(t, test.jwtGen)
 			expEm, expCt := errMsgAndContentType(test.expErrMsg, ctJSON)
 			expStatus := expEm.StatusCode

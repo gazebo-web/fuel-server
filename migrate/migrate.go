@@ -33,7 +33,11 @@ func CollectionsSetDefaultLocation(ctx context.Context, db *gorm.DB) {
 	for _, col := range colList {
 		if col.Location == nil {
 			loc := users.GetResourcePath(*col.GetOwner(), *col.GetUUID(), "collections")
-			os.MkdirAll(loc, 0711)
+			err := os.MkdirAll(loc, 0711)
+			if err != nil {
+				log.Println("[MIGRATION] Failed to create collection folder:", loc)
+				continue
+			}
 			tx.Model(&col).Update("Location", &loc)
 			_, em := res.CreateResourceRepo(ctx, &col, *col.GetLocation())
 			if em != nil {
@@ -78,7 +82,11 @@ func RecomputeZipFileSizes(ctx context.Context, db *gorm.DB) {
 			continue
 		}
 		modelsFolder := filepath.Join(globals.ResourceDir, *model.GetOwner(), "models")
-		os.MkdirAll(modelsFolder, 0711)
+		err := os.MkdirAll(modelsFolder, 0711)
+		if err != nil {
+			log.Println("[MIGRATION] Failed to create model folder:", modelsFolder)
+			return
+		}
 
 		zipPath, _, em := res.GetZip(ctx, &model, "models", "tip")
 		if em != nil {
@@ -106,7 +114,11 @@ func RecomputeZipFileSizes(ctx context.Context, db *gorm.DB) {
 			continue
 		}
 		worldsFolder := filepath.Join(globals.ResourceDir, *w.GetOwner(), "worlds")
-		os.MkdirAll(worldsFolder, 0711)
+		err := os.MkdirAll(worldsFolder, 0711)
+		if err != nil {
+			log.Println("[MIGRATION] Failed to create world folder:", worldsFolder)
+			continue
+		}
 
 		zipPath, _, em := res.GetZip(ctx, &w, "worlds", "tip")
 		if em != nil {
@@ -200,7 +212,10 @@ func CasbinPermissions(ctx context.Context, db *gorm.DB) {
 		log.Fatal("[MIGRATION] Error finding organizations to create groups", err)
 	}
 	for _, org := range orgs {
-		globals.Permissions.AddUserGroupRole(*org.Creator, *org.Name, permissions.Owner)
+		_, em := globals.Permissions.AddUserGroupRole(*org.Creator, *org.Name, permissions.Owner)
+		if em != nil {
+			log.Println("Failed to AddUserGroupRole:", em.LogString())
+		}
 	}
 
 	var modelList models.Models
@@ -209,8 +224,14 @@ func CasbinPermissions(ctx context.Context, db *gorm.DB) {
 	}
 	for _, model := range modelList {
 		// add read and write permissions
-		globals.Permissions.AddPermission(*model.Owner, *model.UUID, permissions.Read)
-		globals.Permissions.AddPermission(*model.Owner, *model.UUID, permissions.Write)
+		_, err := globals.Permissions.AddPermission(*model.Owner, *model.UUID, permissions.Read)
+		if err != nil {
+			log.Println("Failed to add read permissions on model to owner", err)
+		}
+		_, err = globals.Permissions.AddPermission(*model.Owner, *model.UUID, permissions.Write)
+		if err != nil {
+			log.Println("Failed to add write permissions on model to owner", err)
+		}
 	}
 
 	var worldList worlds.Worlds
@@ -219,8 +240,14 @@ func CasbinPermissions(ctx context.Context, db *gorm.DB) {
 	}
 	for _, w := range worldList {
 		// add read and write permissions
-		globals.Permissions.AddPermission(*w.Owner, *w.UUID, permissions.Read)
-		globals.Permissions.AddPermission(*w.Owner, *w.UUID, permissions.Write)
+		_, err := globals.Permissions.AddPermission(*w.Owner, *w.UUID, permissions.Read)
+		if err != nil {
+			log.Println("Failed to add read permissions on model to owner", err)
+		}
+		_, err = globals.Permissions.AddPermission(*w.Owner, *w.UUID, permissions.Write)
+		if err != nil {
+			log.Println("Failed to add write permissions on model to owner", err)
+		}
 	}
 }
 

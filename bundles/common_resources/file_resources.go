@@ -2,7 +2,6 @@ package commonres
 
 import (
 	"context"
-	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"os"
 	"path/filepath"
@@ -14,9 +13,9 @@ import (
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/proto"
 	"github.com/gazebo-web/fuel-server/vcs"
-	"github.com/golang/protobuf/proto"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/proto"
 )
 
 // This package contains common functions for file based resources. Eg: model,
@@ -239,7 +238,7 @@ func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder s
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
 func getOrCreateZipLocation(res Resource, subfolder, version string) string {
 	zipsFolder := filepath.Join(globals.ResourceDir, *res.GetOwner(), subfolder, ".zips")
-	os.Mkdir(zipsFolder, 0711)
+	_ = os.Mkdir(zipsFolder, 0711)
 
 	if version == "" || version == "tip" {
 		version = ""
@@ -248,7 +247,7 @@ func getOrCreateZipLocation(res Resource, subfolder, version string) string {
 	}
 
 	// path to this model's zip
-	zipPath := filepath.Join(zipsFolder, strings.Replace(*res.GetUUID(), " ", "_", -1)+version+".zip")
+	zipPath := filepath.Join(zipsFolder, strings.ReplaceAll(*res.GetUUID(), " ", "_")+version+".zip")
 	return zipPath
 }
 
@@ -305,7 +304,7 @@ func CloneResourceRepo(ctx context.Context, res, clone Resource) (vcs.VCS, *gz.E
 	repo = globals.VCSRepoFactory(ctx, *clone.GetLocation())
 	// and tag it with the clone's UUID
 	if err := repo.Tag(ctx, *clone.GetUUID()); err != nil {
-		os.Remove(*clone.GetLocation())
+		_ = os.Remove(*clone.GetLocation())
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 	return repo, nil
@@ -369,8 +368,7 @@ func MoveResource(resource Resource, destOwner string) *gz.ErrMsg {
 	newLocation := strings.Replace(*resource.GetLocation(), searchStr, replaceStr, 1)
 
 	if newLocation == *resource.GetLocation() {
-		extra := fmt.Sprintf("Source and destination owners are identical")
-		return gz.NewErrorMessageWithArgs(gz.ErrorUnauthorized, nil, []string{extra})
+		return gz.NewErrorMessageWithArgs(gz.ErrorUnauthorized, nil, []string{"Source and destination owners are identical"})
 	}
 
 	// Move resource on disk
