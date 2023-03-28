@@ -570,10 +570,10 @@ func writeIgnResourceVersionHeader(w http.ResponseWriter, version int) {
 //
 //	If linkRequested is set to true:
 //		- it will write the URL as a plain text.
-//		- link must contain the URL where to download the resource
+//		- link must contain the URL where to download the resource.
 //	If linkRequested is set to false:
-//		- it will stream the file from the host machine directly to the client
-//		- link must contain the URL where to download the resource
+//		- it will stream the file from the host machine directly to the client.
+//		- link must contain the path in the host machine where to stream the resource from.
 func serveFileOrLink(w http.ResponseWriter, r *http.Request, linkRequested bool, link string, res res.Resource, version int) error {
 	writeIgnResourceVersionHeader(w, version)
 
