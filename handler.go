@@ -566,7 +566,7 @@ func writeIgnResourceVersionHeader(w http.ResponseWriter, version int) {
 	w.Header().Set("X-Ign-Resource-Version", strconv.Itoa(version))
 }
 
-// serveFileOrLink returns a link to download the provided zip file from if linkRequested is set to true.
+// serveFileOrLink streams or returns a link to a resource depending on the criteria defined below.
 //
 //	If linkRequested is set to true:
 //		- it will write the URL as a plain text.
