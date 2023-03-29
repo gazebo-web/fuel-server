@@ -845,7 +845,7 @@ func createWorldResults(ctx context.Context, user *users.User, tx *gorm.DB, elas
 			if ok, _ := users.CheckPermissions(tx, *world.UUID, user, *world.Private, permissions.Read); ok {
 				count++
 				// Encode world into a protobuf message and add it to the list.
-				fuelWorld := (&worlds.Service{}).WorldToProto(&world)
+				fuelWorld := (&worlds.Service{Storage: globals.Storage}).WorldToProto(&world)
 				worldsProto.Worlds = append(worldsProto.Worlds, fuelWorld)
 
 				// Debug:
@@ -886,7 +886,7 @@ func createModelResults(ctx context.Context, user *users.User, tx *gorm.DB, elas
 			if ok, _ := users.CheckPermissions(tx, *model.UUID, user, *model.Private, permissions.Read); ok {
 				count++
 				// Encode model into a protobuf message and add it to the list.
-				fuelModel := (&models.Service{}).ModelToProto(model)
+				fuelModel := (&models.Service{Storage: globals.Storage}).ModelToProto(model)
 				modelsProto.Models = append(modelsProto.Models, fuelModel)
 				// Debug:
 				// fmt.Printf("* Fuel model ID=%s, %s\n",

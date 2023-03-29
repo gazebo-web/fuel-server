@@ -13,6 +13,7 @@ import (
 	"github.com/gazebo-web/fuel-server/proto"
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/jinzhu/gorm"
 	"google.golang.org/protobuf/proto"
 	"net/url"
@@ -23,7 +24,9 @@ import (
 
 // Service is the main struct exported by this Models Service.
 // It was meant as a way to structure code and help future extensions.
-type Service struct{}
+type Service struct {
+	Storage storage.Storage
+}
 
 // GetModel returns a model by its name and owner's name.
 func (ms *Service) GetModel(tx *gorm.DB, owner, name string,
@@ -445,8 +448,8 @@ func (ms *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
 // Optional argument "user" represents the user (if any) requesting the operation.
 // Returns the model, as well as a pointer to the zip's filepath and the
 // resolved version.
-func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelName,
-	version string, u *users.User, agent string) (*Model, *string, int, *gz.ErrMsg) {
+func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelName, version string,
+	u *users.User, agent string, zipGetter res.GetZipResource) (*Model, *string, int, *gz.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, modelName, u)
 	if em != nil {
@@ -465,8 +468,20 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 	if errorMsg != nil {
 		return nil, nil, 0, errorMsg
 	}
-	path, resolvedVersion, em := res.GetZip(ctx, model, "models", version)
-	return model, path, resolvedVersion, em
+
+	_, resolvedVersion, em := res.GetRevisionFromVersion(ctx, model, version)
+	if em != nil {
+		return nil, nil, 0, em
+	}
+
+	// If request link is enabled, the user will perform a subsequent request to download the resource from a cloud provider.
+	// Otherwise, it will expect Fuel to serve the file directly.
+	link, err := zipGetter(ctx, model, models, resolvedVersion)
+	if err != nil {
+		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+
+	return model, &link, resolvedVersion, nil
 }
 
 // UpdateModel updates a model. The user argument is the requesting user. It
@@ -570,12 +585,27 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 
 // updateModelZip creates a new zip file for the given model and also
 // updates its Filesize field in DB.
-func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS,
-	model *Model) *gz.ErrMsg {
-	zSize, em := res.ZipResourceTip(ctx, repo, model, "models")
+func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS, model *Model) *gz.ErrMsg {
+
+	zSize, path, em := res.ZipResourceTip(ctx, repo, model, "models")
 	if em != nil {
 		return em
 	}
+	f, err := os.Open(path)
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+
+	v, err := res.GetLatestVersion(ctx, model)
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+
+	err = ms.Storage.UploadZip(ctx, res.CastResourceToStorageResource(model, uint64(v)), f)
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+
 	model.Filesize = int(zSize)
 	return nil
 }

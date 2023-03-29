@@ -2,12 +2,17 @@ package globals
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/go-playground/form"
 	"gopkg.in/go-playground/validator.v9"
+	"net/http/httptest"
 )
 
 // TODO: remove as much as possible from globals
@@ -65,3 +70,21 @@ var MaxCategoriesPerModel int
 
 // ElasticSearch is a pointer to the Elastic Search client.
 var ElasticSearch *elasticsearch.Client
+
+// SessionS3 contains an AWS session used to perform S3 operations.
+var SessionS3 *session.Session
+
+// S3 contains a reference to the S3 API using the AWS SDK v1 that allows you to interact with a buckets and objects.
+var S3 *s3.S3
+
+// UploaderS3 contains a reference to the S3 API using the AWS SDK v1 that allows you to upload objects to S3.
+var UploaderS3 *s3manager.Uploader
+
+// BucketS3 contains the name of the S3 bucket used to save models and worlds zip files.
+var BucketS3 string
+
+// HTTPTestS3Server is used as a testing web server for interacting with the S3 API on test suites.
+var HTTPTestS3Server *httptest.Server
+
+// Storage holds an implementation of storage.Storage that allows you to upload and download files.
+var Storage storage.Storage

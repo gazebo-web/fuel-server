@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"io"
 	"log"
 	"net/url"
@@ -34,7 +35,9 @@ import (
 const ParseWorldContentsEnvVar = "IGN_FUEL_PARSE_WORLD_MODEL_INCLUDES"
 
 // Service is the main struct exported by this Worlds Service.
-type Service struct{}
+type Service struct {
+	Storage storage.Storage
+}
 
 // GetWorld returns a world by its name and owner's name.
 func (ws *Service) GetWorld(tx *gorm.DB, owner, name string,
@@ -428,8 +431,8 @@ func (ws *Service) FileTree(ctx context.Context, tx *gorm.DB, owner, worldName,
 // Optional argument "user" represents the user (if any) requesting the operation.
 // Returns the world, as well as a pointer to the zip's filepath and the
 // resolved version.
-func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldName,
-	version string, u *users.User, agent string) (*World, *string, int, *gz.ErrMsg) {
+func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldName, version string,
+	u *users.User, agent string, zipGetter res.GetZipResource) (*World, *string, int, *gz.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, worldName, u)
 	if em != nil {
@@ -448,8 +451,15 @@ func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldNam
 	if errorMsg != nil {
 		return nil, nil, 0, errorMsg
 	}
-	path, resolvedVersion, em := res.GetZip(ctx, world, worlds, version)
-	return world, path, resolvedVersion, em
+	_, resolvedVersion, em := res.GetRevisionFromVersion(ctx, world, version)
+	if em != nil {
+		return nil, nil, 0, em
+	}
+	link, err := zipGetter(ctx, world, worlds, resolvedVersion)
+	if err != nil {
+		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+	return world, &link, resolvedVersion, nil
 }
 
 // UpdateWorld updates a world. The user argument is the requesting user. It
@@ -535,10 +545,25 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 // updateZip creates a new zip file for the given world and also
 // updates its Filesize field in DB.
 func (ws *Service) updateZip(ctx context.Context, repo vcs.VCS, world *World) *gz.ErrMsg {
-	zSize, em := res.ZipResourceTip(ctx, repo, world, worlds)
+	zSize, path, em := res.ZipResourceTip(ctx, repo, world, worlds)
 	if em != nil {
 		return em
 	}
+	f, err := os.Open(path)
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+
+	v, err := res.GetLatestVersion(ctx, world)
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+
+	err = ws.Storage.UploadZip(ctx, res.CastResourceToStorageResource(world, uint64(v)), f)
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+
 	world.Filesize = int(zSize)
 	return nil
 }

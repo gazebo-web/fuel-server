@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
+	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/generics"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"log"
 	"mime/multipart"
 	"net/http"
-	"strconv"
 )
 
 // ModelList returns the list of models from a team/user. The returned value
@@ -30,8 +31,7 @@ import (
 func ModelList(p *gz.PaginationRequest, owner *string, order, search string,
 	user *users.User, tx *gorm.DB, w http.ResponseWriter,
 	r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
-
-	ms := &models.Service{}
+	ms := &models.Service{Storage: globals.Storage}
 
 	var categories category.Categories
 
@@ -67,7 +67,7 @@ func ModelLikeList(p *gz.PaginationRequest, owner *string, order, search string,
 	if em != nil {
 		return nil, nil, em
 	}
-	ms := &models.Service{}
+	ms := &models.Service{Storage: globals.Storage}
 	return ms.ModelList(p, tx, owner, order, search, likedBy, user, nil)
 }
 
@@ -86,16 +86,13 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 		return nil, gz.NewErrorMessage(gz.ErrorModelNotInRequest)
 	}
 
-	modelProto, em := (&models.Service{}).ModelFileTree(r.Context(), tx, owner,
+	modelProto, em := (&models.Service{Storage: globals.Storage}).ModelFileTree(r.Context(), tx, owner,
 		modelName, modelVersion, user)
 	if em != nil {
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*modelProto.Version)), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, int(modelProto.GetVersion()))
 
 	return modelProto, nil
 }
@@ -108,16 +105,13 @@ func ModelOwnerVersionFileTree(owner, modelName string, user *users.User, tx *go
 func ModelOwnerIndex(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	ms := &models.Service{}
+	ms := &models.Service{Storage: globals.Storage}
 	fuelModel, em := ms.GetModelProto(r.Context(), tx, owner, modelName, user)
 	if em != nil {
 		return nil, em
 	}
 
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(int(*fuelModel.Version)), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	writeIgnResourceVersionHeader(w, int(fuelModel.GetVersion()))
 
 	return fuelModel, nil
 }
@@ -130,13 +124,13 @@ func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Get the model
-	model, em := (&models.Service{}).GetModel(tx, owner, modelName, user)
+	model, em := (&models.Service{Storage: globals.Storage}).GetModel(tx, owner, modelName, user)
 	if em != nil {
 		return nil, em
 	}
 
 	// Remove the model from the models table
-	if em = (&models.Service{}).RemoveModel(r.Context(), tx, owner, modelName, user); em != nil {
+	if em = (&models.Service{Storage: globals.Storage}).RemoveModel(r.Context(), tx, owner, modelName, user); em != nil {
 		return nil, em
 	}
 
@@ -166,7 +160,7 @@ func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 func ModelOwnerLikeCreate(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&models.Service{}).CreateModelLike(tx, owner, name, user)
+	_, count, em := (&models.Service{Storage: globals.Storage}).CreateModelLike(tx, owner, name, user)
 	if em != nil {
 		return nil, em
 	}
@@ -191,7 +185,7 @@ func ModelOwnerLikeCreate(owner, name string, user *users.User, tx *gorm.DB,
 func ModelOwnerLikeRemove(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&models.Service{}).RemoveModelLike(tx, owner, name, user)
+	_, count, em := (&models.Service{Storage: globals.Storage}).RemoveModelLike(tx, owner, name, user)
 	if em != nil {
 		return nil, em
 	}
@@ -218,7 +212,7 @@ func ModelOwnerLikeRemove(owner, name string, user *users.User, tx *gorm.DB,
 // eg. curl -k -X GET --url https://localhost:4430/1.0/{username}/models/{model_name}/tip/files/model.config
 func ModelOwnerVersionIndividualFileDownload(owner, name string, user *users.User,
 	tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
-	s := &models.Service{}
+	s := &models.Service{Storage: globals.Storage}
 	return IndividualFileDownload(s, owner, name, user, tx, w, r)
 }
 
@@ -235,36 +229,32 @@ func ModelOwnerVersionZip(owner, name string, user *users.User, tx *gorm.DB,
 	if !valid {
 		modelVersion = ""
 	}
+	svc := &models.Service{Storage: globals.Storage}
 
-	model, zipPath, ver, em := (&models.Service{}).DownloadZip(r.Context(), tx,
-		owner, name, modelVersion, user, r.UserAgent())
+	zipGetter := res.DownloadZipFile
+	linkRequested := isLinkRequested(r)
+	if linkRequested {
+		zipGetter = res.GetZipLink(svc.Storage)
+	}
+
+	model, link, ver, em := svc.DownloadZip(r.Context(), tx, owner, name, modelVersion, user, r.UserAgent(), zipGetter)
 	if em != nil {
 		return nil, em
 	}
 
-	zipFileName := fmt.Sprintf("model-%sv%d.zip", *model.UUID, ver)
-
-	// Remove request header to always serve fresh
-	r.Header.Del("If-Modified-Since")
-	// Set zip response headers
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
-	_, err := writeIgnResourceVersionHeader(strconv.Itoa(ver), w, r)
-	if err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
-	// before writing "data" to ResponseWriter. Once you write data (not headers)
-	// into it the status code is set to 200 (OK).
+	// before writing "data" to ResponseWriter.
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
-	// Serve the zip file contents
-	// Note: ServeFile should be always last line, after all headers were set.
-	http.ServeFile(w, r, *zipPath)
+	// If a link was requested, fuel will return a link to a cloud storage where the client can perform a subsequent request
+	// to download the resource. If a link was not requested or if it is not included, it will serve the file directly to the client.
+	if err := serveFileOrLink(w, r, linkRequested, *link, model, ver); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
+	}
+
 	return nil, nil
 }
 
@@ -294,7 +284,7 @@ func ReportModelCreate(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, em
 	}
 
-	if _, em := (&models.Service{}).CreateModelReport(tx, owner, name, createModelReport.Reason); em != nil {
+	if _, em := (&models.Service{Storage: globals.Storage}).CreateModelReport(tx, owner, name, createModelReport.Reason); em != nil {
 		return nil, em
 	}
 

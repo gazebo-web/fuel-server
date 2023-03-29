@@ -446,7 +446,7 @@ func DBPopulate(ctx context.Context, path string, db *gorm.DB, onlyWhenEmpty boo
 				if err != nil {
 					return err
 				}
-				(&models.Service{}).CreateModel(ctx, db, cm, uuidStr, location, &ownerDbUser)
+				(&models.Service{Storage: globals.Storage}).CreateModel(ctx, db, cm, uuidStr, location, &ownerDbUser)
 			}
 			return nil
 		})

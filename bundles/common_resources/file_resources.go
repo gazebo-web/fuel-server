@@ -3,6 +3,7 @@ package commonres
 import (
 	"context"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,6 +31,11 @@ type Resource interface {
 	GetLocation() *string
 	SetLocation(location string)
 	GetUUID() *string
+}
+
+// CastResourceToStorageResource creates a new storage.Resource for the given resource associated to the given version.
+func CastResourceToStorageResource(r Resource, v uint64) storage.Resource {
+	return storage.NewResource(*r.GetUUID(), *r.GetOwner(), v)
 }
 
 // GetFile returns the contents (bytes) of a resource file. Given version is considered.
@@ -208,9 +214,9 @@ func Remove(tx *gorm.DB, res Resource, user string) *gz.ErrMsg {
 }
 
 // ZipResourceTip creates a new zip file for the given resource. Returns the zip
-// Filesize or an error.
+// Filesize and the path to the given zip file or an error.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
-func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, *gz.ErrMsg) {
+func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, string, *gz.ErrMsg) {
 	zipPath := getOrCreateZipLocation(res, subfolder, "")
 
 	// If the zippath doesn't exist, then this is the first version. Recompute
@@ -223,14 +229,14 @@ func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder s
 	_, err := repo.Zip(ctx, "", zipPath)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Info("Error trying to zip resource", err)
-		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		return -1, "", gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
 	fInfo, err := os.Stat(zipPath)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Info("Error getting zip file info / stat", err)
-		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		return -1, "", gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
-	return fInfo.Size(), nil
+	return fInfo.Size(), zipPath, nil
 }
 
 // getOrCreateZipLocation either returns the path to an existing resource's zip
@@ -381,4 +387,24 @@ func MoveResource(resource Resource, destOwner string) *gz.ErrMsg {
 	resource.SetOwner(destOwner)
 
 	return nil
+}
+
+// GetZipResource defines a function that allows getting a zip file from a local or remote location.
+type GetZipResource func(ctx context.Context, resource Resource, kind string, version int) (string, error)
+
+// GetZipLink allows to get the link to a zip file.
+func GetZipLink(storage storage.Storage) GetZipResource {
+	return func(ctx context.Context, resource Resource, kind string, version int) (string, error) {
+		return storage.Download(ctx, CastResourceToStorageResource(resource, uint64(version)))
+	}
+}
+
+// DownloadZipFile allows to serve a file directly, it returns the path to the zip file from the EFS drive.
+// This method was added for backward compatibility with fuel clients that don't support redirects nor links to cloud providers.
+func DownloadZipFile(ctx context.Context, resource Resource, kind string, version int) (string, error) {
+	l, _, em := GetZip(ctx, resource, kind, strconv.Itoa(version))
+	if em != nil {
+		return "", em.BaseError
+	}
+	return *l, nil
 }

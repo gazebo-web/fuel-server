@@ -634,6 +634,7 @@ func runSubtestWithModelIndexTestData(t *testing.T, test modelIndexTest) {
 		if test.expThumbURL == "" {
 			assert.Nil(t, gotModel.ThumbnailUrl)
 		} else {
+			require.NotNil(t, gotModel.ThumbnailUrl)
 			assert.Equal(t, test.expThumbURL, *gotModel.ThumbnailUrl, "Got thumbanil url [%s] is different than expected [%s]", *gotModel.ThumbnailUrl, test.expThumbURL)
 		}
 		// Test the model was stored at `IGN_FUEL_RESOURCE_DIR/{user}/models/{uuid}`

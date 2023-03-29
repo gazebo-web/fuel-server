@@ -32,16 +32,25 @@ package main
 // Import this file's dependencies
 import (
 	"context"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/gazebo-web/fuel-server/bundles/subt"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/migrate"
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/go-playground/form"
+	"github.com/johannesboyne/gofakes3"
+	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"gopkg.in/go-playground/validator.v9"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -203,28 +212,38 @@ func init() {
 		// Initialize SubT database
 		subt.Initialize(logCtx, globals.Server.Db)
 		// Set SubT's default cloud implementation (S3)
-		useAwsInTests := false
-		awsBucketEnvVar := "AWS_BUCKET_PREFIX"
 		if isGoTest {
-			useStr, err := gz.ReadEnvVar("AWS_BUCKET_USE_IN_TESTS")
-			if err == nil {
-				flag, err2 := strconv.ParseBool(useStr)
-				if err2 == nil {
-					useAwsInTests = flag
-				}
+			globals.BucketS3 = "fuel-test"
+			globals.HTTPTestS3Server = httptest.NewServer(gofakes3.New(s3mem.New()).Server())
+			cfg := aws.Config{
+				Credentials:      credentials.NewStaticCredentials("YOUR-ACCESSKEYID", "YOUR-SECRETACCESSKEY", ""),
+				Endpoint:         aws.String(globals.HTTPTestS3Server.URL),
+				Region:           aws.String("us-east-1"),
+				DisableSSL:       aws.Bool(true),
+				S3ForcePathStyle: aws.Bool(true),
 			}
-			if useAwsInTests {
-				awsBucketEnvVar += "_TEST"
+			globals.SessionS3 = session.Must(session.NewSession(&cfg))
+			globals.S3 = s3.New(globals.SessionS3)
+			globals.UploaderS3 = s3manager.NewUploader(globals.SessionS3)
+			_, err = globals.S3.CreateBucket(&s3.CreateBucketInput{Bucket: gz.String(globals.BucketS3)})
+			if err != nil {
+				panic("error creating test bucket:" + err.Error())
 			}
 		}
-		if !isGoTest || useAwsInTests {
-			p, err := gz.ReadEnvVar(awsBucketEnvVar)
+		if !isGoTest {
+			p, err := gz.ReadEnvVar("S3_BUCKET")
 			if err != nil {
-				panic("error reading " + awsBucketEnvVar)
+				panic("error reading S3_BUCKET env var")
 			}
+			globals.SessionS3 = session.Must(session.NewSession())
+			globals.S3 = s3.New(globals.SessionS3)
+			globals.UploaderS3 = s3manager.NewUploader(globals.SessionS3)
+			globals.BucketS3 = p
 			subt.BucketServerImpl = subt.NewS3Bucket(p)
 		}
 	}
+
+	globals.Storage = storage.NewS3v1(globals.S3, globals.UploaderS3, globals.BucketS3)
 
 	// Set the default location to Collections (if missing).
 	migrate.CollectionsSetDefaultLocation(logCtx, globals.Server.Db)
