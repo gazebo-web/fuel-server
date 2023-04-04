@@ -173,7 +173,7 @@ func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&worlds.Service{Storage: globals.Storage}).CreateWorldLike(tx, owner, worldName, user)
+	_, em := (&worlds.Service{Storage: globals.Storage}).CreateWorldLike(tx, owner, worldName, user)
 	if em != nil {
 		return nil, em
 	}
@@ -186,7 +186,6 @@ func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprint(w, count)
 	return nil, nil
 }
 
@@ -198,7 +197,7 @@ func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
 func WorldLikeRemove(owner, worldName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&worlds.Service{Storage: globals.Storage}).RemoveWorldLike(tx, owner, worldName, user)
+	_, em := (&worlds.Service{Storage: globals.Storage}).RemoveWorldLike(tx, owner, worldName, user)
 	if em != nil {
 		return nil, em
 	}
@@ -212,7 +211,6 @@ func WorldLikeRemove(owner, worldName string, user *users.User, tx *gorm.DB,
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprint(w, count)
 	return nil, nil
 }
 

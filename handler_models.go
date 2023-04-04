@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
@@ -160,7 +159,7 @@ func ModelOwnerRemove(owner, modelName string, user *users.User, tx *gorm.DB,
 func ModelOwnerLikeCreate(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&models.Service{Storage: globals.Storage}).CreateModelLike(tx, owner, name, user)
+	_, em := (&models.Service{Storage: globals.Storage}).CreateModelLike(tx, owner, name, user)
 	if em != nil {
 		return nil, em
 	}
@@ -173,7 +172,6 @@ func ModelOwnerLikeCreate(owner, name string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprint(w, count)
 	return nil, nil
 }
 
@@ -185,7 +183,7 @@ func ModelOwnerLikeCreate(owner, name string, user *users.User, tx *gorm.DB,
 func ModelOwnerLikeRemove(owner, name string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&models.Service{Storage: globals.Storage}).RemoveModelLike(tx, owner, name, user)
+	_, em := (&models.Service{Storage: globals.Storage}).RemoveModelLike(tx, owner, name, user)
 	if em != nil {
 		return nil, em
 	}
@@ -199,7 +197,6 @@ func ModelOwnerLikeRemove(owner, name string, user *users.User, tx *gorm.DB,
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprint(w, count)
 	return nil, nil
 }
 
