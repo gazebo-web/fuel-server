@@ -494,7 +494,7 @@ func TestModelLikeCreateDbMock(t *testing.T) {
 	SetupCommonMockResponses("test user")
 	ClearMockBadCommit()
 	// Make the Count DB query fail
-	mocket.Catcher.NewMock().WithQuery("SELECT count(*) FROM \"model_likes\"  WHERE").WithQueryException()
+	mocket.Catcher.NewMock().WithQuery("UPDATE \"models\" SET \"likes\"").WithExecException()
 	expErr = gz.ErrorMessage(gz.ErrorDbSave)
 	bslice, _ = gztest.AssertRouteMultipleArgs("POST", uri, nil, expErr.StatusCode, &myJWT, "text/plain; charset=utf-8", t)
 	gztest.AssertBackendErrorCode("TestModelLikeCreateDbMock", bslice, expErr.ErrCode, t)
