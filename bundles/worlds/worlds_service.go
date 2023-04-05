@@ -290,7 +290,7 @@ func (ws *Service) CreateWorldLike(tx *gorm.DB, owner, worldName string, user *u
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of likes of the world.
-	errorMsg := ws.increaseLikeCounter(tx, world)
+	errorMsg := ws.increaseLikeCounter(tx, world, 1)
 	if errorMsg != nil {
 		return nil, errorMsg
 	}
@@ -335,14 +335,19 @@ func (ws *Service) RemoveWorldLike(tx *gorm.DB, owner, worldName string, user *u
 
 	// Unlike the world.
 	var worldLike WorldLike
-	if err := tx.Where("user_id = ? AND world_id = ?", &user.ID, &world.ID).Delete(&worldLike).Error; err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
+	q := tx.Where("user_id = ? AND world_id = ?", &user.ID, &world.ID).Delete(&worldLike)
+	if q.Error != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, q.Error)
 	}
-	// Update the number of likes of the world.
-	errorMsg := ws.decreaseLikeCounter(tx, world)
-	if errorMsg != nil {
-		return nil, errorMsg
+
+	// Decrease the number of likes of the world if there was an existing like
+	if q.RowsAffected > 0 {
+		errorMsg := ws.decreaseLikeCounter(tx, world, uint(q.RowsAffected))
+		if errorMsg != nil {
+			return nil, errorMsg
+		}
 	}
+
 	return &worldLike, nil
 }
 
@@ -391,14 +396,14 @@ func (ws *Service) computeLikeCounter(tx *gorm.DB, world *World) *gz.ErrMsg {
 	return nil
 }
 
-// increaseLikeCounter increases the current like count of a world by 1.
-func (ws *Service) increaseLikeCounter(tx *gorm.DB, world *World) *gz.ErrMsg {
-	return ws.applyExpression(tx, world, "likes", gorm.Expr("likes + 1"))
+// increaseLikeCounter increases the current like count of a world.
+func (ws *Service) increaseLikeCounter(tx *gorm.DB, world *World, delta uint) *gz.ErrMsg {
+	return ws.applyExpression(tx, world, "likes", gorm.Expr("likes + ?", delta))
 }
 
-// decreaseLikeCounter decreases the current like count of a world by 1.
-func (ws *Service) decreaseLikeCounter(tx *gorm.DB, world *World) *gz.ErrMsg {
-	return ws.applyExpression(tx, world, "likes", gorm.Expr("likes - 1"))
+// decreaseLikeCounter decreases the current like count of a world.
+func (ws *Service) decreaseLikeCounter(tx *gorm.DB, world *World, delta uint) *gz.ErrMsg {
+	return ws.applyExpression(tx, world, "likes", gorm.Expr("likes - ?", delta))
 }
 
 // computeDownloadCounter counts the number of downloads and updates the world accordingly.
@@ -419,8 +424,8 @@ func (ws *Service) computeDownloadCounter(tx *gorm.DB, world *World) *gz.ErrMsg 
 }
 
 // increaseDownloadCounter increases the current download count of a world by 1.
-func (ws *Service) increaseDownloadCounter(tx *gorm.DB, world *World) *gz.ErrMsg {
-	return ws.applyExpression(tx, world, "downloads", gorm.Expr("downloads + 1"))
+func (ws *Service) increaseDownloadCounter(tx *gorm.DB, world *World, delta uint) *gz.ErrMsg {
+	return ws.applyExpression(tx, world, "downloads", gorm.Expr("downloads + ?", delta))
 }
 
 // GetFile returns the contents (bytes) of a world file. World version is considered.
@@ -470,7 +475,7 @@ func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldNam
 		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of downloads of the world.
-	errorMsg := ws.increaseDownloadCounter(tx, world)
+	errorMsg := ws.increaseDownloadCounter(tx, world, 1)
 	if errorMsg != nil {
 		return nil, nil, 0, errorMsg
 	}
