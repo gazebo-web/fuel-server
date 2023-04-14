@@ -448,10 +448,7 @@ func TestModelLikeCreateAndDelete(t *testing.T) {
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
 				gztest.AssertBackendErrorCode(t.Name()+" "+test.method, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
-				// Verify that the response contains the new number of likes
-				likesCounter, err := strconv.Atoi(string(*bslice))
-				assert.NoError(t, err, "Couldn't convert the received likes counter to int.")
-				assert.Equal(t, test.expLikes, likesCounter, "Response Likes count [%d] should be equal to [%d]", likesCounter, test.expLikes)
+				// Verify that the database was updated to reflect the new number of likes
 				m := getOwnerModelFromDb(t, test.username, test.modelname)
 				assert.NotNil(t, m)
 				assert.Equal(t, test.expLikes, m.Likes, "Model's like counter [%d] should be equal to exp: [%d]", m.Likes, test.expLikes)
@@ -497,7 +494,7 @@ func TestModelLikeCreateDbMock(t *testing.T) {
 	SetupCommonMockResponses("test user")
 	ClearMockBadCommit()
 	// Make the Count DB query fail
-	mocket.Catcher.NewMock().WithQuery("SELECT count(*) FROM \"model_likes\"  WHERE").WithQueryException()
+	mocket.Catcher.NewMock().WithQuery("UPDATE \"models\" SET \"likes\"").WithExecException()
 	expErr = gz.ErrorMessage(gz.ErrorDbSave)
 	bslice, _ = gztest.AssertRouteMultipleArgs("POST", uri, nil, expErr.StatusCode, &myJWT, "text/plain; charset=utf-8", t)
 	gztest.AssertBackendErrorCode("TestModelLikeCreateDbMock", bslice, expErr.ErrCode, t)

@@ -273,30 +273,28 @@ func (ws *Service) getWorldLike(tx *gorm.DB, world *World, user *users.User) (*W
 }
 
 // CreateWorldLike creates a WorldLike.
-// Returns the created worldLike, the current count of likes, or an gz.errMsg.
-func (ws *Service) CreateWorldLike(tx *gorm.DB, owner, worldName string,
-	user *users.User) (*WorldLike, int, *gz.ErrMsg) {
-
+// Returns the created worldLike, or a gz.errMsg.
+func (ws *Service) CreateWorldLike(tx *gorm.DB, owner, worldName string, user *users.User) (*WorldLike, *gz.ErrMsg) {
 	if user == nil {
-		return nil, 0, gz.NewErrorMessage(gz.ErrorAuthNoUser)
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
 	}
 
 	world, em := ws.GetWorld(tx, owner, worldName, user)
 	if em != nil {
-		return nil, 0, em
+		return nil, em
 	}
 
 	// Register the like.
 	worldLike := WorldLike{UserID: &user.ID, WorldID: &world.ID}
 	if err := tx.Create(&worldLike).Error; err != nil {
-		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of likes of the world.
-	count, errorMsg := ws.updateLikeCounter(tx, world)
+	errorMsg := ws.increaseLikeCounter(tx, world, 1)
 	if errorMsg != nil {
-		return nil, 0, errorMsg
+		return nil, errorMsg
 	}
-	return &worldLike, count, nil
+	return &worldLike, nil
 }
 
 // CreateWorldReport creates a WorldReport
@@ -323,62 +321,42 @@ func (ws *Service) CreateWorldReport(tx *gorm.DB, owner, worldName, reason strin
 }
 
 // RemoveWorldLike removes a worldLike.
-// Returns the removed worldLike, the current count of likes, or an gz.errMsg.
-func (ws *Service) RemoveWorldLike(tx *gorm.DB, owner, worldName string,
-	user *users.User) (*WorldLike, int, *gz.ErrMsg) {
+// Returns the removed worldLike or a gz.errMsg.
+func (ws *Service) RemoveWorldLike(tx *gorm.DB, owner, worldName string, user *users.User) (*WorldLike, *gz.ErrMsg) {
 
 	if user == nil {
-		return nil, 0, gz.NewErrorMessage(gz.ErrorAuthNoUser)
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
 	}
 
 	world, em := ws.GetWorld(tx, owner, worldName, user)
 	if em != nil {
-		return nil, 0, em
+		return nil, em
 	}
 
 	// Unlike the world.
 	var worldLike WorldLike
-	if err := tx.Where("user_id = ? AND world_id = ?", &user.ID, &world.ID).Delete(&worldLike).Error; err != nil {
-		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
+	q := tx.Where("user_id = ? AND world_id = ?", &user.ID, &world.ID).Delete(&worldLike)
+	if q.Error != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, q.Error)
 	}
-	// Update the number of likes of the world.
-	count, errorMsg := ws.updateLikeCounter(tx, world)
-	if errorMsg != nil {
-		return nil, 0, errorMsg
+
+	// Decrease the number of likes of the world if there was an existing like
+	if q.RowsAffected > 0 {
+		errorMsg := ws.decreaseLikeCounter(tx, world, uint(q.RowsAffected))
+		if errorMsg != nil {
+			return nil, errorMsg
+		}
 	}
-	return &worldLike, count, nil
+
+	return &worldLike, nil
 }
 
-// updateLikeCounter counts the number of likes and updates the world accordingly.
-func (ws *Service) updateLikeCounter(tx *gorm.DB, world *World) (int, *gz.ErrMsg) {
-	var counter int
-	// Count the number of likes of the world.
-	if err := tx.Model(&WorldLike{}).Where("world_id = ?", world.ID).Count(&counter).Error; err != nil {
-		// Note: This is not currently covered by the tests.
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
+// applyExpression updates a world using SQL expression that can perform operations on referred values.
+func (ws *Service) applyExpression(tx *gorm.DB, world *World, field string, expr *gorm.SqlExpr) *gz.ErrMsg {
+	if err := tx.Model(world).Update(field, expr).Error; err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
-	// Update the number of likes of the world.
-	if err := tx.Model(world).Update("likes", counter).Error; err != nil {
-		// Note: This is not currently covered by the tests.
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
-	}
-	return counter, nil
-}
-
-// updateDownloadsCounter counts the number of downloads and updates the world
-// accordingly.
-func (ws *Service) updateDownloadsCounter(tx *gorm.DB, world *World) (int, *gz.ErrMsg) {
-	var count int
-	// Count the number of downloads of the world.
-	if err := tx.Model(&WorldDownload{}).Where("world_id = ?", world.ID).Count(&count).Error; err != nil {
-		// Note: This is not currently covered by the tests.
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
-	}
-	// Update the number of downloads of the world.
-	if err := tx.Model(world).Update("Downloads", count).Error; err != nil {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
-	}
-	return count, nil
+	return nil
 }
 
 // ComputeAllCounters is an initialization function that iterates
@@ -390,14 +368,64 @@ func (ws *Service) ComputeAllCounters(tx *gorm.DB) *gz.ErrMsg {
 		return gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 	}
 	for _, w := range worldList {
-		if _, em := ws.updateLikeCounter(tx, &w); em != nil {
+		if em := ws.computeLikeCounter(tx, &w); em != nil {
 			return em
 		}
-		if _, em := ws.updateDownloadsCounter(tx, &w); em != nil {
+		if em := ws.computeDownloadCounter(tx, &w); em != nil {
 			return em
 		}
 	}
 	return nil
+}
+
+// computeLikeCounter counts the number of likes and updates the world accordingly.
+// This query is VERY EXPENSIVE. Only use to set the state if it doesn't exist.
+// For all other purposes, the use of increase/decreaseLikeCounter is recommended.
+func (ws *Service) computeLikeCounter(tx *gorm.DB, world *World) *gz.ErrMsg {
+	// Count the number of likes of the world.
+	var counter int
+	if err := tx.Model(&WorldLike{}).Where("world_id = ?", world.ID).Count(&counter).Error; err != nil {
+		// Note: This is not currently covered by the tests.
+		return gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
+	}
+	// Update the number of likes of the world.
+	if err := tx.Model(world).Update("likes", counter).Error; err != nil {
+		// Note: This is not currently covered by the tests.
+		return gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
+	}
+	return nil
+}
+
+// increaseLikeCounter increases the current like count of a world.
+func (ws *Service) increaseLikeCounter(tx *gorm.DB, world *World, delta uint) *gz.ErrMsg {
+	return ws.applyExpression(tx, world, "likes", gorm.Expr("likes + ?", delta))
+}
+
+// decreaseLikeCounter decreases the current like count of a world.
+func (ws *Service) decreaseLikeCounter(tx *gorm.DB, world *World, delta uint) *gz.ErrMsg {
+	return ws.applyExpression(tx, world, "likes", gorm.Expr("likes - ?", delta))
+}
+
+// computeDownloadCounter counts the number of downloads and updates the world accordingly.
+// This query is VERY EXPENSIVE. Only use to set the state if it doesn't exist.
+// For all other purposes, the use of increaseDownloadCounter is recommended.
+func (ws *Service) computeDownloadCounter(tx *gorm.DB, world *World) *gz.ErrMsg {
+	// Count the number of downloads of the world.
+	var count int
+	if err := tx.Model(&WorldDownload{}).Where("world_id = ?", world.ID).Count(&count).Error; err != nil {
+		// Note: This is not currently covered by the tests.
+		return gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
+	}
+	// Update the number of downloads of the world.
+	if err := tx.Model(world).Update("Downloads", count).Error; err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
+	}
+	return nil
+}
+
+// increaseDownloadCounter increases the current download count of a world by 1.
+func (ws *Service) increaseDownloadCounter(tx *gorm.DB, world *World, delta uint) *gz.ErrMsg {
+	return ws.applyExpression(tx, world, "downloads", gorm.Expr("downloads + ?", delta))
 }
 
 // GetFile returns the contents (bytes) of a world file. World version is considered.
@@ -447,7 +475,7 @@ func (ws *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, worldNam
 		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of downloads of the world.
-	_, errorMsg := ws.updateDownloadsCounter(tx, world)
+	errorMsg := ws.increaseDownloadCounter(tx, world, 1)
 	if errorMsg != nil {
 		return nil, nil, 0, errorMsg
 	}
