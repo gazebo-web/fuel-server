@@ -304,35 +304,32 @@ func (ms *Service) getModelLike(tx *gorm.DB, model *Model, user *users.User) (*M
 }
 
 // CreateModelLike creates a ModelLike.
-// Returns the created modelLike, the current count of likes, or an gz.errMsg.
-func (ms *Service) CreateModelLike(tx *gorm.DB, owner, modelName string,
-	user *users.User) (*ModelLike, int, *gz.ErrMsg) {
-
+// Returns the created modelLike, or a gz.errMsg.
+func (ms *Service) CreateModelLike(tx *gorm.DB, owner, modelName string, user *users.User) (*ModelLike, *gz.ErrMsg) {
 	if user == nil {
-		return nil, 0, gz.NewErrorMessage(gz.ErrorAuthNoUser)
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
 	}
 
 	model, em := ms.GetModel(tx, owner, modelName, user)
 	if em != nil {
-		return nil, 0, em
+		return nil, em
 	}
 
 	// Register the like.
 	modelLike := ModelLike{UserID: &user.ID, ModelID: &model.ID}
 	if err := tx.Create(&modelLike).Error; err != nil {
-		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of likes of the model.
-	count, errorMsg := ms.updateLikesCounter(tx, model)
+	errorMsg := ms.increaseLikeCounter(tx, model, 1)
 	if errorMsg != nil {
-		return nil, 0, errorMsg
+		return nil, errorMsg
 	}
-	return &modelLike, count, nil
+	return &modelLike, nil
 }
 
 // CreateModelReport creates a ModelReport
 func (ms *Service) CreateModelReport(tx *gorm.DB, owner, modelName, reason string) (*ModelReport, *gz.ErrMsg) {
-
 	model, err := GetModelByName(tx, modelName, owner)
 
 	if err != nil {
@@ -354,30 +351,41 @@ func (ms *Service) CreateModelReport(tx *gorm.DB, owner, modelName, reason strin
 }
 
 // RemoveModelLike removes a ModelLike.
-// Returns the removed modelLike, the current count of likes, or an gz.errMsg.
-func (ms *Service) RemoveModelLike(tx *gorm.DB, owner, modelName string,
-	user *users.User) (*ModelLike, int, *gz.ErrMsg) {
-
+// Returns the removed modelLike or a gz.errMsg.
+func (ms *Service) RemoveModelLike(tx *gorm.DB, owner, modelName string, user *users.User) (*ModelLike, *gz.ErrMsg) {
 	if user == nil {
-		return nil, 0, gz.NewErrorMessage(gz.ErrorAuthNoUser)
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
 	}
 
 	model, em := ms.GetModel(tx, owner, modelName, user)
 	if em != nil {
-		return nil, 0, em
+		return nil, em
 	}
 
 	// Unlike the model.
 	var modelLike ModelLike
-	if err := tx.Where("user_id = ? AND model_id = ?", &user.ID, &model.ID).Delete(&modelLike).Error; err != nil {
-		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
+	q := tx.Where("user_id = ? AND model_id = ?", &user.ID, &model.ID).Delete(&modelLike)
+	if q.Error != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, q.Error)
 	}
-	// Update the number of likes of the model.
-	count, errorMsg := ms.updateLikesCounter(tx, model)
-	if errorMsg != nil {
-		return nil, 0, errorMsg
+
+	// Decrease the number of likes of the model if there was an existing like
+	if q.RowsAffected > 0 {
+		errorMsg := ms.decreaseLikeCounter(tx, model, uint(q.RowsAffected))
+		if errorMsg != nil {
+			return nil, errorMsg
+		}
 	}
-	return &modelLike, count, nil
+
+	return &modelLike, nil
+}
+
+// applyExpression updates a model using SQL expression that can perform operations on referred values.
+func (ms *Service) applyExpression(tx *gorm.DB, model *Model, field string, expr *gorm.SqlExpr) *gz.ErrMsg {
+	if err := tx.Model(model).Update(field, expr).Error; err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
+	}
+	return nil
 }
 
 // ComputeAllCounters is an initialization function that iterates
@@ -389,18 +397,20 @@ func (ms *Service) ComputeAllCounters(tx *gorm.DB) *gz.ErrMsg {
 		return gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 	}
 	for _, model := range modelList {
-		if _, em := ms.updateLikesCounter(tx, &model); em != nil {
+		if _, em := ms.computeLikeCounter(tx, &model); em != nil {
 			return em
 		}
-		if _, em := ms.updateDownloadsCounter(tx, &model); em != nil {
+		if _, em := ms.computeDownloadCounter(tx, &model); em != nil {
 			return em
 		}
 	}
 	return nil
 }
 
-// updateLikesCounter counts the number of likes and updates the model accordingly.
-func (ms *Service) updateLikesCounter(tx *gorm.DB, model *Model) (int, *gz.ErrMsg) {
+// computeLikeCounter counts the number of likes and updates the model accordingly.
+// This query is VERY EXPENSIVE. Only use to set the state if it doesn't exist.
+// For all other purposes, the use of increase/decreaseLikeCounter is recommended.
+func (ms *Service) computeLikeCounter(tx *gorm.DB, model *Model) (int, *gz.ErrMsg) {
 	var counter int
 	// Count the number of likes of the model.
 	if err := tx.Model(&ModelLike{}).Where("model_id = ?", model.ID).Count(&counter).Error; err != nil {
@@ -415,9 +425,20 @@ func (ms *Service) updateLikesCounter(tx *gorm.DB, model *Model) (int, *gz.ErrMs
 	return counter, nil
 }
 
-// updateDownloadsCounter counts the number of downloads and updates the
-// model accordingly.
-func (ms *Service) updateDownloadsCounter(tx *gorm.DB, model *Model) (int, *gz.ErrMsg) {
+// increaseLikeCounter increases the current like count of a model.
+func (ms *Service) increaseLikeCounter(tx *gorm.DB, model *Model, delta uint) *gz.ErrMsg {
+	return ms.applyExpression(tx, model, "likes", gorm.Expr("likes + ?", delta))
+}
+
+// decreaseLikeCounter decreases the current like count of a model.
+func (ms *Service) decreaseLikeCounter(tx *gorm.DB, model *Model, delta uint) *gz.ErrMsg {
+	return ms.applyExpression(tx, model, "likes", gorm.Expr("likes - ?", delta))
+}
+
+// computeDownloadCounter counts the number of downloads and updates the model accordingly.
+// This query is VERY EXPENSIVE. Only use to set the state if it doesn't exist.
+// For all other purposes, the use of increaseDownloadCounter is recommended.
+func (ms *Service) computeDownloadCounter(tx *gorm.DB, model *Model) (int, *gz.ErrMsg) {
 	// Count the number of downloads of the model.
 	var count int
 	if err := tx.Model(&ModelDownload{}).Where("model_id = ?", model.ID).Count(&count).Error; err != nil {
@@ -427,6 +448,11 @@ func (ms *Service) updateDownloadsCounter(tx *gorm.DB, model *Model) (int, *gz.E
 		return 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	return count, nil
+}
+
+// increaseDownloadCounter increases the current download count of a model by 1.
+func (ms *Service) increaseDownloadCounter(tx *gorm.DB, model *Model, delta uint) *gz.ErrMsg {
+	return ms.applyExpression(tx, model, "downloads", gorm.Expr("downloads + ?", delta))
 }
 
 // GetFile returns the contents (bytes) of a model file. Model version is considered.
@@ -464,7 +490,7 @@ func (ms *Service) DownloadZip(ctx context.Context, tx *gorm.DB, owner, modelNam
 		return nil, nil, 0, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	// Update the number of downloads of the model.
-	_, errorMsg := ms.updateDownloadsCounter(tx, model)
+	errorMsg := ms.increaseDownloadCounter(tx, model, 1)
 	if errorMsg != nil {
 		return nil, nil, 0, errorMsg
 	}
