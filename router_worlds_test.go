@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"strconv"
 	"testing"
 
 	"github.com/gazebo-web/fuel-server/bundles/models"
@@ -309,10 +308,7 @@ func TestWorldLikeCreateAndDelete(t *testing.T) {
 			if expStatus != http.StatusOK && !test.ignoreErrorBody {
 				gztest.AssertBackendErrorCode(t.Name()+" "+test.method, bslice, expEm.ErrCode, t)
 			} else if expStatus == http.StatusOK {
-				// Verify that the response contains the new number of likes
-				likesCounter, err := strconv.Atoi(string(*bslice))
-				assert.NoError(t, err, "Couldn't convert the received likes counter to int.")
-				assert.Equal(t, test.expLikes, likesCounter, "Response Likes count [%d] should be equal to [%d]", likesCounter, test.expLikes)
+				// Verify that the database was updated to reflect the new number of likes
 				w := getWorldFromDb(t, test.username, test.name)
 				assert.NotNil(t, w)
 				assert.Equal(t, test.expLikes, w.Likes, "World's like counter [%d] should be equal to exp: [%d]", w.Likes, test.expLikes)

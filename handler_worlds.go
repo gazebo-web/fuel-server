@@ -173,7 +173,7 @@ func WorldRemove(owner, name string, user *users.User, tx *gorm.DB,
 func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&worlds.Service{Storage: globals.Storage}).CreateWorldLike(tx, owner, worldName, user)
+	_, em := (&worlds.Service{Storage: globals.Storage}).CreateWorldLike(tx, owner, worldName, user)
 	if em != nil {
 		return nil, em
 	}
@@ -186,7 +186,6 @@ func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprint(w, count)
 	return nil, nil
 }
 
@@ -198,7 +197,7 @@ func WorldLikeCreate(owner, worldName string, user *users.User, tx *gorm.DB,
 func WorldLikeRemove(owner, worldName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	_, count, em := (&worlds.Service{Storage: globals.Storage}).RemoveWorldLike(tx, owner, worldName, user)
+	_, em := (&worlds.Service{Storage: globals.Storage}).RemoveWorldLike(tx, owner, worldName, user)
 	if em != nil {
 		return nil, em
 	}
@@ -212,7 +211,6 @@ func WorldLikeRemove(owner, worldName string, user *users.User, tx *gorm.DB,
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprint(w, count)
 	return nil, nil
 }
 
@@ -259,11 +257,13 @@ func WorldZip(owner, name string, user *users.User, tx *gorm.DB,
 
 	// commit the DB transaction
 	// Note: we commit the TX here on purpose, to be able to detect DB errors
-	// before writing "data" to ResponseWriter. Once you write data (not headers)
+	// before writing "data" to ResponseWriter.
 	if err := tx.Commit().Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}
 
+	// If a link was requested, fuel will return a link to a cloud storage where the client can perform a subsequent request
+	// to download the resource. If a link was not requested or if it is not included, it will serve the file directly to the client.
 	if err := serveFileOrLink(w, r, linkRequested, *link, world, ver); err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
 	}

@@ -392,14 +392,15 @@ func MoveResource(resource Resource, destOwner string) *gz.ErrMsg {
 // GetZipResource defines a function that allows getting a zip file from a local or remote location.
 type GetZipResource func(ctx context.Context, resource Resource, kind string, version int) (string, error)
 
-// GetZipLink allows to get the link to a zip file hosted in a remote location.
+// GetZipLink allows to get the link to a zip file.
 func GetZipLink(storage storage.Storage) GetZipResource {
 	return func(ctx context.Context, resource Resource, kind string, version int) (string, error) {
 		return storage.Download(ctx, CastResourceToStorageResource(resource, uint64(version)))
 	}
 }
 
-// DownloadZipFile allows to serve a file directly, it returns the path to the zip file.
+// DownloadZipFile allows to serve a file directly, it returns the path to the zip file from the EFS drive.
+// This method was added for backward compatibility with fuel clients that don't support redirects nor links to cloud providers.
 func DownloadZipFile(ctx context.Context, resource Resource, kind string, version int) (string, error) {
 	l, _, em := GetZip(ctx, resource, kind, strconv.Itoa(version))
 	if em != nil {

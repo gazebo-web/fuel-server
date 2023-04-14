@@ -159,11 +159,11 @@ func RecomputeDownloadsAndLikes(ctx context.Context, db *gorm.DB) {
 
 	if em := (&models.Service{Storage: globals.Storage}).ComputeAllCounters(tx); em != nil {
 		tx.Rollback()
-		log.Fatal("[MIGRATION] Error while recomputing likes and downloads", em.BaseError)
+		log.Fatal("[MIGRATION] Error while recomputing model likes and downloads", em.BaseError)
 	}
 	if em := (&worlds.Service{Storage: globals.Storage}).ComputeAllCounters(tx); em != nil {
 		tx.Rollback()
-		log.Fatal("[MIGRATION] Error while recomputing likes and downloads", em.BaseError)
+		log.Fatal("[MIGRATION] Error while recomputing world likes and downloads", em.BaseError)
 	}
 
 	if err := tx.Commit().Error; err != nil {
