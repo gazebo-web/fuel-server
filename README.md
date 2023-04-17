@@ -287,21 +287,6 @@ catch migration errors on the staging Elastic beanstalk instance. The
 integration database is used during testing and development. This database
 is frequently wiped and altered.
 
-## Leaderboards
-
-There may be some cases where scores for specific organizations or circuits 
-should not be displayed in competition leaderboards. There are environment 
-variables available to control which organizations and circuits should not be 
-displayed in leaderboards. These environment variables do not stop scores from 
-being produced, they only filter `/subt/leaderboard` results.
-
-1. `IGN_FUEL_TEST_ORGANIZATIONS` List of organizations to filter from 
-leaderboard scores.
-2. `IGN_FUEL_HIDE_CIRCUIT_SCORES` List of circuits to filter from leaderboard 
-scores.
-
-All of these environment variables can contain multiple comma-separated values.
-
 ## Testing and Development
 
 1. `IGN_POPULATE_PATH` : Path to a set of Gazebo models. Setting this variable will populate the database with these models.
