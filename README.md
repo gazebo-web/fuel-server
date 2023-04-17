@@ -51,7 +51,7 @@
     ```
 
     ```
-    wget https://raw.githubusercontent.com/golang/go/release-branch.go1.8/src/crypto/tls/generate_cert.go
+    wget https://raw.githubusercontent.com/golang/go/release-branch.go1.19/src/crypto/tls/generate_cert.go
     ```
 
     ```
