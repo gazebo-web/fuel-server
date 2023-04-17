@@ -248,8 +248,10 @@ Then load the env vars using `source .env.bash` from the bash terminal where you
 1. `IGN_DB_MAX_OPEN_CONNS` : Max number of open connections in connections pool. Eg. 66.
 1. `IGN_FUEL_RESOURCE_DIR` : the file system path where models will be stored.
 1. `IGN_FUEL_VERBOSITY` : controls the level of output, with a default value of 2. 0 = critical messages, 1 = critical & error messages, 2 = critical & error & warning messages, 3 = critical & error & warning & informational messages, 4 = critical & error & warning & informational & debug messages
-1. `AUTH0_RSA256_PUBLIC_KEY` : Auth0 RSA256 public key without the '-----BEGIN CERTIFICATE-----' and '-----END CERTIFICATE-----'
-    Note: This env var will be used by the backend to decode and validate any received Auth0 JWT tokens.This env var will be used by the backend to decode and validate any received Auth0 JWT tokens. You can get this key from: <https://osrfoundation.auth0.com/.well-known/jwks.json> (or from your auth0 user). It is the "x5c" field.
+1. `AUTH0_RSA256_PUBLIC_KEY` : Auth0 RSA256 public key without the '-----BEGIN CERTIFICATE-----' and '-----END
+   CERTIFICATE-----'
+   Note: This env var will be used by the backend to decode and validate any received Auth0 JWT tokens. You can get this
+   key from: <https://osrfoundation.auth0.com/.well-known/jwks.json> (or from your auth0 user). It is the "x5c" field.
 
 ## Using AWS S3 buckets
 
