@@ -26,7 +26,7 @@
 1. Build and install fuelserver
 
     ```
-    cd fuelserver
+    cd fuel-server
     go install
     ```
 
@@ -47,7 +47,7 @@
 
     ```
     # navigate to your fuelserver directory
-    cd fuelserver
+    cd fuel-server
     ```
 
     ```
@@ -70,21 +70,11 @@
     export IGN_SSL_KEY=`pwd`/ssl/key.pem
     ```
 
+Note: to allow self certificates for localhost in Chrome, you need to put this in the chrome address
+bar : `chrome://flags/#allow-insecure-localhost`
 
-    Note: to allow self certificates for localhost in Chrome, you need to put this in the chrome address bar : `chrome://flags/#allow-insecure-localhost`
-
-1. Install mysql:
-
-    NOTE: Install a version greater than v5.6.4. In the servers, we are currently using MySQL v5.7.21
-
-
-    ```
-    sudo apt-get install mysql-server
-    ```
-
-    The installer will ask you to create a root password for mysql.
-
-1. Create the database and a user in mysql. Replace `'newuser'` with your username and `'password'` with your new password:
+1. Create the database and a user in MySQL. Replace `'newuser'` with your username and `'password'` with your new
+   password:
 
         # Xenial
         mysql -u root -p
