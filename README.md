@@ -348,15 +348,15 @@ $GOPATH/bin/golint $(go list github.com/gazebo-web/fuel-server/...) | grep -v .p
 
 # Proto
 
-1. If you need to modify the proto files then you will need to
-run (from the proto folder):
+1. If the protobuf files were modified, a new `.pb.go` version of those files should be generated.
 
     ```
-    protoc --go_out=. *.proto
+   cd /proto
+   buf generate --template buf.gen.go.yaml
     ```
 
-    Then update the generated import proto from code.google... to "google.golang.org/protobuf/proto"
-
+Buf is a tool that simplifies proto generation, it can be installed from by
+following [this guide](https://buf.build/docs/installation).
 
 # Coverage
 
@@ -382,11 +382,11 @@ coverage results.
 # Staging/Production deployment
 
 The `staging` and `production` branches push code through GitHub actions to AWS Elastic Beanstalk (EBS). New deployments
-can be triggered by merging new changes to those branches.
+can be triggered by merging new changes to these branches.
 
 # AWS Configuration
 
-* Elastic Beanstalk runs go in a docker container
+* Elastic Beanstalk runs Go in a docker container
 
 * AWS Relation Database (RDS) runs an instance of MySQL.
 
@@ -395,16 +395,16 @@ can be triggered by merging new changes to those branches.
 
 ## AWS RDS
 
-There are two mysql databases hosted on Amazon.
+There are two MySQL databases hosted on AWS RDS.
 
 1. `gz-fuel-production`: The production database.
 
-   * Endpoint: gz-fuel-production.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
+   * **Endpoint**: gz-fuel-production.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
 
 1. `gz-fuel-staging`: The development and testing database. You can write tests that will run on bitbucket pipelines
    against this database. Make sure to clean the database up after each test.
 
-   * Endpoint: gz-fuel-staging.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
+   * **Endpoint**: gz-fuel-staging.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
 
 # Development
 
@@ -414,46 +414,6 @@ options.
 ## Transactions
 
 Try to create and commit transactions within main Handlers, and not in the helper functions.
-
-## REST Documentation
-
-Swagger is used to document the REST API. This includes both model and
-route information.
-
-**Do not manually edit `swagger.json`**
-
-**Process**
-
-1. Document a route or model following [this documentation](https://goswagger.io/generate/spec.html).
-
-1. Install swagger inside your `GOPATH`
-
-    * go get -u github.com/go-swagger/go-swagger/cmd/swagger
-    * go install github.com/go-swagger/go-swagger/cmd/swagger
-
-1. Generate the `swagger.json` file. This file will be used by a webserver
-   to display the API documentation.
-
-    ```
-    ./bin/swagger generate spec -o ./src/github.com/gazebo-web/fuel-server/swagger.json -b ./src/github.com/gazebo-web/fuel-server/ -m
-    ```
-
-1. Commit and push your changes to the repository.
-
-1. View the results at [http://doc.ignitionfuel.org](http://doc.ignitionfuel.org). Enter
-   a new `swagger.json` in the `Explore` box to see a different version of
-   the API.
-
-**Useful links**
-
-1. [Swagger json documentation](https://goswagger.io/generate/spec.html)
-
-  * This page documents how to write swagger documentation that will be
-  parsed to generate the swagger.json file.
-
-1. [Our S3 swagger website](http://doc.ignitionfuel.org)
-
-  * This is an instance of [swagger-ui](https://github.com/swagger-api/swagger-ui/tree/master/dist), where the `index.html` file was edited to point to our swagger file.
 
 ## Log Files
 
@@ -485,53 +445,3 @@ items. Steps:
         ```
     3. Click 'Run'
 
-
-2. papertrail.com
-
-Papertrail aggregates system log messages. Log file upload to Papertrail
-happens automatically. Configuration, including specification of system log
-files to monitor, is handled in
-`.ebextensions/remote_syslog.ebextensions.config`.
-
-## Debugging inside docker container
-
-If you ever need to debug the application as if it were running in AWS or the pipelines, you need to do it from inside its docker containter.
-To do that:
-
-Most ideas taken from here:
-Mysql and Docker https://docs.docker.com/samples/library/mysql/#-via-docker-stack-deploy-or-docker-compose
-
-1. First create the docker image for the ign-fuelserver. `docker build ign-fuelserver` . Write down its image ID.
-
-1. Then run a dockerized mysql database. `docker run --name my-mysql -e MYSQL_ROOT_PASSWORD=<desired-root-pwd> -d mysql:5.7.21`
-This will create a mysql docker container with an empty mysql in it.
-
-1. Then you need to connect to that mysql container instance to run commands: `docker exec -it my-mysql bash`. From inside the container, connect to mysql using the client (eg. `mysql -u root -p`) and create databases fuel and fuel_test. eg: `create database fuel_test;`.
-
-1. Run the ign-fuelserver docker and link it to mysql database. `docker run --name ign-fuelserver --rm --link my-mysql:mysql -ti <fuelserver-image-id> /bin/bash`
-
-1. Then from inside the server container you need to set the Env Var that points to the linked docker mysql. eg. `export IGN_DB_ADDRESS="172.17.0.2:3306"`
-
-After that you can source your env vars and run commands such as `go test`.
-
-## Tips for local development using multiple dependent projects
-
-This is useful when you need to test uncommitted changes from a project depedency. Eg. when you need to test changes in ign-go using ign-fuelserver.
-
-Install vg (`virtualgo`) . This tool is used on top of `go dep`: https://github.com/GetStream/vg
-
-First, initialize vg support in your system. In a terminal, run:
-
-- `export PATH=$PATH:$GOPATH/bin && eval "$(vg eval --shell bash)"`
-
-Tip: I have pushed a .vgenable script that can be `sourced` later to enable vg support in current terminal. Eg. `source .vgenable`
-
-How to use vg:
-
-1. `vg init` (only the first time, to initialize the project with vg)
-
-1. `vg ensure` (this command delegates to `dep ensure` and then removes the `vendor` folder)
-
-1. To add or update dependencies (into Gopck.toml) use: `vg ensure -- -update <dependency>` (or just use normal `dep ensure -update <dependency>` style, and later run `vg ensure` to move dependencies into vg's workspace)
-
-1. How to switch to a local version of a dependency: eg. `vg localInstall github.com/gazebo-web/gz-go`
