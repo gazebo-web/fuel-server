@@ -275,7 +275,7 @@ To enable flagging of content you need to set the following env vars:
 
 ## Database
 
-There are three databases in use:
+There are two databases in use:
 
 1. *gz-fuel*: a production database for use with the production Elastic Beanstalk environment,
 
