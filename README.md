@@ -379,69 +379,32 @@ Then run the function from your project folder. Tests will be run and a browser 
 coverage results.
 
 
-# Integration deployment
-
-If it's the first time that you deploy on `integration`:
-
-1. [Install eb CLI tool](http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3-install.html) (if needed).
-
-1. Configure eb:
-
-    ```
-    eb init
-    ```
-
-    And choose the following options:
-
-    1. Select `us-east-1` as region.
-
-    1. Select `ign-fuel-server` as the application name.
-
-    1. Select `ign-fuel-server-integration` as the environment name.
-
-Otherwise, just type:
-
-    eb deploy
-
-
 # Staging/Production deployment
 
-The `staging` and `production` branches push code through bitbucket
-pipelines to AWS Elastic Beanstalk (EBS).
-
-1. Push code to staging. Make sure pipelines completes successfully.
-
-1. Test `staging.api.ignitionfuel.org`
-
-1. When ready, Swap Environment URLs with the production EBS environment.
-
-1. Merge the `staging` branch into the `production` branch, and push.
-
-1. Test `staging.api.ignitionfuel.org` again
-
-1. Swap the EBS environment URLs back.
+The `staging` and `production` branches push code through GitHub actions to AWS Elastic Beanstalk (EBS). New deployments
+can be triggered by merging new changes to those branches.
 
 # AWS Configuration
 
 * Elastic Beanstalk runs go in a docker container
 
-* AWS Relation Database (RDS) runs an instance of mysql.
+* AWS Relation Database (RDS) runs an instance of MySQL.
 
 * Each EC2 instance started by EBS mounts an NFS filesystem, via Elastic
-Filesystem, on `/fuel`. This filesystem store all the mercurial
-repositories.
+  Filesystem, on `/fuel`. This filesystem store all the resources repositories.
 
 ## AWS RDS
 
 There are two mysql databases hosted on Amazon.
 
-1. `ign-fuel`: The production database.
+1. `gz-fuel-production`: The production database.
 
-    * Endpoint: ign-fuel.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
+   * Endpoint: gz-fuel-production.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
 
-1. `ign-fuel-dev`: The development and testing database. You can write tests that will run on bitbucket pipelines against this database. Make sure to clean the database up after each test.
+1. `gz-fuel-staging`: The development and testing database. You can write tests that will run on bitbucket pipelines
+   against this database. Make sure to clean the database up after each test.
 
-    * Endpoint: ign-fuel-dev.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
+   * Endpoint: gz-fuel-staging.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
 
 # Development
 
