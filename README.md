@@ -277,11 +277,9 @@ To enable flagging of content you need to set the following env vars:
 
 There are three databases in use:
 
-  1. *ign-fuel*: a production database for use with the production Elastic Beanstalk environment,
+1. *gz-fuel*: a production database for use with the production Elastic Beanstalk environment,
 
-  2. *ign-fuel-staging*: a staging database for use with the staging Elastic Beanstalk environment, and
-
-  3. *ign-fuel-integration*: an integration database for use with the integration Elastic Beanstalk environment.
+2. *gz-fuel-staging*: a staging database for use with the staging Elastic Beanstalk environment, and
 
 The production database should *never* be manually altered. The staging
 database should match the production environment, and the purpose is to
