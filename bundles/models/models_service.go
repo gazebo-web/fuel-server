@@ -2,7 +2,9 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/generics"
@@ -85,6 +87,33 @@ func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
 func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string,
 	order, search string, likedBy *users.User, user *users.User, categories *category.Categories) (*fuel.Models, *gz.PaginationResult, *gz.ErrMsg) {
 
+	// Get a boolean that indicates if this a basic GET /models query.
+	// In this case, we can ideally use the memdory cache to reduce the
+	// DB burden.
+	basicQuery := owner == nil && order == "" && search == "" && likedBy == nil
+
+	// Try to get the memory cached results if it's a basic query.
+	if basicQuery {
+		paginationItem, errPagination := globals.QueryCache.Get("models_list_pagination")
+		modelsItem, errModels := globals.QueryCache.Get("models_list_models")
+
+		// If no errors, then unmarshal the bytes to the structs.
+		// Otherwise the normal query will be performed
+		if errPagination == nil && errModels == nil {
+			paginationResult := &gz.PaginationResult{}
+			modelsResult := &fuel.Models{}
+
+			errPagination = json.Unmarshal(paginationItem.Value, paginationResult)
+			errModels = proto.Unmarshal(modelsItem.Value, modelsResult)
+
+			// If no errors, then return the result. Otherwise do the normal
+			// query.
+			if errPagination == nil && errModels == nil {
+				return modelsResult, paginationResult, nil
+			}
+		}
+	}
+
 	var modelList Models
 	// Create query
 	q := QueryForModels(tx)
@@ -161,7 +190,19 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 		fuelModel := ms.ModelToProto(&model)
 		modelsProto.Models = append(modelsProto.Models, fuelModel)
 	}
+	paginationBytes, _ := json.Marshal(paginationResult)
+	modelsBytes, _ := proto.Marshal(&modelsProto)
 
+	// Cache the result if it's a basic query.
+	if basicQuery {
+		ctx := context.Background()
+		if err := globals.QueryCache.Set(&memcache.Item{Key: "models_list_pagination", Value: paginationBytes}); err != nil {
+			gz.LoggerFromContext(ctx).Error("Error caching model pagination result", err)
+		}
+		if err := globals.QueryCache.Set(&memcache.Item{Key: "models_list_models", Value: modelsBytes}); err != nil {
+			gz.LoggerFromContext(ctx).Error("Error caching model list result", err)
+		}
+	}
 	return &modelsProto, paginationResult, nil
 }
 
