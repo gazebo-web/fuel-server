@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	memcache "github.com/bradfitz/gomemcache/memcache"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/vcs"
@@ -88,3 +89,6 @@ var HTTPTestS3Server *httptest.Server
 
 // Storage holds an implementation of storage.Storage that allows you to upload and download files.
 var Storage storage.Storage
+
+// QueryCache is used to store/cache results for common queries.
+var QueryCache *memcache.Client

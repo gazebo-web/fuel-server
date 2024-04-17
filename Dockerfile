@@ -3,7 +3,7 @@
 
 FROM golang:1.19
 
-RUN apt-get update && apt-get install -y nano vim &&  \
+RUN apt-get update && apt-get install -y nano vim memcached &&  \
   git config --global user.name "gz-fuelserver"  &&  \
   git config --global user.email "gz-fuelserver@test.org"
 

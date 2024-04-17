@@ -37,6 +37,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/gazebo-web/fuel-server/bundles/subt"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/migrate"
@@ -85,6 +86,8 @@ func init() {
 	logCtx := gz.NewContextWithLogger(context.Background(), logger)
 
 	isGoTest = strings.Contains(strings.ToLower(os.Args[0]), "test")
+
+	globals.QueryCache = memcache.New("localhost:11211")
 
 	// Get the root resource directory.
 	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil && !isGoTest {

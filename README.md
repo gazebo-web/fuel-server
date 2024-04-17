@@ -26,7 +26,7 @@
 1. Build and install fuelserver
 
     ```
-    cd fuelserver
+    cd fuel-server
     go install
     ```
 
@@ -47,11 +47,11 @@
 
     ```
     # navigate to your fuelserver directory
-    cd fuelserver
+    cd fuel-server
     ```
 
     ```
-    wget https://raw.githubusercontent.com/golang/go/release-branch.go1.8/src/crypto/tls/generate_cert.go
+    wget https://raw.githubusercontent.com/golang/go/release-branch.go1.19/src/crypto/tls/generate_cert.go
     ```
 
     ```
@@ -70,21 +70,11 @@
     export IGN_SSL_KEY=`pwd`/ssl/key.pem
     ```
 
+Note: to allow self certificates for localhost in Chrome, you need to put this in the chrome address
+bar : `chrome://flags/#allow-insecure-localhost`
 
-    Note: to allow self certificates for localhost in Chrome, you need to put this in the chrome address bar : `chrome://flags/#allow-insecure-localhost`
-
-1. Install mysql:
-
-    NOTE: Install a version greater than v5.6.4. In the servers, we are currently using MySQL v5.7.21
-
-
-    ```
-    sudo apt-get install mysql-server
-    ```
-
-    The installer will ask you to create a root password for mysql.
-
-1. Create the database and a user in mysql. Replace `'newuser'` with your username and `'password'` with your new password:
+1. Create the database and a user in MySQL. Replace `'newuser'` with your username and `'password'` with your new
+   password:
 
         # Xenial
         mysql -u root -p
@@ -258,8 +248,10 @@ Then load the env vars using `source .env.bash` from the bash terminal where you
 1. `IGN_DB_MAX_OPEN_CONNS` : Max number of open connections in connections pool. Eg. 66.
 1. `IGN_FUEL_RESOURCE_DIR` : the file system path where models will be stored.
 1. `IGN_FUEL_VERBOSITY` : controls the level of output, with a default value of 2. 0 = critical messages, 1 = critical & error messages, 2 = critical & error & warning messages, 3 = critical & error & warning & informational messages, 4 = critical & error & warning & informational & debug messages
-1. `AUTH0_RSA256_PUBLIC_KEY` : Auth0 RSA256 public key without the '-----BEGIN CERTIFICATE-----' and '-----END CERTIFICATE-----'
-    Note: This env var will be used by the backend to decode and validate any received Auth0 JWT tokens.This env var will be used by the backend to decode and validate any received Auth0 JWT tokens. You can get this key from: <https://osrfoundation.auth0.com/.well-known/jwks.json> (or from your auth0 user). It is the "x5c" field.
+1. `AUTH0_RSA256_PUBLIC_KEY` : Auth0 RSA256 public key without the '-----BEGIN CERTIFICATE-----' and '-----END
+   CERTIFICATE-----'
+   Note: This env var will be used by the backend to decode and validate any received Auth0 JWT tokens. You can get this
+   key from: <https://osrfoundation.auth0.com/.well-known/jwks.json> (or from your auth0 user). It is the "x5c" field.
 
 ## Using AWS S3 buckets
 
@@ -283,34 +275,17 @@ To enable flagging of content you need to set the following env vars:
 
 ## Database
 
-There are three databases in use:
+There are two databases in use:
 
-  1. *ign-fuel*: a production database for use with the production Elastic Beanstalk environment,
+1. *gz-fuel*: a production database for use with the production Elastic Beanstalk environment,
 
-  2. *ign-fuel-staging*: a staging database for use with the staging Elastic Beanstalk environment, and
-
-  3. *ign-fuel-integration*: an integration database for use with the integration Elastic Beanstalk environment.
+2. *gz-fuel-staging*: a staging database for use with the staging Elastic Beanstalk environment, and
 
 The production database should *never* be manually altered. The staging
 database should match the production environment, and the purpose is to
 catch migration errors on the staging Elastic beanstalk instance. The
 integration database is used during testing and development. This database
 is frequently wiped and altered.
-
-## Leaderboards
-
-There may be some cases where scores for specific organizations or circuits 
-should not be displayed in competition leaderboards. There are environment 
-variables available to control which organizations and circuits should not be 
-displayed in leaderboards. These environment variables do not stop scores from 
-being produced, they only filter `/subt/leaderboard` results.
-
-1. `IGN_FUEL_TEST_ORGANIZATIONS` List of organizations to filter from 
-leaderboard scores.
-2. `IGN_FUEL_HIDE_CIRCUIT_SCORES` List of circuits to filter from leaderboard 
-scores.
-
-All of these environment variables can contain multiple comma-separated values.
 
 ## Testing and Development
 
@@ -373,15 +348,15 @@ $GOPATH/bin/golint $(go list github.com/gazebo-web/fuel-server/...) | grep -v .p
 
 # Proto
 
-1. If you need to modify the proto files then you will need to
-run (from the proto folder):
+1. If the protobuf files were modified, a new `.pb.go` version of those files should be generated.
 
     ```
-    protoc --go_out=. *.proto
+   cd /proto
+   buf generate --template buf.gen.go.yaml
     ```
 
-    Then update the generated import proto from code.google... to "google.golang.org/protobuf/proto"
-
+Buf is a tool that simplifies proto generation, it can be installed from by
+following [this guide](https://buf.build/docs/installation).
 
 # Coverage
 
@@ -404,69 +379,32 @@ Then run the function from your project folder. Tests will be run and a browser 
 coverage results.
 
 
-# Integration deployment
-
-If it's the first time that you deploy on `integration`:
-
-1. [Install eb CLI tool](http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3-install.html) (if needed).
-
-1. Configure eb:
-
-    ```
-    eb init
-    ```
-
-    And choose the following options:
-
-    1. Select `us-east-1` as region.
-
-    1. Select `ign-fuel-server` as the application name.
-
-    1. Select `ign-fuel-server-integration` as the environment name.
-
-Otherwise, just type:
-
-    eb deploy
-
-
 # Staging/Production deployment
 
-The `staging` and `production` branches push code through bitbucket
-pipelines to AWS Elastic Beanstalk (EBS).
-
-1. Push code to staging. Make sure pipelines completes successfully.
-
-1. Test `staging.api.ignitionfuel.org`
-
-1. When ready, Swap Environment URLs with the production EBS environment.
-
-1. Merge the `staging` branch into the `production` branch, and push.
-
-1. Test `staging.api.ignitionfuel.org` again
-
-1. Swap the EBS environment URLs back.
+The `staging` and `production` branches push code through GitHub actions to AWS Elastic Beanstalk (EBS). New deployments
+can be triggered by merging new changes to these branches.
 
 # AWS Configuration
 
-* Elastic Beanstalk runs go in a docker container
+* Elastic Beanstalk runs Go in a docker container
 
-* AWS Relation Database (RDS) runs an instance of mysql.
+* AWS Relation Database (RDS) runs an instance of MySQL.
 
 * Each EC2 instance started by EBS mounts an NFS filesystem, via Elastic
-Filesystem, on `/fuel`. This filesystem store all the mercurial
-repositories.
+  Filesystem, on `/fuel`. This filesystem store all the resources repositories.
 
 ## AWS RDS
 
-There are two mysql databases hosted on Amazon.
+There are two MySQL databases hosted on AWS RDS.
 
-1. `ign-fuel`: The production database.
+1. `gz-fuel-production`: The production database.
 
-    * Endpoint: ign-fuel.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
+   * **Endpoint**: gz-fuel-production.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
 
-1. `ign-fuel-dev`: The development and testing database. You can write tests that will run on bitbucket pipelines against this database. Make sure to clean the database up after each test.
+1. `gz-fuel-staging`: The development and testing database. You can write tests that will run on bitbucket pipelines
+   against this database. Make sure to clean the database up after each test.
 
-    * Endpoint: ign-fuel-dev.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
+   * **Endpoint**: gz-fuel-staging.cpznmiopbczj.us-east-1.rds.amazonaws.com:3306
 
 # Development
 
@@ -476,46 +414,6 @@ options.
 ## Transactions
 
 Try to create and commit transactions within main Handlers, and not in the helper functions.
-
-## REST Documentation
-
-Swagger is used to document the REST API. This includes both model and
-route information.
-
-**Do not manually edit `swagger.json`**
-
-**Process**
-
-1. Document a route or model following [this documentation](https://goswagger.io/generate/spec.html).
-
-1. Install swagger inside your `GOPATH`
-
-    * go get -u github.com/go-swagger/go-swagger/cmd/swagger
-    * go install github.com/go-swagger/go-swagger/cmd/swagger
-
-1. Generate the `swagger.json` file. This file will be used by a webserver
-   to display the API documentation.
-
-    ```
-    ./bin/swagger generate spec -o ./src/github.com/gazebo-web/fuel-server/swagger.json -b ./src/github.com/gazebo-web/fuel-server/ -m
-    ```
-
-1. Commit and push your changes to the repository.
-
-1. View the results at [http://doc.ignitionfuel.org](http://doc.ignitionfuel.org). Enter
-   a new `swagger.json` in the `Explore` box to see a different version of
-   the API.
-
-**Useful links**
-
-1. [Swagger json documentation](https://goswagger.io/generate/spec.html)
-
-  * This page documents how to write swagger documentation that will be
-  parsed to generate the swagger.json file.
-
-1. [Our S3 swagger website](http://doc.ignitionfuel.org)
-
-  * This is an instance of [swagger-ui](https://github.com/swagger-api/swagger-ui/tree/master/dist), where the `index.html` file was edited to point to our swagger file.
 
 ## Log Files
 
@@ -547,53 +445,3 @@ items. Steps:
         ```
     3. Click 'Run'
 
-
-2. papertrail.com
-
-Papertrail aggregates system log messages. Log file upload to Papertrail
-happens automatically. Configuration, including specification of system log
-files to monitor, is handled in
-`.ebextensions/remote_syslog.ebextensions.config`.
-
-## Debugging inside docker container
-
-If you ever need to debug the application as if it were running in AWS or the pipelines, you need to do it from inside its docker containter.
-To do that:
-
-Most ideas taken from here:
-Mysql and Docker https://docs.docker.com/samples/library/mysql/#-via-docker-stack-deploy-or-docker-compose
-
-1. First create the docker image for the ign-fuelserver. `docker build ign-fuelserver` . Write down its image ID.
-
-1. Then run a dockerized mysql database. `docker run --name my-mysql -e MYSQL_ROOT_PASSWORD=<desired-root-pwd> -d mysql:5.7.21`
-This will create a mysql docker container with an empty mysql in it.
-
-1. Then you need to connect to that mysql container instance to run commands: `docker exec -it my-mysql bash`. From inside the container, connect to mysql using the client (eg. `mysql -u root -p`) and create databases fuel and fuel_test. eg: `create database fuel_test;`.
-
-1. Run the ign-fuelserver docker and link it to mysql database. `docker run --name ign-fuelserver --rm --link my-mysql:mysql -ti <fuelserver-image-id> /bin/bash`
-
-1. Then from inside the server container you need to set the Env Var that points to the linked docker mysql. eg. `export IGN_DB_ADDRESS="172.17.0.2:3306"`
-
-After that you can source your env vars and run commands such as `go test`.
-
-## Tips for local development using multiple dependent projects
-
-This is useful when you need to test uncommitted changes from a project depedency. Eg. when you need to test changes in ign-go using ign-fuelserver.
-
-Install vg (`virtualgo`) . This tool is used on top of `go dep`: https://github.com/GetStream/vg
-
-First, initialize vg support in your system. In a terminal, run:
-
-- `export PATH=$PATH:$GOPATH/bin && eval "$(vg eval --shell bash)"`
-
-Tip: I have pushed a .vgenable script that can be `sourced` later to enable vg support in current terminal. Eg. `source .vgenable`
-
-How to use vg:
-
-1. `vg init` (only the first time, to initialize the project with vg)
-
-1. `vg ensure` (this command delegates to `dep ensure` and then removes the `vendor` folder)
-
-1. To add or update dependencies (into Gopck.toml) use: `vg ensure -- -update <dependency>` (or just use normal `dep ensure -update <dependency>` style, and later run `vg ensure` to move dependencies into vg's workspace)
-
-1. How to switch to a local version of a dependency: eg. `vg localInstall github.com/gazebo-web/gz-go`
