@@ -11,7 +11,6 @@ COPY . /root/gz-fuelserver
 WORKDIR /root/gz-fuelserver
 
 # Build app
-RUN go mod download
 RUN go build
 CMD ["./fuel-server"]
 
