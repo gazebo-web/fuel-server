@@ -90,7 +90,7 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 	// Get a boolean that indicates if this a basic GET /models query.
 	// In this case, we can ideally use the memdory cache to reduce the
 	// DB burden.
-	basicQuery := owner == nil && order == "" && search == "" && likedBy == nil
+	basicQuery := owner == nil && order == "" && search == "" && likedBy == nil && (p != nil && p.PageRequested == false)
 
 	// Try to get the memory cached results if it's a basic query.
 	if basicQuery {
