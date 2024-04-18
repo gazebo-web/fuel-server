@@ -87,14 +87,14 @@ func init() {
 
 	isGoTest = strings.Contains(strings.ToLower(os.Args[0]), "test")
 
-  memcacheAddr := "localhost:11211"
+	memcacheAddr := "localhost:11211"
 	if memcacheAddr, err = gz.ReadEnvVar("GZ_FUEL_MEMCACHED_ADDR"); err != nil && !isGoTest {
 		log.Fatal("Missing GZ_FUEL_MEMCACHED_ADDR env variable. Memcached will not be available. Quitting.")
-  }
+	}
 
 	globals.QueryCache = memcache.New(memcacheAddr)
-  // Delete the cache when starting
-  globals.QueryCache.DeleteAll()
+	// Delete the cache when starting
+	globals.QueryCache.DeleteAll()
 
 	// Get the root resource directory.
 	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil && !isGoTest {

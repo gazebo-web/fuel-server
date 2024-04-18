@@ -90,12 +90,19 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 	// Get a boolean that indicates if this a basic GET /models query.
 	// In this case, we can ideally use the memdory cache to reduce the
 	// DB burden.
-	basicQuery := owner == nil && order == "" && search == "" && likedBy == nil && (p != nil && p.PageRequested == false)
+	basicQuery := owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (p.PageRequested == false || (p.PageRequested && p.PerPage == 20))
+
+	paginationCacheKey := "models_list_pagination"
+	modelsCacheKey := "models_list_models"
+	if p != nil && p.PageRequested && p.PerPage == 20 {
+		paginationCacheKey = fmt.Sprintf("%s%d", paginationCacheKey, p.Page)
+		modelsCacheKey += fmt.Sprintf("%s%d", modelsCacheKey, p.Page)
+	}
 
 	// Try to get the memory cached results if it's a basic query.
 	if basicQuery {
-		paginationItem, errPagination := globals.QueryCache.Get("models_list_pagination")
-		modelsItem, errModels := globals.QueryCache.Get("models_list_models")
+		paginationItem, errPagination := globals.QueryCache.Get(paginationCacheKey)
+		modelsItem, errModels := globals.QueryCache.Get(modelsCacheKey)
 
 		// If no errors, then unmarshal the bytes to the structs.
 		// Otherwise the normal query will be performed
@@ -196,10 +203,10 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 	// Cache the result if it's a basic query.
 	if basicQuery {
 		ctx := context.Background()
-		if err := globals.QueryCache.Set(&memcache.Item{Key: "models_list_pagination", Value: paginationBytes}); err != nil {
+		if err := globals.QueryCache.Set(&memcache.Item{Key: paginationCacheKey, Value: paginationBytes}); err != nil {
 			gz.LoggerFromContext(ctx).Error("Error caching model pagination result", err)
 		}
-		if err := globals.QueryCache.Set(&memcache.Item{Key: "models_list_models", Value: modelsBytes}); err != nil {
+		if err := globals.QueryCache.Set(&memcache.Item{Key: modelsCacheKey, Value: modelsBytes}); err != nil {
 			gz.LoggerFromContext(ctx).Error("Error caching model list result", err)
 		}
 	}
@@ -230,6 +237,7 @@ func (ms *Service) RemoveModel(ctx context.Context, tx *gorm.DB, owner, modelNam
 
 	// Remove the model from ElasticSearch
 	ElasticSearchRemoveModel(ctx, model)
+  globals.QueryCache.DeleteAll()
 
 	return res.Remove(tx, model, *user.Username)
 }
@@ -647,6 +655,8 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, *model)
+  globals.QueryCache.DeleteAll()
+
 	return model, nil
 }
 
@@ -767,6 +777,7 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, model)
+  globals.QueryCache.DeleteAll()
 	return &model, nil
 }
 
