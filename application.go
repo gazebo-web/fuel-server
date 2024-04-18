@@ -93,6 +93,8 @@ func init() {
   }
 
 	globals.QueryCache = memcache.New(memcacheAddr)
+  // Delete the cache when starting
+  globals.QueryCache.DeleteAll()
 
 	// Get the root resource directory.
 	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil && !isGoTest {
