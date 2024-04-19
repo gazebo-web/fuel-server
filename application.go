@@ -95,7 +95,9 @@ func init() {
 	globals.QueryCache = memcache.New(memcacheAddr)
 	// Delete the cache when starting. The cache will be re-populated when
 	// queries arrive
-	globals.QueryCache.DeleteAll()
+  if err := globals.QueryCache.DeleteAll(); err != nil {
+		logger.Error("Failed to clear the memory cache.")
+  }
 
 	// Get the root resource directory.
 	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil && !isGoTest {

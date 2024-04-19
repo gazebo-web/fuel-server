@@ -239,7 +239,9 @@ func (ms *Service) RemoveModel(ctx context.Context, tx *gorm.DB, owner, modelNam
 
 	// Remove the model from ElasticSearch
 	ElasticSearchRemoveModel(ctx, model)
-	globals.QueryCache.DeleteAll()
+  if err := globals.QueryCache.DeleteAll(); err != nil {
+		gz.LoggerFromContext(ctx).Error("Failed to clear the memory cache.")
+  }
 
 	return res.Remove(tx, model, *user.Username)
 }
@@ -657,7 +659,9 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, *model)
-	globals.QueryCache.DeleteAll()
+  if err := globals.QueryCache.DeleteAll(); err != nil {
+    gz.LoggerFromContext(ctx).Error("Failed to clear the memory cache.")
+  }
 
 	return model, nil
 }
@@ -779,7 +783,10 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, model)
-	globals.QueryCache.DeleteAll()
+  if err := globals.QueryCache.DeleteAll(); err != nil {
+    gz.LoggerFromContext(ctx).Error("Failed to clear the memory cache.")
+  }
+
 	return &model, nil
 }
 
