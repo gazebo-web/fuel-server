@@ -91,7 +91,7 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 	// In this case, we can ideally use the memdory cache to reduce the
 	// DB burden.
 	// Note: the PerPage default value is 20.
-	basicQuery := owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20))
+	basicQuery := owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20)) && tx.Value == nil
 
 	paginationCacheKey := "models_list_pagination"
 	modelsCacheKey := "models_list_models"
