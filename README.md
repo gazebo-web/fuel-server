@@ -291,8 +291,8 @@ is frequently wiped and altered.
 
 [Memcached](https://memcached.org/) is used to cache common DB queries in
 memory. The puprpose is to reduce the burden on the DB for queries that don't
-change frequently, and are used frequently. For example, getting the list of
-models happens everytime an instance of Gazebo11 starts, and the list of model
+change often, and are used frequently. For example, getting the list of
+models happens everytime an instance of Gazebo11 starts, and the set of models
 changes relatively infrequently.
 
 ### Memcached local development
@@ -314,7 +314,7 @@ go build
 ### Production memached
 
 An [AWS Elasticache instance](https://aws.amazon.com/elasticache/memcached/) is
-used on production. The ElasticBeanstalk instance that run the production
+used on production. The ElasticBeanstalk instance that runs the production
 instance is configured to use Elasticache.
 
 ## Testing and Development
