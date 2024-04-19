@@ -237,7 +237,7 @@ func (ms *Service) RemoveModel(ctx context.Context, tx *gorm.DB, owner, modelNam
 
 	// Remove the model from ElasticSearch
 	ElasticSearchRemoveModel(ctx, model)
-  globals.QueryCache.DeleteAll()
+	globals.QueryCache.DeleteAll()
 
 	return res.Remove(tx, model, *user.Username)
 }
@@ -655,7 +655,7 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, *model)
-  globals.QueryCache.DeleteAll()
+	globals.QueryCache.DeleteAll()
 
 	return model, nil
 }
@@ -777,7 +777,7 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, model)
-  globals.QueryCache.DeleteAll()
+	globals.QueryCache.DeleteAll()
 	return &model, nil
 }
 

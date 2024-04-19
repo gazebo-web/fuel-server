@@ -287,6 +287,36 @@ catch migration errors on the staging Elastic beanstalk instance. The
 integration database is used during testing and development. This database
 is frequently wiped and altered.
 
+## Memory Cache
+
+[Memcached](https://memcached.org/) is used to cache common DB queries in
+memory. The puprpose is to reduce the burden on the DB for queries that don't
+change frequently, and are used frequently. For example, getting the list of
+models happens everytime an instance of Gazebo11 starts, and the list of model
+changes relatively infrequently.
+
+### Memcached local development
+
+1. Install a memcached server.
+```
+sudo apt install memcached
+```
+2. Export the `GZ_FUEL_MEMCACHED_ADDR`.
+```
+export GZ_FUEL_MEMCACHED_ADDR=localhost:11211
+```
+3. Rebuild the application, and restart
+```
+go build
+./fuel-server
+```
+
+### Production memached
+
+An [AWS Elasticache instance](https://aws.amazon.com/elasticache/memcached/) is
+used on production. The ElasticBeanstalk instance that run the production
+instance is configured to use Elasticache.
+
 ## Testing and Development
 
 1. `IGN_POPULATE_PATH` : Path to a set of Gazebo models. Setting this variable will populate the database with these models.
