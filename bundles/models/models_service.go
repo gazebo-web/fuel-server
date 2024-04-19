@@ -87,10 +87,11 @@ func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
 func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string,
 	order, search string, likedBy *users.User, user *users.User, categories *category.Categories) (*fuel.Models, *gz.PaginationResult, *gz.ErrMsg) {
 
-	// Get a boolean that indicates if this a basic GET /models query.
+	// Get a boolean that indicates if this a basic `GET /models` or `GET /models?page=N` query.
 	// In this case, we can ideally use the memdory cache to reduce the
 	// DB burden.
-	basicQuery := owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (p.PageRequested == false || (p.PageRequested && p.PerPage == 20))
+	// Note: the PerPage default value is 20.
+	basicQuery := owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20)) && tx.Value == nil
 
 	paginationCacheKey := "models_list_pagination"
 	modelsCacheKey := "models_list_models"
@@ -197,11 +198,12 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 		fuelModel := ms.ModelToProto(&model)
 		modelsProto.Models = append(modelsProto.Models, fuelModel)
 	}
-	paginationBytes, _ := json.Marshal(paginationResult)
-	modelsBytes, _ := proto.Marshal(&modelsProto)
 
 	// Cache the result if it's a basic query.
 	if basicQuery {
+		paginationBytes, _ := json.Marshal(paginationResult)
+		modelsBytes, _ := proto.Marshal(&modelsProto)
+
 		ctx := context.Background()
 		if err := globals.QueryCache.Set(&memcache.Item{Key: paginationCacheKey, Value: paginationBytes}); err != nil {
 			gz.LoggerFromContext(ctx).Error("Error caching model pagination result", err)
@@ -237,7 +239,9 @@ func (ms *Service) RemoveModel(ctx context.Context, tx *gorm.DB, owner, modelNam
 
 	// Remove the model from ElasticSearch
 	ElasticSearchRemoveModel(ctx, model)
-  globals.QueryCache.DeleteAll()
+	if err := globals.QueryCache.DeleteAll(); err != nil {
+		gz.LoggerFromContext(ctx).Error("Failed to clear the memory cache.")
+	}
 
 	return res.Remove(tx, model, *user.Username)
 }
@@ -655,7 +659,9 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, *model)
-  globals.QueryCache.DeleteAll()
+	if err := globals.QueryCache.DeleteAll(); err != nil {
+		gz.LoggerFromContext(ctx).Error("Failed to clear the memory cache.")
+	}
 
 	return model, nil
 }
@@ -777,7 +783,10 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, model)
-  globals.QueryCache.DeleteAll()
+	if err := globals.QueryCache.DeleteAll(); err != nil {
+		gz.LoggerFromContext(ctx).Error("Failed to clear the memory cache.")
+	}
+
 	return &model, nil
 }
 
