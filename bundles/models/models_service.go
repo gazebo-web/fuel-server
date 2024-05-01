@@ -80,40 +80,6 @@ func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
 	return fuelModel, nil
 }
 
-// isbasicModelListQuery returns a boolean that indicates if this a basic `GET /models` or `GET /models?page=N` query.
-// In this case, we can ideally use the memdory cache to reduce the
-// DB burden.
-// Note: the PerPage default value is 20.
-func isbasicModelListQuery(p *gz.PaginationRequest, owner *string,
-	order, search string, likedBy *users.User, ignoreMemcache bool) bool {
-	return !ignoreMemcache && owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20))
-}
-
-// getModelListCache attempts to get a query result from memcache.
-func getModelListCache(basicQuery bool, modelsCacheKey, paginationCacheKey string) (*fuel.Models, *gz.PaginationResult, bool) {
-	if basicQuery {
-		paginationItem, errPagination := globals.QueryCache.Get(paginationCacheKey)
-		modelsItem, errModels := globals.QueryCache.Get(modelsCacheKey)
-
-		// If no errors, then unmarshal the bytes to the structs.
-		// Otherwise the normal query will be performed
-		if errPagination == nil && errModels == nil {
-			var paginationResult gz.PaginationResult
-			var modelsResult fuel.Models
-
-			errPagination = json.Unmarshal(paginationItem.Value, &paginationResult)
-			errModels = proto.Unmarshal(modelsItem.Value, &modelsResult)
-
-			// If no errors, then return the result. Otherwise do the normal
-			// query.
-			if errPagination == nil && errModels == nil {
-				return &modelsResult, &paginationResult, true
-			}
-		}
-	}
-	return nil, nil, false
-}
-
 // ModelList returns a paginated list of models.
 // If the likedBy argument is set, it will return the list of models liked by a user.
 // This function returns a list of fuel.Model that can then be mashalled into json or protobuf.
@@ -922,4 +888,38 @@ func (ms *Service) createUniqueModelName(tx *gorm.DB, name, owner string) (strin
 		}
 	}
 	return newName, nil
+}
+
+// isbasicModelListQuery returns a boolean that indicates if this a basic `GET /models` or `GET /models?page=N` query.
+// In this case, we can ideally use the memdory cache to reduce the
+// DB burden.
+// Note: the PerPage default value is 20.
+func isbasicModelListQuery(p *gz.PaginationRequest, owner *string,
+	order, search string, likedBy *users.User, ignoreMemcache bool) bool {
+	return !ignoreMemcache && owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20))
+}
+
+// getModelListCache attempts to get a query result from memcache.
+func getModelListCache(basicQuery bool, modelsCacheKey, paginationCacheKey string) (*fuel.Models, *gz.PaginationResult, bool) {
+	if basicQuery {
+		paginationItem, errPagination := globals.QueryCache.Get(paginationCacheKey)
+		modelsItem, errModels := globals.QueryCache.Get(modelsCacheKey)
+
+		// If no errors, then unmarshal the bytes to the structs.
+		// Otherwise the normal query will be performed
+		if errPagination == nil && errModels == nil {
+			var paginationResult gz.PaginationResult
+			var modelsResult fuel.Models
+
+			errPagination = json.Unmarshal(paginationItem.Value, &paginationResult)
+			errModels = proto.Unmarshal(modelsItem.Value, &modelsResult)
+
+			// If no errors, then return the result. Otherwise do the normal
+			// query.
+			if errPagination == nil && errModels == nil {
+				return &modelsResult, &paginationResult, true
+			}
+		}
+	}
+	return nil, nil, false
 }
