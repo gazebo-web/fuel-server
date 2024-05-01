@@ -85,13 +85,13 @@ func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
 // This function returns a list of fuel.Model that can then be mashalled into json or protobuf.
 // TODO: find a way to MERGE this with the one from Worlds service.
 func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string,
-	order, search string, likedBy *users.User, user *users.User, categories *category.Categories) (*fuel.Models, *gz.PaginationResult, *gz.ErrMsg) {
+	order, search string, likedBy *users.User, user *users.User, categories *category.Categories, ignoreMemcache bool) (*fuel.Models, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Get a boolean that indicates if this a basic `GET /models` or `GET /models?page=N` query.
 	// In this case, we can ideally use the memdory cache to reduce the
 	// DB burden.
 	// Note: the PerPage default value is 20.
-	basicQuery := owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20)) && tx.Value == nil
+	basicQuery := !ignoreMemcache && owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20))
 
 	paginationCacheKey := "models_list_pagination"
 	modelsCacheKey := "models_list_models"
