@@ -181,7 +181,7 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 
 	// Return if not caching
 	if !basicQuery {
-	    return &modelsProto, paginationResult, nil
+		return &modelsProto, paginationResult, nil
 	}
 
 	// Cache the result if it's a basic query.
