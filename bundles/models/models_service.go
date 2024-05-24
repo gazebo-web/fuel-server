@@ -179,27 +179,30 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 		modelsProto.Models = append(modelsProto.Models, fuelModel)
 	}
 
+	// Return if not caching
+	if !basicQuery {
+	    return &modelsProto, paginationResult, nil
+	}
+
 	// Cache the result if it's a basic query.
-	if basicQuery {
-		ctx := context.Background()
+	ctx := context.Background()
 
-		paginationBytes, paginationErr := json.Marshal(paginationResult)
-		if paginationErr != nil {
-			gz.LoggerFromContext(ctx).Error("Error marshalling pagination result", paginationErr)
+	paginationBytes, paginationErr := json.Marshal(paginationResult)
+	if paginationErr != nil {
+		gz.LoggerFromContext(ctx).Error("Error marshalling pagination result", paginationErr)
+	}
+
+	modelsBytes, modelsErr := proto.Marshal(&modelsProto)
+	if modelsErr != nil {
+		gz.LoggerFromContext(ctx).Error("Error marshalling models result", modelsErr)
+	}
+
+	if paginationErr == nil && modelsErr == nil {
+		if err := globals.QueryCache.Set(&memcache.Item{Key: paginationCacheKey, Value: paginationBytes}); err != nil {
+			gz.LoggerFromContext(ctx).Error("Error caching model pagination result", err)
 		}
-
-		modelsBytes, modelsErr := proto.Marshal(&modelsProto)
-		if modelsErr != nil {
-			gz.LoggerFromContext(ctx).Error("Error marshalling models result", modelsErr)
-		}
-
-		if paginationErr == nil && modelsErr == nil {
-			if err := globals.QueryCache.Set(&memcache.Item{Key: paginationCacheKey, Value: paginationBytes}); err != nil {
-				gz.LoggerFromContext(ctx).Error("Error caching model pagination result", err)
-			}
-			if err := globals.QueryCache.Set(&memcache.Item{Key: modelsCacheKey, Value: modelsBytes}); err != nil {
-				gz.LoggerFromContext(ctx).Error("Error caching model list result", err)
-			}
+		if err := globals.QueryCache.Set(&memcache.Item{Key: modelsCacheKey, Value: modelsBytes}); err != nil {
+			gz.LoggerFromContext(ctx).Error("Error caching model list result", err)
 		}
 	}
 	return &modelsProto, paginationResult, nil
