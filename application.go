@@ -75,6 +75,7 @@ func init() {
 	var popPath string
 	var isGoTest bool
 	var auth0RsaPublickey string
+	var memcacheAddr string
 
 	verbosity := gz.VerbosityWarning
 	if verbStr, verr := gz.ReadEnvVar("IGN_FUEL_VERBOSITY"); verr == nil {
@@ -87,7 +88,16 @@ func init() {
 
 	isGoTest = strings.Contains(strings.ToLower(os.Args[0]), "test")
 
-	globals.QueryCache = memcache.New("localhost:11211")
+	if memcacheAddr, err = gz.ReadEnvVar("GZ_FUEL_MEMCACHED_ADDR"); err != nil && !isGoTest {
+		logger.Info("Missing GZ_FUEL_MEMCACHED_ADDR env variable. Memcached will not be available.")
+	}
+
+	globals.QueryCache = memcache.New(memcacheAddr)
+	// Delete the cache when starting. The cache will be re-populated when
+	// queries arrive
+	if err := globals.QueryCache.DeleteAll(); err != nil {
+		logger.Error("Failed to clear the memory cache.")
+	}
 
 	// Get the root resource directory.
 	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil && !isGoTest {

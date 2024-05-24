@@ -5,7 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	memcache "github.com/bradfitz/gomemcache/memcache"
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/fuel-server/vcs"
