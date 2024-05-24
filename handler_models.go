@@ -39,7 +39,7 @@ func ModelList(p *gz.PaginationRequest, owner *string, order, search string,
 			categories = modelListCategoryHelper(tx, f, categories)
 		}
 	}
-	return ms.ModelList(p, tx, owner, order, search, nil, user, &categories)
+	return ms.ModelList(p, tx, owner, order, search, nil, user, &categories, false)
 }
 
 // modelListCategoryHelper append a category to filter in model list
@@ -67,7 +67,7 @@ func ModelLikeList(p *gz.PaginationRequest, owner *string, order, search string,
 		return nil, nil, em
 	}
 	ms := &models.Service{Storage: globals.Storage}
-	return ms.ModelList(p, tx, owner, order, search, likedBy, user, nil)
+	return ms.ModelList(p, tx, owner, order, search, likedBy, user, nil, false)
 }
 
 // ModelOwnerVersionFileTree returns the file tree of a single model. The returned value

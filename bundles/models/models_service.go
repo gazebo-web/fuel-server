@@ -2,7 +2,9 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/generics"
@@ -83,7 +85,22 @@ func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
 // This function returns a list of fuel.Model that can then be mashalled into json or protobuf.
 // TODO: find a way to MERGE this with the one from Worlds service.
 func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string,
-	order, search string, likedBy *users.User, user *users.User, categories *category.Categories) (*fuel.Models, *gz.PaginationResult, *gz.ErrMsg) {
+	order, search string, likedBy *users.User, user *users.User, categories *category.Categories, ignoreMemcache bool) (*fuel.Models, *gz.PaginationResult, *gz.ErrMsg) {
+
+	basicQuery := isbasicModelListQuery(p, owner, order, search, likedBy, ignoreMemcache)
+
+	paginationCacheKey := "models_list_pagination"
+	modelsCacheKey := "models_list_models"
+	if p != nil && p.PageRequested && p.PerPage == 20 {
+		paginationCacheKey = fmt.Sprintf("%s%d", paginationCacheKey, p.Page)
+		modelsCacheKey += fmt.Sprintf("%s%d", modelsCacheKey, p.Page)
+	}
+
+	// Try the memory cache first
+	modelListResult, paginationResult, cacheValid := getModelListCache(basicQuery, modelsCacheKey, paginationCacheKey)
+	if cacheValid {
+		return modelListResult, paginationResult, nil
+	}
 
 	var modelList Models
 	// Create query
@@ -162,6 +179,32 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 		modelsProto.Models = append(modelsProto.Models, fuelModel)
 	}
 
+	// Return if not caching
+	if !basicQuery {
+	    return &modelsProto, paginationResult, nil
+	}
+
+	// Cache the result if it's a basic query.
+	ctx := context.Background()
+
+	paginationBytes, paginationErr := json.Marshal(paginationResult)
+	if paginationErr != nil {
+		gz.LoggerFromContext(ctx).Error("Error marshalling pagination result", paginationErr)
+	}
+
+	modelsBytes, modelsErr := proto.Marshal(&modelsProto)
+	if modelsErr != nil {
+		gz.LoggerFromContext(ctx).Error("Error marshalling models result", modelsErr)
+	}
+
+	if paginationErr == nil && modelsErr == nil {
+		if err := globals.QueryCache.Set(&memcache.Item{Key: paginationCacheKey, Value: paginationBytes}); err != nil {
+			gz.LoggerFromContext(ctx).Error("Error caching model pagination result", err)
+		}
+		if err := globals.QueryCache.Set(&memcache.Item{Key: modelsCacheKey, Value: modelsBytes}); err != nil {
+			gz.LoggerFromContext(ctx).Error("Error caching model list result", err)
+		}
+	}
 	return &modelsProto, paginationResult, nil
 }
 
@@ -189,6 +232,9 @@ func (ms *Service) RemoveModel(ctx context.Context, tx *gorm.DB, owner, modelNam
 
 	// Remove the model from ElasticSearch
 	ElasticSearchRemoveModel(ctx, model)
+	if err := globals.QueryCache.DeleteAll(); err != nil {
+		gz.LoggerFromContext(ctx).Error("Failed to clear the memory cache.")
+	}
 
 	return res.Remove(tx, model, *user.Username)
 }
@@ -606,6 +652,10 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, *model)
+	if err := globals.QueryCache.DeleteAll(); err != nil {
+		gz.LoggerFromContext(ctx).Error("Failed to clear the memory cache.")
+	}
+
 	return model, nil
 }
 
@@ -726,6 +776,10 @@ func (ms *Service) CreateModel(ctx context.Context, tx *gorm.DB, cm CreateModel,
 	}
 
 	ElasticSearchUpdateModel(ctx, tx, model)
+	if err := globals.QueryCache.DeleteAll(); err != nil {
+		gz.LoggerFromContext(ctx).Error("Failed to clear the memory cache.")
+	}
+
 	return &model, nil
 }
 
@@ -837,4 +891,38 @@ func (ms *Service) createUniqueModelName(tx *gorm.DB, name, owner string) (strin
 		}
 	}
 	return newName, nil
+}
+
+// isbasicModelListQuery returns a boolean that indicates if this a basic `GET /models` or `GET /models?page=N` query.
+// In this case, we can ideally use the memdory cache to reduce the
+// DB burden.
+// Note: the PerPage default value is 20.
+func isbasicModelListQuery(p *gz.PaginationRequest, owner *string,
+	order, search string, likedBy *users.User, ignoreMemcache bool) bool {
+	return !ignoreMemcache && owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20))
+}
+
+// getModelListCache attempts to get a query result from memcache.
+func getModelListCache(basicQuery bool, modelsCacheKey, paginationCacheKey string) (*fuel.Models, *gz.PaginationResult, bool) {
+	if basicQuery {
+		paginationItem, errPagination := globals.QueryCache.Get(paginationCacheKey)
+		modelsItem, errModels := globals.QueryCache.Get(modelsCacheKey)
+
+		// If no errors, then unmarshal the bytes to the structs.
+		// Otherwise the normal query will be performed
+		if errPagination == nil && errModels == nil {
+			var paginationResult gz.PaginationResult
+			var modelsResult fuel.Models
+
+			errPagination = json.Unmarshal(paginationItem.Value, &paginationResult)
+			errModels = proto.Unmarshal(modelsItem.Value, &modelsResult)
+
+			// If no errors, then return the result. Otherwise do the normal
+			// query.
+			if errPagination == nil && errModels == nil {
+				return &modelsResult, &paginationResult, true
+			}
+		}
+	}
+	return nil, nil, false
 }
