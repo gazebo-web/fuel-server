@@ -870,13 +870,13 @@ func (ws *Service) CloneWorld(ctx context.Context, tx *gorm.DB, swOwner,
 
 	// Zip the world and compute its size.
 	if em := ws.updateZip(ctx, repo, &clone); em != nil {
-		os.Remove(*clone.Location)
+		os.RemoveAll(*clone.Location)
 		return nil, em
 	}
 
 	// If everything went OK then create the new world in DB.
 	if err := tx.Create(&clone).Error; err != nil {
-		os.Remove(*clone.Location)
+		os.RemoveAll(*clone.Location)
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 

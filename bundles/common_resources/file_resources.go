@@ -310,7 +310,7 @@ func CloneResourceRepo(ctx context.Context, res, clone Resource) (vcs.VCS, *gz.E
 	repo = globals.VCSRepoFactory(ctx, *clone.GetLocation())
 	// and tag it with the clone's UUID
 	if err := repo.Tag(ctx, *clone.GetUUID()); err != nil {
-		_ = os.Remove(*clone.GetLocation())
+		_ = os.RemoveAll(*clone.GetLocation())
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 	return repo, nil
