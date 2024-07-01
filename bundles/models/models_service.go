@@ -197,7 +197,7 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 		gz.LoggerFromContext(ctx).Error("Error marshalling models result", modelsErr)
 	}
 
-	if paginationErr == nil && modelsErr == nil {
+	if paginationErr == nil && modelsErr == nil && globals.QueryCache != nil {
 		if err := globals.QueryCache.Set(&memcache.Item{Key: paginationCacheKey, Value: paginationBytes}); err != nil {
 			gz.LoggerFromContext(ctx).Error("Error caching model pagination result", err)
 		}
@@ -853,13 +853,13 @@ func (ms *Service) CloneModel(ctx context.Context, tx *gorm.DB, smOwner,
 
 	// Zip the model and compute its size.
 	if em := ms.updateModelZip(ctx, repo, &clone); em != nil {
-		os.Remove(*clone.Location)
+		os.RemoveAll(*clone.Location)
 		return nil, em
 	}
 
 	// If everything went OK then create the  new model in DB.
 	if err := tx.Create(&clone).Error; err != nil {
-		os.Remove(*clone.Location)
+		os.RemoveAll(*clone.Location)
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 
