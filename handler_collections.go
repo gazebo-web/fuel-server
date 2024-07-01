@@ -188,7 +188,7 @@ func CollectionUpdate(owner, name string, user *users.User, tx *gorm.DB,
 		// first, populate files into tmp dir to avoid overriding original
 		// files in case of error.
 		tmpDir, err := os.MkdirTemp("", name)
-		defer os.Remove(tmpDir)
+		defer os.RemoveAll(tmpDir)
 		if err != nil {
 			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 		}

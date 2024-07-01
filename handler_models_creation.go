@@ -68,7 +68,7 @@ func doCreateModel(tx *gorm.DB, cb createFn, w http.ResponseWriter, r *http.Requ
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		os.Remove(*model.Location)
+		os.RemoveAll(*model.Location)
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 	}
 
@@ -111,7 +111,7 @@ func modelFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.Res
 	// move files from multipart form into new model's folder
 	_, em := populateTmpDir(r, true, modelPath)
 	if em != nil {
-		_ = os.Remove(modelPath)
+		_ = os.RemoveAll(modelPath)
 		return nil, em
 	}
 
@@ -119,7 +119,7 @@ func modelFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.Res
 	ms := &models.Service{Storage: globals.Storage}
 	model, em := ms.CreateModel(r.Context(), tx, cm, uuidStr, modelPath, jwtUser)
 	if em != nil {
-		_ = os.Remove(modelPath)
+		_ = os.RemoveAll(modelPath)
 		return nil, em
 	}
 	return model, nil
@@ -170,7 +170,7 @@ func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		os.Remove(*model.Location)
+		os.RemoveAll(*model.Location)
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 	}
 
@@ -264,7 +264,7 @@ func ModelUpdate(owner, modelName string, user *users.User, tx *gorm.DB,
 		// first, populate files into tmp dir to avoid overriding model
 		// files in case of error.
 		tmpDir, err := os.MkdirTemp("", modelName)
-		defer os.Remove(tmpDir)
+		defer os.RemoveAll(tmpDir)
 		if err != nil {
 			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 		}
