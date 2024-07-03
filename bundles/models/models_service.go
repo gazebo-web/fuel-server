@@ -853,13 +853,17 @@ func (ms *Service) CloneModel(ctx context.Context, tx *gorm.DB, smOwner,
 
 	// Zip the model and compute its size.
 	if em := ms.updateModelZip(ctx, repo, &clone); em != nil {
-		os.RemoveAll(*clone.Location)
+		if err := os.RemoveAll(*clone.Location); err != nil {
+			gz.LoggerFromContext(ctx).Error("Unable to remove directory: ", *clone.Location)
+		}
 		return nil, em
 	}
 
 	// If everything went OK then create the  new model in DB.
 	if err := tx.Create(&clone).Error; err != nil {
-		os.RemoveAll(*clone.Location)
+		if err := os.RemoveAll(*clone.Location); err != nil {
+			gz.LoggerFromContext(ctx).Error("Unable to remove directory: ", *clone.Location)
+		}
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 

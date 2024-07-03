@@ -338,7 +338,9 @@ func doCreateWorld(tx *gorm.DB, cb createWorldFn, w http.ResponseWriter, r *http
 	// before writing "data" to ResponseWriter. Once you write data (not headers)
 	// into it the status code is set to 200 (OK).
 	if err := tx.Commit().Error; err != nil {
-		os.RemoveAll(*world.Location)
+		if err := os.RemoveAll(*world.Location); err != nil {
+			gz.LoggerFromContext(r.Context()).Error("Unable to remove directory: ", *world.Location)
+		}
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 	}
 
@@ -403,7 +405,9 @@ func WorldCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 		// move files from multipart form into new world's folder
 		_, em := populateTmpDir(r, true, worldPath)
 		if em != nil {
-			os.RemoveAll(worldPath)
+			if err := os.RemoveAll(worldPath); err != nil {
+				gz.LoggerFromContext(r.Context()).Error("Unable to remove directory: ", worldPath)
+			}
 			return nil, em
 		}
 
@@ -411,7 +415,9 @@ func WorldCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 		ws := &worlds.Service{Storage: globals.Storage}
 		world, em := ws.CreateWorld(r.Context(), tx, cw, uuidStr, worldPath, jwtUser)
 		if em != nil {
-			os.RemoveAll(worldPath)
+			if err := os.RemoveAll(worldPath); err != nil {
+				gz.LoggerFromContext(r.Context()).Error("Unable to remove directory: ", worldPath)
+			}
 			return nil, em
 		}
 		return world, nil
@@ -493,7 +499,11 @@ func WorldUpdate(owner, worldName string, user *users.User, tx *gorm.DB,
 		// first, populate files into tmp dir to avoid overriding world
 		// files in case of error.
 		tmpDir, err := os.MkdirTemp("", worldName)
-		defer os.RemoveAll(tmpDir)
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				gz.LoggerFromContext(r.Context()).Error("Unable to remove directory: ", tmpDir)
+			}
+		}()
 		if err != nil {
 			return nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 		}
