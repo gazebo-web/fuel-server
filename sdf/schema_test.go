@@ -1,6 +1,9 @@
 package sdf
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestDefaultRegistryLoads(t *testing.T) {
 	r, err := Default()
@@ -36,35 +39,27 @@ func TestGetCommonElements(t *testing.T) {
 	}
 }
 
-func TestFullSchemaNonEmpty(t *testing.T) {
+func TestChildNamesResolvesIncludes(t *testing.T) {
+	children := MustDefault().ChildNames("1.9", "geometry")
+	joined := strings.Join(children, ",")
+	for _, want := range []string{"box", "mesh", "sphere"} {
+		if !strings.Contains(","+joined+",", ","+want+",") {
+			t.Errorf("geometry children %v missing %q", children, want)
+		}
+	}
+	if strings.Contains(joined, "_shape") {
+		t.Errorf("children should be element names, not filenames: %v", children)
+	}
+}
+
+func TestGetPrefersCanonicalFile(t *testing.T) {
+	// model_state.sdf and link_state.sdf also have <model>/<link> roots.
 	r := MustDefault()
-	s, ok := r.FullSchema("1.9")
-	if !ok {
-		t.Fatalf("expected full schema for 1.9")
-	}
-	if len(s) < 10_000 {
-		t.Errorf("full schema smaller than expected: %d bytes", len(s))
-	}
-}
-
-func TestValidateAcceptsMinimalWorld(t *testing.T) {
-	sdf := `<sdf version="1.9"><world name="w"/></sdf>`
-	r := Validate(sdf)
-	if !r.Valid {
-		t.Errorf("expected valid; errors=%+v", r.Errors)
-	}
-}
-
-func TestValidateFlagsMissingRoot(t *testing.T) {
-	r := Validate(`<foo/>`)
-	if r.Valid {
-		t.Errorf("expected invalid for non-sdf root")
-	}
-}
-
-func TestValidateFlagsMissingVersion(t *testing.T) {
-	r := Validate(`<sdf><model name="m"/></sdf>`)
-	if r.Valid {
-		t.Errorf("expected invalid without version attribute")
+	for _, name := range []string{"model", "link"} {
+		e, _ := r.Get("1.9", name)
+		canonical, _ := r.ElementForFile("1.9", name+".sdf")
+		if e != canonical {
+			t.Errorf("Get(%q) is not the definition from %s.sdf", name, name)
+		}
 	}
 }

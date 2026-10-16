@@ -7,25 +7,9 @@ import (
 
 const defaultSDFVersion = "1.9"
 
-// registerSDFTools wires the sdf.* MCP tools. Schemas come from the
-// embedded sdformat bundle; validation is the lightweight XML-structural
-// check from sdf/validate.go.
+// registerSDFTools wires the sdf_* MCP tools. Schemas come from the
+// embedded sdformat bundle; validation is sdf.Validate.
 func registerSDFTools(reg *mcp.Registry) {
-	reg.Register(mcp.Tool{
-		Spec: mcp.ToolSpec{
-			Name:        "sdf_get_full_schema",
-			Description: "Concatenated sdformat spec for a given SDF version. Use this as system-prompt context when designing SDF documents.",
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"version": map[string]any{"type": "string", "description": "SDF version, e.g. '1.9'. Default: " + defaultSDFVersion},
-				},
-			},
-		},
-		RequiredScopes: []string{"fuel:read"},
-		Handler:        sdfGetFullSchema,
-	})
-
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
 			Name:        "sdf_get_element_schema",
@@ -79,16 +63,6 @@ func registerSDFTools(reg *mcp.Registry) {
 }
 
 // -- handlers ---------------------------------------------------------------
-
-func sdfGetFullSchema(_ *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
-	version := versionArg(args, defaultSDFVersion)
-	reg := sdf.MustDefault()
-	body, ok := reg.FullSchema(version)
-	if !ok {
-		return mcp.ErrorResult("no schemas loaded for SDF version " + version), nil
-	}
-	return mcp.TextResult(body), nil
-}
 
 func sdfGetElementSchema(_ *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
 	elem, _ := args["element"].(string)
