@@ -413,6 +413,14 @@ func (s *Service) WriteFileWithOptions(ctx context.Context, tx *gorm.DB, owner, 
 			errors.New("invalid path: "+relPath))
 	}
 
+	// Serialize every git mutation below against other writers of this
+	// project, in this process or the ai-builder agent.
+	unlock, err := lockRepo(*p.Location)
+	if err != nil {
+		return 0, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
+	}
+	defer unlock()
+
 	// If the caller asked us to squash, first rewind HEAD past the run of
 	// auto-save commits at the tip. The reset is destructive (those
 	// commits disappear from history) — intentional; they only existed

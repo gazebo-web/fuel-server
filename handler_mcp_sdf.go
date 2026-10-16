@@ -13,7 +13,7 @@ const defaultSDFVersion = "1.9"
 func registerSDFTools(reg *mcp.Registry) {
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "sdf.get_full_schema",
+			Name:        "sdf_get_full_schema",
 			Description: "Concatenated sdformat spec for a given SDF version. Use this as system-prompt context when designing SDF documents.",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -28,7 +28,7 @@ func registerSDFTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "sdf.get_element_schema",
+			Name:        "sdf_get_element_schema",
 			Description: "Return the parsed schema definition for a single SDF element (attributes + child elements).",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -45,7 +45,7 @@ func registerSDFTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "sdf.list_child_elements",
+			Name:        "sdf_list_child_elements",
 			Description: "List valid direct child element names for an SDF element, including <include>d siblings.",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -62,7 +62,7 @@ func registerSDFTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "sdf.validate_sdf",
+			Name:        "sdf_validate_sdf",
 			Description: "Structural validation of an SDF document (XML well-formedness, required root/version, common mistakes).",
 			InputSchema: map[string]any{
 				"type": "object",

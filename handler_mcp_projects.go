@@ -37,7 +37,7 @@ func gzMcpError(em *gz.ErrMsg) mcp.CallToolResult {
 func registerProjectTools(reg *mcp.Registry) {
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "project.list",
+			Name:        "project_list",
 			Description: "List the caller's AI Builder projects, most recently updated first.",
 			InputSchema: map[string]any{
 				"type":       "object",
@@ -50,7 +50,7 @@ func registerProjectTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "project.get",
+			Name:        "project_get",
 			Description: "Get a single project's metadata by name (owner is the caller).",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -66,7 +66,7 @@ func registerProjectTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "project.list_versions",
+			Name:        "project_list_versions",
 			Description: "List the commit history of a project (newest first).",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -82,7 +82,7 @@ func registerProjectTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "project.get_world_sdf",
+			Name:        "project_get_world_sdf",
 			Description: "Read the project's current world.sdf (or a specific version).",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -99,7 +99,7 @@ func registerProjectTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "project.get_model_sdf",
+			Name:        "project_get_model_sdf",
 			Description: "Read a named model's SDF from the project (or a specific version).",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -117,7 +117,7 @@ func registerProjectTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "project.save_world_sdf",
+			Name:        "project_save_world_sdf",
 			Description: "Write the project's world.sdf and auto-version. Optional commit_message produces a labeled snapshot instead of an auto-save. Pass squash_autosaves=true (manual Save flow) to collapse the run of recent auto-save commits into this one labeled save.",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -136,7 +136,7 @@ func registerProjectTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "project.replace_in_world_sdf",
+			Name:        "project_replace_in_world_sdf",
 			Description: "Targeted edit to the project's world.sdf. Replaces every occurrence of `find` with `replace` and saves. Use this for incremental edits (changing a pose, adding one element, swapping a model) so you don't have to re-emit the whole world. `find` must match exactly (whitespace and indentation matter); pick a unique anchor — e.g. a full <link>...</link> block or a unique attribute value. Returns the new version number, or an error if `find` was not found.",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -155,7 +155,7 @@ func registerProjectTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "project.save_model_sdf",
+			Name:        "project_save_model_sdf",
 			Description: "Write a named model's SDF under the project's models/ folder and auto-version.",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -289,7 +289,7 @@ func projectSaveWorldSDF(tc *mcp.ToolContext, args map[string]any) (mcp.CallTool
 //
 // Errors with a clear message if `find` is not present, so the agent
 // can recover (search for a different anchor or fall back to
-// project.save_world_sdf).
+// project_save_world_sdf).
 func projectReplaceInWorldSDF(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
 	name, _ := args["name"].(string)
 	find, _ := args["find"].(string)

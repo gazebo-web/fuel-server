@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"regexp"
 	"sort"
 	"sync"
 
@@ -52,11 +53,16 @@ func NewRegistry() *Registry {
 	return &Registry{tools: map[string]Tool{}}
 }
 
-// Register adds or replaces a tool. Panics on empty name (programmer
+// validToolName is the intersection of the LLM providers' tool-name rules
+// (Anthropic, OpenAI and Gemini all reject dots). Names that pass here can
+// be handed to any provider unchanged.
+var validToolName = regexp.MustCompile(`^[a-z0-9_]{1,64}$`)
+
+// Register adds or replaces a tool. Panics on an invalid name (programmer
 // error; tools are registered once at server startup).
 func (r *Registry) Register(t Tool) {
-	if t.Spec.Name == "" {
-		panic("mcp: tool registered with empty name")
+	if !validToolName.MatchString(t.Spec.Name) {
+		panic("mcp: invalid tool name " + `"` + t.Spec.Name + `"` + "; must match " + validToolName.String())
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()

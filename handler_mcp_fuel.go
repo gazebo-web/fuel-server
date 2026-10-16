@@ -17,7 +17,7 @@ import (
 func registerFuelTools(reg *mcp.Registry) {
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "fuel.search_models",
+			Name:        "fuel_search_models",
 			Description: "Search Fuel for models the caller can see (public plus owned/private).",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -36,7 +36,7 @@ func registerFuelTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "fuel.search_worlds",
+			Name:        "fuel_search_worlds",
 			Description: "Search Fuel for worlds the caller can see.",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -53,7 +53,7 @@ func registerFuelTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "fuel.get_model_details",
+			Name:        "fuel_get_model_details",
 			Description: "Get metadata for a single Fuel model by (owner, name).",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -70,7 +70,7 @@ func registerFuelTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "fuel.get_model_sdf",
+			Name:        "fuel_get_model_sdf",
 			Description: "Fetch the model.sdf of a Fuel model. Optionally pin a version (default: latest).",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -88,7 +88,7 @@ func registerFuelTools(reg *mcp.Registry) {
 
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "fuel.get_world_sdf",
+			Name:        "fuel_get_world_sdf",
 			Description: "Fetch a world's SDF file (<name>.world) by (owner, name). Optionally pin a version.",
 			InputSchema: map[string]any{
 				"type": "object",
