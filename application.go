@@ -46,6 +46,7 @@ import (
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/go-playground/form"
+	"github.com/joho/godotenv"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"gopkg.in/go-playground/validator.v9"
@@ -71,6 +72,14 @@ const sysAdminForTest = "rootfortests"
 //	IGN_FUEL_RESOURCE_DIR : Directory with all resources (models, worlds)
 //	AUTH0_RSA256_PUBLIC_KEY   : Auth0 public RSA 256 key
 func init() {
+	// Load a .env file from the current working directory (or any of the
+	// standard paths godotenv searches) into the process environment. This
+	// runs before any gz.ReadEnvVar / os.Getenv calls below, so variables
+	// defined in .env are visible to the rest of init. Silent no-op when
+	// no .env file is present — production deployments continue to rely
+	// on environment variables injected by the orchestrator.
+	_ = godotenv.Load()
+
 	var err error
 	var popPath string
 	var isGoTest bool
@@ -128,6 +137,12 @@ func init() {
 	apiPrefix := "/" + globals.APIVersion
 	r := mainRouter.PathPrefix(apiPrefix).Subrouter()
 	s.ConfigureRouterWithRoutes(apiPrefix, r, routes)
+
+	// MCP server: registry gets its tools populated below after the rest
+	// of the app state (globals.Permissions, globals.VCSRepoFactory, ...)
+	// has been initialized. The registry is stored in a package-level
+	// variable so the route handler can see it.
+	initMCPServer(buildMCPRegistry())
 
 	// Now create a sub router for SubT, enabled with /subt/
 	subtPrefix := apiPrefix + "/subt"
@@ -244,15 +259,39 @@ func init() {
 			}
 		}
 		if !isGoTest {
-			p, err := gz.ReadEnvVar("S3_BUCKET")
-			if err != nil {
-				panic("error reading S3_BUCKET env var")
+			// IGN_DEV_USE_FAKE_S3=true spins up an in-process gofakes3 server
+			// so local development doesn't require real AWS credentials. This
+			// mirrors the setup used by the Go test harness above.
+			useFakeS3, _ := strconv.ParseBool(os.Getenv("IGN_DEV_USE_FAKE_S3"))
+			if useFakeS3 {
+				logger.Info("IGN_DEV_USE_FAKE_S3 enabled: using in-process gofakes3")
+				globals.BucketS3 = "fuel-dev"
+				globals.HTTPTestS3Server = httptest.NewServer(gofakes3.New(s3mem.New()).Server())
+				cfg := aws.Config{
+					Credentials:      credentials.NewStaticCredentials("DEV-ACCESSKEYID", "DEV-SECRETACCESSKEY", ""),
+					Endpoint:         aws.String(globals.HTTPTestS3Server.URL),
+					Region:           aws.String("us-east-1"),
+					DisableSSL:       aws.Bool(true),
+					S3ForcePathStyle: aws.Bool(true),
+				}
+				globals.SessionS3 = session.Must(session.NewSession(&cfg))
+				globals.S3 = s3.New(globals.SessionS3)
+				globals.UploaderS3 = s3manager.NewUploader(globals.SessionS3)
+				if _, err := globals.S3.CreateBucket(&s3.CreateBucketInput{Bucket: gz.String(globals.BucketS3)}); err != nil {
+					panic("error creating dev bucket: " + err.Error())
+				}
+				subt.BucketServerImpl = subt.NewS3Bucket(globals.BucketS3)
+			} else {
+				p, err := gz.ReadEnvVar("S3_BUCKET")
+				if err != nil {
+					panic("error reading S3_BUCKET env var (set S3_BUCKET=<bucket> or IGN_DEV_USE_FAKE_S3=true)")
+				}
+				globals.SessionS3 = session.Must(session.NewSession())
+				globals.S3 = s3.New(globals.SessionS3)
+				globals.UploaderS3 = s3manager.NewUploader(globals.SessionS3)
+				globals.BucketS3 = p
+				subt.BucketServerImpl = subt.NewS3Bucket(p)
 			}
-			globals.SessionS3 = session.Must(session.NewSession())
-			globals.S3 = s3.New(globals.SessionS3)
-			globals.UploaderS3 = s3manager.NewUploader(globals.SessionS3)
-			globals.BucketS3 = p
-			subt.BucketServerImpl = subt.NewS3Bucket(p)
 		}
 	}
 

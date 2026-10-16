@@ -1,0 +1,105 @@
+# fuel-server development image.
+#
+# Differs from the production Dockerfile:
+#   - Uses `go run` instead of a pre-compiled binary so source edits are
+#     picked up on container restart.
+#   - Mounts the repository at /workspace (expected to be bind-mounted
+#     from the host) rather than copying at build time.
+#   - Bakes sensible defaults for every env var fuel-server reads so the
+#     container boots without an auxiliary --env-file. Override any of
+#     them at `docker run` time with -e NAME=value.
+#
+# Typical usage:
+#
+#   # Terminal 1: MySQL
+#   docker network create fuel-dev 2>/dev/null || true
+#   docker run -d --name fuel-mysql --network fuel-dev \
+#     -e MYSQL_ROOT_PASSWORD=fuelpass \
+#     -e MYSQL_DATABASE=fuel \
+#     -e MYSQL_USER=fuel \
+#     -e MYSQL_PASSWORD=fuelpass \
+#     -p 3306:3306 mysql:8
+#
+#   # Terminal 2: fuel-server
+#   docker build -f Dockerfile.dev -t fuel-server:dev .
+#   docker run --rm -it --name fuel-server --network fuel-dev \
+#     -p 8000:8000 \
+#     -v $(pwd):/workspace \
+#     -v fuel-resources:/var/fuel \
+#     -e IGN_DB_ADDRESS=fuel-mysql:3306 \
+#     -e AUTH0_RSA256_PUBLIC_KEY="$(cat auth0-pubkey.txt)" \
+#     fuel-server:dev
+
+FROM golang:1.19
+
+# ── System deps ───────────────────────────────────────────────
+# - git: go-git / vcs integration
+# - default-mysql-client: handy for debugging `mysql -h ... -u ... -p`
+# - curl, ca-certificates: Auth0 jwks.json fetching, TLS roots
+# - nano, vim: dev convenience (matches original Dockerfile)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      git \
+      curl \
+      ca-certificates \
+      default-mysql-client \
+      nano \
+      vim \
+  && rm -rf /var/lib/apt/lists/*
+
+# go-git writes commits; it needs a configured identity.
+RUN git config --global user.name "gz-fuelserver-dev" \
+ && git config --global user.email "gz-fuelserver-dev@test.org" \
+ && git config --global init.defaultBranch main
+
+# Speed up `go run` / `go build` on repeat starts by pre-fetching modules
+# into the image's build cache. Source is bind-mounted at runtime, so we
+# do an initial module download from a cached go.mod snapshot (if present).
+WORKDIR /workspace
+
+# Optional warm-up: if the host's go.mod was COPYd in during build, this
+# would pre-populate the module cache. With a bind mount it just ensures
+# the cache dir exists with correct ownership.
+RUN mkdir -p /go/pkg/mod /root/.cache/go-build
+
+EXPOSE 8000
+
+# ── Default environment ───────────────────────────────────────
+# Database — matches the `docker run mysql:8` snippet in the header.
+ENV IGN_DB_USERNAME=fuel \
+    IGN_DB_PASSWORD=fuelpass \
+    IGN_DB_ADDRESS=fuel-mysql:3306 \
+    IGN_DB_NAME=fuel \
+    IGN_DB_MAX_OPEN_CONNS=66
+
+# Resource storage — a named volume is expected to be mounted here.
+ENV IGN_FUEL_RESOURCE_DIR=/var/fuel
+
+# Grant the local developer system-admin rights by default.
+# Override with your Auth0-linked email at `docker run -e ...`.
+ENV IGN_FUEL_SYSTEM_ADMIN=sys_admin@email.org
+
+# Verbose logging: 0=critical … 4=debug.
+ENV IGN_FUEL_VERBOSITY=3
+
+# Use an in-process fake S3 (gofakes3) so no real AWS credentials are
+# required in dev. Override with `-e IGN_DEV_USE_FAKE_S3=false -e S3_BUCKET=...`
+# to point at a real bucket instead.
+ENV IGN_DEV_USE_FAKE_S3=true
+
+# Auth0 — empty by default so the server starts; authenticated routes
+# will reject requests until the caller provides a real public key via
+# -e AUTH0_RSA256_PUBLIC_KEY="...".
+#
+# Fetch the current staging key once with:
+#   curl -s https://gazebosim-staging.us.auth0.com/.well-known/jwks.json \
+#     | jq -r '.keys[0].x5c[0]'
+ENV AUTH0_RSA256_PUBLIC_KEY=""
+
+# ── Startup ───────────────────────────────────────────────────
+# Ensures the resource dir exists, then runs the server via `go run` so
+# source changes picked up on container restart without a rebuild.
+RUN mkdir -p /var/fuel
+
+# `go run` is chosen over `go build && ./fuel-server` so iterative dev
+# edits (via bind mount) take effect on `docker restart fuel-server`.
+CMD ["go", "run", "."]

@@ -18,6 +18,7 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/collections"
 	"github.com/gazebo-web/fuel-server/bundles/license"
 	"github.com/gazebo-web/fuel-server/bundles/models"
+	"github.com/gazebo-web/fuel-server/bundles/projects"
 	"github.com/gazebo-web/fuel-server/bundles/reviews"
 	"github.com/gazebo-web/fuel-server/bundles/subt"
 	"github.com/gazebo-web/fuel-server/bundles/users"
@@ -77,6 +78,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&worlds.WorldDownload{},
 			&worlds.ModelInclude{},
 			&worlds.WorldMetadatum{},
+			&projects.Project{},
 			&reviews.ModelReview{},
 			globals.Permissions.DBTable(),
 

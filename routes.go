@@ -2783,4 +2783,164 @@ var routes = gz.Routes{
 			},
 		},
 	},
+
+	//////////////
+	// Projects //
+	//////////////
+	//
+	// Projects are the private, user-scoped workspaces used by the AI
+	// Builder. The owner is always the calling user; there is no
+	// `/{username}/projects/...` form. All project routes require a valid
+	// JWT or PAT. See docs/ai-builder-technical-design.md §4.1, §9.1.
+
+	// /projects — list (GET) and create (POST).
+	//
+	// Note on the list handler: we use gz.JSONResult (not JSONListResult)
+	// here because ProjectList returns a plain []Project slice rather
+	// than a proto wrapper struct. JSONListResult reflects on the result
+	// looking for a field named "Projects" and panics when it finds a
+	// slice — see the old Fuel Models handler which returns *fuel.Models
+	// (a proto wrapper) for the pattern JSONListResult expects. Frontend
+	// consumers are fine with a plain JSON array.
+	gz.Route{
+		Name:          "Projects",
+		Description:   "AI Builder projects collection",
+		URI:           "/projects",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "List the caller's projects",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandlerWithUser(ProjectList, true))},
+				},
+			},
+			gz.Method{
+				Type:        "POST",
+				Description: "Create a new project",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(ProjectCreate)},
+				},
+			},
+		},
+	},
+
+	// /projects/{name} — get / patch / delete one project.
+	gz.Route{
+		Name:          "Project",
+		Description:   "A single AI Builder project",
+		URI:           "/projects/{name}",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Get a project",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectGet))},
+				},
+			},
+			gz.Method{
+				Type:        "PATCH",
+				Description: "Update project metadata",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectUpdate))},
+				},
+			},
+			gz.Method{
+				Type:        "DELETE",
+				Description: "Delete a project",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectDelete))},
+				},
+			},
+		},
+	},
+
+	// /projects/{name}/versions — list versions (git log).
+	gz.Route{
+		Name:          "ProjectVersions",
+		Description:   "List versions (git log) of a project",
+		URI:           "/projects/{name}/versions",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "List versions",
+				Handlers: gz.FormatHandlers{
+					// JSONResult (not JSONListResult) — ProjectVersions
+				// returns a plain []VersionInfo slice; see the
+				// "/projects" route comment above for context.
+				gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectVersions))},
+				},
+			},
+		},
+	},
+
+	// /projects/{name}/thumbnail — upload a thumbnail image. Stored in the
+	// repo as thumbnail.png and read back via the standard files route.
+	gz.Route{
+		Name:          "ProjectThumbnail",
+		Description:   "Upload a project thumbnail image",
+		URI:           "/projects/{name}/thumbnail",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "POST",
+				Description: "Upload thumbnail image bytes",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectThumbnailUpload))},
+				},
+			},
+		},
+	},
+
+	// /projects/{name}/{version}/files/{path:.*} — read a file at a version.
+	// The handler writes the raw bytes directly; NoResult + gz.Handler wraps
+	// the ErrMsg-returning inner func into the final http.Handler.
+	gz.Route{
+		Name:          "ProjectFile",
+		Description:   "Read a file from a project at a specific version",
+		URI:           "/projects/{name}/{version}/files/{path:.*}",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Get file content",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameHandler("name", true, ProjectFileAtVersion)))},
+				},
+			},
+		},
+	},
+
+	/////////
+	// MCP //
+	/////////
+	//
+	// Single JSON-RPC 2.0 endpoint over HTTP. Every tool invocation runs
+	// as the authenticated caller, so the existing RBAC + private-resource
+	// query-time filters apply to MCP calls automatically. External agents
+	// (Claude Desktop, CLIs) can connect with the same Bearer/Private-Token
+	// credentials they already use for the REST API.
+	gz.Route{
+		Name:          "MCP",
+		Description:   "Model Context Protocol endpoint",
+		URI:           "/mcp",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "POST",
+				Description: "Dispatch one MCP JSON-RPC request",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(MCPEndpoint))},
+				},
+			},
+		},
+	},
 } // routes

@@ -121,6 +121,8 @@ github.com/jmespath/go-jmespath/internal/testify v1.5.1 h1:shLQSRRSCCPj3f2gpwzGw
 github.com/jmespath/go-jmespath/internal/testify v1.5.1/go.mod h1:L3OGu8Wl2/fWfCI6z80xFu9LTZmf1ZRjMHUOPmWr69U=
 github.com/johannesboyne/gofakes3 v0.0.0-20230108161031-df26ca44a1e9 h1:PqhUbDge60cL99naOP9m3W0MiQtWc5kwteQQ9oU36PA=
 github.com/johannesboyne/gofakes3 v0.0.0-20230108161031-df26ca44a1e9/go.mod h1:Cnosl0cRZIfKjTMuH49sQog2LeNsU5Hf4WnPIDWIDV0=
+github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
+github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
 github.com/jpillora/go-ogle-analytics v0.0.0-20161213085824-14b04e0594ef h1:jLpa0vamfyIGeIJ/CfUJEWoKriw4ODeOgF1XxDvgMZ4=
 github.com/jpillora/go-ogle-analytics v0.0.0-20161213085824-14b04e0594ef/go.mod h1:PlwhC7q1VSK73InDzdDatVetQrTsQHIbOvcJAZzitY0=
 github.com/jtolds/gls v4.20.0+incompatible h1:xdiiI2gbIgH/gLH7ADydsJ1uDOEzR8yvV7C0MuV77Wo=

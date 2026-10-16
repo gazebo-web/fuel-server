@@ -4,6 +4,110 @@
   <p>Gazebo Fuel Server hosts simulation resources for consumption through a REST API.</p>
 </div>
 
+# Quick start with Docker (development)
+
+The repository includes a `Dockerfile.dev` that bundles the Go toolchain,
+all system dependencies, sensible default environment variables, and a
+bind-mount-friendly layout so source edits take effect on container
+restart without rebuilding the image.
+
+## 1. Build the dev image
+
+From the repository root:
+
+```bash
+docker build -f Dockerfile.dev -t fuel-server:dev .
+```
+
+## 2. Create a shared network and start MySQL
+
+```bash
+docker network create fuel-dev
+
+docker run -d --name fuel-mysql --network fuel-dev \
+  -e MYSQL_ROOT_PASSWORD=fuelpass \
+  -e MYSQL_DATABASE=fuel \
+  -e MYSQL_USER=fuel \
+  -e MYSQL_PASSWORD=fuelpass \
+  -p 3306:3306 \
+  mysql:8
+```
+
+Wait ~10 seconds for MySQL to finish initializing. You can verify with
+`docker logs fuel-mysql` — it's ready once you see
+`ready for connections` on port 3306.
+
+## 3. Fetch the Auth0 public key
+
+The server validates incoming JWTs against the Auth0 tenant's public
+RSA256 key. For local development against the staging tenant
+(`gazebosim-staging.us.auth0.com`):
+
+```bash
+AUTH0_PUBKEY=$(curl -s https://gazebosim-staging.us.auth0.com/.well-known/jwks.json \
+  | jq -r '.keys[0].x5c[0]')
+```
+
+(Install `jq` first if needed: `sudo apt install jq` on Debian/Ubuntu.)
+
+## 4. Run fuel-server
+
+```bash
+docker run --rm -it --name fuel-server --network fuel-dev \
+  -p 8000:8000 \
+  -v "$(pwd)":/workspace \
+  -v fuel-resources:/var/fuel \
+  -e IGN_FUEL_SYSTEM_ADMIN="$(git config user.email)" \
+  -e AUTH0_RSA256_PUBLIC_KEY="$AUTH0_PUBKEY" \
+  fuel-server:dev
+```
+
+What each flag does:
+
+* `-p 8000:8000` — exposes the HTTP API on `http://localhost:8000`.
+* `-v "$(pwd)":/workspace` — bind-mounts your working copy into the
+  container so local edits take effect on restart (no rebuild).
+* `-v fuel-resources:/var/fuel` — persists uploaded model/world files
+  across container restarts in a named Docker volume.
+* `-e IGN_FUEL_SYSTEM_ADMIN=...` — grants system-admin privileges on
+  login to the user whose Auth0 email matches. Defaults to your local
+  `git config user.email` above; override as needed.
+* `-e AUTH0_RSA256_PUBLIC_KEY=...` — required for JWT validation.
+
+Every other env var (DB credentials, resource dir, verbosity) is baked
+into the image with development-appropriate defaults and can be
+overridden at run time with additional `-e` flags. The full list is in
+the [Environment Variables](#environment-variables) section below.
+
+## 5. Verify it's up
+
+```bash
+curl http://localhost:8000/1.0/models
+```
+
+You should receive a JSON response (an empty list `[]` on a fresh
+database).
+
+## Restarting after code edits
+
+`Dockerfile.dev` uses `go run .` as its entrypoint, so any source
+change is picked up the next time the container starts:
+
+```bash
+docker restart fuel-server
+```
+
+## Tearing down
+
+```bash
+docker stop fuel-server fuel-mysql
+docker rm fuel-mysql                     # fuel-server was --rm
+docker volume rm fuel-resources          # delete stored models/worlds
+docker network rm fuel-dev
+```
+
+---
+
 # Install
 
 1. [Go version 1.19](https://golang.org/dl/) or above.
