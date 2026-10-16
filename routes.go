@@ -2898,6 +2898,42 @@ var routes = gz.Routes{
 		},
 	},
 
+	// /projects/{name}/files/{path:.*} — write a file (the SDF editor's save).
+	gz.Route{
+		Name:          "ProjectFileWrite",
+		Description:   "Write a file in a project",
+		URI:           "/projects/{name}/files/{path:.*}",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "PUT",
+				Description: "Write file content; 409 if the file changed since base_rev",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectFileWrite))},
+				},
+			},
+		},
+	},
+
+	// /projects/{name}/checkpoint — labeled save.
+	gz.Route{
+		Name:          "ProjectCheckpoint",
+		Description:   "Save a labeled project version",
+		URI:           "/projects/{name}/checkpoint",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "POST",
+				Description: "Record a labeled version, folding automatic saves",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectCheckpoint))},
+				},
+			},
+		},
+	},
+
 	// /projects/{name}/{version}/files/{path:.*} — read a file at a version.
 	// The handler writes the raw bytes directly; NoResult + gz.Handler wraps
 	// the ErrMsg-returning inner func into the final http.Handler.

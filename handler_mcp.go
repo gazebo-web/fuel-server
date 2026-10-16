@@ -3,8 +3,7 @@ package main
 import (
 	"net/http"
 
-	"github.com/gazebo-web/fuel-server/bundles/users"
-	"github.com/gazebo-web/fuel-server/globals"
+	"github.com/gazebo-web/fuel-server/aitools"
 	"github.com/gazebo-web/fuel-server/mcp"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
@@ -52,21 +51,8 @@ func initMCPServer(reg *mcp.Registry) {
 	mcpServer = mcp.NewServer(reg)
 }
 
-// buildMCPRegistry wires every tool the MCP endpoint exposes. It is called
-// once at startup. Tools are registered in their own registerX helpers that
-// live next to the bundle they belong to, so adding a tool means adding one
-// line here and one handler file under bundles/<thing>/.
+// buildMCPRegistry returns the AI tool registry (aitools) the MCP
+// endpoint serves. The in-app agent uses the same registry.
 func buildMCPRegistry() *mcp.Registry {
-	reg := mcp.NewRegistry()
-	registerFuelTools(reg)
-	registerSDFTools(reg)
-	registerProjectTools(reg)
-	return reg
+	return aitools.NewRegistry(aitools.ConfigFromEnv())
 }
-
-// Phase 2 placeholder so `users` import isn't flagged as unused once the
-// tool packages land in separate files. Remove after A5.
-var _ = users.User{}
-
-// Same for globals — touched once application.go is rewired.
-var _ = globals.ResourceDir

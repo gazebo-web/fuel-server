@@ -35,7 +35,8 @@ type Project struct {
 
 	// Stable identifier used for the on-disk folder name and as the git "v1"
 	// tag so the version-counting helpers in common_resources can work.
-	UUID *string `json:"-"`
+	// Also the stable external id (chat history is keyed by it).
+	UUID *string `json:"uuid,omitempty"`
 
 	// Owner is always a user (not an org) since projects are private.
 	Owner *string `gorm:"unique_index:idx_projname_owner" json:"owner,omitempty"`
@@ -65,6 +66,10 @@ type Project struct {
 	// Location of the on-disk git repo. Populated in NewProjectAndUUID.
 	// Mirrors Model.Location.
 	Location *string `json:"-"`
+
+	// HeadRev is the commit hash at HEAD, filled in on read (not stored).
+	// Clients poll it to notice edits made elsewhere, e.g. by an agent.
+	HeadRev string `gorm:"-" json:"head_rev,omitempty"`
 }
 
 // Projects is a slice of Project.

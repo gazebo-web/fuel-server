@@ -1,9 +1,9 @@
 package projects
 
 import (
-	"bytes"
 	"context"
 	"errors"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -129,6 +129,9 @@ func (s *Service) Get(tx *gorm.DB, owner, name string,
 	// reference check is a cheap go-git lookup; the rename is only
 	// shelled out when we actually find drift.
 	ensureMasterBranch(p)
+	if rev, err := headRev(*p.Location); err == nil {
+		p.HeadRev = rev
+	}
 	return p, nil
 }
 
@@ -363,209 +366,203 @@ func (s *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path, v
 	return res.GetFile(ctx, p, path, version)
 }
 
-// WriteFileOptions controls the behavior of WriteFile. Carries a struct
-// rather than positional args so future flags (squash, amend, ...) land
-// without cascading signature changes.
+// WriteFileOptions controls WriteFileWithOptions.
 type WriteFileOptions struct {
-	// CommitMessage is the commit message to record for the save. For
-	// auto-saves callers should pass projects.AutoSaveMessage so the
-	// squash path can key off it.
+	// CommitMessage labels the commit. Agent and chat edits pass an
+	// auto-save message (see IsAutoSave) so labeled saves and the idle
+	// squash can fold them.
 	CommitMessage string
-	// SquashAutoSaves, when true, rewrites history before committing.
-	// Any run of consecutive AutoSaveMessage commits at HEAD is
-	// collapsed into this one save. Useful for the manual "Save with
-	// label" flow that follows a burst of chat-engine auto-saves.
+	// SquashAutoSaves folds the run of auto-save commits at HEAD, plus
+	// this write, into one commit labeled CommitMessage (a user's Save).
 	SquashAutoSaves bool
+	// BaseRev, when set, rejects the write if the file changed since that
+	// revision (optimistic concurrency, design §3.2.4).
+	BaseRev string
+	// Amend folds the write into HEAD instead of adding a version. Used for
+	// thumbnails so they don't create history entries.
+	Amend bool
 }
 
-// WriteFile writes a single file into the project's repo at HEAD, stages it,
-// and commits. The commit message is used as-is (callers supply either an
-// auto-save tag or a user-provided label). Returns the new version number.
-//
-// Thin backward-compatible wrapper over WriteFileWithOptions.
-func (s *Service) WriteFile(ctx context.Context, tx *gorm.DB, owner, name, relPath string,
-	content []byte, commitMessage string, jwtUser *users.User) (int, *gz.ErrMsg) {
-	return s.WriteFileWithOptions(ctx, tx, owner, name, relPath, content, jwtUser,
-		WriteFileOptions{CommitMessage: commitMessage})
+// WriteResult describes the commit a write produced.
+type WriteResult struct {
+	Version int    `json:"version"`
+	Rev     string `json:"rev"`
+	// Squashed is how many auto-save commits a labeled save folded in.
+	Squashed int `json:"squashed,omitempty"`
 }
 
-// WriteFileWithOptions is the full form. See WriteFileOptions.
+// writeAccess loads the project, checks the caller may write it, and
+// takes the repo lock. The returned unlock must be called.
+func (s *Service) writeAccess(ctx context.Context, tx *gorm.DB, owner, name string,
+	jwtUser *users.User) (*Project, func(), *gz.ErrMsg) {
+	p, em := s.Get(tx, owner, name, jwtUser)
+	if em != nil {
+		return nil, nil, em
+	}
+	if !s.canWrite(p, jwtUser) {
+		return nil, nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	}
+	unlock, err := lockRepo(*p.Location)
+	if err != nil {
+		return nil, nil, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
+	}
+	// Self-heal repos left uninitialized by older fuel-server builds.
+	if em := ensureRepoInitialized(ctx, p); em != nil {
+		unlock()
+		return nil, nil, em
+	}
+	return p, unlock, nil
+}
+
+// finishWrite fills in the version number and, for auto-saves, restarts
+// the project's idle-squash timer.
+func finishWrite(ctx context.Context, p *Project, rev, message string, squashed int) (WriteResult, *gz.ErrMsg) {
+	if IsAutoSave(message) {
+		scheduleIdleSquash(*p.Location)
+	}
+	// NOTE: Project.UpdatedAt is deliberately not bumped on file saves;
+	// git is the source of truth for content changes (journal Q-MCP-9).
+	v, err := res.GetLatestVersion(ctx, p)
+	if err != nil {
+		return WriteResult{}, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+	return WriteResult{Version: v, Rev: rev, Squashed: squashed}, nil
+}
+
+func authorOf(jwtUser *users.User) string {
+	if jwtUser != nil && jwtUser.Username != nil && *jwtUser.Username != "" {
+		return *jwtUser.Username
+	}
+	return gitAuthor
+}
+
+// WriteFileWithOptions writes one file into the project repo and commits.
 func (s *Service) WriteFileWithOptions(ctx context.Context, tx *gorm.DB, owner, name, relPath string,
-	content []byte, jwtUser *users.User, opts WriteFileOptions) (int, *gz.ErrMsg) {
+	content []byte, jwtUser *users.User, opts WriteFileOptions) (WriteResult, *gz.ErrMsg) {
+
+	clean, err := cleanRelPath(relPath)
+	if err != nil {
+		return WriteResult{}, repoErr(err)
+	}
+	p, unlock, em := s.writeAccess(ctx, tx, owner, name, jwtUser)
+	if em != nil {
+		return WriteResult{}, em
+	}
+	defer unlock()
+	if err := checkBaseRev(*p.Location, clean, opts.BaseRev); err != nil {
+		return WriteResult{}, repoErr(err)
+	}
+
+	author := authorOf(jwtUser)
+	var rev string
+	squashed := 0
+	if opts.SquashAutoSaves {
+		full := filepath.Join(*p.Location, clean)
+		if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+			return WriteResult{}, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
+		}
+		if err := os.WriteFile(full, content, 0644); err != nil {
+			return WriteResult{}, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		}
+		rev, squashed, err = squashAutoSavesLocked(ctx, *p.Location,
+			func(int) string { return opts.CommitMessage }, author, true)
+	} else {
+		rev, err = writeFileLocked(ctx, *p.Location, clean, content, opts.CommitMessage, author, opts.Amend)
+	}
+	if err != nil {
+		return WriteResult{}, repoErr(err)
+	}
+	return finishWrite(ctx, p, rev, opts.CommitMessage, squashed)
+}
+
+// EditFile replaces the one occurrence of oldStr with newStr in a project
+// file and commits, rejecting the edit if the file changed since baseRev.
+func (s *Service) EditFile(ctx context.Context, tx *gorm.DB, owner, name, relPath,
+	oldStr, newStr, baseRev, message string, jwtUser *users.User) (WriteResult, *gz.ErrMsg) {
+
+	p, unlock, em := s.writeAccess(ctx, tx, owner, name, jwtUser)
+	if em != nil {
+		return WriteResult{}, em
+	}
+	defer unlock()
+	rev, err := editFileLocked(ctx, *p.Location, relPath, oldStr, newStr, baseRev, message, authorOf(jwtUser))
+	if err != nil {
+		return WriteResult{}, repoErr(err)
+	}
+	return finishWrite(ctx, p, rev, message, 0)
+}
+
+// Checkpoint records a labeled version, folding any trailing auto-saves
+// into it. With nothing to fold it still records the label.
+func (s *Service) Checkpoint(ctx context.Context, tx *gorm.DB, owner, name, message string,
+	jwtUser *users.User) (WriteResult, *gz.ErrMsg) {
+
+	if strings.TrimSpace(message) == "" {
+		return WriteResult{}, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue,
+			errors.New("message is required"))
+	}
+	p, unlock, em := s.writeAccess(ctx, tx, owner, name, jwtUser)
+	if em != nil {
+		return WriteResult{}, em
+	}
+	defer unlock()
+	rev, n, err := squashAutoSavesLocked(ctx, *p.Location,
+		func(int) string { return message }, authorOf(jwtUser), true)
+	if err != nil {
+		return WriteResult{}, repoErr(err)
+	}
+	return finishWrite(ctx, p, rev, message, n)
+}
+
+// ReadFile returns a project file at rev ("" or "tip" = HEAD) and the
+// resolved commit hash.
+func (s *Service) ReadFile(ctx context.Context, tx *gorm.DB, owner, name, relPath, rev string,
+	jwtUser *users.User) ([]byte, string, *gz.ErrMsg) {
 
 	p, em := s.Get(tx, owner, name, jwtUser)
 	if em != nil {
-		return 0, em
+		return nil, "", em
 	}
-	if !s.canWrite(p, jwtUser) {
-		return 0, gz.NewErrorMessage(gz.ErrorUnauthorized)
-	}
-	if relPath == "" {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorNameWrongFormat,
-			errors.New("path is required"))
-	}
-	// Disallow absolute paths and "..". Only POSIX-style separators inside
-	// the repo root are accepted.
-	clean := filepath.ToSlash(filepath.Clean(relPath))
-	if filepath.IsAbs(clean) || clean == "." || clean == ".." ||
-		clean[0] == '/' || bytes.Contains([]byte(clean), []byte("..")) {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorNameWrongFormat,
-			errors.New("invalid path: "+relPath))
-	}
-
-	// Serialize every git mutation below against other writers of this
-	// project, in this process or the ai-builder agent.
-	unlock, err := lockRepo(*p.Location)
+	b, resolved, err := readFileAt(*p.Location, relPath, rev)
 	if err != nil {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
+		return nil, "", repoErr(err)
 	}
-	defer unlock()
-
-	// If the caller asked us to squash, first rewind HEAD past the run of
-	// auto-save commits at the tip. The reset is destructive (those
-	// commits disappear from history) — intentional; they only existed
-	// because we were auto-checkpointing a build turn and the user is now
-	// labeling the current state as the canonical save.
-	//
-	// Squash is best-effort: if the git reset fails for any reason
-	// (permission, working-tree dirty, missing branch, ...) we log and
-	// fall through to the regular write+commit path. Better to land a
-	// labeled commit on top of the auto-save run than to abort the whole
-	// Save and leave the user's work uncommitted.
-	if opts.SquashAutoSaves {
-		if em := s.rewindAutoSaves(ctx, p); em != nil {
-			cause := em.Msg
-			if em.BaseError != nil {
-				cause = cause + ": " + em.BaseError.Error()
-			}
-			gz.LoggerFromContext(ctx).Warning(
-				"projects: squash failed for " + *p.Name + "; falling back to plain commit: " + cause,
-			)
-		}
-	}
-
-	fullPath := filepath.Join(*p.Location, clean)
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
-	}
-	if err := os.WriteFile(fullPath, content, 0644); err != nil {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
-	}
-
-	// Self-heal: a project row pointing at a folder with no .git has been
-	// observed for projects created by older fuel-server builds where
-	// InitRepo silently no-op'd. Rather than blocking every Save with
-	// "repository does not exist", lazily initialize the repo here. Any
-	// pre-existing files in the folder (including the bytes we just
-	// wrote) are picked up by the initial commit.
-	if em := ensureRepoInitialized(ctx, p); em != nil {
-		return 0, em
-	}
-
-	// Stage + commit via go-git.
-	repo, err := git.PlainOpen(*p.Location)
-	if err != nil {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
-	}
-	w, err := repo.Worktree()
-	if err != nil {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
-	}
-	if _, err := w.Add(clean); err != nil {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
-	}
-	authorName := gitAuthor
-	if jwtUser != nil && jwtUser.Username != nil && *jwtUser.Username != "" {
-		authorName = *jwtUser.Username
-	}
-	commitMessage := opts.CommitMessage
-	// Skip the commit if staging produced no changes (writing the same
-	// content that's already in HEAD). Checking status before commit is
-	// simpler and cross-version than catching an empty-commit error from
-	// go-git, which varies across library versions.
-	status, err := w.Status()
-	if err != nil {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
-	}
-	if !status.IsClean() {
-		if _, err := w.Commit(commitMessage, &git.CommitOptions{
-			Author: &object.Signature{
-				Name:  authorName,
-				Email: gitEmail,
-				When:  time.Now(),
-			},
-		}); err != nil {
-			return 0, gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
-		}
-	}
-
-	// NOTE: we deliberately do not bump Project.UpdatedAt on file saves.
-	// Git is the authoritative source of "last changed" for file content
-	// (HEAD commit time). Touching the DB here would churn the row on
-	// every chat tool call without adding signal. List sort order uses
-	// the DB's updated_at which only moves on metadata patches; that's
-	// intentional. See journal Q-MCP-9.
-	latest, err := res.GetLatestVersion(ctx, p)
-	if err != nil {
-		return 0, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-	return latest, nil
+	return b, resolved, nil
 }
 
-// rewindAutoSaves inspects the project's repo, counts the run of
-// consecutive AutoSaveMessage commits anchored at HEAD, and hard-resets
-// the working branch to the parent of the earliest one. A no-op if HEAD
-// is not an auto-save commit or if resetting would orphan the repo
-// (there's only one commit in history).
-//
-// Implementation note: we shell out to `git reset` because go-git's
-// storer-level branch-ref rewrites across worktree state are fiddly and
-// the plain-git binary is already a runtime dep of fuel-server (see
-// vcs/vcs.go for the same fallback pattern).
-func (s *Service) rewindAutoSaves(ctx context.Context, p *Project) *gz.ErrMsg {
-	repo, err := git.PlainOpen(*p.Location)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
-	}
-	head, err := repo.Head()
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
-	}
-	iter, err := repo.Log(&git.LogOptions{From: head.Hash()})
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
-	}
-	defer iter.Close()
+// ListFiles returns the project's file paths at rev and the resolved hash.
+func (s *Service) ListFiles(ctx context.Context, tx *gorm.DB, owner, name, rev string,
+	jwtUser *users.User) ([]string, string, *gz.ErrMsg) {
 
-	// Walk the log from HEAD; remember the first commit whose message is
-	// NOT an auto-save. That's where we'll reset to. If every commit
-	// back to the initial one is an auto-save we leave history alone —
-	// there's nothing to anchor to.
-	var target *object.Commit
-	count := 0
-	for {
-		c, err := iter.Next()
-		if err != nil {
-			break
-		}
-		msg := strings.TrimSpace(c.Message)
-		if msg == AutoSaveMessage {
-			count++
-			continue
-		}
-		target = c
-		break
+	p, em := s.Get(tx, owner, name, jwtUser)
+	if em != nil {
+		return nil, "", em
 	}
-	if count == 0 || target == nil {
-		return nil
+	files, resolved, err := listFilesAt(*p.Location, rev)
+	if err != nil {
+		return nil, "", repoErr(err)
 	}
-	cmd := exec.CommandContext(ctx, "git", "reset", "--mixed", target.Hash.String())
-	cmd.Dir = *p.Location
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorRepo,
-			errors.New("git reset: "+err.Error()+": "+string(out)))
+	return files, resolved, nil
+}
+
+// repoErr maps repo-level errors to API errors with useful status codes.
+func repoErr(err error) *gz.ErrMsg {
+	var em *gz.ErrMsg
+	switch {
+	case errors.Is(err, ErrStaleRev), errors.Is(err, ErrUnknownRev):
+		em = gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
+		em.StatusCode = http.StatusConflict
+	case errors.Is(err, ErrFileNotFound):
+		em = gz.NewErrorMessageWithBase(gz.ErrorNameNotFound, err)
+		em.StatusCode = http.StatusNotFound
+	case errors.Is(err, ErrNoMatch), errors.Is(err, ErrAmbiguousMatch),
+		strings.HasPrefix(err.Error(), "invalid path"), err.Error() == "path is required":
+		em = gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
+		em.StatusCode = http.StatusBadRequest
+	default:
+		em = gz.NewErrorMessageWithBase(gz.ErrorRepo, err)
 	}
-	return nil
+	return em
 }
 
 // -- helpers ----------------------------------------------------------------

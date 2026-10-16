@@ -173,11 +173,11 @@ func ProjectVersions(name string, jwtUser *users.User, tx *gorm.DB,
 	return list, nil
 }
 
-// ProjectThumbnailUpload handles PUT /1.0/projects/{name}/thumbnail. The
+// ProjectThumbnailUpload handles POST /1.0/projects/{name}/thumbnail. The
 // request body is the raw image bytes (PNG); the client renders the
-// project's gzweb canvas to a small JPEG/PNG and PUTs it whole. We store
-// the result as `thumbnail.png` in the project repo so it auto-versions
-// alongside the world and is served back via the existing
+// project's gzweb canvas to a small PNG and posts it whole. It is stored
+// as `thumbnail.png` in the project repo, amended into HEAD so thumbnails
+// don't add versions, and served back via the existing
 // /projects/{name}/{version}/files/thumbnail.png read path.
 func ProjectThumbnailUpload(name string, jwtUser *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
@@ -196,12 +196,64 @@ func ProjectThumbnailUpload(name string, jwtUser *users.User, tx *gorm.DB,
 	}
 
 	s := &projects.Service{}
-	v, em := s.WriteFile(r.Context(), tx, *jwtUser.Username, name,
-		"thumbnail.png", body, "thumbnail update", jwtUser)
+	res, em := s.WriteFileWithOptions(r.Context(), tx, *jwtUser.Username, name,
+		"thumbnail.png", body, jwtUser, projects.WriteFileOptions{Amend: true})
 	if em != nil {
 		return nil, em
 	}
-	return map[string]interface{}{"version": v}, nil
+	return res, nil
+}
+
+// writeProjectFileBody is the payload for PUT /1.0/projects/{name}/files/{path}.
+type writeProjectFileBody struct {
+	Content string `json:"content"`
+	// BaseRev rejects the write with 409 if the file changed since then.
+	BaseRev string `json:"base_rev,omitempty"`
+	// Message labels the save; empty records an automatic save.
+	Message string `json:"message,omitempty"`
+}
+
+// ProjectFileWrite handles PUT /1.0/projects/{name}/files/{path:.*}: the
+// SDF editor's save. Same operation as the project_write_file tool.
+func ProjectFileWrite(name string, jwtUser *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+
+	if jwtUser == nil {
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
+	}
+	var body writeProjectFileBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnmarshalJSON, err)
+	}
+	msg := body.Message
+	if msg == "" {
+		msg = projects.AutoSaveMessage + ": editor"
+	}
+	s := &projects.Service{}
+	return s.WriteFileWithOptions(r.Context(), tx, *jwtUser.Username, name, mux.Vars(r)["path"],
+		[]byte(body.Content), jwtUser, projects.WriteFileOptions{CommitMessage: msg, BaseRev: body.BaseRev})
+}
+
+// checkpointBody is the payload for POST /1.0/projects/{name}/checkpoint.
+type checkpointBody struct {
+	Message string `json:"message"`
+}
+
+// ProjectCheckpoint handles POST /1.0/projects/{name}/checkpoint: a
+// labeled save that folds the automatic saves since the last one. Same
+// operation as the project_checkpoint tool.
+func ProjectCheckpoint(name string, jwtUser *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+
+	if jwtUser == nil {
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
+	}
+	var body checkpointBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnmarshalJSON, err)
+	}
+	s := &projects.Service{}
+	return s.Checkpoint(r.Context(), tx, *jwtUser.Username, name, body.Message, jwtUser)
 }
 
 // ProjectFileAtVersion handles GET /1.0/projects/{name}/{version}/files/{path:.*}.
