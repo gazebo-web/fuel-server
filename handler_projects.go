@@ -5,10 +5,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/gazebo-web/fuel-server/bundles/projects"
 	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/fuel-server/sdf"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
@@ -273,6 +275,18 @@ func ProjectFileAtVersion(name string, jwtUser *users.User, tx *gorm.DB,
 	}
 
 	s := &projects.Service{}
+	// A commit hash (e.g. a project's head_rev) pins the exact revision a
+	// client will later pass as base_rev; "tip" and version numbers work
+	// as for models and worlds.
+	if commitHashRe.MatchString(version) {
+		b, _, em := s.ReadFile(r.Context(), tx, *jwtUser.Username, name, path, version, jwtUser)
+		if em != nil {
+			return nil, em
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(b)
+		return nil, nil
+	}
 	bytes, resolved, em := s.GetFile(r.Context(), tx, *jwtUser.Username, name, path, version, jwtUser)
 	if em != nil {
 		return nil, em
@@ -282,4 +296,26 @@ func ProjectFileAtVersion(name string, jwtUser *users.User, tx *gorm.DB,
 	w.Header().Set("Content-Type", "application/octet-stream")
 	_, _ = w.Write(*bytes)
 	return nil, nil
+}
+
+var commitHashRe = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
+// maxValidateBytes caps SDF validation request bodies.
+const maxValidateBytes = 5 << 20
+
+// validateSDFBody is the payload for POST /1.0/sdf/validate.
+type validateSDFBody struct {
+	SDF string `json:"sdf"`
+}
+
+// SDFValidate handles POST /1.0/sdf/validate: the same validator the AI
+// tools run on every write, for the SDF editor's live feedback. It reads
+// no user data, so authentication is not required.
+func SDFValidate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxValidateBytes)
+	var body validateSDFBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnmarshalJSON, err)
+	}
+	return sdf.Validate(body.SDF), nil
 }

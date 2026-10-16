@@ -2916,6 +2916,24 @@ var routes = gz.Routes{
 		},
 	},
 
+	// /sdf/validate — SDF validation for the editor (no auth needed).
+	gz.Route{
+		Name:        "SDFValidate",
+		Description: "Validate an SDF document",
+		URI:         "/sdf/validate",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
+			gz.Method{
+				Type:        "POST",
+				Description: "Validate the SDF in the request body",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(SDFValidate)},
+				},
+			},
+		},
+		SecureMethods: gz.SecureMethods{},
+	},
+
 	// /projects/{name}/checkpoint — labeled save.
 	gz.Route{
 		Name:          "ProjectCheckpoint",

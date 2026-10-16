@@ -161,6 +161,11 @@ func TestAIToolsProjectWorkflow(t *testing.T) {
 	read := mcpJSON(t, jwt, "project_read_file", map[string]any{"name": name, "path": "world.sdf"})
 	assert.Equal(t, aiTestWorld, read["content"])
 
+	// REST read at a commit hash returns that revision's content.
+	rec = aiRequest(t, "GET", "/1.0/projects/"+name+"/"+rev2+"/files/world.sdf", jwt, nil)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), "<pose>0 2 1.5 0 0</pose>")
+
 	// Paths can't escape the repo.
 	text, isErr = mcpCall(t, jwt, "project_write_file", map[string]any{"name": name, "path": "../escape.sdf", "content": "x"})
 	assert.True(t, isErr)
@@ -175,6 +180,26 @@ func projectVersionCount(t *testing.T, jwt, name string) int {
 	var list []any
 	require.NoError(t, json.Unmarshal([]byte(text), &list), text)
 	return len(list)
+}
+
+func TestSDFValidateEndpoint(t *testing.T) {
+	b := strings.NewReader(`{"sdf": "<sdf version=\"1.9\"><model name=\"m\"><static>maybe</static></model></sdf>"}`)
+	req, _ := http.NewRequest("POST", "/1.0/sdf/validate", b)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	globals.Server.Router.ServeHTTP(rec, req) // no Authorization header
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var r struct {
+		Valid  bool `json:"valid"`
+		Errors []struct {
+			Line    int    `json:"line"`
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &r))
+	assert.False(t, r.Valid)
+	require.Len(t, r.Errors, 1)
+	assert.Contains(t, r.Errors[0].Message, "expected true or false")
 }
 
 func TestAIToolsValidateDocument(t *testing.T) {
