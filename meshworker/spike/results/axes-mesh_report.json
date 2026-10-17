@@ -1,0 +1,24 @@
+{
+  "triangles": 2597,
+  "vertices": 1719,
+  "bounding_box": [
+    0.52,
+    0.4,
+    0.28
+  ],
+  "collision": {
+    "hulls": 1,
+    "triangles": 186,
+    "volume_m3": 0.021423
+  },
+  "inertial": {
+    "mass": 1.0,
+    "center_of_mass": [
+      -0.0331,
+      0.0007,
+      0.0832
+    ]
+  },
+  "texture_size": 1024,
+  "atlas_utilization": 0.9
+}

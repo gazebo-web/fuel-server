@@ -1,0 +1,98 @@
+<?xml version="1.0"?>
+<!-- C1 format spike world. The exported models sit next to primitive
+     reference boxes of known size; two cameras save images to
+     $SPIKE_IMAGES. The cone is dropped from 0.2 m and should come to rest
+     standing on its base (z = 0). -->
+<sdf version="1.9">
+  <world name="spike">
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.4 0.3 -0.9</direction>
+    </light>
+    <scene>
+      <ambient>0.5 0.5 0.5 1</ambient>
+      <background>0.75 0.8 0.85 1</background>
+    </scene>
+
+    <model name="ground">
+      <static>true</static>
+      <link name="link">
+        <collision name="c"><geometry><plane><normal>0 0 1</normal><size>20 20</size></plane></geometry></collision>
+        <visual name="v">
+          <geometry><plane><normal>0 0 1</normal><size>20 20</size></plane></geometry>
+          <material><diffuse>0.85 0.85 0.8 1</diffuse><ambient>0.85 0.85 0.8 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <include>
+      <uri>model://spike_axes</uri>
+      <pose>0 0 0 0 0 0</pose>
+    </include>
+
+    <include>
+      <uri>model://spike_cone</uri>
+      <pose>0 0.8 0.2 0 0 0</pose>
+      <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+        <publish_model_pose>true</publish_model_pose>
+        <publish_link_pose>false</publish_link_pose>
+        <use_pose_vector_msg>false</use_pose_vector_msg>
+        <update_frequency>10</update_frequency>
+      </plugin>
+    </include>
+
+    <!-- Reference boxes: 0.4 m cube beside the axes plate (same footprint)
+         and a 0.36 x 0.36 x 0.6 m box beside the cone (its bounding box). -->
+    <model name="ref_axes">
+      <static>true</static>
+      <pose>0 -0.6 0.2 0 0 0</pose>
+      <link name="link"><visual name="v"><geometry><box><size>0.4 0.4 0.4</size></box></geometry>
+        <material><diffuse>0.9 0.9 0.9 1</diffuse><ambient>0.9 0.9 0.9 1</ambient></material></visual></link>
+    </model>
+    <model name="ref_cone">
+      <static>true</static>
+      <pose>0 1.5 0.3 0 0 0</pose>
+      <link name="link"><visual name="v"><geometry><box><size>0.36 0.36 0.6</size></box></geometry>
+        <material><diffuse>0.9 0.9 0.9 1</diffuse><ambient>0.9 0.9 0.9 1</ambient></material></visual></link>
+    </model>
+
+    <model name="cameras">
+      <static>true</static>
+      <link name="link">
+        <!-- Three-quarter view from +X/-Y, looking at the middle of the row. -->
+        <sensor name="three_quarter" type="camera">
+          <pose>2.4 -1.6 1.4 0 0.37 2.45</pose>
+          <update_rate>1</update_rate>
+          <always_on>true</always_on>
+          <camera>
+            <horizontal_fov>1.0</horizontal_fov>
+            <image><width>1280</width><height>800</height></image>
+            <clip><near>0.05</near><far>50</far></clip>
+            <save enabled="true"><path>$SPIKE_IMAGES/three_quarter</path></save>
+          </camera>
+        </sensor>
+        <!-- Low view from +X along -X: shows resting height against the floor. -->
+        <sensor name="side" type="camera">
+          <pose>3 0.45 0.25 0 0.02 3.14159</pose>
+          <update_rate>1</update_rate>
+          <always_on>true</always_on>
+          <camera>
+            <horizontal_fov>0.9</horizontal_fov>
+            <image><width>1280</width><height>600</height></image>
+            <clip><near>0.05</near><far>50</far></clip>
+            <save enabled="true"><path>$SPIKE_IMAGES/side</path></save>
+          </camera>
+        </sensor>
+      </link>
+    </model>
+  </world>
+</sdf>
