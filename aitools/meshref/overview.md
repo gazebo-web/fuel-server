@@ -6,7 +6,7 @@ Write Python that defines `build()`. It returns one build123d solid, a part from
 - collision: a primitive, one hull, or a convex decomposition;
 - exact inertia from the solids;
 - the GLB, `model.sdf` and `model.config`;
-- a 4-view preview image.
+- a preview image with four views: three-quarter from the front (+X -Y), three-quarter from the back (-X +Y), front (+X) and top.
 
 The model's origin ends up at the bottom center of its bounding box, so `<pose>` with z = 0 sets it on the floor. Build it upright, with its front facing +X.
 

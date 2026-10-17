@@ -11,15 +11,17 @@ import trimesh
 from PIL import Image, ImageDraw
 
 BACKGROUND = np.array([0.86, 0.88, 0.9])
-LIGHT = np.array([0.4, -0.5, 0.75])
 AMBIENT = 0.35
 
-# name, view direction (camera looks along -d, i.e. sits at +d), up
+# name, view direction (camera looks along -d, i.e. sits at +d), up. The
+# two three-quarter views between them face every horizontal direction, so
+# no side of the model is hidden (a desk's drawers on +Y were, with a
+# front and a -Y side view).
 VIEWS = (
+    ("three-quarter (+X -Y)", np.array([0.8, -1.0, 0.7]), np.array([0, 0, 1.0])),
+    ("back three-quarter (-X +Y)", np.array([-0.8, 1.0, 0.7]), np.array([0, 0, 1.0])),
     ("front (+X)", np.array([1.0, 0, 0]), np.array([0, 0, 1.0])),
-    ("side (-Y)", np.array([0, -1.0, 0]), np.array([0, 0, 1.0])),
     ("top (+Z)", np.array([0, 0, 1.0]), np.array([1.0, 0, 0])),
-    ("three-quarter", np.array([0.8, -1.0, 0.7]), np.array([0, 0, 1.0])),
 )
 
 
@@ -46,7 +48,10 @@ def render(v, f, n, uv, tex, d, up, size):
     half = max(np.abs(x).max(), np.abs(y).max()) * 1.12 or 1.0
     sx = (x / half * 0.5 + 0.5) * (size - 1)
     sy = (0.5 - y / half * 0.5) * (size - 1)
-    light = LIGHT / np.linalg.norm(LIGHT)
+    # Light each view from above and to the right of its camera, so every
+    # view, including the back one, shows its faces lit.
+    light = d * 0.7 + cam_up * 0.6 + right * 0.4
+    light /= np.linalg.norm(light)
     shade = AMBIENT + (1 - AMBIENT) * np.clip(n @ light, 0, 1)
 
     img = np.tile(BACKGROUND, (size, size, 1))

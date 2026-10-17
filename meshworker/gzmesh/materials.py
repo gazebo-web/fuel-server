@@ -141,7 +141,7 @@ def wood(color="#a0703c", grain_scale=1.0, axis="x") -> Material:
 
     def color_fn(p, n):
         q = np.delete(p, ax, axis=1)
-        r = np.linalg.norm(q, axis=1) * 60 * grain_scale + 4 * fbm(p, 6, 3)
+        r = np.linalg.norm(q, axis=1) * 25 * grain_scale + 3 * fbm(p, 4, 3)
         rings = 0.5 + 0.5 * np.sin(r * 2 * np.pi)
         return _mix(c, dark, rings ** 3 * 0.8 + 0.2 * fbm(p, 200, 2))
     return Material("wood", color_fn, 0.7, 0.0, 600.0, {"color": color, "axis": axis})

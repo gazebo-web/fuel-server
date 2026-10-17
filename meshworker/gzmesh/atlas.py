@@ -76,16 +76,21 @@ def bake(mesh: trimesh.Trimesh, face_part: np.ndarray, materials: list[Material]
 
 def _cover(tri_px: np.ndarray, size: int):
     """Texels covered by a triangle in pixel space, and their barycentric
-    weights. Slightly conservative so chart edges have no gaps."""
+    weights. Slightly conservative so chart edges have no gaps. A triangle
+    smaller than a texel may contain no texel center; it still gets the
+    texel under its centroid, or a chart of only such triangles would stay
+    unbaked (black) with nothing nearby for dilation to copy."""
     a, b, c = tri_px
+    centroid = np.clip(np.rint((a + b + c) / 3), 0, size - 1).astype(int)[None, :]
+    third = np.full((1, 3), 1 / 3)
     x0, y0 = np.floor(np.minimum(np.minimum(a, b), c)).astype(int)
     x1, y1 = np.ceil(np.maximum(np.maximum(a, b), c)).astype(int)
     x0, y0, x1, y1 = max(x0, 0), max(y0, 0), min(x1, size - 1), min(y1, size - 1)
     if x1 < x0 or y1 < y0:
-        return None, None
+        return centroid, third
     d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
     if abs(d) < 1e-12:
-        return None, None
+        return centroid, third
     gx, gy = np.meshgrid(np.arange(x0, x1 + 1), np.arange(y0, y1 + 1))
     g = np.stack([gx.ravel(), gy.ravel()], 1)
     w0 = ((b[1] - c[1]) * (g[:, 0] - c[0]) + (c[0] - b[0]) * (g[:, 1] - c[1])) / d
@@ -93,7 +98,7 @@ def _cover(tri_px: np.ndarray, size: int):
     w = np.stack([w0, w1, 1 - w0 - w1], 1)
     inside = (w >= -0.02).all(1)
     if not inside.any():
-        return None, None
+        return centroid, third
     w = np.clip(w[inside], 0, None)
     return g[inside], w / w.sum(1, keepdims=True)
 

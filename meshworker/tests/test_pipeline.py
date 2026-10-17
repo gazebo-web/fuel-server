@@ -135,6 +135,34 @@ def test_tolerance_reaches_budget_without_decimation(build):
     assert r["triangles"] <= 3000 and not r["tessellation"]["decimated"], r["tessellation"]
 
 
+def test_every_face_is_baked(build):
+    """Thin, densely tessellated parts (a mug handle) produce triangles
+    smaller than a texel; each must still sample a baked texel, not the
+    black background."""
+    # The agent's own mug from the first mesh smoke run: 418 of its 13094
+    # faces sampled black before every triangle baked at least one texel.
+    code, r, out = build("""
+from build123d import *
+import gzmesh as gz
+
+def build():
+    R, H, wall, base = 0.04, 0.095, 0.004, 0.006
+    body = Cylinder(R, H, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    body = fillet(body.edges().group_by(Axis.Z)[0], 0.006)
+    path = Spline((0, 0.035, 0.08), (0, 0.07, 0.077), (0, 0.083, 0.052), (0, 0.07, 0.027), (0, 0.035, 0.02))
+    handle = sweep((path ^ 0) * Circle(0.0065), path)
+    mug = (body + handle) - Pos(0, 0, base) * Cylinder(R - wall, H, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return gz.part(mug, "mug", gz.plastic("#c8372d", roughness=0.2))
+""")
+    assert code == 0, r
+    m = trimesh.load(out / "models/thing/meshes/thing.glb").geometry.popitem()[1]
+    tex = np.asarray(m.visual.material.baseColorTexture.convert("RGB"))
+    h, w = tex.shape[:2]
+    c = m.visual.uv[m.faces].mean(1)
+    px = tex[np.clip(((1 - c[:, 1]) * h).astype(int), 0, h - 1), np.clip((c[:, 0] * w).astype(int), 0, w - 1)]
+    assert (px.max(1) < 40).sum() == 0, f"{(px.max(1) < 40).sum()} of {len(px)} faces sample unbaked texels"
+
+
 def test_static_and_names(build):
     code, r, out = build(BOX, name="crate_2", static=True)
     assert code == 0 and r["uri"] == "model://crate_2"

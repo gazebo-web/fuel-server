@@ -274,7 +274,8 @@ func (t *tools) commitGenerated(tc *mcp.ToolContext, project, model, baseRev str
 		"validation": validation,
 		"include": fmt.Sprintf("<include>\n  <uri>model://%s</uri>\n  <name>%s</name>\n  <pose>0 0 0 0 0 0</pose>\n</include>",
 			model, model),
-		"preview": "attached (front, side, top, three-quarter); also " + path.Join(dir, "previews", "preview.png"),
+		"preview": "attached: three-quarter from the front (+X -Y) and back (-X +Y), front (+X), top; also " +
+			path.Join(dir, "previews", "preview.png"),
 	}
 	for _, k := range []string{"bounding_box_m", "triangles", "collision", "inertial", "parts", "warnings", "tessellation"} {
 		if v, ok := out.report[k]; ok {
