@@ -5,7 +5,10 @@
 // can trust the caller identity the server passes them.
 package mcp
 
-import "encoding/json"
+import (
+	"encoding/base64"
+	"encoding/json"
+)
 
 // ProtocolVersion is the MCP protocol revision this server advertises in
 // its initialize response. Clients that request a newer version will
@@ -94,12 +97,19 @@ type CallToolResult struct {
 	IsError bool           `json:"isError,omitempty"`
 }
 
-// ContentBlock is a single entry in a CallToolResult.Content slice. Only
-// text blocks are used today; MCP also supports image and resource
-// blocks, which we can add when a tool needs them.
+// ContentBlock is a single entry in a CallToolResult.Content slice: text,
+// or an image (base64 Data with its MimeType), e.g. a generated model's
+// preview for the agent to check (plan §5.5).
 type ContentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text,omitempty"`
+	Type     string `json:"type"`
+	Text     string `json:"text,omitempty"`
+	Data     string `json:"data,omitempty"`
+	MimeType string `json:"mimeType,omitempty"`
+}
+
+// ImageBlock is an image content block.
+func ImageBlock(mimeType string, data []byte) ContentBlock {
+	return ContentBlock{Type: "image", Data: base64.StdEncoding.EncodeToString(data), MimeType: mimeType}
 }
 
 // TextResult is a convenience constructor for a single-text-block result.
@@ -116,4 +126,3 @@ func ErrorResult(text string) CallToolResult {
 		IsError: true,
 	}
 }
-

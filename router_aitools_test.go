@@ -1,7 +1,9 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,8 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gazebo-web/fuel-server/aitools"
 	"github.com/gazebo-web/fuel-server/bundles/projects"
+	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
+	"github.com/gazebo-web/fuel-server/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -441,4 +446,167 @@ func TestBuildFileTree(t *testing.T) {
 	assert.JSONEq(t, `[{"name":"meshes","path":"/meshes","children":[{"name":"a.glb","path":"/meshes/a.glb"},
 		{"name":"b","path":"/meshes/b","children":[{"name":"c.png","path":"/meshes/b/c.png"}]}]},
 		{"name":"model.sdf","path":"/model.sdf"}]`, string(b))
+}
+
+// generatedModel is a mesh worker result for model `name` (cmd/meshworker's
+// tarball layout) with the given collision mesh files.
+func generatedModel(t *testing.T, name string, collisions ...string) []byte {
+	t.Helper()
+	var coll strings.Builder
+	files := map[string]string{}
+	for i, c := range collisions {
+		fmt.Fprintf(&coll, "      <collision name=\"collision_%d\"><geometry><mesh><uri>meshes/%s</uri></mesh></geometry></collision>\n", i, c)
+		files["models/"+name+"/meshes/"+c] = "glTF collision"
+	}
+	files["models/"+name+"/model.sdf"] = fmt.Sprintf(`<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="%s">
+    <static>false</static>
+    <link name="link">
+      <inertial><pose>0 0 0.3 0 0 0</pose><mass>2.5</mass>
+        <inertia><ixx>0.06</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.06</iyy><iyz>0</iyz><izz>0.024</izz></inertia>
+      </inertial>
+      <visual name="visual"><geometry><mesh><uri>meshes/%s.glb</uri></mesh></geometry></visual>
+%s    </link>
+  </model>
+</sdf>
+`, name, name, coll.String())
+	files["models/"+name+"/model.config"] = fmt.Sprintf(`<?xml version="1.0"?>
+<model><name>%s</name><version>1.0</version><sdf version="1.9">model.sdf</sdf><author><name>AI Builder</name></author><description>cone</description></model>
+`, name)
+	files["models/"+name+"/meshes/"+name+".glb"] = "glTF visual"
+	files["models/"+name+"/source/model.py"] = "def build(): ...\n"
+	files["preview.png"] = "\x89PNG fake"
+	files["report.json"] = `{"ok": true, "triangles": 4034, "bounding_box_m": [0.36, 0.36, 0.6], "warnings": []}`
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for _, n := range []string{"report.json"} {
+		tw.WriteHeader(&tar.Header{Name: n, Mode: 0o644, Size: int64(len(files[n]))})
+		tw.Write([]byte(files[n]))
+	}
+	for n, c := range files {
+		if n == "report.json" {
+			continue
+		}
+		tw.WriteHeader(&tar.Header{Name: n, Mode: 0o644, Size: int64(len(c))})
+		tw.Write([]byte(c))
+	}
+	require.NoError(t, tw.Close())
+	return buf.Bytes()
+}
+
+func TestAIToolsModelGenerate(t *testing.T) {
+	jwt := createValidJWTForIdentity("aitools-meshgen-identity", t)
+	username := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(username, jwt, t)
+	user, em := getUserFromDb(username, t)
+	require.Nil(t, em)
+	name := fmt.Sprintf("meshgen-%d", time.Now().UnixNano())
+	mcpJSON(t, jwt, "project_create", map[string]any{"name": name})
+
+	// A stub worker: the code text picks the result.
+	var jobs []map[string]any
+	worker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet { // the async job finishing
+			w.Header().Set("Content-Type", "application/x-tar")
+			w.Write(generatedModel(t, "slow", "slow_collision_0.glb"))
+			return
+		}
+		var job map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&job))
+		jobs = append(jobs, job)
+		code := job["code"].(string)
+		switch {
+		case strings.Contains(code, "SLOW"):
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			w.Write([]byte(`{"job_id":"job-1","status":"running"}`))
+			return
+		case strings.Contains(code, "BROKEN"):
+			w.Header().Set("Content-Type", "application/x-tar")
+			w.Write(makeReportTar(t, `{"ok": false, "error": "ZeroDivisionError: division by zero", "line": 4}`))
+			return
+		case strings.Contains(code, "V2"):
+			w.Header().Set("Content-Type", "application/x-tar")
+			w.Write(generatedModel(t, "cone", "cone_collision_0.glb"))
+			return
+		}
+		w.Header().Set("Content-Type", "application/x-tar")
+		w.Write(generatedModel(t, "cone", "cone_collision_0.glb", "cone_collision_1.glb"))
+	}))
+	defer worker.Close()
+
+	reg := aitools.NewRegistry(aitools.Config{MeshWorkerURL: worker.URL})
+	call := func(tool string, args map[string]any, as *mcp.ToolContext) mcp.CallToolResult {
+		t.Helper()
+		h, ok := reg.Get(tool)
+		require.True(t, ok, tool)
+		r, err := h.Handler(as, args)
+		require.NoError(t, err)
+		return r
+	}
+	tc := &mcp.ToolContext{Ctx: context.Background(), DB: globals.Server.Db, User: user}
+	files := func() string {
+		out := mcpJSON(t, jwt, "project_list_files", map[string]any{"name": name})
+		b, _ := json.Marshal(out["files"])
+		return string(b)
+	}
+
+	r := call("model_generate", map[string]any{"name": name, "model": "cone", "code": "def build(): ...", "mass": 2.5}, tc)
+	require.False(t, r.IsError, r.Content[0].Text)
+	require.Len(t, r.Content, 2)
+	assert.Equal(t, "image", r.Content[1].Type)
+	assert.Equal(t, "image/png", r.Content[1].MimeType)
+	var res map[string]any
+	require.NoError(t, json.Unmarshal([]byte(r.Content[0].Text), &res))
+	assert.Equal(t, "model://cone", res["uri"])
+	assert.Equal(t, true, res["validation"].(map[string]any)["valid"], res["validation"])
+	assert.EqualValues(t, 4034, res["triangles"])
+	assert.Equal(t, "1.9", jobs[0]["sdf_version"])
+	assert.EqualValues(t, 2.5, jobs[0]["mass"])
+	got := files()
+	for _, f := range []string{"models/cone/model.sdf", "models/cone/meshes/cone.glb", "models/cone/meshes/cone_collision_1.glb",
+		"models/cone/source/model.py", "models/cone/previews/preview.png"} {
+		assert.Contains(t, got, f)
+	}
+
+	// Regenerating replaces the folder: the second hull is gone.
+	r = call("model_generate", map[string]any{"name": name, "model": "cone", "code": "V2"}, tc)
+	require.False(t, r.IsError, r.Content[0].Text)
+	assert.NotContains(t, files(), "cone_collision_1.glb")
+
+	// The model code failed: an error result with the line, nothing committed.
+	r = call("model_generate", map[string]any{"name": name, "model": "cone", "code": "BROKEN"}, tc)
+	assert.True(t, r.IsError)
+	assert.Contains(t, r.Content[0].Text, "ZeroDivisionError")
+	assert.Contains(t, r.Content[0].Text, `"line": 4`)
+
+	// A hand-made model is not overwritten.
+	mcpJSON(t, jwt, "model_create", map[string]any{"name": name, "model": "shelf"})
+	r = call("model_generate", map[string]any{"name": name, "model": "shelf", "code": "x"}, tc)
+	assert.True(t, r.IsError)
+	assert.Contains(t, r.Content[0].Text, "wasn't generated")
+	r = call("model_generate", map[string]any{"name": name, "model": "Bad-Name", "code": "x"}, tc)
+	assert.True(t, r.IsError)
+
+	// A slow job: model_generate returns a job id, model_generate_status
+	// commits it, and only for the same user.
+	r = call("model_generate", map[string]any{"name": name, "model": "slow", "code": "SLOW"}, tc)
+	require.False(t, r.IsError, r.Content[0].Text)
+	assert.Contains(t, r.Content[0].Text, `"job_id": "job-1"`)
+	other := "someone-else"
+	r = call("model_generate_status", map[string]any{"job_id": "job-1"}, &mcp.ToolContext{Ctx: context.Background(), DB: globals.Server.Db, User: &users.User{Username: &other}})
+	assert.True(t, r.IsError)
+	r = call("model_generate_status", map[string]any{"job_id": "job-1"}, tc)
+	require.False(t, r.IsError, r.Content[0].Text)
+	assert.Contains(t, files(), "models/slow/meshes/slow.glb")
+}
+
+func makeReportTar(t *testing.T, report string) []byte {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	tw.WriteHeader(&tar.Header{Name: "report.json", Mode: 0o644, Size: int64(len(report))})
+	tw.Write([]byte(report))
+	require.NoError(t, tw.Close())
+	return buf.Bytes()
 }

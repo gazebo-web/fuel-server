@@ -33,10 +33,15 @@ type Config struct {
 	// staging see real models (design §5.4). Empty in production, where this
 	// server is the public catalog.
 	UpstreamFuel string
+	// MeshWorkerURL is the mesh worker (cmd/meshworker) that runs
+	// model_generate jobs, and MeshWorkerToken its shared secret. The mesh
+	// tools are only offered when the URL is set.
+	MeshWorkerURL, MeshWorkerToken string
 }
 
-// ConfigFromEnv reads AI_TOOLS_FUEL_HOSTS (comma-separated) and
-// AI_TOOLS_UPSTREAM_FUEL.
+// ConfigFromEnv reads AI_TOOLS_FUEL_HOSTS (comma-separated),
+// AI_TOOLS_UPSTREAM_FUEL, AI_TOOLS_MESHWORKER_URL and
+// AI_TOOLS_MESHWORKER_TOKEN.
 func ConfigFromEnv() Config {
 	var hosts []string
 	for _, h := range strings.Split(os.Getenv("AI_TOOLS_FUEL_HOSTS"), ",") {
@@ -44,7 +49,12 @@ func ConfigFromEnv() Config {
 			hosts = append(hosts, h)
 		}
 	}
-	return Config{FuelHosts: hosts, UpstreamFuel: strings.TrimSpace(os.Getenv("AI_TOOLS_UPSTREAM_FUEL"))}
+	return Config{
+		FuelHosts:       hosts,
+		UpstreamFuel:    strings.TrimSpace(os.Getenv("AI_TOOLS_UPSTREAM_FUEL")),
+		MeshWorkerURL:   strings.TrimSpace(os.Getenv("AI_TOOLS_MESHWORKER_URL")),
+		MeshWorkerToken: os.Getenv("AI_TOOLS_MESHWORKER_TOKEN"),
+	}
 }
 
 // NewRegistry returns a registry with every AI tool registered.
@@ -56,6 +66,9 @@ func NewRegistry(cfg Config) *mcp.Registry {
 	t.registerProject(reg)
 	t.registerScene(reg)
 	t.registerModels(reg)
+	if cfg.MeshWorkerURL != "" {
+		t.registerMesh(reg)
+	}
 	return reg
 }
 
@@ -63,6 +76,8 @@ type tools struct {
 	cfg Config
 	// catalogs are searched in order: this server's, then the upstream.
 	catalogs []Catalog
+	// mesh is the mesh worker client, set when MeshWorkerURL is.
+	mesh *meshTools
 }
 
 func catalogsFor(cfg Config) []Catalog {
