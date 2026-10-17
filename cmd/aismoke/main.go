@@ -43,24 +43,33 @@ type Case struct {
 	MinEntities int    `json:"min_entities"`
 	WantInclude bool   `json:"want_include,omitempty"`
 	WantJoints  int    `json:"want_joints,omitempty"`
+	// Then are follow-up prompts sent in the same chat, e.g. an edit.
+	Then []string `json:"then,omitempty"`
+	// WantGenerated is the minimum number of generated models
+	// (model_generate) in the project afterwards.
+	WantGenerated int `json:"want_generated,omitempty"`
+	// WantCalls is a minimum number of calls per tool across all turns.
+	WantCalls map[string]int `json:"want_calls,omitempty"`
 }
 
 // Result is the outcome of one case.
 type Result struct {
-	ID        string        `json:"id"`
-	Passed    bool          `json:"passed"`
-	Failures  []string      `json:"failures,omitempty"`
-	Writes    int           `json:"writes"`
-	ToolCalls int           `json:"tool_calls"`
-	Errors    int           `json:"validation_errors"`
-	Warnings  int           `json:"validation_warnings"`
-	Entities  int           `json:"entities"`
-	Includes  int           `json:"includes"`
-	Models    int           `json:"project_models"`
-	Joints    int           `json:"joints"`
-	Duration  time.Duration `json:"duration_ns"`
-	Usage     Usage         `json:"usage"`
-	Reply     string        `json:"reply,omitempty"`
+	ID        string         `json:"id"`
+	Passed    bool           `json:"passed"`
+	Failures  []string       `json:"failures,omitempty"`
+	Writes    int            `json:"writes"`
+	ToolCalls int            `json:"tool_calls"`
+	Errors    int            `json:"validation_errors"`
+	Warnings  int            `json:"validation_warnings"`
+	Entities  int            `json:"entities"`
+	Includes  int            `json:"includes"`
+	Models    int            `json:"project_models"`
+	Generated int            `json:"generated_models"`
+	Calls     map[string]int `json:"calls,omitempty"`
+	Joints    int            `json:"joints"`
+	Duration  time.Duration  `json:"duration_ns"`
+	Usage     Usage          `json:"usage"`
+	Reply     string         `json:"reply,omitempty"`
 }
 
 type runner struct {
@@ -102,8 +111,8 @@ func main() {
 		if !res.Passed {
 			status, failed = "FAIL", failed+1
 		}
-		fmt.Printf("%-4s %-18s writes=%-3d tools=%-3d errors=%-2d entities=%-3d fuel=%-3d models=%-2d in=%-7d cached=%-7d out=%-6d %5.0fs %s\n",
-			status, c.ID, res.Writes, res.ToolCalls, res.Errors, res.Entities, res.Includes, res.Models,
+		fmt.Printf("%-4s %-18s writes=%-3d tools=%-3d errors=%-2d entities=%-3d fuel=%-3d models=%-2d gen=%-2d in=%-7d cached=%-7d out=%-6d %5.0fs %s\n",
+			status, c.ID, res.Writes, res.ToolCalls, res.Errors, res.Entities, res.Includes, res.Models, res.Generated,
 			res.Usage.Input+res.Usage.CacheWrite, res.Usage.CacheRead, res.Usage.Output,
 			res.Duration.Seconds(), strings.Join(res.Failures, "; "))
 	}
@@ -167,28 +176,64 @@ func (r *runner) run(c Case) Result {
 		}()
 	}
 
-	stream, err := r.open(ctx, r.agent+"/1.0/ai-builder/projects/"+url.PathEscape(name)+"/chat", map[string]string{
-		"message": c.Prompt, "provider": r.provider, "model": r.model,
-	})
-	if err != nil {
-		res.Failures = append(res.Failures, "chat: "+err.Error())
-		return res
+	t := tally{calls: map[string]int{}}
+	for i, prompt := range append([]string{c.Prompt}, c.Then...) {
+		if i > 0 {
+			t.reply.Reset()
+		}
+		stream, err := r.open(ctx, r.agent+"/1.0/ai-builder/projects/"+url.PathEscape(name)+"/chat", map[string]string{
+			"message": prompt, "provider": r.provider, "model": r.model,
+		})
+		if err != nil {
+			res.Failures = append(res.Failures, "chat: "+err.Error())
+			return res
+		}
+		err = readSSE(stream, t.add)
+		stream.Close()
+		if err != nil {
+			res.Failures = append(res.Failures, fmt.Sprintf("stream (turn %d): %v", i+1, err))
+		}
+		if t.err != "" {
+			res.Failures = append(res.Failures, fmt.Sprintf("agent error (turn %d): %s", i+1, t.err))
+			t.err = ""
+		}
 	}
-	t := tally{}
-	err = readSSE(stream, t.add)
-	stream.Close()
 	res.Duration = time.Since(start)
 	res.Writes, res.ToolCalls, res.Reply = t.writes, t.toolCalls, truncate(t.reply.String(), 400)
-	res.Usage = t.usage
-	if err != nil {
-		res.Failures = append(res.Failures, "stream: "+err.Error())
+	res.Usage, res.Calls = t.usage, t.calls
+	for tool, n := range c.WantCalls {
+		if t.calls[tool] < n {
+			res.Failures = append(res.Failures, fmt.Sprintf("%d %s calls, want >= %d", t.calls[tool], tool, n))
+		}
 	}
-	if t.err != "" {
-		res.Failures = append(res.Failures, "agent error: "+t.err)
+	if c.WantGenerated > 0 {
+		var b []byte
+		var models struct {
+			Models []struct {
+				Generated bool   `json:"generated"`
+				Problem   string `json:"problem"`
+				Name      string `json:"name"`
+			} `json:"models"`
+		}
+		err := r.call(ctx, "GET", r.fuel+"/1.0/projects/"+url.PathEscape(name)+"/models", nil, &b)
+		if err == nil {
+			err = json.Unmarshal(b, &models)
+		}
+		for _, m := range models.Models {
+			if m.Generated {
+				res.Generated++
+			}
+			if m.Problem != "" {
+				res.Failures = append(res.Failures, fmt.Sprintf("model %s: %s", m.Name, m.Problem))
+			}
+		}
+		if err != nil || res.Generated < c.WantGenerated {
+			res.Failures = append(res.Failures, fmt.Sprintf("%d generated models, want >= %d", res.Generated, c.WantGenerated))
+		}
 	}
 
 	var world []byte
-	err = r.call(ctx, "GET", r.fuel+"/1.0/projects/"+url.PathEscape(name)+"/tip/files/world.sdf", nil, &world)
+	err := r.call(ctx, "GET", r.fuel+"/1.0/projects/"+url.PathEscape(name)+"/tip/files/world.sdf", nil, &world)
 	if err != nil {
 		res.Failures = append(res.Failures, "no world.sdf (refused or did nothing)")
 		return res
@@ -293,6 +338,7 @@ type Usage struct {
 }
 
 type tally struct {
+	calls             map[string]int
 	writes, toolCalls int
 	reply             strings.Builder
 	err               string
@@ -303,6 +349,7 @@ func (t *tally) add(event string, data []byte) {
 	var ev struct {
 		Text  string `json:"text"`
 		Error string `json:"error"`
+		Tool  string `json:"tool"`
 		Usage *struct {
 			Input      int `json:"input_tokens"`
 			CacheWrite int `json:"cache_write_tokens"`
@@ -326,6 +373,9 @@ func (t *tally) add(event string, data []byte) {
 		t.reply.WriteString(ev.Text)
 	case "tool_call":
 		t.toolCalls++
+		if t.calls != nil {
+			t.calls[ev.Tool]++
+		}
 	case "project_changed":
 		t.writes++
 	case "error":

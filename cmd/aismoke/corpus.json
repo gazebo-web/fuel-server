@@ -1,10 +1,70 @@
 [
-  {"id": "ground-and-sun", "prompt": "Create an empty world with a ground plane and a sun.", "min_entities": 1},
-  {"id": "box-on-table", "prompt": "Put a table in the world with a red box resting on top of it.", "min_entities": 2},
-  {"id": "parking-lot", "prompt": "Build a small parking lot with three parked cars and painted lines.", "min_entities": 4, "want_include": true},
-  {"id": "kitchen", "prompt": "Make a kitchen with a table, four chairs, a fridge and counters along one wall.", "min_entities": 5, "want_include": true},
-  {"id": "office-floor", "prompt": "Build an office floor with a grid of cubicles, a meeting room and a corridor.", "min_entities": 6},
-  {"id": "warehouse-amrs", "prompt": "Build a warehouse with rows of shelving and two mobile robots (AMRs) in the aisles.", "min_entities": 5, "want_include": true},
-  {"id": "apartment-shops", "prompt": "Build a three-story apartment building with shops on the ground floor and an elevator shaft.", "min_entities": 6},
-  {"id": "diff-drive-robot", "prompt": "Add a simple two-wheeled differential-drive robot with a caster and a box chassis.", "min_entities": 1, "want_joints": 2}
+  {
+    "id": "ground-and-sun",
+    "prompt": "Create an empty world with a ground plane and a sun.",
+    "min_entities": 1
+  },
+  {
+    "id": "box-on-table",
+    "prompt": "Put a table in the world with a red box resting on top of it.",
+    "min_entities": 2
+  },
+  {
+    "id": "parking-lot",
+    "prompt": "Build a small parking lot with three parked cars and painted lines.",
+    "min_entities": 4,
+    "want_include": true
+  },
+  {
+    "id": "kitchen",
+    "prompt": "Make a kitchen with a table, four chairs, a fridge and counters along one wall.",
+    "min_entities": 5,
+    "want_include": true
+  },
+  {
+    "id": "office-floor",
+    "prompt": "Build an office floor with a grid of cubicles, a meeting room and a corridor.",
+    "min_entities": 6
+  },
+  {
+    "id": "warehouse-amrs",
+    "prompt": "Build a warehouse with rows of shelving and two mobile robots (AMRs) in the aisles.",
+    "min_entities": 5,
+    "want_include": true
+  },
+  {
+    "id": "apartment-shops",
+    "prompt": "Build a three-story apartment building with shops on the ground floor and an elevator shaft.",
+    "min_entities": 6
+  },
+  {
+    "id": "diff-drive-robot",
+    "prompt": "Add a simple two-wheeled differential-drive robot with a caster and a box chassis.",
+    "min_entities": 1,
+    "want_joints": 2
+  },
+  {
+    "id": "mug",
+    "prompt": "Make a custom 3D model of a coffee mug with a handle (generate the mesh yourself; don't use a Fuel model) and set it on a small table.",
+    "min_entities": 2,
+    "want_generated": 1
+  },
+  {
+    "id": "l-desk",
+    "prompt": "Generate a custom mesh model of an L-shaped office desk with a three-drawer unit under the short side, and place it in the corner of an office.",
+    "min_entities": 1,
+    "want_generated": 1
+  },
+  {
+    "id": "mug-edit",
+    "prompt": "Make a custom 3D model of a coffee mug with a handle (generate the mesh yourself) and put it on the floor.",
+    "then": [
+      "Make the mug taller and blue."
+    ],
+    "min_entities": 1,
+    "want_generated": 1,
+    "want_calls": {
+      "model_generate": 2
+    }
+  }
 ]

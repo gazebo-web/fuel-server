@@ -86,3 +86,17 @@ func TestScoreProjectModels(t *testing.T) {
 		t.Fatalf("want pass with 3 entities, 4 joints, 2 Fuel includes, 4 model includes: %+v", res)
 	}
 }
+
+func TestTallyCountsCallsPerTool(t *testing.T) {
+	stream := "event: tool_call\ndata: {\"tool\":\"model_generate\"}\n\n" +
+		"event: tool_call\ndata: {\"tool\":\"mesh_api_reference\"}\n\n" +
+		"event: tool_call\ndata: {\"tool\":\"model_generate\"}\n\n" +
+		"event: done\ndata: {}\n\n"
+	tl := tally{calls: map[string]int{}}
+	if err := readSSE(strings.NewReader(stream), tl.add); err != nil {
+		t.Fatal(err)
+	}
+	if tl.calls["model_generate"] != 2 || tl.calls["mesh_api_reference"] != 1 || tl.toolCalls != 3 {
+		t.Fatalf("%+v", tl.calls)
+	}
+}
