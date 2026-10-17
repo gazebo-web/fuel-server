@@ -59,6 +59,7 @@ type Result struct {
 	Models    int           `json:"project_models"`
 	Joints    int           `json:"joints"`
 	Duration  time.Duration `json:"duration_ns"`
+	Usage     Usage         `json:"usage"`
 	Reply     string        `json:"reply,omitempty"`
 }
 
@@ -101,8 +102,9 @@ func main() {
 		if !res.Passed {
 			status, failed = "FAIL", failed+1
 		}
-		fmt.Printf("%-4s %-18s writes=%-3d tools=%-3d errors=%-2d entities=%-3d fuel=%-3d models=%-2d %5.0fs %s\n",
+		fmt.Printf("%-4s %-18s writes=%-3d tools=%-3d errors=%-2d entities=%-3d fuel=%-3d models=%-2d in=%-7d cached=%-7d out=%-6d %5.0fs %s\n",
 			status, c.ID, res.Writes, res.ToolCalls, res.Errors, res.Entities, res.Includes, res.Models,
+			res.Usage.Input+res.Usage.CacheWrite, res.Usage.CacheRead, res.Usage.Output,
 			res.Duration.Seconds(), strings.Join(res.Failures, "; "))
 	}
 	fmt.Printf("%d/%d passed\n", len(cases)-failed, len(cases))
@@ -177,6 +179,7 @@ func (r *runner) run(c Case) Result {
 	stream.Close()
 	res.Duration = time.Since(start)
 	res.Writes, res.ToolCalls, res.Reply = t.writes, t.toolCalls, truncate(t.reply.String(), 400)
+	res.Usage = t.usage
 	if err != nil {
 		res.Failures = append(res.Failures, "stream: "+err.Error())
 	}
@@ -278,19 +281,47 @@ func countProjectModel(name string, load modelLoader, inside map[string]bool, re
 }
 
 // tally accumulates chat stream events.
+// Usage is the agent's token usage for a prompt, summed over its LLM calls
+// (the agent's "usage" events).
+type Usage struct {
+	Calls      int `json:"llm_calls"`
+	Input      int `json:"input_tokens"`
+	CacheWrite int `json:"cache_write_tokens"`
+	CacheRead  int `json:"cache_read_tokens"`
+	Output     int `json:"output_tokens"`
+	Thinking   int `json:"thinking_tokens"`
+}
+
 type tally struct {
 	writes, toolCalls int
 	reply             strings.Builder
 	err               string
+	usage             Usage
 }
 
 func (t *tally) add(event string, data []byte) {
 	var ev struct {
 		Text  string `json:"text"`
 		Error string `json:"error"`
+		Usage *struct {
+			Input      int `json:"input_tokens"`
+			CacheWrite int `json:"cache_write_tokens"`
+			CacheRead  int `json:"cache_read_tokens"`
+			Output     int `json:"output_tokens"`
+			Thinking   int `json:"thinking_tokens"`
+		} `json:"usage"`
 	}
 	_ = json.Unmarshal(data, &ev)
 	switch event {
+	case "usage":
+		if u := ev.Usage; u != nil {
+			t.usage.Calls++
+			t.usage.Input += u.Input
+			t.usage.CacheWrite += u.CacheWrite
+			t.usage.CacheRead += u.CacheRead
+			t.usage.Output += u.Output
+			t.usage.Thinking += u.Thinking
+		}
 	case "text":
 		t.reply.WriteString(ev.Text)
 	case "tool_call":

@@ -27,11 +27,16 @@ func TestReadSSE(t *testing.T) {
 	stream := "event: text\ndata: {\"type\":\"text\",\"text\":\"Building\"}\n\n" +
 		"event: tool_call\ndata: {\"tool\":\"project_write_file\"}\n\n" +
 		"event: project_changed\ndata: {\"path\":\"world.sdf\",\"rev\":\"abc\"}\n\n" +
+		"event: usage\ndata: {\"usage\":{\"input_tokens\":10,\"cache_read_tokens\":90,\"output_tokens\":7,\"thinking_tokens\":5}}\n\n" +
+		"event: usage\ndata: {\"usage\":{\"input_tokens\":1,\"output_tokens\":2}}\n\n" +
 		"event: done\ndata: {}\n\n" +
 		"event: text\ndata: {\"text\":\"after done\"}\n\n"
 	tl := tally{}
 	if err := readSSE(strings.NewReader(stream), tl.add); err != nil {
 		t.Fatal(err)
+	}
+	if tl.usage != (Usage{Calls: 2, Input: 11, CacheRead: 90, Output: 9, Thinking: 5}) {
+		t.Errorf("usage %+v", tl.usage)
 	}
 	if tl.writes != 1 || tl.toolCalls != 1 || tl.reply.String() != "Building" {
 		t.Fatalf("tally %+v reply %q", tl, tl.reply.String())
