@@ -356,3 +356,88 @@ func SDFValidate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface
 	}
 	return sdf.Validate(body.SDF), nil
 }
+
+// ProjectFileURL handles GET /1.0/projects/{name}/file-url?rev=: a signed,
+// read-only base path for one revision, for renderers that fetch project
+// files without an Authorization header (gzweb).
+func ProjectFileURL(name string, jwtUser *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+
+	if jwtUser == nil {
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
+	}
+	s := &projects.Service{}
+	return s.SignFileURL(tx, name, r.URL.Query().Get("rev"), jwtUser)
+}
+
+// ProjectFileByToken handles GET /1.0/project-files/{token}/files/{path}.
+func ProjectFileByToken(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+	vars := mux.Vars(r)
+	return nil, serveTokenFile(r, tx, w, vars["token"], vars["path"])
+}
+
+// ProjectModelFileByToken handles
+// GET /1.0/project-files/{token}/models/{model}/tip/files/{path}: a project
+// model's files, laid out like a Fuel model's.
+func ProjectModelFileByToken(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+	vars := mux.Vars(r)
+	return nil, serveTokenFile(r, tx, w, vars["token"], "models/"+vars["model"]+"/"+vars["path"])
+}
+
+func serveTokenFile(r *http.Request, tx *gorm.DB, w http.ResponseWriter, token, path string) *gz.ErrMsg {
+	s := &projects.Service{}
+	b, em := s.FileByToken(r.Context(), tx, token, path)
+	if em != nil {
+		return em
+	}
+	w.Header().Set("Content-Type", projectFileType(path))
+	w.Header().Set("Cache-Control", "private, max-age=3600, immutable")
+	_, _ = w.Write(b)
+	return nil
+}
+
+// fileTreeNode is one entry of a Fuel-style file tree.
+type fileTreeNode struct {
+	Name     string          `json:"name"`
+	Path     string          `json:"path"`
+	Children []*fileTreeNode `json:"children,omitempty"`
+}
+
+// ProjectModelTreeByToken handles
+// GET /1.0/project-files/{token}/models/{model}/tip/files: the model's
+// file tree in Fuel's format, so gzweb includes a project model
+// (model://<model>) the same way it includes a Fuel model.
+func ProjectModelTreeByToken(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+	vars := mux.Vars(r)
+	s := &projects.Service{}
+	files, em := s.FilesByToken(tx, vars["token"], "models/"+vars["model"])
+	if em != nil {
+		return nil, em
+	}
+	return map[string]any{"name": vars["model"], "file_tree": buildFileTree(files)}, nil
+}
+
+// buildFileTree nests sorted relative paths into Fuel's file_tree shape.
+func buildFileTree(files []string) []*fileTreeNode {
+	var root []*fileTreeNode
+	dirs := map[string]*fileTreeNode{}
+	for _, f := range files {
+		parts := strings.Split(f, "/")
+		level := &root
+		for i, part := range parts {
+			p := "/" + strings.Join(parts[:i+1], "/")
+			if i == len(parts)-1 {
+				*level = append(*level, &fileTreeNode{Name: part, Path: p})
+				break
+			}
+			d, ok := dirs[p]
+			if !ok {
+				d = &fileTreeNode{Name: part, Path: p}
+				dirs[p] = d
+				*level = append(*level, d)
+			}
+			level = &d.Children
+		}
+	}
+	return root
+}

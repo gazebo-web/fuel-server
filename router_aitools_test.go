@@ -380,3 +380,61 @@ func TestAIToolsProjectModels(t *testing.T) {
 	assert.EqualValues(t, 1, m["links"])
 	assert.EqualValues(t, 3, m["files"])
 }
+
+// A signed file URL serves one revision without an Authorization header,
+// with project models laid out like Fuel models for gzweb.
+func TestProjectSignedFileURLs(t *testing.T) {
+	jwt := createValidJWTForIdentity("aitools-fileurl-identity", t)
+	username := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(username, jwt, t)
+	name := fmt.Sprintf("fileurl-%d", time.Now().UnixNano())
+	mcpJSON(t, jwt, "project_create", map[string]any{"name": name})
+	mcpJSON(t, jwt, "model_create", map[string]any{"name": name, "model": "crate"})
+	w := mcpJSON(t, jwt, "project_write_file", map[string]any{"name": name, "path": "world.sdf", "content": aiTestWorld})
+
+	rec := aiRequest(t, "GET", "/1.0/projects/"+name+"/file-url", jwt, nil)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var fu struct {
+		BasePath string `json:"base_path"`
+		Rev      string `json:"rev"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &fu))
+	assert.Equal(t, w["rev"], fu.Rev)
+	require.True(t, strings.HasPrefix(fu.BasePath, "/1.0/project-files/"), fu.BasePath)
+
+	get := func(p string) *httptest.ResponseRecorder {
+		req, _ := http.NewRequest("GET", fu.BasePath+p, nil) // no Authorization
+		rec := httptest.NewRecorder()
+		globals.Server.Router.ServeHTTP(rec, req)
+		return rec
+	}
+	rec = get("/files/world.sdf")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Equal(t, aiTestWorld, rec.Body.String())
+	assert.Equal(t, "application/xml", rec.Header().Get("Content-Type"))
+
+	rec = get("/models/crate/tip/files")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.JSONEq(t, `{"name":"crate","file_tree":[{"name":"model.config","path":"/model.config"},{"name":"model.sdf","path":"/model.sdf"}]}`, rec.Body.String())
+	rec = get("/models/crate/tip/files/model.sdf")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), `<model name="crate">`)
+
+	// Later writes don't change what the URL serves.
+	mcpJSON(t, jwt, "project_write_file", map[string]any{"name": name, "path": "world.sdf", "content": "<sdf version=\"1.9\"/>"})
+	assert.Equal(t, aiTestWorld, get("/files/world.sdf").Body.String())
+
+	assert.Equal(t, http.StatusNotFound, get("/models/missing/tip/files").Code)
+	tampered := strings.Replace(fu.BasePath, "/project-files/", "/project-files/x", 1)
+	req, _ := http.NewRequest("GET", tampered+"/files/world.sdf", nil)
+	rec = httptest.NewRecorder()
+	globals.Server.Router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code, rec.Body.String())
+}
+
+func TestBuildFileTree(t *testing.T) {
+	b, _ := json.Marshal(buildFileTree([]string{"meshes/a.glb", "meshes/b/c.png", "model.sdf"}))
+	assert.JSONEq(t, `[{"name":"meshes","path":"/meshes","children":[{"name":"a.glb","path":"/meshes/a.glb"},
+		{"name":"b","path":"/meshes/b","children":[{"name":"c.png","path":"/meshes/b/c.png"}]}]},
+		{"name":"model.sdf","path":"/model.sdf"}]`, string(b))
+}

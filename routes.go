@@ -2972,6 +2972,77 @@ var routes = gz.Routes{
 		},
 	},
 
+	// /projects/{name}/file-url — a signed read-only base path for one
+	// revision (plan §4.5), so gzweb can fetch project files without an
+	// Authorization header.
+	gz.Route{
+		Name:          "ProjectFileURL",
+		Description:   "Get a signed, read-only URL for a project revision's files",
+		URI:           "/projects/{name}/file-url",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Sign a file URL for ?rev= (default HEAD)",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectFileURL))},
+				},
+			},
+		},
+	},
+
+	// /project-files/{token}/... — files of the revision a signed token
+	// grants. No auth header: the token is the credential.
+	gz.Route{
+		Name:        "ProjectFileByToken",
+		Description: "Read a project file through a signed URL",
+		URI:         "/project-files/{token}/files/{path:.*}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Get file content",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(ProjectFileByToken))},
+				},
+			},
+		},
+		SecureMethods: gz.SecureMethods{},
+	},
+	gz.Route{
+		Name:        "ProjectModelTreeByToken",
+		Description: "List a project model's files, Fuel-style, through a signed URL",
+		URI:         "/project-files/{token}/models/{model}/tip/files",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Get the model's file tree",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(ProjectModelTreeByToken)},
+				},
+			},
+		},
+		SecureMethods: gz.SecureMethods{},
+	},
+	gz.Route{
+		Name:        "ProjectModelFileByToken",
+		Description: "Read a project model's file, Fuel-style, through a signed URL",
+		URI:         "/project-files/{token}/models/{model}/tip/files/{path:.*}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Get file content",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(ProjectModelFileByToken))},
+				},
+			},
+		},
+		SecureMethods: gz.SecureMethods{},
+	},
+
 	/////////
 	// MCP //
 	/////////
