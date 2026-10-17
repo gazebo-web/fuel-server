@@ -86,8 +86,10 @@ func (g *GitVCS) Init(ctx context.Context) error {
 	if err := ensureFolderExists(g.Path); err != nil {
 		return err
 	}
-	// Init the mercurial repository
-	cmd := exec.Command("git", "init", g.Path)
+	// Init the repository. Pin the initial branch: revisions default to
+	// "master" (ensureRev), but plain `git init` follows the host's
+	// init.defaultBranch, which is often "main".
+	cmd := exec.Command("git", "-c", "init.defaultBranch=master", "init", g.Path)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err := cmd.Run()
