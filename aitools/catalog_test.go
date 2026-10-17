@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -210,5 +211,32 @@ func TestCatalogsFor(t *testing.T) {
 	}
 	if n := len(catalogsFor(Config{FuelHosts: []string{"fuel.gazebosim.org"}, UpstreamFuel: "https://fuel.gazebosim.org"})); n != 1 {
 		t.Errorf("upstream equal to this server must be skipped: %d catalogs", n)
+	}
+}
+
+// TestUpstreamCatalogLive checks the upstream client against the real
+// public Fuel. Run with AITOOLS_LIVE=1.
+func TestUpstreamCatalogLive(t *testing.T) {
+	if os.Getenv("AITOOLS_LIVE") == "" {
+		t.Skip("set AITOOLS_LIVE=1 to query fuel.gazebosim.org")
+	}
+	up := catalogsFor(Config{FuelHosts: []string{"localhost"}, UpstreamFuel: "https://fuel.gazebosim.org"})[1]
+	tl := &tools{catalogs: []Catalog{fakeCatalog{host: "localhost"}, up}}
+	items, err := searchCatalogs(tc(), tl.catalogs, kindModels, "pallet", "", 5, false)
+	if err != nil || len(items) == 0 {
+		t.Fatalf("search: %v %v", items, err)
+	}
+	t.Logf("first result: %+v", items[0])
+	b, _, err := tl.firstFound(func(c Catalog) ([]byte, error) {
+		return c.File(tc(), kindModels, items[0].Owner, items[0].Name, "model.sdf", "tip")
+	})
+	if err != nil || !strings.Contains(string(b), "<sdf") {
+		t.Fatalf("model.sdf: %v", err)
+	}
+	if err := tl.uriResolver(tc())(items[0].URI); err != nil {
+		t.Errorf("resolver rejects a real URI: %v", err)
+	}
+	if err := tl.uriResolver(tc())("https://fuel.gazebosim.org/1.0/OpenRobotics/models/NoSuchModel12345"); err == nil {
+		t.Errorf("resolver accepts an invented URI")
 	}
 }

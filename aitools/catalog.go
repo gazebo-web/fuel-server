@@ -67,12 +67,14 @@ type catalogItem struct {
 	Source       string   `json:"source"`
 }
 
+// fuelURI is an include URI in the form Fuel's own "copy SDF" snippet
+// uses: names unescaped, e.g. ".../models/Euro pallet".
 func fuelURI(host, kind, owner, name string) string {
-	return "https://" + host + "/1.0/" + url.PathEscape(owner) + "/" + kind + "/" + url.PathEscape(name)
+	return "https://" + host + "/1.0/" + owner + "/" + kind + "/" + name
 }
 
 func (r record) item(host, kind, source string) catalogItem {
-	thumb := r.ThumbnailURL
+	thumb := r.ThumbnailURL // already escaped by Fuel
 	if strings.HasPrefix(thumb, "/") {
 		thumb = "https://" + host + "/1.0" + thumb
 	}
