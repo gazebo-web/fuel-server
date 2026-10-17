@@ -205,6 +205,11 @@ func TestCatalogsFor(t *testing.T) {
 	if n := len(catalogsFor(Config{})); n != 1 {
 		t.Errorf("no upstream: %d catalogs", n)
 	}
+	// Local dev: no FuelHosts, so the local catalog's URI host defaults to
+	// fuel.gazebosim.org; the upstream must still be searched.
+	if n := len(catalogsFor(Config{UpstreamFuel: "https://fuel.gazebosim.org"})); n != 2 {
+		t.Errorf("dev with upstream: %d catalogs", n)
+	}
 	cats := catalogsFor(Config{FuelHosts: []string{"staging-fuel.gazebosim.org"}, UpstreamFuel: "https://fuel.gazebosim.org"})
 	if len(cats) != 2 || cats[0].Host() != "staging-fuel.gazebosim.org" || cats[1].Host() != "fuel.gazebosim.org" {
 		t.Errorf("staging: %v", cats)

@@ -79,7 +79,9 @@ func catalogsFor(cfg Config) []Catalog {
 		log.Printf("aitools: ignoring AI_TOOLS_UPSTREAM_FUEL: %v", err)
 		return cats
 	}
-	if up.Host() == local.host {
+	// This server is the upstream (production): searching it twice
+	// would only duplicate results.
+	if (&tools{cfg: cfg}).isFuelHost(up.Host()) {
 		return cats
 	}
 	return append(cats, up)
