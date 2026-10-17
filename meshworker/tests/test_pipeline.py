@@ -126,6 +126,15 @@ def test_triangle_budget(build):
     assert r["tessellation"]["triangles"] == r["triangles"]
 
 
+def test_tolerance_reaches_budget_without_decimation(build):
+    """A torus at the default tolerance is ~95k triangles; loosening the
+    tolerance must reach a small budget (OCCT's cached triangulation once
+    made every pass return the first, finest one)."""
+    code, r, _ = build("from build123d import *\ndef build():\n    return Torus(0.14, 0.03)\n", tri_budget=3000)
+    assert code == 0, r
+    assert r["triangles"] <= 3000 and not r["tessellation"]["decimated"], r["tessellation"]
+
+
 def test_static_and_names(build):
     code, r, out = build(BOX, name="crate_2", static=True)
     assert code == 0 and r["uri"] == "model://crate_2"

@@ -12,6 +12,7 @@ import math
 import fast_simplification
 import numpy as np
 import trimesh
+from OCP.BRepTools import BRepTools
 
 from .parts import Part
 
@@ -19,6 +20,9 @@ MAX_ATTEMPTS = 8
 
 
 def tessellate_shape(shape, tolerance: float, angular_tolerance: float) -> trimesh.Trimesh:
+    # OCCT caches a triangulation on the shape and reuses it for any looser
+    # tolerance, so clear it or a coarser pass returns the same triangles.
+    BRepTools.Clean_s(shape.wrapped)
     verts, tris = shape.tessellate(tolerance, angular_tolerance)
     v = np.array([(p.X, p.Y, p.Z) for p in verts], float).reshape(-1, 3)
     f = np.array(tris, np.int64).reshape(-1, 3)
@@ -47,14 +51,18 @@ def tessellate_parts(parts: list[Part], budget: int) -> tuple[list[trimesh.Trime
             return meshes, {"tolerance_m": tol, "angular_tolerance": ang, "triangles": tris, "decimated": False}
         tol, ang = tol * 2, min(ang * 1.5, 0.8)
 
-    # Still over budget: decimate each part in proportion.
-    ratio = budget / tris
+    # Still over budget: decimate each part in proportion, aiming a little
+    # low since quadric decimation only approximates its target.
     out = []
     for m in meshes:
         merged = m.copy()
         merged.merge_vertices()
-        target = max(int(len(merged.faces) * ratio), 4)
-        v, f = fast_simplification.simplify(merged.vertices, merged.faces, 1 - target / len(merged.faces))
+        target = max(int(len(merged.faces) * budget / tris * 0.95), 4)
+        for _ in range(4):
+            v, f = fast_simplification.simplify(merged.vertices, merged.faces, 1 - target / len(merged.faces))
+            if len(f) <= target * 1.02 or len(f) == len(merged.faces):
+                break
+            merged = trimesh.Trimesh(v, f, process=False)
         dm = trimesh.Trimesh(v, f, process=False)
         out.append(trimesh.graph.smooth_shade(dm, angle=math.radians(35)))
     return out, {"tolerance_m": tol, "angular_tolerance": ang, "triangles": sum(len(m.faces) for m in out),
