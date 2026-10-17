@@ -11,13 +11,6 @@ import (
 
 var projectService = &projects.Service{}
 
-// gazeboReleases maps a Gazebo release to its SDF version and ROS 2
-// distro (design §7).
-var gazeboReleases = map[string][2]string{
-	"Harmonic": {"1.9", "Jazzy"},
-	"Fortress": {"1.8", "Humble"},
-}
-
 func (t *tools) registerProject(reg *mcp.Registry) {
 	nameOnly := schema([]string{"name"}, map[string]any{"name": str("Project name")})
 	reg.Register(mcp.Tool{
@@ -47,7 +40,8 @@ func (t *tools) registerProject(reg *mcp.Registry) {
 			InputSchema: schema([]string{"name"}, map[string]any{
 				"name":           str("Project name, unique among the caller's projects"),
 				"description":    str("What the project is for"),
-				"gazebo_release": str("'Harmonic' (default; SDF 1.9, ROS 2 Jazzy) or 'Fortress' (SDF 1.8, Humble)"),
+				"gazebo_release": str("Gazebo release: " + strings.Join(projects.SupportedReleases(), ", ") +
+					" (default " + projects.DefaultRelease + "). It sets the SDF version and ROS 2 distro."),
 			}),
 		},
 		RequiredScopes: []string{"project:write"},
@@ -164,14 +158,8 @@ func (t *tools) projectCreate(tc *mcp.ToolContext, args map[string]any) (mcp.Cal
 	if errRes != nil {
 		return *errRes, nil
 	}
-	release := argOr(args, "gazebo_release", "Harmonic")
-	versions, ok := gazeboReleases[release]
-	if !ok {
-		return mcp.ErrorResult("gazebo_release must be 'Harmonic' or 'Fortress'"), nil
-	}
-	name, desc := v[0], argString(args, "description")
-	sdfVersion, ros := versions[0], versions[1]
-	p, em := projectService.Create(tc.Ctx, tc.DB, tc.User, &name, &desc, &release, &sdfVersion, &ros)
+	name, desc, release := v[0], argString(args, "description"), argString(args, "gazebo_release")
+	p, em := projectService.Create(tc.Ctx, tc.DB, tc.User, &name, &desc, &release, nil, nil)
 	if em != nil {
 		return gzError(em), nil
 	}

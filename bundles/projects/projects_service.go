@@ -52,6 +52,18 @@ func (s *Service) Create(ctx context.Context, tx *gorm.DB, jwtUser *users.User,
 
 	owner := *jwtUser.Username
 
+	// The release decides the SDF version and ROS 2 distro; any values the
+	// caller sent for those are replaced.
+	var release string
+	if gazebo != nil {
+		release = *gazebo
+	}
+	release, versions, err := LookupRelease(release)
+	if err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
+	}
+	gazebo, sdf, ros2 = &release, &versions.SDF, &versions.ROS2
+
 	// Reject duplicate names for this owner.
 	if existing, _ := GetProjectByName(tx, *name, owner); existing != nil {
 		return nil, gz.NewErrorMessage(gz.ErrorResourceExists)
@@ -258,14 +270,20 @@ func (s *Service) Update(tx *gorm.DB, owner, name string, jwtUser *users.User,
 	if u.Description != nil {
 		updates["description"] = *u.Description
 	}
-	if u.GazeboVersion != nil {
-		updates["gazebo_version"] = *u.GazeboVersion
-	}
 	if u.SDFVersion != nil {
 		updates["sdf_version"] = *u.SDFVersion
 	}
 	if u.ROS2Distro != nil {
 		updates["ros2_distro"] = *u.ROS2Distro
+	}
+	if u.GazeboVersion != nil {
+		release, versions, err := LookupRelease(*u.GazeboVersion)
+		if err != nil {
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
+		}
+		updates["gazebo_version"] = release
+		updates["sdf_version"] = versions.SDF
+		updates["ros2_distro"] = versions.ROS2
 	}
 	if u.GitHubRepo != nil {
 		updates["git_hub_repo"] = *u.GitHubRepo

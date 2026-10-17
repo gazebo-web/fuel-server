@@ -253,3 +253,28 @@ func TestAIToolsLocalCatalog(t *testing.T) {
 	text, isErr = mcpCall(t, jwt, "fuel_get_model_details", map[string]any{"owner": username, "name": "missing"})
 	assert.True(t, isErr, text)
 }
+
+// Harmonic is the oldest release a project can be created for or switched
+// to; the release sets the SDF version and ROS 2 distro.
+func TestProjectReleases(t *testing.T) {
+	jwt := createValidJWTForIdentity("aitools-release-identity", t)
+	username := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(username, jwt, t)
+	name := fmt.Sprintf("release-%d", time.Now().UnixNano())
+
+	rec := aiRequest(t, "POST", "/1.0/projects", jwt, map[string]any{
+		"name": name, "gazebo_version": "Fortress", "sdf_version": "1.8", "ros2_distro": "Humble"})
+	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	text, isErr := mcpCall(t, jwt, "project_create", map[string]any{"name": name, "gazebo_release": "Fortress"})
+	assert.True(t, isErr)
+	assert.Contains(t, text, "supported: Harmonic")
+
+	// The client's sdf_version is replaced by the release's.
+	rec = aiRequest(t, "POST", "/1.0/projects", jwt, map[string]any{"name": name, "sdf_version": "1.6"})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"gazebo_version":"Harmonic"`)
+	assert.Contains(t, rec.Body.String(), `"sdf_version":"1.9"`)
+
+	rec = aiRequest(t, "PATCH", "/1.0/projects/"+name, jwt, map[string]any{"gazebo_version": "Fortress"})
+	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+}
