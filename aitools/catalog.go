@@ -86,8 +86,9 @@ func (r record) item(host, kind, source string) catalogItem {
 }
 
 // searchCatalogs merges results, local first, de-duplicated by owner/name.
-// Private assets are dropped unless includePrivate. An unreachable upstream
-// is only an error when nothing else answered.
+// Private assets are dropped unless includePrivate, and non-commercial ones
+// always are. An unreachable upstream is only an error when nothing else
+// answered.
 func searchCatalogs(tc *mcp.ToolContext, cats []Catalog, kind, query, owner string, n int, includePrivate bool) ([]catalogItem, error) {
 	items := []catalogItem{}
 	seen := map[string]bool{}
@@ -106,7 +107,7 @@ func searchCatalogs(tc *mcp.ToolContext, cats []Catalog, kind, query, owner stri
 		}
 		for _, r := range recs {
 			key := strings.ToLower(r.Owner + "/" + r.Name)
-			if seen[key] || (r.Private && !includePrivate) || len(items) >= n {
+			if seen[key] || (r.Private && !includePrivate) || nonCommercial(r.LicenseName) || len(items) >= n {
 				continue
 			}
 			seen[key] = true
@@ -117,6 +118,22 @@ func searchCatalogs(tc *mcp.ToolContext, cats []Catalog, kind, query, owner stri
 		return nil, firstErr
 	}
 	return items, nil
+}
+
+// nonCommercial reports whether a license forbids commercial use (CC BY-NC
+// and its variants). The AI Builder never uses such assets: the worlds it
+// builds may be used commercially.
+func nonCommercial(license string) bool {
+	l := strings.NewReplacer("-", " ", "_", " ").Replace(strings.ToLower(license))
+	if strings.Contains(l, "non commercial") || strings.Contains(l, "noncommercial") {
+		return true
+	}
+	for _, f := range strings.Fields(l) {
+		if f == "nc" {
+			return true
+		}
+	}
+	return false
 }
 
 // -- local: this server's database -------------------------------------------

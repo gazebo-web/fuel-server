@@ -70,6 +70,7 @@ func TestSearchCatalogsMerges(t *testing.T) {
 	up := fakeCatalog{host: "fuel.gazebosim.org", recs: []record{
 		{Owner: "openrobotics", Name: "table"}, // duplicate of the local one
 		{Owner: "MovAi", Name: "pallet", LicenseName: "CC-BY-4.0", Tags: []string{"warehouse"}},
+		{Owner: "MovAi", Name: "shelf", LicenseName: "Creative Commons Attribution Non Commercial 4.0 International"},
 	}}
 
 	items, err := searchCatalogs(tc(), []Catalog{local, up}, kindModels, "x", "", 10, false)
@@ -260,5 +261,35 @@ func TestURIResolverWarnsOnPrivateModels(t *testing.T) {
 	var w sdf.Warning
 	if !errors.As(err, &w) || !strings.Contains(err.Error(), "private") {
 		t.Fatalf("want a private-model warning, got %v", err)
+	}
+}
+
+func TestNonCommercial(t *testing.T) {
+	for license, want := range map[string]bool{
+		"Creative Commons Attribution Non Commercial 4.0 International":                true,
+		"Creative Commons Attribution Non Commercial No Derivatives 4.0 International": true,
+		"CC BY-NC-SA 4.0": true,
+		"CC-BY-NC-4.0":    true,
+		"Creative Commons Attribution-NonCommercial 4.0": true,
+		"Creative Commons Attribution 4.0 International": false,
+		"Creative Commons Zero v1.0 Universal":           false,
+		"CC-BY-4.0":                                      false,
+		"Apache License 2.0":                             false,
+		"":                                               false,
+	} {
+		if got := nonCommercial(license); got != want {
+			t.Errorf("nonCommercial(%q) = %v, want %v", license, got, want)
+		}
+	}
+}
+
+func TestURIResolverRejectsNonCommercialModels(t *testing.T) {
+	tl := &tools{cfg: Config{FuelHosts: []string{"localhost"}}, catalogs: []Catalog{
+		fakeCatalog{host: "localhost", recs: []record{{Owner: "MovAi", Name: "Tugbot", LicenseName: "CC BY-NC-ND 4.0"}}},
+	}}
+	err := tl.uriResolver(tc())("https://localhost/1.0/MovAi/models/Tugbot")
+	var w sdf.Warning
+	if err == nil || errors.As(err, &w) || !strings.Contains(err.Error(), "non-commercial") {
+		t.Fatalf("want a non-commercial error, got %v", err)
 	}
 }

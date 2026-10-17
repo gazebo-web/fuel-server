@@ -24,7 +24,8 @@ func (t *tools) registerFuel(reg *mcp.Registry) {
 			Name: "fuel_search_models",
 			Description: "Search the public Gazebo Fuel catalog for models. Use concrete keywords. " +
 				"Each result has the exact uri to put in <include><uri>...</uri></include>, plus its " +
-				"license; prefer permissively licensed models and credit the ones you use.",
+				"license; credit the ones you use. Non-commercial models are never returned and " +
+				"fail validation if included.",
 			InputSchema: search,
 		},
 		RequiredScopes: []string{"fuel:read"},

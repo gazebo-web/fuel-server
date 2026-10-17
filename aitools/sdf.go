@@ -173,8 +173,8 @@ func validationReport(r sdf.ValidationResult, file string) map[string]any {
 // uriResolver checks <include><uri> values. Non-HTTP URIs (model://,
 // relative paths) are accepted. HTTP URIs must be Fuel model URIs. On the
 // configured FuelHosts the model must exist and be visible to the caller;
-// on the upstream Fuel host it must exist there. An unreachable upstream
-// doesn't fail validation.
+// on the upstream Fuel host it must exist there. Non-commercial models are
+// errors. An unreachable upstream doesn't fail validation.
 func (t *tools) uriResolver(tc *mcp.ToolContext) func(string) error {
 	return func(raw string) error {
 		u, err := url.Parse(strings.TrimSpace(raw))
@@ -198,9 +198,16 @@ func (t *tools) uriResolver(tc *mcp.ToolContext) func(string) error {
 			return fmt.Errorf("no model %q owned by %q; find real models with fuel_search_models", name, owner)
 		}
 		var d struct {
-			Private bool `json:"private"`
+			Private bool   `json:"private"`
+			License string `json:"license_name"`
 		}
-		if err == nil && json.Unmarshal(b, &d) == nil && d.Private {
+		if err != nil || json.Unmarshal(b, &d) != nil {
+			return nil
+		}
+		if nonCommercial(d.License) {
+			return fmt.Errorf("non-commercial license (%s): worlds may be used commercially, so don't use this model; search for another or build one", d.License)
+		}
+		if d.Private {
 			return sdf.Warning("private model: only you can load it, so others opening this world won't see it")
 		}
 		return nil
