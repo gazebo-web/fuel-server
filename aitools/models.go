@@ -1,6 +1,7 @@
 package aitools
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"path"
@@ -9,8 +10,11 @@ import (
 	"strings"
 
 	"github.com/gazebo-web/fuel-server/bundles/projects"
+	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/mcp"
 	"github.com/gazebo-web/fuel-server/sdf"
+	"github.com/gazebo-web/gz-go/v7"
+	"github.com/jinzhu/gorm"
 )
 
 // Project-local models (plan §4): each lives in models/<name>/ with a
@@ -355,7 +359,9 @@ func xmlEscape(s string) string {
 
 // -- project_list_models -------------------------------------------------------------
 
-type modelInfo struct {
+// ModelInfo describes one project model (project_list_models and
+// GET /projects/{name}/models).
+type ModelInfo struct {
 	Name        string `json:"name"`
 	URI         string `json:"uri"`
 	Path        string `json:"path"`
@@ -375,19 +381,29 @@ func (t *tools) projectListModels(tc *mcp.ToolContext, args map[string]any) (mcp
 	if errRes != nil {
 		return *errRes, nil
 	}
-	files, rev, em := projectService.ListFiles(tc.Ctx, tc.DB, *tc.User.Username, v[0], argString(args, "rev"), tc.User)
+	rev, models, em := ListProjectModels(tc.Ctx, tc.DB, tc.User, v[0], argString(args, "rev"))
 	if em != nil {
 		return gzError(em), nil
 	}
+	return jsonResult(map[string]any{"rev": rev, "models": models})
+}
+
+// ListProjectModels lists the models in models/<name>/ at rev ("" = HEAD)
+// of the caller's project, and the resolved revision.
+func ListProjectModels(ctx context.Context, tx *gorm.DB, user *users.User, project, rev string) (string, []ModelInfo, *gz.ErrMsg) {
+	files, rev, em := projectService.ListFiles(ctx, tx, *user.Username, project, rev, user)
+	if em != nil {
+		return "", nil, em
+	}
 	pf := newProjectFiles("", files)
 	read := func(p string) (string, bool) {
-		b, _, em := projectService.ReadFile(tc.Ctx, tc.DB, *tc.User.Username, v[0], p, rev, tc.User)
+		b, _, em := projectService.ReadFile(ctx, tx, *user.Username, project, p, rev, user)
 		return string(b), em == nil
 	}
-	out := []modelInfo{}
+	out := []ModelInfo{}
 	for _, name := range pf.models() {
 		dir := path.Join(modelsDir, name)
-		mi := modelInfo{Name: name, URI: "model://" + name, Path: dir}
+		mi := ModelInfo{Name: name, URI: "model://" + name, Path: dir}
 		for f := range pf.files {
 			if strings.HasPrefix(f, dir+"/") {
 				mi.Files++
@@ -415,5 +431,5 @@ func (t *tools) projectListModels(tc *mcp.ToolContext, args map[string]any) (mcp
 		}
 		out = append(out, mi)
 	}
-	return jsonResult(map[string]any{"rev": rev, "models": out})
+	return rev, out, nil
 }

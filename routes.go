@@ -2972,6 +2972,24 @@ var routes = gz.Routes{
 		},
 	},
 
+	// /projects/{name}/models — the project's custom models.
+	gz.Route{
+		Name:          "ProjectModels",
+		Description:   "List a project's models (models/<name>/)",
+		URI:           "/projects/{name}/models",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "List models at ?rev= (default HEAD)",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectModels))},
+				},
+			},
+		},
+	},
+
 	// /projects/{name}/file-url — a signed read-only base path for one
 	// revision (plan §4.5), so gzweb can fetch project files without an
 	// Authorization header.

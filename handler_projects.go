@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gazebo-web/fuel-server/aitools"
 	"github.com/gazebo-web/fuel-server/bundles/projects"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/sdf"
@@ -440,4 +441,19 @@ func buildFileTree(files []string) []*fileTreeNode {
 		}
 	}
 	return root
+}
+
+// ProjectModels handles GET /1.0/projects/{name}/models?rev=: the project's
+// models (same as the project_list_models tool).
+func ProjectModels(name string, jwtUser *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+
+	if jwtUser == nil {
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
+	}
+	rev, models, em := aitools.ListProjectModels(r.Context(), tx, jwtUser, name, r.URL.Query().Get("rev"))
+	if em != nil {
+		return nil, em
+	}
+	return map[string]any{"rev": rev, "models": models}, nil
 }

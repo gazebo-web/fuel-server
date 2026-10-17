@@ -379,6 +379,10 @@ func TestAIToolsProjectModels(t *testing.T) {
 	assert.Equal(t, "A wooden crate", m["description"])
 	assert.EqualValues(t, 1, m["links"])
 	assert.EqualValues(t, 3, m["files"])
+
+	rec = aiRequest(t, "GET", "/1.0/projects/"+name+"/models", jwt, nil)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"uri":"model://crate"`)
 }
 
 // A signed file URL serves one revision without an Authorization header,
