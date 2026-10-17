@@ -1,6 +1,7 @@
 package aitools
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -192,8 +193,15 @@ func (t *tools) uriResolver(tc *mcp.ToolContext) func(string) error {
 		if cat == nil {
 			return nil
 		}
-		if _, err := cat.Details(tc, kindModels, owner, name); errors.Is(err, errNotInCatalog) {
+		b, err := cat.Details(tc, kindModels, owner, name)
+		if errors.Is(err, errNotInCatalog) {
 			return fmt.Errorf("no model %q owned by %q; find real models with fuel_search_models", name, owner)
+		}
+		var d struct {
+			Private bool `json:"private"`
+		}
+		if err == nil && json.Unmarshal(b, &d) == nil && d.Private {
+			return sdf.Warning("private model: only you can load it, so others opening this world won't see it")
 		}
 		return nil
 	}

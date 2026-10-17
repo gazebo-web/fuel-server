@@ -67,13 +67,20 @@ type Options struct {
 	// Registry supplies the schemas. Nil uses the embedded default.
 	Registry *Registry
 	// ResolveURI, when set, is called for every <include><uri>. A non-nil
-	// error is reported as a validation error on that element.
+	// error is reported as a validation error on that element, or as a
+	// warning if it is a Warning.
 	ResolveURI func(uri string) error
 	// ResolveFile, when set, is called for every mesh URI and PBR texture
 	// map, e.g. "model://crate/meshes/visual.glb" or "meshes/visual.glb".
 	// A non-nil error is reported as a validation error.
 	ResolveFile func(uri string) error
 }
+
+// Warning is an error a resolver returns to report a warning instead of
+// a validation error.
+type Warning string
+
+func (w Warning) Error() string { return string(w) }
 
 // textureMaps are the PBR elements whose text is a texture file.
 var textureMaps = map[string]bool{
@@ -544,7 +551,10 @@ func (v *validator) checkSemantics(n *node) {
 		v.checkJoints(n)
 	case "include":
 		if u := n.child("uri"); u != nil && u.text != "" && v.opts.ResolveURI != nil {
-			if err := v.opts.ResolveURI(u.text); err != nil {
+			var w Warning
+			if err := v.opts.ResolveURI(u.text); errors.As(err, &w) {
+				v.warnAt(u, 0, "%q: %v", u.text, w)
+			} else if err != nil {
 				v.errorAt(u, 0, "cannot resolve %q: %v", u.text, err)
 			}
 		}

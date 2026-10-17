@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/gazebo-web/fuel-server/mcp"
+	"github.com/gazebo-web/fuel-server/sdf"
 )
 
 // fakeCatalog serves fixed records; err, when set, fails every call.
@@ -44,7 +45,12 @@ func (f fakeCatalog) Details(_ *mcp.ToolContext, _, owner, name string) (json.Ra
 	if err := f.find(owner, name); err != nil {
 		return nil, err
 	}
-	return json.RawMessage(fmt.Sprintf(`{"name":%q}`, name)), nil
+	for _, r := range f.recs {
+		if r.Owner == owner && r.Name == name {
+			return json.Marshal(r)
+		}
+	}
+	return nil, errNotInCatalog
 }
 
 func (f fakeCatalog) File(_ *mcp.ToolContext, _, owner, name, path, _ string) ([]byte, error) {
@@ -243,5 +249,16 @@ func TestUpstreamCatalogLive(t *testing.T) {
 	}
 	if err := tl.uriResolver(tc())("https://fuel.gazebosim.org/1.0/OpenRobotics/models/NoSuchModel12345"); err == nil {
 		t.Errorf("resolver accepts an invented URI")
+	}
+}
+
+func TestURIResolverWarnsOnPrivateModels(t *testing.T) {
+	tl := &tools{cfg: Config{FuelHosts: []string{"localhost"}}, catalogs: []Catalog{
+		fakeCatalog{host: "localhost", recs: []record{{Owner: "nate", Name: "shelf", Private: true}}},
+	}}
+	err := tl.uriResolver(tc())("https://localhost/1.0/nate/models/shelf")
+	var w sdf.Warning
+	if !errors.As(err, &w) || !strings.Contains(err.Error(), "private") {
+		t.Fatalf("want a private-model warning, got %v", err)
 	}
 }

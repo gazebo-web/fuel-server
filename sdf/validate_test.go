@@ -201,3 +201,11 @@ func TestResolveFileHook(t *testing.T) {
 		t.Fatalf("seen %v errors %v", seen, r.Errors)
 	}
 }
+
+func TestResolveURIWarning(t *testing.T) {
+	doc := `<sdf version="1.9"><world name="w"><include><uri>https://x/1.0/o/models/m</uri></include></world></sdf>`
+	r := ValidateWithOptions(doc, Options{ResolveURI: func(string) error { return Warning("private model") }})
+	if !r.Valid || len(r.Warnings) != 1 || !strings.Contains(r.Warnings[0].Message, "private model") {
+		t.Fatalf("errors %v warnings %v", r.Errors, r.Warnings)
+	}
+}
