@@ -3,7 +3,9 @@ package projects
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -188,5 +190,138 @@ func TestCleanRelPath(t *testing.T) {
 		if got, err := cleanRelPath(in); err != nil || got != want {
 			t.Errorf("cleanRelPath(%q) = %q, %v; want %q", in, got, err, want)
 		}
+	}
+}
+
+func TestWriteFilesReplacesDirsInOneCommit(t *testing.T) {
+	dir := newTestRepo(t)
+	ctx := context.Background()
+	before := len(history(t, dir))
+	_, err := writeFilesLocked(ctx, dir, map[string][]byte{
+		"models/crate/model.sdf":              []byte("<sdf/>"),
+		"models/crate/meshes/collision_1.glb": {0, 1},
+		"models/crate/meshes/collision_2.glb": {0, 2},
+	}, nil, "auto-save: model_generate crate", "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Regenerating with fewer hulls must not leave collision_2 behind.
+	_, err = writeFilesLocked(ctx, dir, map[string][]byte{
+		"models/crate/model.sdf":              []byte("<sdf version='1.9'/>"),
+		"models/crate/meshes/collision_1.glb": {0, 3},
+	}, []string{"models/crate"}, "auto-save: model_generate crate", "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, _, err := listFilesAt(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(files, ","); got != ".gitignore,models/crate/meshes/collision_1.glb,models/crate/model.sdf" {
+		t.Errorf("files %s", got)
+	}
+	if n := len(history(t, dir)) - before; n != 2 {
+		t.Errorf("want one commit per write, got %d", n)
+	}
+	if _, err := writeFilesLocked(ctx, dir, map[string][]byte{"../escape": nil}, nil, "x", "", false); err == nil {
+		t.Error("path outside the repo accepted")
+	}
+}
+
+func TestSizeLimits(t *testing.T) {
+	dir := newTestRepo(t)
+	ctx := context.Background()
+	defer func(f, m, p int64) { MaxFileSize, MaxModelSize, MaxProjectSize = f, m, p }(MaxFileSize, MaxModelSize, MaxProjectSize)
+	MaxFileSize, MaxModelSize, MaxProjectSize = 100, 150, 250
+
+	big := make([]byte, 101)
+	if _, err := writeFileLocked(ctx, dir, "a.bin", big, "x", "", false); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("file over limit: %v", err)
+	}
+	if _, err := writeFilesLocked(ctx, dir, map[string][]byte{
+		"models/a/1.glb": make([]byte, 80), "models/a/2.glb": make([]byte, 80),
+	}, nil, "x", "", false); !errors.Is(err, ErrTooLarge) || !strings.Contains(err.Error(), "model a") {
+		t.Errorf("model over limit: %v", err)
+	}
+	if _, err := writeFilesLocked(ctx, dir, map[string][]byte{
+		"models/a/1.glb": make([]byte, 80), "models/b/1.glb": make([]byte, 80),
+	}, nil, "x", "", false); err != nil {
+		t.Fatalf("within limits: %v", err)
+	}
+	if _, err := writeFileLocked(ctx, dir, "world.sdf", make([]byte, 100), "x", "", false); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("project over limit: %v", err)
+	}
+	// Replacing a model's folder frees its space first.
+	if _, err := writeFilesLocked(ctx, dir, map[string][]byte{"models/a/1.glb": make([]byte, 90)},
+		[]string{"models/a"}, "x", "", false); err != nil {
+		t.Errorf("replace within limits: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "world.sdf")); err == nil {
+		t.Error("a rejected write must change nothing")
+	}
+}
+
+// Squashing auto-saves prunes the blobs only they referenced, once they
+// are older than pruneAge.
+func TestSquashPrunesReplacedBlobs(t *testing.T) {
+	defer func(a string) { pruneAge = a }(pruneAge)
+	pruneAge = "now"
+	dir := newTestRepo(t)
+	ctx := context.Background()
+	if _, err := writeFileLocked(ctx, dir, "models/m/mesh.glb", []byte("first mesh\x00"), AutoSaveMessage+": a", "", false); err != nil {
+		t.Fatal(err)
+	}
+	old := blobHash(t, dir, "models/m/mesh.glb")
+	if _, err := writeFileLocked(ctx, dir, "models/m/mesh.glb", []byte("second mesh\x00"), AutoSaveMessage+": b", "", false); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("git", "-C", dir, "cat-file", "-e", old).CombinedOutput(); err != nil {
+		t.Fatalf("old blob should exist before the squash: %s", out)
+	}
+	if _, n, err := squashAutoSavesLocked(ctx, dir, func(int) string { return "turn: mesh" }, "", false); err != nil || n != 2 {
+		t.Fatalf("squash: n=%d %v", n, err)
+	}
+	if err := exec.Command("git", "-C", dir, "cat-file", "-e", old).Run(); err == nil {
+		t.Error("blob only an auto-save referenced survived the squash")
+	}
+}
+
+func blobHash(t *testing.T, dir, path string) string {
+	t.Helper()
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD:"+path).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func TestIsBinary(t *testing.T) {
+	for _, c := range []struct {
+		path    string
+		content string
+		want    bool
+	}{
+		{"models/m/meshes/visual.glb", "", true},
+		{"thumbnail.PNG", "", true},
+		{"world.sdf", "<sdf/>", false},
+		{"notes.txt", "a\x00b", true},
+		{"models/m/meshes/visual.gltf", `{"asset":{}}`, false},
+	} {
+		if got := IsBinary(c.path, []byte(c.content)); got != c.want {
+			t.Errorf("%s: %v", c.path, got)
+		}
+	}
+}
+
+func TestSquashKeepsRecentRevisionsReadable(t *testing.T) {
+	dir := newTestRepo(t)
+	ctx := context.Background()
+	rev := write(t, dir, "world.sdf", "v1", AutoSaveMessage+": a")
+	write(t, dir, "world.sdf", "v2", AutoSaveMessage+": b")
+	if _, _, err := squashAutoSavesLocked(ctx, dir, func(int) string { return "turn" }, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _, err := readFileAt(dir, "world.sdf", rev); err != nil || string(got) != "v1" {
+		t.Fatalf("a just-squashed revision must stay readable: %q %v", got, err)
 	}
 }

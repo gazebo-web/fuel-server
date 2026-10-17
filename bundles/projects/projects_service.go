@@ -457,35 +457,47 @@ func authorOf(jwtUser *users.User) string {
 // WriteFileWithOptions writes one file into the project repo and commits.
 func (s *Service) WriteFileWithOptions(ctx context.Context, tx *gorm.DB, owner, name, relPath string,
 	content []byte, jwtUser *users.User, opts WriteFileOptions) (WriteResult, *gz.ErrMsg) {
+	return s.WriteFiles(ctx, tx, owner, name, map[string][]byte{relPath: content}, nil, jwtUser, opts)
+}
 
-	clean, err := cleanRelPath(relPath)
-	if err != nil {
-		return WriteResult{}, repoErr(err)
+// WriteFiles writes several files as one commit, after emptying each of
+// replaceDirs (e.g. a regenerated model's folder, so files it no longer
+// has don't linger). opts.BaseRev is checked for every written file.
+func (s *Service) WriteFiles(ctx context.Context, tx *gorm.DB, owner, name string, files map[string][]byte,
+	replaceDirs []string, jwtUser *users.User, opts WriteFileOptions) (WriteResult, *gz.ErrMsg) {
+
+	if len(files) == 0 && len(replaceDirs) == 0 {
+		return WriteResult{}, repoErr(errors.New("path is required"))
+	}
+	for rel := range files {
+		if _, err := cleanRelPath(rel); err != nil {
+			return WriteResult{}, repoErr(err)
+		}
 	}
 	p, unlock, em := s.writeAccess(ctx, tx, owner, name, jwtUser)
 	if em != nil {
 		return WriteResult{}, em
 	}
 	defer unlock()
-	if err := checkBaseRev(*p.Location, clean, opts.BaseRev); err != nil {
-		return WriteResult{}, repoErr(err)
+	for rel := range files {
+		clean, _ := cleanRelPath(rel)
+		if err := checkBaseRev(*p.Location, clean, opts.BaseRev); err != nil {
+			return WriteResult{}, repoErr(err)
+		}
 	}
 
 	author := authorOf(jwtUser)
 	var rev string
+	var err error
 	squashed := 0
 	if opts.SquashAutoSaves {
-		full := filepath.Join(*p.Location, clean)
-		if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
-			return WriteResult{}, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
-		}
-		if err := os.WriteFile(full, content, 0644); err != nil {
-			return WriteResult{}, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		if err := applyFilesLocked(*p.Location, files, replaceDirs); err != nil {
+			return WriteResult{}, repoErr(err)
 		}
 		rev, squashed, err = squashAutoSavesLocked(ctx, *p.Location,
 			func(int) string { return opts.CommitMessage }, author, true)
 	} else {
-		rev, err = writeFileLocked(ctx, *p.Location, clean, content, opts.CommitMessage, author, opts.Amend)
+		rev, err = writeFilesLocked(ctx, *p.Location, files, replaceDirs, opts.CommitMessage, author, opts.Amend)
 	}
 	if err != nil {
 		return WriteResult{}, repoErr(err)
@@ -570,10 +582,13 @@ func repoErr(err error) *gz.ErrMsg {
 	case errors.Is(err, ErrStaleRev), errors.Is(err, ErrUnknownRev):
 		em = gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 		em.StatusCode = http.StatusConflict
+	case errors.Is(err, ErrTooLarge):
+		em = gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
+		em.StatusCode = http.StatusRequestEntityTooLarge
 	case errors.Is(err, ErrFileNotFound):
 		em = gz.NewErrorMessageWithBase(gz.ErrorNameNotFound, err)
 		em.StatusCode = http.StatusNotFound
-	case errors.Is(err, ErrNoMatch), errors.Is(err, ErrAmbiguousMatch),
+	case errors.Is(err, ErrNoMatch), errors.Is(err, ErrAmbiguousMatch), errors.Is(err, ErrBinary),
 		strings.HasPrefix(err.Error(), "invalid path"), err.Error() == "path is required":
 		em = gz.NewErrorMessageWithBase(gz.ErrorFormInvalidValue, err)
 		em.StatusCode = http.StatusBadRequest

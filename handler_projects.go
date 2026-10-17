@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -217,6 +219,11 @@ type writeProjectFileBody struct {
 
 // ProjectFileWrite handles PUT /1.0/projects/{name}/files/{path:.*}: the
 // SDF editor's save. Same operation as the project_write_file tool.
+//
+// A JSON body ({content, base_rev, message}) writes text. Any other
+// content type (e.g. application/octet-stream) writes the raw body, with
+// base_rev and message as query parameters: user uploads of meshes and
+// textures.
 func ProjectFileWrite(name string, jwtUser *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
@@ -224,8 +231,19 @@ func ProjectFileWrite(name string, jwtUser *users.User, tx *gorm.DB,
 		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
 	}
 	var body writeProjectFileBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnmarshalJSON, err)
+	var content []byte
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorUnmarshalJSON, err)
+		}
+		content = []byte(body.Content)
+	} else {
+		var err error
+		// Read one byte past the limit so the service reports it as too large.
+		if content, err = io.ReadAll(io.LimitReader(r.Body, projects.MaxFileSize+1)); err != nil {
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+		}
+		body.BaseRev, body.Message = r.URL.Query().Get("base_rev"), r.URL.Query().Get("message")
 	}
 	msg := body.Message
 	if msg == "" {
@@ -233,7 +251,7 @@ func ProjectFileWrite(name string, jwtUser *users.User, tx *gorm.DB,
 	}
 	s := &projects.Service{}
 	return s.WriteFileWithOptions(r.Context(), tx, *jwtUser.Username, name, mux.Vars(r)["path"],
-		[]byte(body.Content), jwtUser, projects.WriteFileOptions{CommitMessage: msg, BaseRev: body.BaseRev})
+		content, jwtUser, projects.WriteFileOptions{CommitMessage: msg, BaseRev: body.BaseRev})
 }
 
 // checkpointBody is the payload for POST /1.0/projects/{name}/checkpoint.
@@ -283,7 +301,9 @@ func ProjectFileAtVersion(name string, jwtUser *users.User, tx *gorm.DB,
 		if em != nil {
 			return nil, em
 		}
-		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Type", projectFileType(path))
+		// A commit's content never changes.
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 		_, _ = w.Write(b)
 		return nil, nil
 	}
@@ -293,9 +313,26 @@ func ProjectFileAtVersion(name string, jwtUser *users.User, tx *gorm.DB,
 	}
 
 	writeIgnResourceVersionHeader(w, resolved)
-	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Type", projectFileType(path))
 	_, _ = w.Write(*bytes)
 	return nil, nil
+}
+
+// projectFileType is the Content-Type a project file is served with, so
+// browsers and loaders (images, glTF) handle it without sniffing.
+func projectFileType(path string) string {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".glb":
+		return "model/gltf-binary"
+	case ".gltf":
+		return "model/gltf+json"
+	case ".sdf", ".world", ".config", ".dae", ".urdf":
+		return "application/xml"
+	}
+	if t := mime.TypeByExtension(filepath.Ext(path)); t != "" {
+		return t
+	}
+	return "application/octet-stream"
 }
 
 var commitHashRe = regexp.MustCompile(`^[0-9a-f]{40}$`)

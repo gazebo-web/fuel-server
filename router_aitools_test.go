@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gazebo-web/fuel-server/bundles/projects"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -277,4 +278,47 @@ func TestProjectReleases(t *testing.T) {
 
 	rec = aiRequest(t, "PATCH", "/1.0/projects/"+name, jwt, map[string]any{"gazebo_version": "Fortress"})
 	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+}
+
+// Binary files go in through the raw PUT, come back with their content
+// type, and the text tools only ever see their metadata.
+func TestProjectBinaryFiles(t *testing.T) {
+	jwt := createValidJWTForIdentity("aitools-binary-identity", t)
+	username := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(username, jwt, t)
+	name := fmt.Sprintf("binary-%d", time.Now().UnixNano())
+	mcpJSON(t, jwt, "project_create", map[string]any{"name": name})
+
+	put := func(path string, body []byte) *httptest.ResponseRecorder {
+		req, _ := http.NewRequest("PUT", "/1.0/projects/"+name+"/files/"+path, bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/octet-stream")
+		req.Header.Set("Authorization", "Bearer "+jwt)
+		rec := httptest.NewRecorder()
+		globals.Server.Router.ServeHTTP(rec, req)
+		return rec
+	}
+	glb := append([]byte("glTF\x02\x00\x00\x00"), make([]byte, 64)...)
+	rec := put("models/crate/meshes/visual.glb", glb)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	rec = aiRequest(t, "GET", "/1.0/projects/"+name+"/tip/files/models/crate/meshes/visual.glb", jwt, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "model/gltf-binary", rec.Header().Get("Content-Type"))
+	assert.Equal(t, glb, rec.Body.Bytes())
+
+	read := mcpJSON(t, jwt, "project_read_file", map[string]any{"name": name, "path": "models/crate/meshes/visual.glb"})
+	assert.Equal(t, true, read["binary"])
+	assert.EqualValues(t, len(glb), read["size"])
+	assert.Nil(t, read["content"])
+
+	text, isErr := mcpCall(t, jwt, "project_write_file", map[string]any{"name": name, "path": "models/crate/meshes/x.glb", "content": "abc"})
+	assert.True(t, isErr, text)
+	text, isErr = mcpCall(t, jwt, "project_edit_file", map[string]any{"name": name, "path": "models/crate/meshes/visual.glb",
+		"old_str": "glTF", "new_str": "nope", "base_rev": "tip"})
+	assert.True(t, isErr, text)
+
+	defer func(n int64) { projects.MaxFileSize = n }(projects.MaxFileSize)
+	projects.MaxFileSize = 32
+	rec = put("models/crate/meshes/big.glb", glb)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, rec.Code, rec.Body.String())
 }

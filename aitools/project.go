@@ -1,6 +1,8 @@
 package aitools
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"path"
 	"strings"
 
@@ -187,8 +189,18 @@ func (t *tools) projectReadFile(tc *mcp.ToolContext, args map[string]any) (mcp.C
 	if em != nil {
 		return gzError(em), nil
 	}
+	if projects.IsBinary(v[1], b) {
+		sum := sha256.Sum256(b)
+		return jsonResult(map[string]any{"path": v[1], "rev": rev, "binary": true, "size": len(b),
+			"sha256": hex.EncodeToString(sum[:])})
+	}
 	return jsonResult(map[string]any{"path": v[1], "rev": rev, "content": string(b)})
 }
+
+// errBinaryWrite is returned when the text tools are pointed at a binary
+// file: the model never handles mesh or image bytes.
+var errBinaryWrite = mcp.ErrorResult("binary files (meshes, images) can't be written as text; " +
+	"meshes come from model generation or user uploads")
 
 // autoSaveMessage labels agent edits so labeled saves and the idle squash
 // fold them (projects.IsAutoSave).
@@ -208,6 +220,9 @@ func (t *tools) projectWriteFile(tc *mcp.ToolContext, args map[string]any) (mcp.
 	if !ok {
 		return mcp.ErrorResult("content required"), nil
 	}
+	if projects.IsBinary(v[1], []byte(content)) {
+		return errBinaryWrite, nil
+	}
 	res, em := projectService.WriteFileWithOptions(tc.Ctx, tc.DB, *tc.User.Username, v[0], v[1],
 		[]byte(content), tc.User, projects.WriteFileOptions{
 			CommitMessage: autoSaveMessage("project_write_file", v[1], argString(args, "message")),
@@ -222,6 +237,9 @@ func (t *tools) projectEditFile(tc *mcp.ToolContext, args map[string]any) (mcp.C
 		return *errRes, nil
 	}
 	newStr, _ := args["new_str"].(string)
+	if projects.IsBinary(v[1], nil) {
+		return errBinaryWrite, nil
+	}
 	res, em := projectService.EditFile(tc.Ctx, tc.DB, *tc.User.Username, v[0], v[1], v[2], newStr, v[3],
 		autoSaveMessage("project_edit_file", v[1], argString(args, "message")), tc.User)
 	if em != nil {
