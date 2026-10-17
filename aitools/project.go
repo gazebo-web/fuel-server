@@ -40,8 +40,8 @@ func (t *tools) registerProject(reg *mcp.Registry) {
 			Description: "Create a new private project. Its world lives in world.sdf; create it with " +
 				"project_write_file.",
 			InputSchema: schema([]string{"name"}, map[string]any{
-				"name":           str("Project name, unique among the caller's projects"),
-				"description":    str("What the project is for"),
+				"name":        str("Project name, unique among the caller's projects"),
+				"description": str("What the project is for"),
 				"gazebo_release": str("Gazebo release: " + strings.Join(projects.SupportedReleases(), ", ") +
 					" (default " + projects.DefaultRelease + "). It sets the SDF version and ROS 2 distro."),
 			}),
