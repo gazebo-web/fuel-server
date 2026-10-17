@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/gazebo-web/fuel-server/mcp"
@@ -53,6 +54,51 @@ func (t *tools) registerSDF(reg *mcp.Registry) {
 		},
 		RequiredScopes: []string{"fuel:read"},
 		Handler:        t.sdfValidate,
+	})
+	num := func(desc string) map[string]any { return map[string]any{"type": "number", "description": desc} }
+	reg.Register(mcp.Tool{
+		Spec: mcp.ToolSpec{
+			Name: "sdf_compute_inertia",
+			Description: "Compute the exact <inertial> for a solid primitive of uniform density. Use it " +
+				"for every dynamic link instead of estimating the tensor. Give mass, or density in " +
+				"kg/m³ (wood 600, plastic 1000, steel 7850, cardboard box contents ~100).",
+			InputSchema: schema([]string{"shape"}, map[string]any{
+				"shape": map[string]any{"type": "string", "enum": sdf.ShapeKinds(),
+					"description": "Primitive; cylinder and capsule are along Z, as in SDF"},
+				"size": map[string]any{"type": "array", "items": map[string]any{"type": "number"},
+					"minItems": 3, "maxItems": 3, "description": "box: x y z size; ellipsoid: x y z radii (m)"},
+				"radius":  num("cylinder, sphere, capsule radius (m)"),
+				"length":  num("cylinder length, or a capsule's straight part (m)"),
+				"mass":    num("Mass in kg (or give density)"),
+				"density": num("Density in kg/m³ (or give mass)"),
+				"pose":    str("Optional inertial pose relative to the link, e.g. '0 0 0.5 0 0 0'"),
+			}),
+		},
+		RequiredScopes: []string{"fuel:read"},
+		Handler:        t.sdfComputeInertia,
+	})
+}
+
+func (t *tools) sdfComputeInertia(_ *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
+	f := func(k string) float64 { x, _ := args[k].(float64); return x }
+	shape := sdf.Shape{Kind: argString(args, "shape"), Radius: f("radius"), Length: f("length")}
+	if size, ok := args["size"].([]any); ok {
+		if len(size) != 3 {
+			return mcp.ErrorResult("size needs 3 numbers"), nil
+		}
+		for i, v := range size {
+			shape.Size[i], _ = v.(float64)
+		}
+	}
+	in, err := sdf.PrimitiveInertial(shape, f("mass"), f("density"))
+	if err != nil {
+		return mcp.ErrorResult(err.Error()), nil
+	}
+	r6 := func(x float64) float64 { y, _ := strconv.ParseFloat(strconv.FormatFloat(x, 'g', 6, 64), 64); return y }
+	return jsonResult(map[string]any{
+		"mass": r6(in.Mass), "volume": r6(in.Volume), "density": r6(in.Mass / in.Volume),
+		"ixx": r6(in.IXX), "iyy": r6(in.IYY), "izz": r6(in.IZZ),
+		"inertial": in.XML(argString(args, "pose")),
 	})
 }
 

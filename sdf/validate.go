@@ -592,6 +592,8 @@ func (v *validator) checkInertial(n *node) {
 	if m := n.child("mass"); m != nil && m.text != "" {
 		if x, err := strconv.ParseFloat(m.text, 64); err == nil && x <= 0 {
 			v.errorAt(m, 0, "mass must be positive, got %s", m.text)
+		} else if err == nil {
+			v.checkDensity(n, m, x)
 		}
 	}
 	in := n.child("inertia")
@@ -626,4 +628,91 @@ func (v *validator) checkInertial(n *node) {
 	case ixx+izz < iyy-tol:
 		v.errorAt(in, 0, "inertia violates ixx+izz >= iyy (%g + %g < %g)", ixx, izz, iyy)
 	}
+}
+
+// checkDensity warns when a dynamic link's mass is implausible for the
+// volume of its collision primitives, e.g. 1 kg for a 2 m³ crate. Links
+// with any non-primitive collision, and static models, are skipped.
+func (v *validator) checkDensity(inertial, mass *node, kg float64) {
+	link := inertial.parent
+	if link == nil || link.name != "link" || link.parent == nil {
+		return
+	}
+	if st := link.parent.child("static"); st != nil && (st.text == "true" || st.text == "1") {
+		return
+	}
+	vol := 0.0
+	for _, c := range link.children {
+		if c.name != "collision" {
+			continue
+		}
+		shape, ok := primitiveShape(c.child("geometry"))
+		if !ok {
+			return
+		}
+		cv, err := shape.Volume()
+		if err != nil {
+			return
+		}
+		vol += cv
+	}
+	if vol == 0 {
+		return
+	}
+	if d := kg / vol; d < densityBounds[0] || d > densityBounds[1] {
+		v.warnAt(mass, 0, "mass %g kg in %.3g m³ of collision geometry is %.3g kg/m³; expected %g to %g "+
+			"(use sdf_compute_inertia with a density)", kg, vol, d, densityBounds[0], densityBounds[1])
+	}
+}
+
+// primitiveShape reads a <geometry> holding one SDF primitive.
+func primitiveShape(g *node) (Shape, bool) {
+	if g == nil || len(g.children) != 1 {
+		return Shape{}, false
+	}
+	p := g.children[0]
+	f := func(name string) float64 {
+		c := p.child(name)
+		if c == nil {
+			return 0
+		}
+		x, _ := strconv.ParseFloat(strings.TrimSpace(c.text), 64)
+		return x
+	}
+	vec := func(name string) (out [3]float64, ok bool) {
+		c := p.child(name)
+		if c == nil {
+			return out, false
+		}
+		fs := strings.Fields(c.text)
+		if len(fs) != 3 {
+			return out, false
+		}
+		for i, s := range fs {
+			x, err := strconv.ParseFloat(s, 64)
+			if err != nil {
+				return out, false
+			}
+			out[i] = x
+		}
+		return out, true
+	}
+	s := Shape{Kind: p.name}
+	switch p.name {
+	case "box":
+		var ok bool
+		if s.Size, ok = vec("size"); !ok {
+			return s, false
+		}
+	case "ellipsoid":
+		var ok bool
+		if s.Size, ok = vec("radii"); !ok {
+			return s, false
+		}
+	case "sphere", "cylinder", "capsule":
+		s.Radius, s.Length = f("radius"), f("length")
+	default:
+		return s, false
+	}
+	return s, true
 }

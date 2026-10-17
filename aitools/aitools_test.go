@@ -19,6 +19,7 @@ func TestCatalog(t *testing.T) {
 		"project_checkpoint", "project_create", "project_edit_file", "project_get", "project_list",
 		"project_list_files", "project_list_versions", "project_read_file", "project_write_file",
 		"scene_summary",
+		"sdf_compute_inertia",
 		"sdf_get_element_schema", "sdf_list_child_elements", "sdf_validate",
 	}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
@@ -76,5 +77,24 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 	if !(&tools{cfg: cfg}).isFuelHost("FUEL.gazebosim.org") {
 		t.Fatal("host match should be case-insensitive")
+	}
+}
+
+func TestSDFComputeInertia(t *testing.T) {
+	tl := &tools{}
+	res, _ := tl.sdfComputeInertia(nil, map[string]any{
+		"shape": "box", "size": []any{0.5, 0.4, 0.3}, "density": 600.0, "pose": "0 0 0.15 0 0 0"})
+	text := res.Content[0].Text
+	if res.IsError || !strings.Contains(text, `"mass": 36`) || !strings.Contains(text, `<pose>0 0 0.15 0 0 0</pose>`) {
+		t.Fatalf("box: %s", text)
+	}
+	for _, bad := range []map[string]any{
+		{"shape": "box", "size": []any{1.0, 1.0}, "mass": 1.0},
+		{"shape": "cylinder", "radius": 0.1, "mass": 1.0},
+		{"shape": "sphere", "radius": 0.1},
+	} {
+		if res, _ := tl.sdfComputeInertia(nil, bad); !res.IsError {
+			t.Errorf("%v: want an error, got %s", bad, res.Content[0].Text)
+		}
 	}
 }

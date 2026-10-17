@@ -98,13 +98,18 @@ func schema(required []string, props map[string]any) map[string]any {
 func str(desc string) map[string]any { return map[string]any{"type": "string", "description": desc} }
 
 // jsonResult marshals v to indented JSON in a text content block. LLMs
-// read JSON well, so structured results travel that way.
+// read JSON well, so structured results travel that way. HTML escaping is
+// off: results carry SDF, and "\u003cmodel\u003e" costs tokens and
+// readability.
 func jsonResult(v any) (mcp.CallToolResult, error) {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
+	var b strings.Builder
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
 		return mcp.CallToolResult{}, fmt.Errorf("marshal: %w", err)
 	}
-	return mcp.TextResult(string(b)), nil
+	return mcp.TextResult(strings.TrimSuffix(b.String(), "\n")), nil
 }
 
 // gzError turns a gz.ErrMsg into a tool-level error result, keeping the

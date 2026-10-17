@@ -21,8 +21,8 @@ const goodWorld = `<?xml version="1.0"?>
     <model name="cart">
       <link name="base">
         <inertial>
-          <mass>2.0</mass>
-          <inertia><ixx>0.1</ixx><iyy>0.1</iyy><izz>0.1</izz></inertia>
+          <mass>20.0</mass>
+          <inertia><ixx>3.33333</ixx><iyy>3.33333</iyy><izz>3.33333</izz></inertia>
         </inertial>
         <collision name="c"><geometry><box><size>1 1 1</size></box></geometry></collision>
         <visual name="v"><geometry><box><size>1 1 1</size></box></geometry></visual>
