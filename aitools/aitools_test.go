@@ -16,8 +16,9 @@ func TestCatalog(t *testing.T) {
 	sort.Strings(names)
 	want := []string{
 		"fuel_get_model_details", "fuel_get_model_sdf", "fuel_get_world_sdf", "fuel_search_models", "fuel_search_worlds",
+		"model_create",
 		"project_checkpoint", "project_create", "project_edit_file", "project_get", "project_list",
-		"project_list_files", "project_list_versions", "project_read_file", "project_write_file",
+		"project_list_files", "project_list_models", "project_list_versions", "project_read_file", "project_write_file",
 		"scene_summary",
 		"sdf_compute_inertia",
 		"sdf_get_element_schema", "sdf_list_child_elements", "sdf_validate",

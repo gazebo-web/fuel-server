@@ -322,3 +322,61 @@ func TestProjectBinaryFiles(t *testing.T) {
 	rec = put("models/crate/meshes/big.glb", glb)
 	assert.Equal(t, http.StatusRequestEntityTooLarge, rec.Code, rec.Body.String())
 }
+
+// A custom model is created in the project, included from the world by
+// model://, and its files are checked against the project.
+func TestAIToolsProjectModels(t *testing.T) {
+	jwt := createValidJWTForIdentity("aitools-models-identity", t)
+	username := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(username, jwt, t)
+	name := fmt.Sprintf("models-%d", time.Now().UnixNano())
+	mcpJSON(t, jwt, "project_create", map[string]any{"name": name})
+	text, isErr := mcpCall(t, jwt, "scene_summary", map[string]any{"name": name})
+	assert.True(t, isErr)
+	assert.Contains(t, text, "world.sdf doesn't exist yet; create it with project_write_file")
+
+	created := mcpJSON(t, jwt, "model_create", map[string]any{
+		"name": name, "model": "crate", "description": "A wooden crate",
+		"size": []any{0.6, 0.4, 0.4}, "density": 300.0})
+	assert.Equal(t, "model://crate", created["uri"])
+	assert.Equal(t, true, created["validation"].(map[string]any)["valid"], created)
+	_, isErr = mcpCall(t, jwt, "model_create", map[string]any{"name": name, "model": "crate"})
+	assert.True(t, isErr, "duplicate model")
+
+	world := `<?xml version="1.0"?>
+<sdf version="1.9"><world name="w">
+  <include><uri>model://crate</uri><name>crate_1</name><pose>0 0 0.2 0 0 0</pose></include>
+  <include><uri>model://sun</uri></include>
+</world></sdf>`
+	w := mcpJSON(t, jwt, "project_write_file", map[string]any{"name": name, "path": "world.sdf", "content": world})
+	v := w["validation"].(map[string]any)
+	assert.EqualValues(t, 1, v["errors"], v)
+	assert.Contains(t, v["summary"], `no model "sun" in this project (project models: crate)`)
+
+	// A mesh reference must point at a file in the project.
+	sdfDoc := mcpJSON(t, jwt, "project_read_file", map[string]any{"name": name, "path": "models/crate/model.sdf"})
+	withMesh := strings.Replace(sdfDoc["content"].(string),
+		"<visual name=\"visual\">\n        <geometry><box><size>0.6 0.4 0.4</size></box></geometry>",
+		"<visual name=\"visual\">\n        <geometry><mesh><uri>meshes/visual.glb</uri></mesh></geometry>", 1)
+	require.NotEqual(t, sdfDoc["content"], withMesh)
+	w = mcpJSON(t, jwt, "project_write_file", map[string]any{"name": name, "path": "models/crate/model.sdf", "content": withMesh})
+	assert.Contains(t, w["validation"].(map[string]any)["summary"], "no file models/crate/meshes/visual.glb")
+
+	req, _ := http.NewRequest("PUT", "/1.0/projects/"+name+"/files/models/crate/meshes/visual.glb", strings.NewReader("glTF\x00"))
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	rec := httptest.NewRecorder()
+	globals.Server.Router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	val := mcpJSON(t, jwt, "sdf_validate", map[string]any{"name": name, "path": "models/crate/model.sdf"})
+	assert.Equal(t, true, val["valid"], val)
+
+	list := mcpJSON(t, jwt, "project_list_models", map[string]any{"name": name})
+	models := list["models"].([]any)
+	require.Len(t, models, 1)
+	m := models[0].(map[string]any)
+	assert.Equal(t, "crate", m["name"])
+	assert.Equal(t, "A wooden crate", m["description"])
+	assert.EqualValues(t, 1, m["links"])
+	assert.EqualValues(t, 3, m["files"])
+}

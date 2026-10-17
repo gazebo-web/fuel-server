@@ -1,0 +1,419 @@
+package aitools
+
+import (
+	"encoding/xml"
+	"fmt"
+	"path"
+	"regexp"
+	"sort"
+	"strings"
+
+	"github.com/gazebo-web/fuel-server/bundles/projects"
+	"github.com/gazebo-web/fuel-server/mcp"
+	"github.com/gazebo-web/fuel-server/sdf"
+)
+
+// Project-local models (plan §4): each lives in models/<name>/ with a
+// model.config and model.sdf, and worlds include it as model://<name>.
+
+const modelsDir = "models"
+
+var modelNameRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+func (t *tools) registerModels(reg *mcp.Registry) {
+	reg.Register(mcp.Tool{
+		Spec: mcp.ToolSpec{
+			Name: "model_create",
+			Description: "Create a custom model in the project as models/<name>/ (model.config and " +
+				"model.sdf): one link with a primitive visual, a matching collision and, unless " +
+				"static, exact inertia. Include it in the world with <include><uri>model://<name>" +
+				"</uri><pose>...</pose></include>, then edit models/<name>/model.sdf to add links, " +
+				"joints, sensors or materials. Check project_list_models first; include an existing " +
+				"model again rather than creating a copy.",
+			InputSchema: schema([]string{"name"}, map[string]any{
+				"name":        str("Project name"),
+				"model":       str("Model name: letters, digits, '_' or '-'; also its folder name"),
+				"description": str("What the model is"),
+				"static":      map[string]any{"type": "boolean", "description": "Immovable (walls, shelves). Default false"},
+				"shape": map[string]any{"type": "string", "enum": sdf.ShapeKinds(),
+					"description": "Primitive for the starting link (default box)"},
+				"size": map[string]any{"type": "array", "items": map[string]any{"type": "number"},
+					"minItems": 3, "maxItems": 3, "description": "box: x y z size; ellipsoid: radii (m). Default 1 1 1"},
+				"radius":   map[string]any{"type": "number", "description": "cylinder, sphere, capsule radius (m)"},
+				"length":   map[string]any{"type": "number", "description": "cylinder or capsule length (m)"},
+				"mass":     map[string]any{"type": "number", "description": "kg (dynamic models; or give density)"},
+				"density":  map[string]any{"type": "number", "description": "kg/m³ (default 500)"},
+				"base_rev": str("Optional: fail if the model's files changed since this revision"),
+			}),
+		},
+		RequiredScopes: []string{"project:write"},
+		Handler:        t.modelCreate,
+	})
+	reg.Register(mcp.Tool{
+		Spec: mcp.ToolSpec{
+			Name: "project_list_models",
+			Description: "List the custom models in a project (models/<name>/): include URI, " +
+				"description, links, joints, whether static, and whether generated from a recipe.",
+			InputSchema: schema([]string{"name"}, map[string]any{
+				"name": str("Project name"),
+				"rev":  str("Revision (default HEAD)"),
+			}),
+		},
+		RequiredScopes: []string{"project:read"},
+		Handler:        t.projectListModels,
+	})
+}
+
+// -- resolving references inside a project ------------------------------------
+
+// projectFiles is a project's file list at one revision, used to check
+// model:// and relative references from the file at dir.
+type projectFiles struct {
+	dir   string // directory of the file being validated
+	files map[string]bool
+}
+
+func newProjectFiles(filePath string, files []string) projectFiles {
+	pf := projectFiles{dir: path.Dir(filePath), files: map[string]bool{}}
+	for _, f := range files {
+		pf.files[f] = true
+	}
+	return pf
+}
+
+// models returns the names of the project's models.
+func (pf projectFiles) models() []string {
+	seen := map[string]bool{}
+	for f := range pf.files {
+		if parts := strings.SplitN(f, "/", 3); len(parts) == 3 && parts[0] == modelsDir &&
+			(parts[2] == "model.config" || parts[2] == "model.sdf") {
+			seen[parts[1]] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for m := range seen {
+		out = append(out, m)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (pf projectFiles) hasModel(dir string) bool {
+	return pf.files[dir+"/model.config"] || pf.files[dir+"/model.sdf"]
+}
+
+// resolveInclude checks a non-HTTP include URI. handled is false for
+// URIs it doesn't own (http, https).
+func (pf projectFiles) resolveInclude(uri string) (handled bool, err error) {
+	uri = strings.TrimSpace(uri)
+	if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
+		return false, nil
+	}
+	if strings.HasPrefix(uri, "model://") {
+		name := strings.Trim(strings.TrimPrefix(uri, "model://"), "/")
+		if pf.hasModel(path.Join(modelsDir, name)) {
+			return true, nil
+		}
+		return true, fmt.Errorf("no model %q in this project (project models: %s). Create one with "+
+			"model_create, or include a Fuel model by the https uri fuel_search_models returns", name,
+			listOrNone(pf.models()))
+	}
+	if err := notAbsolute(uri); err != nil {
+		return true, err
+	}
+	if !pf.hasModel(path.Join(pf.dir, uri)) {
+		return true, fmt.Errorf("no model folder %s in this project", path.Join(pf.dir, uri))
+	}
+	return true, nil
+}
+
+// resolveFile checks a mesh or texture URI.
+func (pf projectFiles) resolveFile(uri string) error {
+	uri = strings.TrimSpace(uri)
+	switch {
+	case strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://"):
+		return nil // Fuel files; the include check covers their models
+	case strings.HasPrefix(uri, "model://"):
+		rel := path.Join(modelsDir, strings.TrimPrefix(uri, "model://"))
+		if !pf.files[rel] {
+			return fmt.Errorf("no file %s in this project", rel)
+		}
+		return nil
+	}
+	if err := notAbsolute(uri); err != nil {
+		return err
+	}
+	if rel := path.Join(pf.dir, uri); !pf.files[rel] {
+		return fmt.Errorf("no file %s in this project", rel)
+	}
+	return nil
+}
+
+func notAbsolute(uri string) error {
+	if strings.HasPrefix(uri, "/") || strings.HasPrefix(uri, "file://") || strings.Contains(uri, "://") {
+		return fmt.Errorf("only works on one machine; put the file in the project and use a path " +
+			"relative to this file, or model://<model>/<path>")
+	}
+	return nil
+}
+
+func listOrNone(names []string) string {
+	if len(names) == 0 {
+		return "none"
+	}
+	return strings.Join(names, ", ")
+}
+
+// validateIn validates doc as the project file filePath at rev, so
+// model:// and relative references are checked against the project.
+func (t *tools) validateIn(tc *mcp.ToolContext, project, filePath, rev, doc string) sdf.ValidationResult {
+	files, _, em := projectService.ListFiles(tc.Ctx, tc.DB, *tc.User.Username, project, rev, tc.User)
+	if em != nil {
+		return t.validate(tc, doc)
+	}
+	pf := newProjectFiles(filePath, files)
+	remote := t.uriResolver(tc)
+	return sdf.ValidateWithOptions(doc, sdf.Options{
+		ResolveURI: func(uri string) error {
+			if handled, err := pf.resolveInclude(uri); handled {
+				return err
+			}
+			return remote(uri)
+		},
+		ResolveFile: pf.resolveFile,
+	})
+}
+
+// -- model.config ----------------------------------------------------------------
+
+type modelConfig struct {
+	XMLName     xml.Name `xml:"model"`
+	Name        string   `xml:"name"`
+	Description string   `xml:"description"`
+	SDF         []struct {
+		Version string `xml:"version,attr"`
+		File    string `xml:",chardata"`
+	} `xml:"sdf"`
+}
+
+// checkModelConfig validates a model.config: well formed, with a <name>
+// and an <sdf> naming a file that exists next to it.
+func checkModelConfig(content string, pf projectFiles) sdf.ValidationResult {
+	var r sdf.ValidationResult
+	var mc modelConfig
+	if err := xml.Unmarshal([]byte(content), &mc); err != nil {
+		r.Errors = append(r.Errors, sdf.ValidationError{Message: "malformed model.config: " + err.Error()})
+		return r
+	}
+	if strings.TrimSpace(mc.Name) == "" {
+		r.Errors = append(r.Errors, sdf.ValidationError{Message: "model.config needs a <name>"})
+	}
+	if len(mc.SDF) == 0 {
+		r.Errors = append(r.Errors, sdf.ValidationError{Message: "model.config needs <sdf version=\"...\">model.sdf</sdf>"})
+	}
+	for _, s := range mc.SDF {
+		if f := path.Join(pf.dir, strings.TrimSpace(s.File)); !pf.files[f] {
+			r.Warnings = append(r.Warnings, sdf.ValidationError{Message: fmt.Sprintf("<sdf> names %s, which doesn't exist yet", f)})
+		}
+	}
+	r.Valid = len(r.Errors) == 0
+	return r
+}
+
+// -- model_create ------------------------------------------------------------------
+
+func (t *tools) modelCreate(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
+	v, errRes := requireStrings(args, "name", "model")
+	if errRes != nil {
+		return *errRes, nil
+	}
+	project, model := v[0], v[1]
+	if !modelNameRe.MatchString(model) {
+		return mcp.ErrorResult("model name must be 1-64 letters, digits, '_' or '-'"), nil
+	}
+	dir := path.Join(modelsDir, model)
+	files, _, em := projectService.ListFiles(tc.Ctx, tc.DB, *tc.User.Username, project, "", tc.User)
+	if em != nil {
+		return gzError(em), nil
+	}
+	if newProjectFiles("", files).hasModel(dir) {
+		return mcp.ErrorResult(fmt.Sprintf("model %q already exists; edit %s/model.sdf, or choose another name",
+			model, dir)), nil
+	}
+	p, em := projectService.GetForCaller(tc.DB, project, tc.User)
+	if em != nil {
+		return gzError(em), nil
+	}
+	sdfVersion := defaultSDFVersion
+	if p.SDFVersion != nil && *p.SDFVersion != "" {
+		sdfVersion = *p.SDFVersion
+	}
+
+	f := func(k string) float64 { x, _ := args[k].(float64); return x }
+	shape := sdf.Shape{Kind: argOr(args, "shape", "box"), Size: [3]float64{1, 1, 1}, Radius: f("radius"), Length: f("length")}
+	if size, ok := args["size"].([]any); ok {
+		if len(size) != 3 {
+			return mcp.ErrorResult("size needs 3 numbers"), nil
+		}
+		for i, x := range size {
+			shape.Size[i], _ = x.(float64)
+		}
+	}
+	static, _ := args["static"].(bool)
+	geometry, err := geometryXML(shape)
+	if err != nil {
+		return mcp.ErrorResult(err.Error()), nil
+	}
+	inertial := ""
+	if !static {
+		mass, density := f("mass"), f("density")
+		if mass == 0 && density == 0 {
+			density = 500
+		}
+		in, err := sdf.PrimitiveInertial(shape, mass, density)
+		if err != nil {
+			return mcp.ErrorResult(err.Error()), nil
+		}
+		inertial = indent(in.XML(""), "      ") + "\n"
+	}
+	desc := argString(args, "description")
+	modelSDF := fmt.Sprintf(`<?xml version="1.0"?>
+<sdf version="%s">
+  <model name="%s">
+    <static>%t</static>
+    <link name="link">
+%s      <collision name="collision">
+        <geometry>%s</geometry>
+      </collision>
+      <visual name="visual">
+        <geometry>%s</geometry>
+        <material>
+          <diffuse>0.7 0.7 0.7 1</diffuse>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
+`, sdfVersion, xmlEscape(model), static, inertial, geometry, geometry)
+	config := fmt.Sprintf(`<?xml version="1.0"?>
+<model>
+  <name>%s</name>
+  <version>1.0</version>
+  <sdf version="%s">model.sdf</sdf>
+  <author>
+    <name>%s</name>
+  </author>
+  <description>%s</description>
+</model>
+`, xmlEscape(model), sdfVersion, xmlEscape(*tc.User.Username), xmlEscape(desc))
+
+	res, em := projectService.WriteFiles(tc.Ctx, tc.DB, *tc.User.Username, project, map[string][]byte{
+		dir + "/model.config": []byte(config),
+		dir + "/model.sdf":    []byte(modelSDF),
+	}, nil, tc.User, projects.WriteFileOptions{
+		CommitMessage: autoSaveMessage("model_create", dir, ""),
+		BaseRev:       argString(args, "base_rev"),
+	})
+	if em != nil {
+		return gzError(em), nil
+	}
+	report := validationReport(t.validateIn(tc, project, dir+"/model.sdf", res.Rev, modelSDF), dir+"/model.sdf")
+	return jsonResult(map[string]any{
+		"model": model, "uri": "model://" + model, "path": dir + "/model.sdf",
+		"rev": res.Rev, "version": res.Version, "validation": report,
+		"include": fmt.Sprintf("<include>\n  <uri>model://%s</uri>\n  <name>%s</name>\n  <pose>0 0 0 0 0 0</pose>\n</include>", model, model),
+	})
+}
+
+// geometryXML renders a primitive's <geometry> contents.
+func geometryXML(s sdf.Shape) (string, error) {
+	if _, err := s.Volume(); err != nil {
+		return "", err
+	}
+	g := func(x float64) string { return fmt.Sprintf("%g", x) }
+	switch s.Kind {
+	case "box":
+		return fmt.Sprintf("<box><size>%s %s %s</size></box>", g(s.Size[0]), g(s.Size[1]), g(s.Size[2])), nil
+	case "ellipsoid":
+		return fmt.Sprintf("<ellipsoid><radii>%s %s %s</radii></ellipsoid>", g(s.Size[0]), g(s.Size[1]), g(s.Size[2])), nil
+	case "sphere":
+		return fmt.Sprintf("<sphere><radius>%s</radius></sphere>", g(s.Radius)), nil
+	default: // cylinder, capsule
+		return fmt.Sprintf("<%s><radius>%s</radius><length>%s</length></%s>", s.Kind, g(s.Radius), g(s.Length), s.Kind), nil
+	}
+}
+
+func indent(s, prefix string) string {
+	return prefix + strings.ReplaceAll(s, "\n", "\n"+prefix)
+}
+
+func xmlEscape(s string) string {
+	var b strings.Builder
+	_ = xml.EscapeText(&b, []byte(s))
+	return b.String()
+}
+
+// -- project_list_models -------------------------------------------------------------
+
+type modelInfo struct {
+	Name        string `json:"name"`
+	URI         string `json:"uri"`
+	Path        string `json:"path"`
+	Description string `json:"description,omitempty"`
+	Static      bool   `json:"static,omitempty"`
+	Links       int    `json:"links,omitempty"`
+	Joints      int    `json:"joints,omitempty"`
+	Shape       string `json:"shape,omitempty"`
+	Generated   bool   `json:"generated,omitempty"`
+	Preview     string `json:"preview,omitempty"`
+	Files       int    `json:"files"`
+	Problem     string `json:"problem,omitempty"`
+}
+
+func (t *tools) projectListModels(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
+	v, errRes := requireStrings(args, "name")
+	if errRes != nil {
+		return *errRes, nil
+	}
+	files, rev, em := projectService.ListFiles(tc.Ctx, tc.DB, *tc.User.Username, v[0], argString(args, "rev"), tc.User)
+	if em != nil {
+		return gzError(em), nil
+	}
+	pf := newProjectFiles("", files)
+	read := func(p string) (string, bool) {
+		b, _, em := projectService.ReadFile(tc.Ctx, tc.DB, *tc.User.Username, v[0], p, rev, tc.User)
+		return string(b), em == nil
+	}
+	out := []modelInfo{}
+	for _, name := range pf.models() {
+		dir := path.Join(modelsDir, name)
+		mi := modelInfo{Name: name, URI: "model://" + name, Path: dir}
+		for f := range pf.files {
+			if strings.HasPrefix(f, dir+"/") {
+				mi.Files++
+				if strings.HasPrefix(f, dir+"/source/") {
+					mi.Generated = true
+				}
+				if strings.HasPrefix(f, dir+"/previews/") && strings.HasSuffix(f, ".png") && mi.Preview == "" {
+					mi.Preview = f
+				}
+			}
+		}
+		if c, ok := read(dir + "/model.config"); ok {
+			var mc modelConfig
+			if xml.Unmarshal([]byte(c), &mc) == nil {
+				mi.Description = strings.TrimSpace(mc.Description)
+			}
+		}
+		if s, ok := read(dir + "/model.sdf"); !ok {
+			mi.Problem = "no model.sdf"
+		} else if sum, err := sdf.Summarize(s); err != nil {
+			mi.Problem = "model.sdf: " + err.Error()
+		} else if len(sum.Entities) > 0 {
+			e := sum.Entities[0]
+			mi.Static, mi.Links, mi.Joints, mi.Shape = e.Static, e.Links, e.Joints, e.Shape
+		}
+		out = append(out, mi)
+	}
+	return jsonResult(map[string]any{"rev": rev, "models": out})
+}

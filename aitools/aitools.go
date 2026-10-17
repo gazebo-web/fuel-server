@@ -55,6 +55,7 @@ func NewRegistry(cfg Config) *mcp.Registry {
 	t.registerSDF(reg)
 	t.registerProject(reg)
 	t.registerScene(reg)
+	t.registerModels(reg)
 	return reg
 }
 

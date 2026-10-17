@@ -1,6 +1,10 @@
 package aitools
 
 import (
+	"errors"
+	"net/http"
+
+	"github.com/gazebo-web/fuel-server/bundles/projects"
 	"github.com/gazebo-web/fuel-server/mcp"
 	"github.com/gazebo-web/fuel-server/sdf"
 )
@@ -31,6 +35,9 @@ func (t *tools) sceneSummary(tc *mcp.ToolContext, args map[string]any) (mcp.Call
 	}
 	path := argOr(args, "path", "world.sdf")
 	b, rev, em := projectService.ReadFile(tc.Ctx, tc.DB, *tc.User.Username, v[0], path, argString(args, "rev"), tc.User)
+	if em != nil && em.StatusCode == http.StatusNotFound && errors.Is(em.BaseError, projects.ErrFileNotFound) {
+		return mcp.ErrorResult(path + " doesn't exist yet; create it with project_write_file"), nil
+	}
 	if em != nil {
 		return gzError(em), nil
 	}

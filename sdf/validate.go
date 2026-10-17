@@ -69,6 +69,17 @@ type Options struct {
 	// ResolveURI, when set, is called for every <include><uri>. A non-nil
 	// error is reported as a validation error on that element.
 	ResolveURI func(uri string) error
+	// ResolveFile, when set, is called for every mesh URI and PBR texture
+	// map, e.g. "model://crate/meshes/visual.glb" or "meshes/visual.glb".
+	// A non-nil error is reported as a validation error.
+	ResolveFile func(uri string) error
+}
+
+// textureMaps are the PBR elements whose text is a texture file.
+var textureMaps = map[string]bool{
+	"albedo_map": true, "normal_map": true, "roughness_map": true, "metalness_map": true,
+	"ambient_occlusion_map": true, "emissive_map": true, "light_map": true, "environment_map": true,
+	"specular_map": true, "glossiness_map": true,
 }
 
 // Validate checks an SDF document against the embedded schemas. See
@@ -539,6 +550,18 @@ func (v *validator) checkSemantics(n *node) {
 		}
 	case "inertial":
 		v.checkInertial(n)
+	case "mesh":
+		if u := n.child("uri"); u != nil && u.text != "" && v.opts.ResolveFile != nil {
+			if err := v.opts.ResolveFile(u.text); err != nil {
+				v.errorAt(u, 0, "mesh %q: %v", u.text, err)
+			}
+		}
+	default:
+		if textureMaps[n.name] && n.text != "" && v.opts.ResolveFile != nil {
+			if err := v.opts.ResolveFile(n.text); err != nil {
+				v.errorAt(n, 0, "texture %q: %v", n.text, err)
+			}
+		}
 	}
 	for _, c := range n.children {
 		if !strings.Contains(c.name, ":") {

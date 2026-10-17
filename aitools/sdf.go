@@ -136,11 +136,11 @@ func (t *tools) sdfValidate(tc *mcp.ToolContext, args map[string]any) (mcp.CallT
 			r := mcp.ErrorResult("pass 'sdf', or 'name' and 'path'")
 			return r, nil
 		}
-		b, _, em := projectService.ReadFile(tc.Ctx, tc.DB, *tc.User.Username, v[0], v[1], argString(args, "rev"), tc.User)
+		b, rev, em := projectService.ReadFile(tc.Ctx, tc.DB, *tc.User.Username, v[0], v[1], argString(args, "rev"), tc.User)
 		if em != nil {
 			return gzError(em), nil
 		}
-		doc, label = string(b), v[1]
+		return jsonResult(validationReport(t.validateIn(tc, v[0], v[1], rev, string(b)), v[1]))
 	}
 	r := t.validate(tc, doc)
 	return jsonResult(validationReport(r, label))

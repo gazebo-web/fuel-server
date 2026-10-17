@@ -228,7 +228,7 @@ func (t *tools) projectWriteFile(tc *mcp.ToolContext, args map[string]any) (mcp.
 			CommitMessage: autoSaveMessage("project_write_file", v[1], argString(args, "message")),
 			BaseRev:       argString(args, "base_rev"),
 		})
-	return t.writeResult(tc, v[1], content, res, em)
+	return t.writeResult(tc, v[0], v[1], content, res, em)
 }
 
 func (t *tools) projectEditFile(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
@@ -249,20 +249,25 @@ func (t *tools) projectEditFile(tc *mcp.ToolContext, args map[string]any) (mcp.C
 	if em != nil {
 		return gzError(em), nil
 	}
-	return t.writeResult(tc, v[1], string(b), res, nil)
+	return t.writeResult(tc, v[0], v[1], string(b), res, nil)
 }
 
 // writeResult reports a write: the new rev (base_rev for the next edit)
-// and, for SDF files, the validation report.
-func (t *tools) writeResult(tc *mcp.ToolContext, filePath, content string,
+// and, for SDF files and model.config, the validation report.
+func (t *tools) writeResult(tc *mcp.ToolContext, project, filePath, content string,
 	res projects.WriteResult, em *gz.ErrMsg) (mcp.CallToolResult, error) {
 	if em != nil {
 		return gzError(em), nil
 	}
 	out := map[string]any{"path": filePath, "rev": res.Rev, "version": res.Version}
-	switch path.Ext(filePath) {
-	case ".sdf", ".world":
-		out["validation"] = validationReport(t.validate(tc, content), filePath)
+	switch {
+	case path.Ext(filePath) == ".sdf" || path.Ext(filePath) == ".world":
+		out["validation"] = validationReport(t.validateIn(tc, project, filePath, res.Rev, content), filePath)
+	case path.Base(filePath) == "model.config":
+		files, _, em := projectService.ListFiles(tc.Ctx, tc.DB, *tc.User.Username, project, res.Rev, tc.User)
+		if em == nil {
+			out["validation"] = validationReport(checkModelConfig(content, newProjectFiles(filePath, files)), filePath)
+		}
 	}
 	return jsonResult(out)
 }

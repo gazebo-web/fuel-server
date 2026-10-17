@@ -183,3 +183,21 @@ func TestValidateAcceptsHexIntegers(t *testing.T) {
 		t.Fatalf("hex bitmask should be valid: %s", messages(r.Errors))
 	}
 }
+
+func TestResolveFileHook(t *testing.T) {
+	doc := `<sdf version="1.9"><model name="m"><static>true</static><link name="l"><visual name="v">
+	  <geometry><mesh><uri>meshes/missing.glb</uri></mesh></geometry>
+	  <material><pbr><metal><albedo_map>materials/textures/a.png</albedo_map></metal></pbr></material>
+	</visual></link></model></sdf>`
+	var seen []string
+	r := ValidateWithOptions(doc, Options{ResolveFile: func(uri string) error {
+		seen = append(seen, uri)
+		if uri == "meshes/missing.glb" {
+			return errors.New("no file")
+		}
+		return nil
+	}})
+	if len(seen) != 2 || len(r.Errors) != 1 || !strings.Contains(r.Errors[0].Message, `mesh "meshes/missing.glb": no file`) {
+		t.Fatalf("seen %v errors %v", seen, r.Errors)
+	}
+}
