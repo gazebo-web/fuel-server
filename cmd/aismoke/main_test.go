@@ -44,17 +44,40 @@ func TestScore(t *testing.T) {
 	  <model name="box"><link name="l"/></model>
 	</world></sdf>`
 	res := Result{Writes: 2}
-	score(Case{MinEntities: 2, WantInclude: true}, world, &res)
+	score(Case{MinEntities: 2, WantInclude: true}, world, nil, &res)
 	if !res.Passed || res.Entities != 2 || res.Includes != 1 {
 		t.Fatalf("want pass: %+v", res)
 	}
 
 	res = Result{Writes: 0}
-	score(Case{MinEntities: 3, WantJoints: 1}, `<sdf version="1.9"><world name="w"><model name="m"><static>maybe</static></model></world></sdf>`, &res)
+	score(Case{MinEntities: 3, WantJoints: 1}, `<sdf version="1.9"><world name="w"><model name="m"><static>maybe</static></model></world></sdf>`, nil, &res)
 	got := strings.Join(res.Failures, "|")
 	for _, want := range []string{"validation errors", "no edits", "entities", "joints"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("failures %q missing %q", got, want)
 		}
+	}
+}
+
+func TestScoreProjectModels(t *testing.T) {
+	world := `<sdf version="1.9"><world name="w">
+	  <include><uri>model://robot</uri><name>r1</name></include>
+	  <include><uri>model://robot</uri><name>r2</name></include>
+	  <include><uri>model://loop</uri></include>
+	</world></sdf>`
+	models := map[string]string{
+		"robot": `<sdf version="1.9"><model name="robot">
+		  <link name="a"/><link name="b"/><link name="c"/>
+		  <joint name="j1" type="revolute"><parent>a</parent><child>b</child></joint>
+		  <joint name="j2" type="revolute"><parent>a</parent><child>c</child></joint>
+		  <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Camera</uri></include>
+		</model></sdf>`,
+		"loop": `<sdf version="1.9"><model name="loop"><include><uri>model://loop</uri></include></model></sdf>`,
+	}
+	load := func(name string) (string, bool) { src, ok := models[name]; return src, ok }
+	res := Result{Writes: 1}
+	score(Case{MinEntities: 3, WantJoints: 4, WantInclude: true}, world, load, &res)
+	if !res.Passed || res.Entities != 3 || res.Joints != 4 || res.Includes != 2 || res.Models != 4 {
+		t.Fatalf("want pass with 3 entities, 4 joints, 2 Fuel includes, 4 model includes: %+v", res)
 	}
 }

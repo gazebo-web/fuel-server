@@ -56,6 +56,7 @@ type Result struct {
 	Warnings  int           `json:"validation_warnings"`
 	Entities  int           `json:"entities"`
 	Includes  int           `json:"includes"`
+	Models    int           `json:"project_models"`
 	Joints    int           `json:"joints"`
 	Duration  time.Duration `json:"duration_ns"`
 	Reply     string        `json:"reply,omitempty"`
@@ -100,8 +101,8 @@ func main() {
 		if !res.Passed {
 			status, failed = "FAIL", failed+1
 		}
-		fmt.Printf("%-4s %-18s writes=%-3d tools=%-3d errors=%-2d entities=%-3d %5.0fs %s\n",
-			status, c.ID, res.Writes, res.ToolCalls, res.Errors, res.Entities,
+		fmt.Printf("%-4s %-18s writes=%-3d tools=%-3d errors=%-2d entities=%-3d fuel=%-3d models=%-2d %5.0fs %s\n",
+			status, c.ID, res.Writes, res.ToolCalls, res.Errors, res.Entities, res.Includes, res.Models,
 			res.Duration.Seconds(), strings.Join(res.Failures, "; "))
 	}
 	fmt.Printf("%d/%d passed\n", len(cases)-failed, len(cases))
@@ -189,19 +190,31 @@ func (r *runner) run(c Case) Result {
 		res.Failures = append(res.Failures, "no world.sdf (refused or did nothing)")
 		return res
 	}
-	score(c, string(world), &res)
+	load := func(model string) (string, bool) {
+		var b []byte
+		u := r.fuel + "/1.0/projects/" + url.PathEscape(name) + "/tip/files/models/" + url.PathEscape(model) + "/model.sdf"
+		if r.call(ctx, "GET", u, nil, &b) != nil {
+			return "", false
+		}
+		return string(b), true
+	}
+	score(c, string(world), load, &res)
 	return res
 }
 
+// modelLoader returns the model.sdf of a project model (models/<name>/),
+// so includes of model://<name> are scored with their contents.
+type modelLoader func(name string) (string, bool)
+
 // score fills in validation and content checks for the final world.
-func score(c Case, world string, res *Result) {
+func score(c Case, world string, load modelLoader, res *Result) {
 	v := sdf.Validate(world)
 	res.Errors, res.Warnings = len(v.Errors), len(v.Warnings)
 	if res.Errors > 0 {
 		res.Failures = append(res.Failures, fmt.Sprintf("%d validation errors (first: %s)", res.Errors, v.Errors[0].Message))
 	}
 	if s, err := sdf.Summarize(world); err == nil {
-		countEntities(s.Entities, res)
+		countEntities(s.Entities, load, map[string]bool{}, res)
 	}
 	if res.Writes == 0 {
 		res.Failures = append(res.Failures, "agent made no edits")
@@ -218,17 +231,49 @@ func score(c Case, world string, res *Result) {
 	res.Passed = len(res.Failures) == 0
 }
 
-func countEntities(es []sdf.Entity, res *Result) {
+func countEntities(es []sdf.Entity, load modelLoader, inside map[string]bool, res *Result) {
 	for _, e := range es {
 		switch e.Kind {
 		case "model", "include", "actor":
 			res.Entities++
 		}
 		if e.Kind == "include" {
-			res.Includes++
+			if model, ok := strings.CutPrefix(strings.TrimSpace(e.URI), "model://"); ok {
+				res.Models++
+				countProjectModel(strings.TrimSuffix(model, "/"), load, inside, res)
+			} else {
+				res.Includes++
+			}
 		}
 		res.Joints += e.Joints
-		countEntities(e.Children, res)
+		countEntities(e.Children, load, inside, res)
+	}
+}
+
+// countProjectModel adds the joints and nested includes of one included
+// project model; the include itself is already counted as an entity.
+// inside holds the models being expanded, to stop include cycles.
+func countProjectModel(name string, load modelLoader, inside map[string]bool, res *Result) {
+	if inside[name] || load == nil {
+		return
+	}
+	inside[name] = true
+	defer delete(inside, name)
+	src, ok := load(name)
+	if !ok {
+		return
+	}
+	s, err := sdf.Summarize(src)
+	if err != nil {
+		return
+	}
+	for _, m := range s.Entities {
+		res.Joints += m.Joints
+		var nested Result
+		countEntities(m.Children, load, inside, &nested)
+		res.Joints += nested.Joints
+		res.Includes += nested.Includes
+		res.Models += nested.Models
 	}
 }
 
