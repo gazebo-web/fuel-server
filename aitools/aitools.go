@@ -11,6 +11,7 @@ package aitools
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -24,10 +25,18 @@ type Config struct {
 	// server's database during validation (e.g. "fuel.gazebosim.org").
 	// URIs on other hosts only get a format check. Empty disables the
 	// database check, which suits local development with an empty catalog.
+	// The first one is also the host in include URIs for this server's
+	// own assets (default fuel.gazebosim.org).
 	FuelHosts []string
+	// UpstreamFuel is a public Fuel server (e.g. https://fuel.gazebosim.org)
+	// whose catalog is searched after this server's own, so development and
+	// staging see real models (design §5.4). Empty in production, where this
+	// server is the public catalog.
+	UpstreamFuel string
 }
 
-// ConfigFromEnv reads AI_TOOLS_FUEL_HOSTS (comma-separated).
+// ConfigFromEnv reads AI_TOOLS_FUEL_HOSTS (comma-separated) and
+// AI_TOOLS_UPSTREAM_FUEL.
 func ConfigFromEnv() Config {
 	var hosts []string
 	for _, h := range strings.Split(os.Getenv("AI_TOOLS_FUEL_HOSTS"), ",") {
@@ -35,13 +44,13 @@ func ConfigFromEnv() Config {
 			hosts = append(hosts, h)
 		}
 	}
-	return Config{FuelHosts: hosts}
+	return Config{FuelHosts: hosts, UpstreamFuel: strings.TrimSpace(os.Getenv("AI_TOOLS_UPSTREAM_FUEL"))}
 }
 
 // NewRegistry returns a registry with every AI tool registered.
 func NewRegistry(cfg Config) *mcp.Registry {
 	reg := mcp.NewRegistry()
-	t := &tools{cfg: cfg}
+	t := &tools{cfg: cfg, catalogs: catalogsFor(cfg)}
 	t.registerFuel(reg)
 	t.registerSDF(reg)
 	t.registerProject(reg)
@@ -51,6 +60,28 @@ func NewRegistry(cfg Config) *mcp.Registry {
 
 type tools struct {
 	cfg Config
+	// catalogs are searched in order: this server's, then the upstream.
+	catalogs []Catalog
+}
+
+func catalogsFor(cfg Config) []Catalog {
+	local := localCatalog{host: "fuel.gazebosim.org"}
+	if len(cfg.FuelHosts) > 0 {
+		local.host = cfg.FuelHosts[0]
+	}
+	cats := []Catalog{local}
+	if cfg.UpstreamFuel == "" {
+		return cats
+	}
+	up, err := newUpstreamCatalog(cfg.UpstreamFuel)
+	if err != nil {
+		log.Printf("aitools: ignoring AI_TOOLS_UPSTREAM_FUEL: %v", err)
+		return cats
+	}
+	if up.Host() == local.host {
+		return cats
+	}
+	return append(cats, up)
 }
 
 // -- shared helpers ----------------------------------------------------------

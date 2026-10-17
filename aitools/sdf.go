@@ -1,13 +1,12 @@
 package aitools
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"path"
 	"strings"
 
-	"github.com/gazebo-web/fuel-server/bundles/models"
-	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/mcp"
 	"github.com/gazebo-web/fuel-server/sdf"
 )
@@ -125,9 +124,10 @@ func validationReport(r sdf.ValidationResult, file string) map[string]any {
 }
 
 // uriResolver checks <include><uri> values. Non-HTTP URIs (model://,
-// relative paths) are accepted. HTTP URIs must be Fuel model URIs, and on
-// the configured FuelHosts the model must exist and be visible to the
-// caller.
+// relative paths) are accepted. HTTP URIs must be Fuel model URIs. On the
+// configured FuelHosts the model must exist and be visible to the caller;
+// on the upstream Fuel host it must exist there. An unreachable upstream
+// doesn't fail validation.
 func (t *tools) uriResolver(tc *mcp.ToolContext) func(string) error {
 	return func(raw string) error {
 		u, err := url.Parse(strings.TrimSpace(raw))
@@ -142,15 +142,31 @@ func (t *tools) uriResolver(tc *mcp.ToolContext) func(string) error {
 			return fmt.Errorf("not a Fuel model URI (want https://%s/1.0/<owner>/models/<name>)", u.Host)
 		}
 		owner, name := seg[1], seg[3]
-		if !t.isFuelHost(u.Host) {
+		cat := t.catalogForHost(u.Host)
+		if cat == nil {
 			return nil
 		}
-		ms := &models.Service{Storage: globals.Storage}
-		if _, em := ms.GetModel(tc.DB, owner, name, tc.User); em != nil {
+		if _, err := cat.Details(tc, kindModels, owner, name); errors.Is(err, errNotInCatalog) {
 			return fmt.Errorf("no model %q owned by %q; find real models with fuel_search_models", name, owner)
 		}
 		return nil
 	}
+}
+
+// catalogForHost returns the catalog that serves URIs on host, if any.
+func (t *tools) catalogForHost(host string) Catalog {
+	if len(t.catalogs) == 0 {
+		return nil
+	}
+	if t.isFuelHost(host) {
+		return t.catalogs[0]
+	}
+	for _, c := range t.catalogs[1:] {
+		if strings.EqualFold(c.Host(), host) {
+			return c
+		}
+	}
+	return nil
 }
 
 func (t *tools) isFuelHost(host string) bool {

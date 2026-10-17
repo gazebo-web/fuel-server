@@ -211,3 +211,45 @@ func TestAIToolsValidateDocument(t *testing.T) {
 	assert.Equal(t, false, r["valid"])
 	assert.Contains(t, r["summary"], "expected true or false")
 }
+
+// The local catalog returns compact, public-by-default results with the
+// include URI to use.
+func TestAIToolsLocalCatalog(t *testing.T) {
+	setup()
+	jwt := createValidJWTForIdentity("aitools-catalog-identity", t)
+	username := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(username, jwt, t)
+	createTestModelWithOwner(t, &jwt, "public_table", username, false)
+	createTestModelWithOwner(t, &jwt, "private_shelf", username, true)
+
+	search := func(args map[string]any) []map[string]any {
+		text, isErr := mcpCall(t, jwt, "fuel_search_models", args)
+		require.False(t, isErr, text)
+		var items []map[string]any
+		require.NoError(t, json.Unmarshal([]byte(text), &items), text)
+		return items
+	}
+	names := func(items []map[string]any) (out []string) {
+		for _, it := range items {
+			out = append(out, it["name"].(string))
+		}
+		return out
+	}
+
+	items := search(map[string]any{"owner": username})
+	require.Equal(t, []string{"public_table"}, names(items))
+	assert.Equal(t, "https://fuel.gazebosim.org/1.0/"+username+"/models/public_table", items[0]["uri"])
+	assert.Equal(t, true, items[0]["public"])
+	assert.Equal(t, "local", items[0]["source"])
+	assert.NotEmpty(t, items[0]["license"])
+
+	assert.ElementsMatch(t, []string{"public_table", "private_shelf"},
+		names(search(map[string]any{"owner": username, "include_private": true})))
+
+	text, isErr := mcpCall(t, jwt, "fuel_get_model_details", map[string]any{"owner": username, "name": "public_table"})
+	require.False(t, isErr, text)
+	assert.Contains(t, text, `"uri": "https://fuel.gazebosim.org/1.0/`+username+`/models/public_table"`)
+
+	text, isErr = mcpCall(t, jwt, "fuel_get_model_details", map[string]any{"owner": username, "name": "missing"})
+	assert.True(t, isErr, text)
+}

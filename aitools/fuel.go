@@ -1,11 +1,10 @@
 package aitools
 
 import (
-	"github.com/gazebo-web/fuel-server/bundles/models"
-	"github.com/gazebo-web/fuel-server/bundles/worlds"
-	"github.com/gazebo-web/fuel-server/globals"
+	"encoding/json"
+	"errors"
+
 	"github.com/gazebo-web/fuel-server/mcp"
-	"github.com/gazebo-web/gz-go/v7"
 )
 
 func (t *tools) registerFuel(reg *mcp.Registry) {
@@ -13,6 +12,8 @@ func (t *tools) registerFuel(reg *mcp.Registry) {
 		"query":    str("Keywords, e.g. 'warehouse shelf' or 'forklift'"),
 		"owner":    str("Optional owner filter, e.g. 'OpenRobotics'"),
 		"per_page": map[string]any{"type": "integer", "description": "Max results (default 20, max 50)"},
+		"include_private": map[string]any{"type": "boolean",
+			"description": "Also return your private assets. Others can't load a world that includes them. Default false."},
 	})
 	ownerName := schema([]string{"owner", "name"}, map[string]any{
 		"owner": str("Model owner"),
@@ -21,22 +22,22 @@ func (t *tools) registerFuel(reg *mcp.Registry) {
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
 			Name: "fuel_search_models",
-			Description: "Search the Gazebo Fuel catalog for models the caller can see. Use concrete " +
-				"keywords. Include a result in a world with <include><uri>https://fuel.gazebosim.org/1.0/" +
-				"{owner}/models/{name}</uri></include>.",
+			Description: "Search the public Gazebo Fuel catalog for models. Use concrete keywords. " +
+				"Each result has the exact uri to put in <include><uri>...</uri></include>, plus its " +
+				"license; prefer permissively licensed models and credit the ones you use.",
 			InputSchema: search,
 		},
 		RequiredScopes: []string{"fuel:read"},
-		Handler:        t.fuelSearchModels,
+		Handler:        t.fuelSearch(kindModels),
 	})
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
 			Name:        "fuel_search_worlds",
-			Description: "Search the Gazebo Fuel catalog for worlds the caller can see.",
+			Description: "Search the public Gazebo Fuel catalog for worlds.",
 			InputSchema: search,
 		},
 		RequiredScopes: []string{"fuel:read"},
-		Handler:        t.fuelSearchWorlds,
+		Handler:        t.fuelSearch(kindWorlds),
 	})
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
@@ -75,33 +76,32 @@ func (t *tools) registerFuel(reg *mcp.Registry) {
 	})
 }
 
-func searchArgs(args map[string]any) (*gz.PaginationRequest, *string, string) {
-	pr := &gz.PaginationRequest{Page: 1, PerPage: int64(perPage(args["per_page"], 20, 50)), PageRequested: true}
-	var owner *string
-	if o := argString(args, "owner"); o != "" {
-		owner = &o
+func (t *tools) fuelSearch(kind string) mcp.ToolHandler {
+	return func(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
+		includePrivate, _ := args["include_private"].(bool)
+		items, err := searchCatalogs(tc, t.catalogs, kind, argString(args, "query"), argString(args, "owner"),
+			perPage(args["per_page"], 20, 50), includePrivate)
+		if err != nil {
+			return mcp.ErrorResult("search failed: " + err.Error()), nil
+		}
+		return jsonResult(items)
 	}
-	return pr, owner, argString(args, "query")
 }
 
-func (t *tools) fuelSearchModels(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
-	pr, owner, q := searchArgs(args)
-	ms := &models.Service{Storage: globals.Storage}
-	list, _, em := ms.ModelList(pr, tc.DB, owner, "recent", q, nil, tc.User, nil, true)
-	if em != nil {
-		return gzError(em), nil
+// firstFound tries each catalog in order, moving on only when an asset is
+// missing from one; other errors stop the search.
+func (t *tools) firstFound(fn func(Catalog) ([]byte, error)) ([]byte, Catalog, error) {
+	var err error
+	for _, c := range t.catalogs {
+		var b []byte
+		if b, err = fn(c); err == nil {
+			return b, c, nil
+		}
+		if !errors.Is(err, errNotInCatalog) {
+			return nil, nil, err
+		}
 	}
-	return jsonResult(list)
-}
-
-func (t *tools) fuelSearchWorlds(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
-	pr, owner, q := searchArgs(args)
-	ws := &worlds.Service{Storage: globals.Storage}
-	list, _, em := ws.WorldList(pr, tc.DB, owner, "recent", q, nil, tc.User)
-	if em != nil {
-		return gzError(em), nil
-	}
-	return jsonResult(list)
+	return nil, nil, err
 }
 
 func (t *tools) fuelGetModelDetails(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
@@ -109,12 +109,14 @@ func (t *tools) fuelGetModelDetails(tc *mcp.ToolContext, args map[string]any) (m
 	if errRes != nil {
 		return *errRes, nil
 	}
-	ms := &models.Service{Storage: globals.Storage}
-	proto, em := ms.GetModelProto(tc.Ctx, tc.DB, v[0], v[1], tc.User)
-	if em != nil {
-		return gzError(em), nil
+	b, c, err := t.firstFound(func(c Catalog) ([]byte, error) { return c.Details(tc, kindModels, v[0], v[1]) })
+	if err != nil {
+		return mcp.ErrorResult(err.Error()), nil
 	}
-	return jsonResult(proto)
+	return jsonResult(map[string]any{
+		"uri":     fuelURI(c.Host(), kindModels, v[0], v[1]),
+		"details": json.RawMessage(b),
+	})
 }
 
 func versionOrTip(args map[string]any) string {
@@ -129,12 +131,13 @@ func (t *tools) fuelGetModelSDF(tc *mcp.ToolContext, args map[string]any) (mcp.C
 	if errRes != nil {
 		return *errRes, nil
 	}
-	ms := &models.Service{Storage: globals.Storage}
-	bs, _, em := ms.GetFile(tc.Ctx, tc.DB, v[0], v[1], "model.sdf", versionOrTip(args), tc.User)
-	if em != nil {
-		return gzError(em), nil
+	b, _, err := t.firstFound(func(c Catalog) ([]byte, error) {
+		return c.File(tc, kindModels, v[0], v[1], "model.sdf", versionOrTip(args))
+	})
+	if err != nil {
+		return mcp.ErrorResult(err.Error()), nil
 	}
-	return mcp.TextResult(string(*bs)), nil
+	return mcp.TextResult(string(b)), nil
 }
 
 func (t *tools) fuelGetWorldSDF(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
@@ -143,15 +146,17 @@ func (t *tools) fuelGetWorldSDF(tc *mcp.ToolContext, args map[string]any) (mcp.C
 		return *errRes, nil
 	}
 	owner, name := v[0], v[1]
-	ws := &worlds.Service{Storage: globals.Storage}
 	// Worlds ship as <name>.sdf, or <name>.world in older uploads
 	// (journal Q-MCP-10).
-	var em *gz.ErrMsg
-	for _, path := range []string{name + ".sdf", name + ".world"} {
-		var bs *[]byte
-		if bs, _, em = ws.GetFile(tc.Ctx, tc.DB, owner, name, path, versionOrTip(args), tc.User); em == nil {
-			return mcp.TextResult(string(*bs)), nil
+	b, _, err := t.firstFound(func(c Catalog) ([]byte, error) {
+		b, err := c.File(tc, kindWorlds, owner, name, name+".sdf", versionOrTip(args))
+		if errors.Is(err, errNotInCatalog) {
+			b, err = c.File(tc, kindWorlds, owner, name, name+".world", versionOrTip(args))
 		}
+		return b, err
+	})
+	if err != nil {
+		return mcp.ErrorResult(err.Error()), nil
 	}
-	return gzError(em), nil
+	return mcp.TextResult(string(b)), nil
 }
