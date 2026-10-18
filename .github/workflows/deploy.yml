@@ -3,25 +3,58 @@ name: deploy
 # Controls when the workflow will run
 on:
   push:
-    branches: [ staging, production ]
+    tags:
+      - 'v*'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to deploy (e.g. v2.10.0)'
+        required: true
+        type: string
+      environment:
+        description: 'Target deployment environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+
+concurrency:
+  group: deploy-${{ inputs.environment || 'staging' }}
+  cancel-in-progress: false
 
 jobs:
-  staging-deploy:
-    if: github.ref == 'refs/heads/staging'
+  deploy:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    environment: staging
+    environment: ${{ inputs.environment || 'staging' }}
+    env:
+      TARGET_ENV: ${{ inputs.environment || 'staging' }}
+      TARGET_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
-      - name: Checkout
+      - name: Checkout tag
         uses: actions/checkout@v3
+        with:
+          ref: refs/tags/${{ env.TARGET_TAG }}
+
+      - name: Determine version metadata
+        id: meta
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          VERSION_LABEL="ver-${TARGET_TAG}-${SHORT_SHA}"
+          S3_KEY="deploy_package-${VERSION_LABEL}.zip"
+          echo "commit_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "version_label=${VERSION_LABEL}" >> "$GITHUB_OUTPUT"
+          echo "s3_key=${S3_KEY}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: '1.19'
 
       - name: Build
         run: go build -v ./...
@@ -30,7 +63,7 @@ jobs:
         #   run: go test -v ./...
 
       - name: Generate deployment package
-        run: zip -r deploy_package.zip . -x '*.git*'
+        run: zip -r "${{ steps.meta.outputs.s3_key }}" . -x '*.git*'
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -39,67 +72,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: "us-east-1"
 
-      - name: Upload package to S3 bucket
-        run: aws s3 cp deploy_package.zip s3://fuel.gazebosim.org/
-
-      - name: Create new ElasticBeanstalk Application Version
+      - name: Check if ElasticBeanstalk Application Version exists
+        id: eb_version
         run: |
-          aws elasticbeanstalk create-application-version \
-          --application-name gz-fuel-server \
-          --source-bundle S3Bucket="fuel.gazebosim.org",S3Key="deploy_package.zip" \
-          --version-label "ver-${{ github.sha }}" \
-          --description "commit-sha-${{ github.sha }}"
-
-      - name: Deploy new ElasticBeanstalk Application Version
-        # Add the `always` in case the application version from the previous
-        # step already exists, which would cause a failure.
-        if: always()
-        run: aws elasticbeanstalk update-environment --environment-name gz-fuel-server-staging --version-label "ver-${{ github.sha }}"
-
-
-  production-deploy:
-    if: github.ref == 'refs/heads/production'
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.18
-
-      - name: Build
-        run: go build -v ./...
-
-        # - name: Test
-        #   run: go test -v ./...
-
-      - name: Generate deployment package
-        run: zip -r deploy_package.zip . -x '*.git*'
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: "us-east-1"
+          EXISTING=$(aws elasticbeanstalk describe-application-versions \
+            --application-name gz-fuel-server \
+            --version-labels "${{ steps.meta.outputs.version_label }}" \
+            --query "ApplicationVersions[0].VersionLabel" \
+            --output text)
+          if [ "$EXISTING" = "${{ steps.meta.outputs.version_label }}" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Upload package to S3 bucket
-        run: aws s3 cp deploy_package.zip s3://fuel.gazebosim.org/
+        if: steps.eb_version.outputs.exists == 'false'
+        run: aws s3 cp "${{ steps.meta.outputs.s3_key }}" "s3://fuel.gazebosim.org/${{ steps.meta.outputs.s3_key }}"
 
       - name: Create new ElasticBeanstalk Application Version
+        if: steps.eb_version.outputs.exists == 'false'
         run: |
           aws elasticbeanstalk create-application-version \
-          --application-name gz-fuel-server \
-          --source-bundle S3Bucket="fuel.gazebosim.org",S3Key="deploy_package.zip" \
-          --version-label "ver-${{ github.sha }}" \
-          --description "commit-sha-${{ github.sha }}"
+            --application-name gz-fuel-server \
+            --source-bundle S3Bucket="fuel.gazebosim.org",S3Key="${{ steps.meta.outputs.s3_key }}" \
+            --version-label "${{ steps.meta.outputs.version_label }}" \
+            --description "tag-${{ env.TARGET_TAG }}-sha-${{ steps.meta.outputs.commit_sha }}"
 
-      - name: Deploy new ElasticBeanstalk Application Version
-        # Add the `always` in case the application version from the previous
-        # step already exists, which would cause a failure.
-        if: always()
-        run: aws elasticbeanstalk update-environment --environment-name gz-fuel-server-production --version-label "ver-${{ github.sha }}"
+      - name: Deploy ElasticBeanstalk Application Version
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name "gz-fuel-server-${{ env.TARGET_ENV }}" \
+            --version-label "${{ steps.meta.outputs.version_label }}"
+

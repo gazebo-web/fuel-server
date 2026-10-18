@@ -411,8 +411,15 @@ coverage results.
 
 # Staging/Production deployment
 
-The `staging` and `production` branches push code through GitHub actions to AWS Elastic Beanstalk (EBS). New deployments
-can be triggered by merging new changes to these branches.
+Deployments to AWS Elastic Beanstalk (EBS) are managed through the [deploy](.github/workflows/deploy.yml) GitHub Actions workflow using release tags:
+
+1. **Automatic Staging Deployment**: Pushing a release tag matching `v*` (e.g., `v2.11.0`) automatically builds the release package and deploys it to the `staging` environment (`gz-fuel-server-staging`).
+2. **Manual Deployment / Re-deployment (`workflow_dispatch`)**: Any existing release tag can be deployed or re-deployed to `staging` or `production` (`gz-fuel-server-production`) at any time without requiring a new commit or push:
+   * **GitHub UI**: Navigate to **Actions** → **deploy** → **Run workflow**, enter the release tag (e.g., `v2.11.0`), and select the target environment (`staging` or `production`).
+   * **GitHub CLI**:
+     ```bash
+     gh workflow run deploy.yml -f tag=v2.11.0 -f environment=production
+     ```
 
 # AWS Configuration
 
