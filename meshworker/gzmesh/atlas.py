@@ -5,6 +5,12 @@ part's material from its 3D position and normal, so procedural materials
 bake without seams. The result is a base color texture (sRGB) and a packed
 ORM texture (occlusion R, roughness G, metallic B: glTF's channels, which
 Gazebo's loader splits).
+
+Ambient occlusion is ray traced per texel (embree via trimesh) and
+multiplied into the base color, so creases, corners and the inside of a
+mug read as solid in every renderer; three.js r141 only applies glTF
+occlusion maps with a second UV set, and Gazebo only when one is set. The
+same values go in the ORM red channel for later use.
 """
 
 import numpy as np
@@ -15,6 +21,9 @@ from PIL import Image
 from .materials import Material
 
 PADDING_PX = 8
+AO_RAYS = 24
+AO_STRENGTH = 0.7  # base color *= 1 - AO_STRENGTH * occlusion
+AO_DISTANCE = 0.5  # occluders count up to this fraction of the mesh's size
 
 
 def unwrap(mesh: trimesh.Trimesh, size: int):
@@ -30,7 +39,7 @@ def unwrap(mesh: trimesh.Trimesh, size: int):
     return vmap, faces, uvs
 
 
-def bake(mesh: trimesh.Trimesh, face_part: np.ndarray, materials: list[Material], size: int):
+def bake(mesh: trimesh.Trimesh, face_part: np.ndarray, materials: list[Material], size: int, ao: bool = True):
     """Returns the textured visual mesh and atlas utilization (0-1)."""
     vmap, faces, uvs = unwrap(mesh, size)
     pos = mesh.vertices[vmap]
@@ -52,6 +61,7 @@ def bake(mesh: trimesh.Trimesh, face_part: np.ndarray, materials: list[Material]
         ps.append(w @ pos[tri])
         ns.append(w @ nrm[tri])
         gs.append(g)
+    all_p, all_n, all_g = [], [], []
     for i, (ps, ns, gs) in texels.items():
         if not gs:
             continue
@@ -60,6 +70,14 @@ def bake(mesh: trimesh.Trimesh, face_part: np.ndarray, materials: list[Material]
         color[g[:, 1], g[:, 0]] = np.clip(m.color(p, n), 0, 1)
         orm[g[:, 1], g[:, 0]] = (1.0, m.roughness, m.metalness)
         filled[g[:, 1], g[:, 0]] = True
+        all_p.append(p), all_n.append(n), all_g.append(g)
+    if ao and all_g:
+        occ = np.zeros((size, size))
+        g = np.concatenate(all_g)
+        occ[g[:, 1], g[:, 0]] = occlusion(mesh, np.concatenate(all_p), np.concatenate(all_n))
+        occ = masked_blur(occ, filled, 2)
+        color *= (1 - AO_STRENGTH * occ)[..., None]
+        orm[..., 0] = np.where(filled, 1 - occ, orm[..., 0])
     utilization = float(filled.mean())
     dilate([color, orm], filled, PADDING_PX)
 
@@ -72,6 +90,54 @@ def bake(mesh: trimesh.Trimesh, face_part: np.ndarray, materials: list[Material]
                 baseColorTexture=to_img(color), metallicRoughnessTexture=to_img(orm),
                 metallicFactor=1.0, roughnessFactor=1.0, doubleSided=False)))
     return visual, utilization
+
+
+def occlusion(mesh: trimesh.Trimesh, p: np.ndarray, n: np.ndarray, rays: int = AO_RAYS,
+              chunk: int = 40_000) -> np.ndarray:
+    """Ambient occlusion in 0 (open) to 1 (enclosed) for surface points p
+    with normals n: cosine-weighted rays over the hemisphere, each hit
+    weighted by how close it is within AO_DISTANCE of the mesh's size."""
+    size = float(mesh.extents.max())
+    reach, eps = AO_DISTANCE * size, 1e-4 * size
+    length = np.linalg.norm(n, axis=1, keepdims=True)
+    valid = length[:, 0] > 1e-9  # decimation can leave degenerate normals
+    n = np.where(valid[:, None], n / np.maximum(length, 1e-12), [[0, 0, 1.0]])
+    rng = np.random.default_rng(0)
+    out = np.empty(len(p))
+    for s in range(0, len(p), chunk):
+        pp, nn = p[s:s + chunk], n[s:s + chunk]
+        k = len(pp)
+        helper = np.where(np.abs(nn[:, :1]) < 0.9, [[1.0, 0, 0]], [[0, 1.0, 0]])
+        t = np.cross(nn, helper)
+        t /= np.maximum(np.linalg.norm(t, axis=1, keepdims=True), 1e-12)
+        b = np.cross(nn, t)
+        u1, u2 = rng.random((k, rays)), rng.random((k, rays))
+        r, phi = np.sqrt(u1), 2 * np.pi * u2
+        d = ((r * np.cos(phi))[..., None] * t[:, None] + (r * np.sin(phi))[..., None] * b[:, None]
+             + np.sqrt(1 - u1)[..., None] * nn[:, None]).reshape(-1, 3)
+        o = np.repeat(pp + nn * eps, rays, axis=0)
+        _, ray, loc = mesh.ray.intersects_id(o, d, multiple_hits=False, return_locations=True)
+        weight = np.zeros(len(o))
+        if len(ray):
+            dist = np.linalg.norm(loc - o[ray], axis=1)
+            weight[ray] = np.clip(1 - dist / reach, 0, 1)
+        out[s:s + chunk] = weight.reshape(k, rays).mean(1)
+    return np.where(valid, out, 0.0)
+
+
+def masked_blur(img: np.ndarray, mask: np.ndarray, steps: int) -> np.ndarray:
+    """3x3 box blur over masked texels only, so charts don't bleed into
+    each other."""
+    img = img * mask
+    m = mask.astype(float)
+    for _ in range(steps):
+        acc, cnt = np.zeros_like(img), np.zeros_like(img)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                acc += np.roll(img, (dy, dx), (0, 1))
+                cnt += np.roll(m, (dy, dx), (0, 1))
+        img = np.where(mask, acc / np.maximum(cnt, 1), 0)
+    return img
 
 
 def _cover(tri_px: np.ndarray, size: int):

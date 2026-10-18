@@ -290,3 +290,24 @@ def build():
 def test_far_joint_origin_warns(build):
     code, r, _ = build(LEVER.replace("origin=(0.1, 0, 0.95)", "origin=(100, 0, 950)"))
     assert code == 0 and any("far from links" in w for w in r["warnings"]), r["warnings"]
+
+
+def test_ambient_occlusion_darkens_enclosed_surfaces(build):
+    """An open bin's inside corners are occluded; a plain cube has nothing
+    to occlude it. Occlusion is baked into the base color and stored as
+    1 - occlusion in the ORM red channel."""
+    def orm_red(code):
+        status, r, out = build(code)
+        assert status == 0, r
+        m = trimesh.load(out / "models/thing/meshes/thing.glb").geometry.popitem()[1]
+        red = np.asarray(m.visual.material.metallicRoughnessTexture.convert("RGB"))[..., 0]
+        return red[red > 0]  # baked texels; the background between charts is 0
+    bin_ = orm_red("""
+from build123d import *
+def build():
+    b = Box(0.4, 0.4, 0.4, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return offset(b, amount=-0.01, openings=b.faces().sort_by(Axis.Z)[-1])
+""")
+    cube = orm_red("from build123d import *\ndef build():\n    return Box(0.4, 0.4, 0.4)\n")
+    assert (bin_ < 160).mean() > 0.02, "inside corners should be strongly occluded"
+    assert (cube < 240).mean() < 0.001, "a convex cube occludes nothing"

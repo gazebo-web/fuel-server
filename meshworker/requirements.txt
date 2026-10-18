@@ -3,6 +3,7 @@ cadquery-ocp-novtk==8.0.1.1.0
 trimesh==5.1.1
 manifold3d==3.5.4
 xatlas==0.0.11
+embreex==4.4.0
 coacd==1.0.14
 fast-simplification==0.2.0
 numpy==2.5.4
