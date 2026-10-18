@@ -19,7 +19,7 @@
 # Verified 2026-10-17 under runc on Ubuntu 26.04 (whose AppArmor restricts
 # unprivileged user namespaces): the cone job builds in about 3 s.
 
-FROM golang:1.24-bookworm AS build
+FROM golang:1.27.2-bookworm AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

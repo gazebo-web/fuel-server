@@ -30,7 +30,7 @@
 #     -e AUTH0_RSA256_PUBLIC_KEY="$(cat auth0-pubkey.txt)" \
 #     fuel-server:dev
 
-FROM golang:1.19
+FROM golang:1.27.2
 
 # ── System deps ───────────────────────────────────────────────
 # - git: go-git / vcs integration
