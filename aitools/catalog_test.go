@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/jinzhu/gorm"
+
 	"github.com/gazebo-web/fuel-server/mcp"
 	"github.com/gazebo-web/fuel-server/sdf"
 )
@@ -24,6 +26,13 @@ type fakeCatalog struct {
 }
 
 func (f fakeCatalog) Host() string { return f.host }
+
+func (f fakeCatalog) Zip(_ context.Context, _ *gorm.DB, owner, name string) ([]byte, error) {
+	if err := f.find(owner, name); err != nil {
+		return nil, err
+	}
+	return []byte("zip:" + owner + "/" + name), nil
+}
 
 func (f fakeCatalog) Search(_ *mcp.ToolContext, _, _, _ string, _ int) ([]record, error) {
 	return f.recs, f.err

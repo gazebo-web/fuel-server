@@ -2,10 +2,12 @@ package main
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,6 +19,7 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/mcp"
+	"github.com/gazebo-web/fuel-server/sdf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -628,4 +631,86 @@ func makeReportTar(t *testing.T, report string) []byte {
 	tw.Write([]byte(report))
 	require.NoError(t, tw.Close())
 	return buf.Bytes()
+}
+
+// Fuel model sizes (plan §5.6): the sweep measures this server's public
+// models through the worker, search and details return the stored size,
+// and scene_summary places it in the world.
+func TestAIToolsModelSizes(t *testing.T) {
+	setup()
+	jwt := createValidJWTForIdentity("aitools-sizes-identity", t)
+	username := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(username, jwt, t)
+	user, em := getUserFromDb(username, t)
+	require.Nil(t, em)
+	createTestModelWithOwner(t, &jwt, "sized_table", username, false)
+	createTestModelWithOwner(t, &jwt, "hidden_table", username, true)
+
+	var measured []string
+	worker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v1/measure", r.URL.Path)
+		body, _ := io.ReadAll(r.Body)
+		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+		require.NoError(t, err)
+		var names []string
+		for _, f := range zr.File {
+			names = append(names, f.Name)
+		}
+		measured = append(measured, strings.Join(names, ","))
+		w.Write([]byte(`{"ok":true,"bbox":{"min":[-0.5,-0.4,0],"max":[0.5,0.4,0.75]},"size":[1,0.8,0.75],` +
+			`"visuals":1,"measured":1,"from":"visual"}`))
+	}))
+	defer worker.Close()
+	cfg := aitools.Config{FuelHosts: []string{"fuel.gazebosim.org"}, MeshWorkerURL: worker.URL}
+
+	// The sweep measures public models without a size, once.
+	todo, done, err := aitools.MeasureLocalModels(cfg, globals.Server.Db, 1000)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, todo, 1)
+	assert.Equal(t, todo, done)
+	require.NotEmpty(t, measured)
+	assert.Contains(t, measured[len(measured)-1], "model.config")
+	todo, _, err = aitools.MeasureLocalModels(cfg, globals.Server.Db, 1000)
+	require.NoError(t, err)
+	assert.Zero(t, todo)
+	var hidden int
+	globals.Server.Db.Model(&aitools.ModelSize{}).Where("name = ?", "hidden_table").Count(&hidden)
+	assert.Zero(t, hidden, "private models aren't measured")
+	calls := len(measured)
+
+	reg := aitools.NewRegistry(cfg)
+	tc := &mcp.ToolContext{Ctx: context.Background(), DB: globals.Server.Db, User: user}
+	call := func(tool string, args map[string]any) string {
+		t.Helper()
+		h, ok := reg.Get(tool)
+		require.True(t, ok, tool)
+		r, err := h.Handler(tc, args)
+		require.NoError(t, err)
+		require.False(t, r.IsError, r.Content[0].Text)
+		return r.Content[0].Text
+	}
+	var items []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(call("fuel_search_models", map[string]any{"owner": username})), &items))
+	require.Len(t, items, 1)
+	assert.Equal(t, map[string]any{"size": []any{1.0, 0.8, 0.75}, "min": []any{-0.5, -0.4, 0.0},
+		"max": []any{0.5, 0.4, 0.75}}, items[0]["bbox"])
+	assert.Contains(t, call("fuel_get_model_details", map[string]any{"owner": username, "name": "sized_table"}),
+		`"size": [`)
+	assert.Equal(t, calls, len(measured), "stored sizes aren't measured again")
+
+	name := fmt.Sprintf("sizes-%d", time.Now().UnixNano())
+	mcpJSON(t, jwt, "project_create", map[string]any{"name": name})
+	world := `<?xml version="1.0"?>
+<sdf version="1.9"><world name="w">
+  <include><uri>https://fuel.gazebosim.org/1.0/` + username + `/models/sized_table</uri><name>t1</name>
+    <pose>2 3 0 0 0 1.5708</pose></include>
+</world></sdf>`
+	mcpJSON(t, jwt, "project_write_file", map[string]any{"name": name, "path": "world.sdf", "content": world})
+	var summary struct {
+		Summary sdf.Summary `json:"summary"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(call("scene_summary", map[string]any{"name": name})), &summary))
+	box := summary.Summary.Entities[0].BBox.(map[string]any)
+	assert.Equal(t, []any{1.6, 2.5, 0.0}, box["world_min"])
+	assert.Equal(t, []any{2.4, 3.5, 0.75}, box["world_max"])
 }

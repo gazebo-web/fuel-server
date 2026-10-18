@@ -37,6 +37,9 @@ type Config struct {
 	// model_generate jobs, and MeshWorkerToken its shared secret. The mesh
 	// tools are only offered when the URL is set.
 	MeshWorkerURL, MeshWorkerToken string
+	// SweepSizes measures this server's public models in the background
+	// (sizes.go). ConfigFromEnv turns it on; tests leave it off.
+	SweepSizes bool
 }
 
 // ConfigFromEnv reads AI_TOOLS_FUEL_HOSTS (comma-separated),
@@ -54,6 +57,7 @@ func ConfigFromEnv() Config {
 		UpstreamFuel:    strings.TrimSpace(os.Getenv("AI_TOOLS_UPSTREAM_FUEL")),
 		MeshWorkerURL:   strings.TrimSpace(os.Getenv("AI_TOOLS_MESHWORKER_URL")),
 		MeshWorkerToken: os.Getenv("AI_TOOLS_MESHWORKER_TOKEN"),
+		SweepSizes:      true,
 	}
 }
 
@@ -61,6 +65,14 @@ func ConfigFromEnv() Config {
 func NewRegistry(cfg Config) *mcp.Registry {
 	reg := mcp.NewRegistry()
 	t := &tools{cfg: cfg, catalogs: catalogsFor(cfg)}
+	if cfg.MeshWorkerURL != "" {
+		t.sizes = newSizer(newMeshClient(cfg))
+		// Measure this server's own public models in the background, so
+		// most are known before anyone searches for them.
+		if cfg.SweepSizes {
+			go t.sizes.sweep(t.catalogs[0])
+		}
+	}
 	t.registerFuel(reg)
 	t.registerSDF(reg)
 	t.registerProject(reg)
@@ -78,6 +90,8 @@ type tools struct {
 	catalogs []Catalog
 	// mesh is the mesh worker client, set when MeshWorkerURL is.
 	mesh *meshTools
+	// sizes measures Fuel models' sizes, also set when MeshWorkerURL is.
+	sizes *sizer
 }
 
 func catalogsFor(cfg Config) []Catalog {

@@ -8,11 +8,15 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/jinzhu/gorm"
+
+	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
 	"github.com/gazebo-web/fuel-server/globals"
@@ -38,7 +42,14 @@ type Catalog interface {
 	Search(tc *mcp.ToolContext, kind, query, owner string, n int) ([]record, error)
 	Details(tc *mcp.ToolContext, kind, owner, name string) (json.RawMessage, error)
 	File(tc *mcp.ToolContext, kind, owner, name, path, version string) ([]byte, error)
+	// Zip returns a public model's latest version as a zip, for measuring
+	// (sizes.go). It may run after the request that asked for it, so it
+	// takes a context and database of its own.
+	Zip(ctx context.Context, db *gorm.DB, owner, name string) ([]byte, error)
 }
+
+// errTooLarge means a model's zip is over sizeMaxZip.
+var errTooLarge = errors.New("the model zip is too large")
 
 // record is the subset of a Fuel model or world listing the tools use. The
 // local and upstream catalogs share the JSON shape, so both decode into it.
@@ -51,6 +62,7 @@ type record struct {
 	Filesize     int64    `json:"filesize"`
 	Private      bool     `json:"private"`
 	Tags         []string `json:"tags"`
+	ModifyDate   string   `json:"modify_date"`
 }
 
 // catalogItem is one search result as returned to the model.
@@ -65,6 +77,13 @@ type catalogItem struct {
 	ThumbnailURL string   `json:"thumbnail_url,omitempty"`
 	FileSize     int64    `json:"file_size,omitempty"`
 	Source       string   `json:"source"`
+	// BBox is the model's size (sizes.go), or SizeNote says why not.
+	BBox     *BBox  `json:"bbox,omitempty"`
+	SizeNote string `json:"size_note,omitempty"`
+
+	// Where the item came from and its modify date, to measure it.
+	cat   Catalog
+	stamp string
 }
 
 // fuelURI is an include URI in the form Fuel's own "copy SDF" snippet
@@ -111,7 +130,9 @@ func searchCatalogs(tc *mcp.ToolContext, cats []Catalog, kind, query, owner stri
 				continue
 			}
 			seen[key] = true
-			items = append(items, r.item(c.Host(), kind, source))
+			it := r.item(c.Host(), kind, source)
+			it.cat, it.stamp = c, r.ModifyDate
+			items = append(items, it)
 		}
 	}
 	if len(items) == 0 && firstErr != nil {
@@ -204,6 +225,37 @@ func (c localCatalog) File(tc *mcp.ToolContext, kind, owner, name, path, version
 	return *bs, nil
 }
 
+func (c localCatalog) Zip(ctx context.Context, db *gorm.DB, owner, name string) ([]byte, error) {
+	if db == nil {
+		return nil, errors.New("no database")
+	}
+	ms := &models.Service{Storage: globals.Storage}
+	// No user: only public models are visible, and nothing is counted as
+	// a download.
+	m, em := ms.GetModel(db, owner, name, nil)
+	if em != nil {
+		return nil, gzErr(em)
+	}
+	path, _, em := res.GetZip(ctx, m, kindModels, "tip")
+	if em != nil {
+		return nil, gzErr(em)
+	}
+	return readCapped(*path)
+}
+
+func readCapped(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, sizeMaxZip+1))
+	if err == nil && len(b) > sizeMaxZip {
+		return nil, errTooLarge
+	}
+	return b, err
+}
+
 // gzErr maps "not found" style errors to errNotInCatalog so callers can fall
 // back to the next catalog.
 func gzErr(em *gz.ErrMsg) error {
@@ -280,6 +332,37 @@ func (c *upstreamCatalog) Details(tc *mcp.ToolContext, kind, owner, name string)
 func (c *upstreamCatalog) File(tc *mcp.ToolContext, kind, owner, name, path, version string) ([]byte, error) {
 	return c.get(tc.Ctx, "/1.0/"+url.PathEscape(owner)+"/"+kind+"/"+url.PathEscape(name)+"/"+
 		url.PathEscape(version)+"/files/"+path)
+}
+
+func (c *upstreamCatalog) Zip(ctx context.Context, _ *gorm.DB, owner, name string) ([]byte, error) {
+	u := c.base.String() + "/1.0/" + url.PathEscape(owner) + "/models/" + url.PathEscape(name) + "/tip/" +
+		url.PathEscape(name) + ".zip"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	// The catalog client's timeout suits small JSON replies, not zips;
+	// ctx bounds the download instead.
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	switch {
+	case resp.StatusCode == http.StatusOK:
+	case resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusForbidden:
+		return nil, fmt.Errorf("%w on %s", errNotInCatalog, c.base.Host)
+	default:
+		return nil, fmt.Errorf("%s: status %d", c.base.Host, resp.StatusCode)
+	}
+	if resp.ContentLength > sizeMaxZip {
+		return nil, errTooLarge
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, sizeMaxZip+1))
+	if err == nil && len(b) > sizeMaxZip {
+		return nil, errTooLarge
+	}
+	return b, err
 }
 
 // get fetches base+rel, caching successes and not-founds.

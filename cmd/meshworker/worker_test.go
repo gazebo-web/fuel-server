@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -21,6 +22,10 @@ import (
 const stub = `#!/bin/sh
 job="$3"; out="$4"
 echo run >> "$(dirname "$0")/runs.log"
+if [ "$2" = gzmesh.measure ]; then
+  printf '{"ok":true,"files":"%s"}' "$(cd "$job" && find . -type f | sort | tr '\n' ' ')" > "$out/report.json"
+  exit 0
+fi
 case "$(cat "$job")" in
   *SLEEP*) sleep 3 ;;
 esac
@@ -333,7 +338,7 @@ except OSError as e:
 			c.ExtraRO = filepath.SplitList(os.Getenv("MESHWORKER_JAIL_RO"))
 		})
 		dir := t.TempDir()
-		cmd := w.jailed(dir, 0)
+		cmd := w.jailed(dir, 0, "gzmesh.run", "job.json")
 		args := cmd.Args
 		for i, a := range args {
 			if a == py { // replace "python -m gzmesh.run ..." with the probe
@@ -364,11 +369,67 @@ func TestSlotsPinnedToCPUPairs(t *testing.T) {
 			t.Errorf("slot %d: %q want %q", slot, got, want)
 		}
 	}
-	args := strings.Join(w.jailed(t.TempDir(), 1).Args, " ")
+	args := strings.Join(w.jailed(t.TempDir(), 1, "gzmesh.run", "job.json").Args, " ")
 	if !strings.Contains(args, "taskset -c 2,3 prlimit") {
 		t.Errorf("jail command: %s", args)
 	}
 	if (&worker{cfg: config{CPUs: []int{0}}}).slotCPUs(0) != "" {
 		t.Error("one CPU: no pinning")
+	}
+}
+
+func zipOf(t *testing.T, files map[string]string) string {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for name, body := range files {
+		f, err := zw.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = f.Write([]byte(body))
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
+}
+
+func TestMeasure(t *testing.T) {
+	_, srv, dir := newTestWorker(t, func(c *config) {
+		c.MaxModelBytes, c.MaxUnpackedBytes, c.MaxModelFiles = 4096, 64, 3
+	})
+	model := zipOf(t, map[string]string{"pallet/model.config": "cfg", "pallet/meshes/p.dae": "dae"})
+	resp := post(t, srv.URL+"/v1/measure", model)
+	b, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 || resp.Header.Get("Content-Type") != "application/json" ||
+		string(b) != `{"ok":true,"files":"./pallet/meshes/p.dae ./pallet/model.config "}` {
+		t.Fatalf("%d %s %s", resp.StatusCode, resp.Header.Get("Content-Type"), b)
+	}
+	resp = post(t, srv.URL+"/v1/measure", model)
+	if resp.Header.Get("X-Cache") != "hit" || runs(t, dir) != 1 {
+		t.Fatalf("want a cache hit: %q, %d runs", resp.Header.Get("X-Cache"), runs(t, dir))
+	}
+
+	// Archives the worker won't unpack are answered with a report, not run.
+	for name, files := range map[string]map[string]string{
+		"unsafe path": {"../evil.sdf": "x"},
+		"too many":    {"a": "", "b": "", "c": "", "d": ""},
+		"too big":     {"big.dae": strings.Repeat("x", 100)},
+	} {
+		resp := post(t, srv.URL+"/v1/measure", zipOf(t, files))
+		b, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != 200 || !strings.Contains(string(b), `"ok":false`) {
+			t.Errorf("%s: %d %s", name, resp.StatusCode, b)
+		}
+	}
+	if runs(t, dir) != 1 {
+		t.Errorf("rejected archives ran: %d runs", runs(t, dir))
+	}
+	if resp := post(t, srv.URL+"/v1/measure", "not a zip"); resp.StatusCode != 400 {
+		t.Errorf("not a zip: %d", resp.StatusCode)
+	}
+	if resp := post(t, srv.URL+"/v1/measure", strings.Repeat("x", 5000)); resp.StatusCode != 413 {
+		t.Errorf("over the size limit: %d", resp.StatusCode)
 	}
 }

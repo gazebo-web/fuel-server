@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gazebo-web/fuel-server/aitools"
 	"github.com/gazebo-web/fuel-server/bundles/category"
 	"github.com/gazebo-web/fuel-server/bundles/collections"
 	"github.com/gazebo-web/fuel-server/bundles/license"
@@ -79,6 +80,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&worlds.ModelInclude{},
 			&worlds.WorldMetadatum{},
 			&projects.Project{},
+			&aitools.ModelSize{},
 			&reviews.ModelReview{},
 			globals.Permissions.DBTable(),
 

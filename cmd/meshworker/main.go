@@ -5,7 +5,8 @@
 // It is stateless and holds no credentials: fuel-server commits the result.
 //
 //	POST /v1/jobs?wait=90   job JSON -> 200 tar | 202 {"job_id"} | 429 | 400
-//	GET  /v1/jobs/{id}      202 {"status":"running"} | 200 tar | 404
+//	POST /v1/measure        model zip -> 200 report JSON (see measure.go)
+//	GET  /v1/jobs/{id}      202 {"status":"running"} | 200 tar or JSON | 404
 //	GET  /healthz
 //
 // Every tar holds report.json (the pipeline's report; "ok" says whether the
@@ -91,6 +92,11 @@ func defaultConfig() config {
 		CacheBytes:  1 << 30,
 		MaxOutput:   30 << 20,
 		MaxJobBytes: 256 << 10,
+		// Fuel models are mostly a few MB; the largest public ones (whole
+		// environments) are a few hundred.
+		MaxModelBytes:    256 << 20,
+		MaxUnpackedBytes: 1 << 30,
+		MaxModelFiles:    5000,
 		// Address space, not memory: thread pools reserve far more than
 		// they touch (a multi-link job peaks near 1 GB resident but 9 GB
 		// virtual). The container's memory limit caps real use.

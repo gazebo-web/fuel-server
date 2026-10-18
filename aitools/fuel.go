@@ -25,7 +25,7 @@ func (t *tools) registerFuel(reg *mcp.Registry) {
 			Description: "Search the public Gazebo Fuel catalog for models. Use concrete keywords. " +
 				"Each result has the exact uri to put in <include><uri>...</uri></include>, plus its " +
 				"license; credit the ones you use. Non-commercial models are never returned and " +
-				"fail validation if included.",
+				"fail validation if included. " + bboxHelp,
 			InputSchema: search,
 		},
 		RequiredScopes: []string{"fuel:read"},
@@ -42,8 +42,9 @@ func (t *tools) registerFuel(reg *mcp.Registry) {
 	})
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "fuel_get_model_details",
-			Description: "Get metadata for one Fuel model: description, tags, license, file list.",
+			Name: "fuel_get_model_details",
+			Description: "Get metadata for one Fuel model: description, tags, license, file list, and " +
+				"its size, measuring it if search didn't. " + bboxHelp,
 			InputSchema: ownerName,
 		},
 		RequiredScopes: []string{"fuel:read"},
@@ -85,6 +86,9 @@ func (t *tools) fuelSearch(kind string) mcp.ToolHandler {
 		if err != nil {
 			return mcp.ErrorResult("search failed: " + err.Error()), nil
 		}
+		if kind == kindModels && t.sizes != nil {
+			t.sizes.fill(items, sizeSearchWait)
+		}
 		return jsonResult(items)
 	}
 }
@@ -114,11 +118,32 @@ func (t *tools) fuelGetModelDetails(tc *mcp.ToolContext, args map[string]any) (m
 	if err != nil {
 		return mcp.ErrorResult(err.Error()), nil
 	}
-	return jsonResult(map[string]any{
+	out := map[string]any{
 		"uri":     fuelURI(c.Host(), kindModels, v[0], v[1]),
 		"details": json.RawMessage(b),
-	})
+	}
+	var d struct {
+		Private    bool   `json:"private"`
+		ModifyDate string `json:"modify_date"`
+	}
+	if t.sizes != nil && json.Unmarshal(b, &d) == nil && !d.Private {
+		item := catalogItem{Owner: v[0], Name: v[1], Public: true, cat: c, stamp: d.ModifyDate}
+		items := []catalogItem{item}
+		t.sizes.fill(items, sizeDetailsWait)
+		if items[0].BBox != nil {
+			out["bbox"] = items[0].BBox
+		} else {
+			out["size_note"] = items[0].SizeNote
+		}
+	}
+	return jsonResult(out)
 }
+
+// bboxHelp explains the bbox field to the agent.
+const bboxHelp = "bbox is the model's size in meters, measured around what you see, in the model's own " +
+	"frame: size [x, y, z] and the min and max corners. Most models' origin isn't at their bottom: to " +
+	"stand one on a floor at height h, use pose z = h - min[2]; its footprint spans x from pose x + min[0] " +
+	"to pose x + max[0] when unrotated (a yaw of 1.5708 swaps x and y)."
 
 func versionOrTip(args map[string]any) string {
 	if v := argString(args, "version"); v != "" {

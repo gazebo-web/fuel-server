@@ -19,6 +19,8 @@ type Entity struct {
 	// Shape describes simple primitive models, e.g. "box 2 0.2 3".
 	Shape    string   `json:"shape,omitempty"`
 	Children []Entity `json:"children,omitempty"`
+	// BBox is an included model's size, filled in by callers that know it.
+	BBox any `json:"bbox,omitempty"`
 }
 
 // Summary is a compact view of an SDF document, much smaller than the

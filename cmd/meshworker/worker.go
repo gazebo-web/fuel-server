@@ -31,6 +31,10 @@ import (
 // gzmeshVersion is part of the cache key; bump it with gzmesh/run.py VERSION.
 const gzmeshVersion = "0.3.0"
 
+// measureVersion is part of the measure cache key; bump it with
+// gzmesh/measure.py VERSION.
+const measureVersion = "1"
+
 type config struct {
 	Addr, Token             string
 	Python, GzmeshDir, Jail string
@@ -41,8 +45,12 @@ type config struct {
 	KeepResults             time.Duration // how long finished async results stay available
 	CacheBytes, MaxOutput   int64
 	MaxJobBytes             int64
-	MemoryBytes             int64 // RLIMIT_AS inside the jail
-	CPUSeconds              int   // RLIMIT_CPU inside the jail
+	// MaxModelBytes caps a model zip sent to /v1/measure, and
+	// MaxUnpackedBytes and MaxModelFiles what it may unpack to.
+	MaxModelBytes, MaxUnpackedBytes int64
+	MaxModelFiles                   int
+	MemoryBytes                     int64 // RLIMIT_AS inside the jail
+	CPUSeconds                      int   // RLIMIT_CPU inside the jail
 	// ExtraRO are paths the jail binds read-only over its empty /home and
 	// /root: a development venv and its interpreter. The image needs none.
 	ExtraRO []string
@@ -50,15 +58,17 @@ type config struct {
 	// is pinned to its own pair, so a job's thread pools (embree sizes
 	// its pool by the CPUs it can see) match its share.
 	CPUs    []int
-	command func(dir string, slot int) *exec.Cmd
+	command func(dir string, slot int, module, input string) *exec.Cmd
 }
 
 var nameRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
-// result is a finished job: the tarball, and whether the pipeline itself
-// failed (as opposed to the model code, which report.json describes).
+// result is a finished job: the response body (a tarball, or JSON for a
+// measure job), and whether the pipeline itself failed (as opposed to the
+// model code, which report.json describes).
 type result struct {
-	tar      []byte
+	body     []byte
+	ctype    string
 	internal bool
 	err      error
 }
@@ -114,6 +124,7 @@ func (w *worker) routes() http.Handler {
 		fmt.Fprintln(rw, "ok")
 	})
 	mux.HandleFunc("/v1/jobs", w.auth(w.handleSubmit))
+	mux.HandleFunc("/v1/measure", w.auth(w.handleMeasure))
 	mux.HandleFunc("/v1/jobs/", w.auth(w.handleGet))
 	return mux
 }
@@ -172,26 +183,42 @@ func (w *worker) handleSubmit(rw http.ResponseWriter, r *http.Request) {
 		httpError(rw, http.StatusBadRequest, "code is required")
 		return
 	}
+	wait, ok := w.waitParam(rw, r)
+	if !ok {
+		return
+	}
+	w.serve(rw, r, jobKey(fields), "application/x-tar", wait, func(slot int) result {
+		return w.execute(body, slot)
+	})
+}
+
+// waitParam is the ?wait= seconds a request blocks before a 202, capped.
+func (w *worker) waitParam(rw http.ResponseWriter, r *http.Request) (time.Duration, bool) {
 	wait := w.cfg.DefaultWait
 	if s := r.URL.Query().Get("wait"); s != "" {
 		secs, err := strconv.Atoi(s)
 		if err != nil || secs < 0 {
 			httpError(rw, http.StatusBadRequest, "wait must be seconds")
-			return
+			return 0, false
 		}
 		wait = time.Duration(secs) * time.Second
 		if wait > w.cfg.MaxWait {
 			wait = w.cfg.MaxWait
 		}
 	}
+	return wait, true
+}
 
-	key := jobKey(fields)
-	if tarball, ok := w.cache.get(key); ok {
+// serve answers from the cache, or runs fn as a job (sharing an identical
+// running one) and answers when it finishes or after wait with a 202.
+func (w *worker) serve(rw http.ResponseWriter, r *http.Request, key, ctype string, wait time.Duration,
+	fn func(slot int) result) {
+	if body, ok := w.cache.get(key); ok {
 		rw.Header().Set("X-Cache", "hit")
-		writeTar(rw, result{tar: tarball})
+		writeResult(rw, result{body: body, ctype: ctype})
 		return
 	}
-	j, err := w.submit(key, body)
+	j, err := w.submit(key, fn)
 	if err != nil {
 		rw.Header().Set("Retry-After", "10")
 		httpError(rw, http.StatusTooManyRequests, err.Error())
@@ -199,7 +226,7 @@ func (w *worker) handleSubmit(rw http.ResponseWriter, r *http.Request) {
 	}
 	select {
 	case <-j.done:
-		writeTar(rw, j.res)
+		writeResult(rw, j.res)
 	case <-time.After(wait):
 		rw.Header().Set("Location", "/v1/jobs/"+j.id)
 		rw.Header().Set("Content-Type", "application/json")
@@ -220,7 +247,7 @@ func (w *worker) handleGet(rw http.ResponseWriter, r *http.Request) {
 	}
 	select {
 	case <-j.done:
-		writeTar(rw, j.res)
+		writeResult(rw, j.res)
 	default:
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusAccepted)
@@ -228,22 +255,22 @@ func (w *worker) handleGet(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func writeTar(rw http.ResponseWriter, res result) {
+func writeResult(rw http.ResponseWriter, res result) {
 	switch {
 	case res.err != nil:
 		httpError(rw, http.StatusInternalServerError, res.err.Error())
 	default:
-		rw.Header().Set("Content-Type", "application/x-tar")
+		rw.Header().Set("Content-Type", res.ctype)
 		if res.internal {
 			rw.WriteHeader(http.StatusInternalServerError)
 		}
-		_, _ = rw.Write(res.tar)
+		_, _ = rw.Write(res.body)
 	}
 }
 
-// submit starts a job, or joins an identical one already running. It
-// fails when the queue is full.
-func (w *worker) submit(key string, body []byte) (*job, error) {
+// submit starts fn as a job, or joins an identical one already running.
+// It fails when the queue is full.
+func (w *worker) submit(key string, fn func(slot int) result) (*job, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.expireLocked()
@@ -261,14 +288,14 @@ func (w *worker) submit(key string, body []byte) (*job, error) {
 	go func() {
 		defer func() { <-w.queue }()
 		slot := <-w.slots
-		res := w.execute(body, slot)
+		res := fn(slot)
 		w.slots <- slot
 		w.mu.Lock()
 		j.res, j.at = res, time.Now()
 		delete(w.running, key)
 		w.mu.Unlock()
 		if res.err == nil && !res.internal {
-			w.cache.put(key, res.tar)
+			w.cache.put(key, res.body)
 		}
 		close(j.done)
 	}()
@@ -293,9 +320,9 @@ func newID() string {
 	return hex.EncodeToString(b)
 }
 
-// execute runs one job in a fresh directory and tars what it wrote.
+// execute runs one model job in a fresh directory and tars what it wrote.
 func (w *worker) execute(body []byte, slot int) result {
-	dir, err := os.MkdirTemp(w.cfg.WorkDir, "job-")
+	dir, err := w.jobDir()
 	if err != nil {
 		return result{err: err}
 	}
@@ -303,13 +330,36 @@ func (w *worker) execute(body []byte, slot int) result {
 	if err := os.WriteFile(filepath.Join(dir, "job.json"), body, 0o644); err != nil {
 		return result{err: err}
 	}
-	if err := os.Mkdir(filepath.Join(dir, "out"), 0o777); err != nil {
+	code, err := w.run(dir, slot, "gzmesh.run", "job.json")
+	if err != nil {
 		return result{err: err}
 	}
+	tarball, err := tarDir(filepath.Join(dir, "out"), w.cfg.MaxOutput)
+	if err != nil {
+		return result{err: err}
+	}
+	return result{body: tarball, ctype: "application/x-tar", internal: code == 1}
+}
 
+// jobDir makes a fresh job directory with an empty out/.
+func (w *worker) jobDir() (string, error) {
+	dir, err := os.MkdirTemp(w.cfg.WorkDir, "job-")
+	if err != nil {
+		return "", err
+	}
+	if err := os.Mkdir(filepath.Join(dir, "out"), 0o777); err != nil {
+		os.RemoveAll(dir)
+		return "", err
+	}
+	return dir, nil
+}
+
+// run runs "python -m module input out" for the job in dir, under the
+// time limit, and returns its exit status once out/report.json exists.
+func (w *worker) run(dir string, slot int, module, input string) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), w.cfg.JobTimeout)
 	defer cancel()
-	cmd := w.cfg.command(dir, slot)
+	cmd := w.cfg.command(dir, slot, module, input)
 	cmd.Dir = dir
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	var stderr bytes.Buffer
@@ -317,23 +367,24 @@ func (w *worker) execute(body []byte, slot int) result {
 	cmd.Stderr = &limitedBuffer{buf: &stderr, max: 64 << 10}
 	start := time.Now()
 	if err := cmd.Start(); err != nil {
-		return result{err: fmt.Errorf("start job: %w", err)}
+		return 0, fmt.Errorf("start job: %w", err)
 	}
 	waitErr := make(chan error, 1)
 	go func() { waitErr <- cmd.Wait() }()
+	var err error
 	select {
 	case err = <-waitErr:
 	case <-ctx.Done():
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		<-waitErr
-		return result{err: fmt.Errorf("the job ran longer than %s and was stopped", w.cfg.JobTimeout)}
+		return 0, fmt.Errorf("the job ran longer than %s and was stopped", w.cfg.JobTimeout)
 	}
 	code := 0
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
 		code = exitErr.ExitCode()
 	} else if err != nil {
-		return result{err: err}
+		return 0, err
 	}
 	log.Printf("meshworker: job %s exit %d in %s", filepath.Base(dir), code, time.Since(start).Round(time.Millisecond))
 
@@ -343,13 +394,9 @@ func (w *worker) execute(body []byte, slot int) result {
 		if code == -1 || strings.Contains(msg, "MemoryError") {
 			msg = "the job ran out of memory or CPU time; " + msg
 		}
-		return result{err: fmt.Errorf("the job exited (%d) without a report: %s", code, lastLines(msg, 5))}
+		return 0, fmt.Errorf("the job exited (%d) without a report: %s", code, lastLines(msg, 5))
 	}
-	tarball, err := tarDir(out, w.cfg.MaxOutput)
-	if err != nil {
-		return result{err: err}
-	}
-	return result{tar: tarball, internal: code == 1}
+	return code, nil
 }
 
 // jailed is the per-job sandbox (plan §5.7): bubblewrap with no network
@@ -369,17 +416,17 @@ func (w *worker) slotCPUs(slot int) string {
 	return strconv.Itoa(a) + "," + strconv.Itoa(b)
 }
 
-func (w *worker) jailed(dir string, slot int) *exec.Cmd {
+func (w *worker) jailed(dir string, slot int, module, input string) *exec.Cmd {
 	// The job directory appears at /tmp/job: the root is read-only, so the
 	// mount point has to be inside the jail's own /tmp.
-	py := []string{w.cfg.Python, "-m", "gzmesh.run", "/tmp/job/job.json", "/tmp/job/out"}
+	py := []string{w.cfg.Python, "-m", module, "/tmp/job/" + input, "/tmp/job/out"}
 	limits := []string{"prlimit",
 		"--as=" + strconv.FormatInt(w.cfg.MemoryBytes, 10),
 		"--cpu=" + strconv.Itoa(w.cfg.CPUSeconds),
 		"--fsize=" + strconv.FormatInt(w.cfg.MaxOutput*2, 10),
 		"--core=0", "--"}
 	if w.cfg.Jail == "none" {
-		py[3], py[4] = filepath.Join(dir, "job.json"), filepath.Join(dir, "out")
+		py[3], py[4] = filepath.Join(dir, input), filepath.Join(dir, "out")
 		cmd := exec.Command(py[0], py[1:]...)
 		cmd.Env = jobEnv(w.cfg.GzmeshDir, os.TempDir())
 		return cmd

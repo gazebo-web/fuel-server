@@ -184,11 +184,10 @@ func (t *tools) uriResolver(tc *mcp.ToolContext) func(string) error {
 		if u.Scheme != "http" && u.Scheme != "https" {
 			return nil
 		}
-		seg := strings.Split(strings.Trim(path.Clean(u.Path), "/"), "/")
-		if len(seg) < 4 || seg[0] != "1.0" || seg[2] != "models" {
+		owner, name, ok := modelURIPath(u)
+		if !ok {
 			return fmt.Errorf("not a Fuel model URI (want https://%s/1.0/<owner>/models/<name>)", u.Host)
 		}
-		owner, name := seg[1], seg[3]
 		cat := t.catalogForHost(u.Host)
 		if cat == nil {
 			return nil
@@ -212,6 +211,16 @@ func (t *tools) uriResolver(tc *mcp.ToolContext) func(string) error {
 		}
 		return nil
 	}
+}
+
+// modelURIPath is the owner and name in a Fuel model URI's path
+// (/1.0/<owner>/models/<name>[/<version>]).
+func modelURIPath(u *url.URL) (owner, name string, ok bool) {
+	seg := strings.Split(strings.Trim(path.Clean(u.Path), "/"), "/")
+	if len(seg) < 4 || seg[0] != "1.0" || seg[2] != "models" {
+		return "", "", false
+	}
+	return seg[1], seg[3], true
 }
 
 // catalogForHost returns the catalog that serves URIs on host, if any.
