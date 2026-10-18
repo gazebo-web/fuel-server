@@ -522,6 +522,11 @@ func TestAIToolsModelGenerate(t *testing.T) {
 			w.WriteHeader(http.StatusAccepted)
 			w.Write([]byte(`{"job_id":"job-1","status":"running"}`))
 			return
+		case strings.Contains(code, "INTERNAL"):
+			w.Header().Set("Content-Type", "application/x-tar")
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(makeReportTar(t, `{"ok": false, "error": "internal error: RuntimeError: Resource temporarily unavailable"}`))
+			return
 		case strings.Contains(code, "BROKEN"):
 			w.Header().Set("Content-Type", "application/x-tar")
 			w.Write(makeReportTar(t, `{"ok": false, "error": "ZeroDivisionError: division by zero", "line": 4}`))
@@ -580,6 +585,11 @@ func TestAIToolsModelGenerate(t *testing.T) {
 	assert.True(t, r.IsError)
 	assert.Contains(t, r.Content[0].Text, "ZeroDivisionError")
 	assert.Contains(t, r.Content[0].Text, `"line": 4`)
+
+	// The worker failed, not the code: the hint says so.
+	r = call("model_generate", map[string]any{"name": name, "model": "cone", "code": "INTERNAL"}, tc)
+	assert.True(t, r.IsError)
+	assert.Contains(t, r.Content[0].Text, "not your code")
 
 	// A hand-made model is not overwritten.
 	mcpJSON(t, jwt, "model_create", map[string]any{"name": name, "model": "shelf"})

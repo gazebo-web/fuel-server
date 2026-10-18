@@ -243,8 +243,12 @@ func (t *tools) commitGenerated(tc *mcp.ToolContext, project, model, baseRev str
 		return mcp.ErrorResult("mesh worker: " + err.Error()), nil
 	}
 	if ok, _ := out.report["ok"].(bool); !ok {
-		res := map[string]any{"error": out.report["error"],
-			"next": "fix the code and call model_generate again with the same model"}
+		next := "fix the code and call model_generate again with the same model"
+		if msg, _ := out.report["error"].(string); strings.HasPrefix(msg, "internal error") {
+			// The pipeline failed, not the code: rewriting the code won't help.
+			next = "the mesh worker failed, not your code; retry once, then build the object from primitives"
+		}
+		res := map[string]any{"error": out.report["error"], "next": next}
 		for _, k := range []string{"line", "detail"} {
 			if out.report[k] != nil {
 				res[k] = out.report[k]
