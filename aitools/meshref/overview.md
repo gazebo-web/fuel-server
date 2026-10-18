@@ -6,7 +6,7 @@ Write Python that defines `build()`. It returns one build123d solid, a part from
 - collision: a primitive, one hull, or a convex decomposition;
 - exact inertia from the solids;
 - the GLB, `model.sdf` and `model.config`;
-- a preview image with four views: three-quarter from the front (+X -Y), three-quarter from the back (-X +Y), front (+X) and top.
+- a preview image with four views: three-quarter from the front (+X -Y), three-quarter from the back (-X +Y), front (+X) and top. For a model with joints, the front view is replaced by the front three-quarter view with every joint moved, to check that doors, drawers and wheels move the right way.
 
 The model's origin ends up at the bottom center of its bounding box, so `<pose>` with z = 0 sets it on the floor. Build it upright, with its front facing +X.
 

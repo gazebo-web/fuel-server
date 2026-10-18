@@ -20,6 +20,8 @@ import (
 const judgePrompt = `You are reviewing a 3D model generated for a robot simulator.
 The user asked: %q
 The image shows the generated model %q from four angles (labels in each view).
+A view labelled "joints moved" shows its moving parts (doors, drawers, wheels)
+moved partway through their range.
 
 Score how well this model matches what the user asked for, as an object:
 5 = clearly the requested object, good proportions and detail for a simulator

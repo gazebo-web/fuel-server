@@ -209,7 +209,8 @@ def build_model(job: dict, out: str) -> dict:
     files = export.write_model(root, name, links=links, joints=asm.joints, offset=offset, static=j["static"],
                                sdf_version=j["sdf_version"], description=j["description"], source=j["code"])
     t = time.monotonic()
-    preview.sheet([lk.visual for lk in links]).save(os.path.join(out, "preview.png"))
+    moved = moved_links(asm, links, offset) if asm.joints else None
+    preview.sheet([lk.visual for lk in links], moved=moved).save(os.path.join(out, "preview.png"))
     timings["preview_s"] = time.monotonic() - t
     timings["total_s"] = time.monotonic() - t0
 
@@ -242,6 +243,40 @@ def build_model(job: dict, out: str) -> dict:
             **({"limits": [jt.lower, jt.upper]} if jt.kind in ("revolute", "prismatic") else {}),
         } for jt in asm.joints]
     return report
+
+
+def moved_links(asm, links, offset) -> list:
+    """Link visuals with every joint moved: revolute and prismatic to 60%
+    of their larger travel from 0, continuous by 0.8 rad. Transforms
+    compose down the tree, so a door on a moved drawer moves with it."""
+    from trimesh.transformations import rotation_matrix, translation_matrix
+    by_child = {jt.child: jt for jt in asm.joints}
+    cache = {}
+
+    def transform(name):
+        if name in cache:
+            return cache[name]
+        jt = by_child.get(name)
+        if jt is None or jt.kind == "fixed":
+            T = np.eye(4) if jt is None else transform(jt.parent)
+        else:
+            if jt.kind == "continuous":
+                q = 0.8
+            else:
+                q = 0.6 * (jt.upper if abs(jt.upper) >= abs(jt.lower) else jt.lower)
+            o = jt.origin + offset
+            motion = (translation_matrix(jt.axis * q) if jt.kind == "prismatic"
+                      else rotation_matrix(q, jt.axis, o))
+            T = transform(jt.parent) @ motion
+        cache[name] = T
+        return T
+
+    out = []
+    for lk in links:
+        m = lk.visual.copy()
+        m.apply_transform(transform(lk.name))
+        out.append(m)
+    return out
 
 
 def joint_warnings(asm, links, offset) -> list[str]:

@@ -311,3 +311,15 @@ def build():
     cube = orm_red("from build123d import *\ndef build():\n    return Box(0.4, 0.4, 0.4)\n")
     assert (bin_ < 160).mean() > 0.02, "inside corners should be strongly occluded"
     assert (cube < 240).mean() < 0.001, "a convex cube occludes nothing"
+
+
+def test_preview_shows_joints_moved(build):
+    """For an articulated model the third tile is the first view's camera
+    with the joints moved: the swung arm makes the two tiles differ."""
+    from PIL import Image
+    code, r, out = build(LEVER)
+    assert code == 0, r
+    sheet = np.asarray(Image.open(out / "preview.png").convert("L"), float)
+    t = sheet.shape[0] // 2
+    rest, moved = sheet[20:t, :t], sheet[t + 20:, :t]  # skip the labels
+    assert np.abs(rest - moved).mean() > 2

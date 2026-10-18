@@ -25,21 +25,35 @@ VIEWS = (
 )
 
 
-def sheet(visuals, tile: int = 384) -> Image.Image:
+def sheet(visuals, tile: int = 384, moved=None) -> Image.Image:
     """Four views of one textured mesh or a list of them (the links of an
-    articulated model), drawn into a shared depth buffer."""
+    articulated model), drawn into a shared depth buffer. moved, for an
+    articulated model, is the links with their joints moved: it replaces
+    the front view, so doors, drawers and wheels show how they move."""
     if isinstance(visuals, trimesh.Trimesh):
         visuals = [visuals]
-    meshes = [(m.vertices, m.faces, m.vertex_normals, m.visual.uv,
-               np.asarray(m.visual.material.baseColorTexture.convert("RGB"), float) / 255) for m in visuals]
+    meshes = _prepared(visuals)
     allv = np.concatenate([m[0] for m in meshes])
+    views = list(VIEWS)
+    if moved is not None:
+        views[2] = ("three-quarter, joints moved", VIEWS[0][1], VIEWS[0][2])
+        moved_meshes = _prepared(moved)
+        moved_v = np.concatenate([m[0] for m in moved_meshes])
     out = Image.new("RGB", (tile * 2, tile * 2))
-    for i, (label, d, up) in enumerate(VIEWS):
-        img = render(meshes, allv, d, up, tile)
+    for i, (label, d, up) in enumerate(views):
+        if moved is not None and i == 2:
+            img = render(moved_meshes, moved_v, d, up, tile)
+        else:
+            img = render(meshes, allv, d, up, tile)
         im = Image.fromarray((img * 255).astype(np.uint8))
         ImageDraw.Draw(im).text((6, 4), label, fill=(40, 40, 40))
         out.paste(im, ((i % 2) * tile, (i // 2) * tile))
     return out
+
+
+def _prepared(visuals):
+    return [(m.vertices, m.faces, m.vertex_normals, m.visual.uv,
+             np.asarray(m.visual.material.baseColorTexture.convert("RGB"), float) / 255) for m in visuals]
 
 
 def render(meshes, allv, d, up, size):
