@@ -66,5 +66,19 @@
     "want_calls": {
       "model_generate": 2
     }
+  },
+  {
+    "id": "cabinet",
+    "prompt": "Generate a custom wall-mounted kitchen cabinet with a door on a hinge that can open, and put it on the wall of a small room.",
+    "min_entities": 1,
+    "want_generated": 1,
+    "want_joints": 1
+  },
+  {
+    "id": "cart",
+    "prompt": "Generate a small four-wheeled hand cart whose wheels can roll, and put it in the world.",
+    "min_entities": 1,
+    "want_generated": 1,
+    "want_joints": 4
   }
 ]

@@ -70,6 +70,7 @@ type Result struct {
 	Duration  time.Duration  `json:"duration_ns"`
 	Usage     Usage          `json:"usage"`
 	Reply     string         `json:"reply,omitempty"`
+	Judged    []Judgement    `json:"judged,omitempty"`
 }
 
 type runner struct {
@@ -78,6 +79,8 @@ type runner struct {
 	keep               bool
 	timeout            time.Duration
 	http               *http.Client
+	judge              *judge // nil: no vision judge
+	judgeMin           int
 }
 
 func main() {
@@ -91,7 +94,19 @@ func main() {
 	corpusPath := flag.String("corpus", "", "corpus JSON (default: the embedded corpus)")
 	only := flag.String("only", "", "comma-separated case ids to run")
 	reportPath := flag.String("report", "", "write a JSON report here")
+	judgeKey := flag.String("judge-key-file", "", "Anthropic API key file: score generated models' previews with a vision model")
+	judgeModel := flag.String("judge-model", "claude-sonnet-5-5", "vision judge model")
+	flag.IntVar(&r.judgeMin, "judge-min", 0, "fail a case whose generated model scores below this (1-5); 0 only reports")
 	flag.Parse()
+
+	if *judgeKey != "" {
+		key, err := os.ReadFile(*judgeKey)
+		if err != nil {
+			log.Fatalf("judge key: %v", err)
+		}
+		r.judge = &judge{key: strings.TrimSpace(string(key)), model: *judgeModel,
+			base: "https://api.anthropic.com", http: &http.Client{Timeout: 2 * time.Minute}}
+	}
 
 	r.token = os.Getenv("AISMOKE_TOKEN")
 	if r.token == "" {
@@ -115,6 +130,9 @@ func main() {
 			status, c.ID, res.Writes, res.ToolCalls, res.Errors, res.Entities, res.Includes, res.Models, res.Generated,
 			res.Usage.Input+res.Usage.CacheWrite, res.Usage.CacheRead, res.Usage.Output,
 			res.Duration.Seconds(), strings.Join(res.Failures, "; "))
+		for _, v := range res.Judged {
+			fmt.Printf("     judge: %s %d/5: %s\n", v.Model, v.Score, v.Reason)
+		}
 	}
 	fmt.Printf("%d/%d passed\n", len(cases)-failed, len(cases))
 
@@ -222,6 +240,7 @@ func (r *runner) run(c Case) Result {
 		for _, m := range models.Models {
 			if m.Generated {
 				res.Generated++
+				r.judgeModel(ctx, name, c.Prompt, m.Name, &res)
 			}
 			if m.Problem != "" {
 				res.Failures = append(res.Failures, fmt.Sprintf("model %s: %s", m.Name, m.Problem))
@@ -461,4 +480,27 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "…"
+}
+
+// judgeModel scores a generated model's preview, if a judge is set.
+func (r *runner) judgeModel(ctx context.Context, project, prompt, model string, res *Result) {
+	if r.judge == nil {
+		return
+	}
+	var png []byte
+	u := r.fuel + "/1.0/projects/" + url.PathEscape(project) + "/tip/files/models/" + url.PathEscape(model) +
+		"/previews/preview.png"
+	if err := r.call(ctx, "GET", u, nil, &png); err != nil {
+		res.Failures = append(res.Failures, fmt.Sprintf("model %s: no preview: %v", model, err))
+		return
+	}
+	v, err := r.judge.score(ctx, prompt, model, png)
+	if err != nil {
+		res.Failures = append(res.Failures, err.Error())
+		return
+	}
+	res.Judged = append(res.Judged, v)
+	if r.judgeMin > 0 && v.Score < r.judgeMin {
+		res.Failures = append(res.Failures, fmt.Sprintf("judge scored %s %d/5 (want >= %d): %s", model, v.Score, r.judgeMin, v.Reason))
+	}
 }

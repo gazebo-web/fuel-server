@@ -1,6 +1,10 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -98,5 +102,31 @@ func TestTallyCountsCallsPerTool(t *testing.T) {
 	}
 	if tl.calls["model_generate"] != 2 || tl.calls["mesh_api_reference"] != 1 || tl.toolCalls != 3 {
 		t.Fatalf("%+v", tl.calls)
+	}
+}
+
+func TestJudge(t *testing.T) {
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("x-api-key") != "k" {
+			w.WriteHeader(401)
+			return
+		}
+		json.NewDecoder(r.Body).Decode(&got)
+		w.Write([]byte(`{"content":[{"type":"text","text":"Here: {\"score\": 4, \"reason\": \"a mug, handle slightly thick\"}"}]}`))
+	}))
+	defer srv.Close()
+	j := &judge{key: "k", model: "m", base: srv.URL, http: srv.Client()}
+	v, err := j.score(context.Background(), "a coffee mug", "mug", []byte("PNG"))
+	if err != nil || v.Score != 4 || v.Model != "mug" || !strings.Contains(v.Reason, "handle") {
+		t.Fatalf("%+v %v", v, err)
+	}
+	content := got["messages"].([]any)[0].(map[string]any)["content"].([]any)
+	if content[0].(map[string]any)["type"] != "image" || !strings.Contains(content[1].(map[string]any)["text"].(string), `"a coffee mug"`) {
+		t.Fatalf("request %v", got)
+	}
+	j.key = "wrong"
+	if _, err := j.score(context.Background(), "x", "y", nil); err == nil {
+		t.Fatal("want an error for a rejected key")
 	}
 }
