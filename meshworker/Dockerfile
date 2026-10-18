@@ -36,6 +36,9 @@ COPY meshworker/requirements.txt /opt/meshworker/requirements.txt
 RUN grep -v '^pytest' /opt/meshworker/requirements.txt > /tmp/req.txt \
  && pip install --no-cache-dir -r /tmp/req.txt \
  && rm /tmp/req.txt
+# CC0 texture sets, fetched and checked against their pinned SHA-256s.
+COPY meshworker/textures /opt/meshworker/textures
+RUN python /opt/meshworker/textures/fetch.py /opt/meshworker/textures
 COPY meshworker/gzmesh /opt/meshworker/gzmesh
 COPY --from=build /meshworker /usr/local/bin/meshworker
 RUN python -m compileall -q /opt/meshworker/gzmesh \

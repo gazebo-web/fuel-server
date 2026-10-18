@@ -31,6 +31,8 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 func main() {
@@ -89,7 +91,30 @@ func defaultConfig() config {
 		CacheBytes:  1 << 30,
 		MaxOutput:   30 << 20,
 		MaxJobBytes: 256 << 10,
-		MemoryBytes: 6 << 30,
+		// Address space, not memory: thread pools reserve far more than
+		// they touch (a multi-link job peaks near 1 GB resident but 9 GB
+		// virtual). The container's memory limit caps real use.
+		MemoryBytes: 16 << 30,
+		CPUs:        allCPUs(),
 		CPUSeconds:  150,
 	}
+}
+
+// allCPUs lists the processors this process may run on.
+func allCPUs() []int {
+	var set unix.CPUSet
+	if err := unix.SchedGetaffinity(0, &set); err != nil {
+		out := make([]int, runtime.NumCPU())
+		for i := range out {
+			out[i] = i
+		}
+		return out
+	}
+	var out []int
+	for i := 0; i < 1024 && len(out) < set.Count(); i++ {
+		if set.IsSet(i) {
+			out = append(out, i)
+		}
+	}
+	return out
 }

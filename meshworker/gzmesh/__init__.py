@@ -18,9 +18,9 @@ budget, one baked PBR atlas, collision, inertia, GLB, SDF and a preview.
 """
 
 from .materials import (LIBRARY, Material, asphalt, brushed_metal, cardboard, concrete, fabric, flat, glass,
-                        painted_metal, plastic, rubber, stripes, wood)
+                        painted_metal, plastic, rubber, stripes, texture, texture_sets, wood)
 from .parts import Assembly, Joint, Link, Part, continuous, fixed, link, model, part, prismatic, revolute
 
 __all__ = ["part", "Part", "link", "Link", "model", "Assembly", "Joint", "revolute", "prismatic", "continuous",
            "fixed", "Material", "LIBRARY", "flat", "plastic", "rubber", "painted_metal", "brushed_metal",
-           "wood", "concrete", "asphalt", "fabric", "cardboard", "glass", "stripes"]
+           "wood", "concrete", "asphalt", "fabric", "cardboard", "glass", "stripes", "texture", "texture_sets"]

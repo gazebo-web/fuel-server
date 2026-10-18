@@ -21,3 +21,10 @@ def build(tmp_path):
         code_ = run.main([str(path), str(out)])
         return code_, json.loads((out / "report.json").read_text()), out
     return _build
+
+
+# Image texture sets (meshworker/textures/fetch.py). Tests that need them
+# skip unless they're installed, e.g. in ~/.cache/fuel-app-meshworker/textures.
+_cache = os.path.expanduser("~/.cache/fuel-app-meshworker/textures")
+if "GZMESH_TEXTURES" not in os.environ and os.path.isdir(_cache):
+    os.environ["GZMESH_TEXTURES"] = _cache

@@ -68,7 +68,9 @@ def bake(mesh: trimesh.Trimesh, face_part: np.ndarray, materials: list[Material]
         m = materials[i]
         p, n, g = np.concatenate(ps), np.concatenate(ns), np.concatenate(gs)
         color[g[:, 1], g[:, 0]] = np.clip(m.color(p, n), 0, 1)
-        orm[g[:, 1], g[:, 0]] = (1.0, m.roughness, m.metalness)
+        orm[g[:, 1], g[:, 0], 0] = 1.0
+        orm[g[:, 1], g[:, 0], 1] = m.roughness_fn(p, n) if m.roughness_fn else m.roughness
+        orm[g[:, 1], g[:, 0], 2] = m.metalness_fn(p, n) if m.metalness_fn else m.metalness
         filled[g[:, 1], g[:, 0]] = True
         all_p.append(p), all_n.append(n), all_g.append(g)
     if ao and all_g:

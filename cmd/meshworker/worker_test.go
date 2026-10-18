@@ -333,7 +333,7 @@ except OSError as e:
 			c.ExtraRO = filepath.SplitList(os.Getenv("MESHWORKER_JAIL_RO"))
 		})
 		dir := t.TempDir()
-		cmd := w.jailed(dir)
+		cmd := w.jailed(dir, 0)
 		args := cmd.Args
 		for i, a := range args {
 			if a == py { // replace "python -m gzmesh.run ..." with the probe
@@ -355,4 +355,20 @@ except OSError as e:
 		t.Fatalf("jail leaks:\n%s", out)
 	}
 	t.Logf("jail probe:\n%s", out)
+}
+
+func TestSlotsPinnedToCPUPairs(t *testing.T) {
+	w := &worker{cfg: config{CPUs: []int{0, 1, 2, 3, 8, 9}, Jail: "bwrap", Python: "python3"}}
+	for slot, want := range []string{"0,1", "2,3", "8,9", "0,1"} {
+		if got := w.slotCPUs(slot); got != want {
+			t.Errorf("slot %d: %q want %q", slot, got, want)
+		}
+	}
+	args := strings.Join(w.jailed(t.TempDir(), 1).Args, " ")
+	if !strings.Contains(args, "taskset -c 2,3 prlimit") {
+		t.Errorf("jail command: %s", args)
+	}
+	if (&worker{cfg: config{CPUs: []int{0}}}).slotCPUs(0) != "" {
+		t.Error("one CPU: no pinning")
+	}
 }

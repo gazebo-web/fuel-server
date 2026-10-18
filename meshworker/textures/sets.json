@@ -1,0 +1,104 @@
+{
+  "source": "https://ambientcg.com (CC0 1.0 Universal)",
+  "resolution": "1K-JPG",
+  "sets": {
+    "wood_planks": {
+      "asset": "WoodFloor043",
+      "sha256": "0bd1309b36c9a0add6fd9b4108f8cba73ba475afb6fb824c42bb05080c01403b",
+      "tile_m": 2.0,
+      "density": 600,
+      "description": "Worn wooden floor planks"
+    },
+    "wood_grain": {
+      "asset": "Wood049",
+      "sha256": "74ec51bcf5ddfc2e9af6205dc5cbcc90ad51c22117e013ff8b1c7258f8ecbc69",
+      "tile_m": 1.0,
+      "density": 600,
+      "description": "Light wood with fine straight grain"
+    },
+    "brushed_steel": {
+      "asset": "Metal009",
+      "sha256": "1b1970219b40fe707e7194b28702f1a65b0d227bbea56da69dfbc8d8b5cfcb5e",
+      "tile_m": 1.0,
+      "density": 7850,
+      "description": "Brushed steel"
+    },
+    "painted_metal": {
+      "asset": "PaintedMetal004",
+      "sha256": "02c243e8e8441f0ee24e68645f5d8c9bd6d8ee0a3b9bfa3d952840902653f978",
+      "tile_m": 1.0,
+      "density": 7850,
+      "description": "Scratched painted metal (tint it)"
+    },
+    "rusty_metal": {
+      "asset": "Metal041B",
+      "sha256": "787bd97e7adfdc9cbf2f393cbeac9464759642194e5b4f6d4c408a85ee9ee3ab",
+      "tile_m": 1.5,
+      "density": 7850,
+      "description": "Weathered steel with rust streaks"
+    },
+    "concrete": {
+      "asset": "Concrete034",
+      "sha256": "5839d284d94ffb8d2a56df742ec522b13dd311c52dbd42b8fd33f0409ceedb81",
+      "tile_m": 2.0,
+      "density": 2400,
+      "description": "Smooth poured concrete"
+    },
+    "asphalt": {
+      "asset": "Asphalt031",
+      "sha256": "f98114b8fb083fc65925c3b4568b131e37c9a23357d432a16e59676dbc69f964",
+      "tile_m": 2.0,
+      "density": 2300,
+      "description": "Road asphalt"
+    },
+    "fabric": {
+      "asset": "Fabric085",
+      "sha256": "64506b02652cd240eb0dbaf9014195f240918048bc1a0b3becf28deffa9e3476",
+      "tile_m": 0.3,
+      "density": 300,
+      "description": "Woven fabric (tint it)"
+    },
+    "leather": {
+      "asset": "Leather037",
+      "sha256": "7ec86a1e5e4a1a8ddf1db9bf999dd3f495eaa109b72406d7ff2eb65f1b6775fc",
+      "tile_m": 0.5,
+      "density": 900,
+      "description": "Smooth leather (tint it)"
+    },
+    "cardboard": {
+      "asset": "Cardboard004",
+      "sha256": "f427eb664e0cbc97fc1e7066a800f3ad656ad4eeaa0d0314182ea8b7f03e4a64",
+      "tile_m": 0.6,
+      "density": 150,
+      "description": "Cardboard"
+    },
+    "bricks": {
+      "asset": "Bricks104",
+      "sha256": "b3f75260eaff89008a1f6c29751e27d1edac3604046f1f99b02f56ca9d9a1a32",
+      "tile_m": 1.4,
+      "density": 1900,
+      "description": "Red brick wall with mortar"
+    },
+    "stone_tiles": {
+      "asset": "Tiles139",
+      "sha256": "0ac4f6e094874948027a1477ad4b9e4986d48ccede608ae59874672ab46265db",
+      "tile_m": 1.2,
+      "density": 2400,
+      "description": "Square stone floor tiles"
+    },
+    "rubber": {
+      "asset": "Rubber004",
+      "sha256": "d8933e73c3b983892209bb143ca4bc13a48e4d55720ab12f6e6a303c96c84a31",
+      "tile_m": 0.5,
+      "density": 1100,
+      "description": "Black textured rubber"
+    },
+    "plastic": {
+      "asset": "Plastic010",
+      "sha256": "46a2504dbef278475b85c846713804a36823c7151cb79c90728d5c6eab283a19",
+      "tile_m": 0.5,
+      "density": 1000,
+      "description": "Lightly textured plastic (tint it)"
+    }
+  }
+}

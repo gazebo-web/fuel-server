@@ -10,10 +10,14 @@ three.js decodes it, see meshworker/spike/README.md). Accepted forms:
 "#rrggbb", (r, g, b) floats in 0-1, or a name from NAMED_COLORS.
 """
 
+import json
+import os
 from dataclasses import dataclass, field
-from typing import Callable, Sequence
+from functools import lru_cache
+from typing import Callable, Optional, Sequence
 
 import numpy as np
+from PIL import Image
 
 # A few names the agent will reach for; anything else is "#rrggbb".
 NAMED_COLORS = {
@@ -47,6 +51,9 @@ class Material:
     metalness: float = 0.0
     density: float = 1000.0
     params: dict = field(default_factory=dict)
+    # Per-texel maps (image textures); the constants above apply without them.
+    roughness_fn: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None
+    metalness_fn: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None
 
     def describe(self) -> dict:
         return {"name": self.name, "roughness": self.roughness, "metalness": self.metalness,
@@ -202,6 +209,94 @@ def stripes(base: Material, color, ranges: Sequence[Sequence[float]], axis="z") 
                     {**base.params, "stripes": {"color": color, "ranges": spans, "axis": axis}})
 
 
+# -- image textures (CC0, meshworker/textures): projected triplanar, so no
+# UVs are needed and patterns stay to scale (tile_m meters per repeat).
+
+def texture_dir() -> str:
+    return os.environ.get("GZMESH_TEXTURES", "/opt/meshworker/textures")
+
+
+SETS_JSON = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "textures", "sets.json")
+
+
+@lru_cache(maxsize=None)
+def texture_sets() -> dict:
+    try:
+        with open(SETS_JSON) as f:
+            return json.load(f)["sets"]
+    except OSError:
+        return {}
+
+
+@lru_cache(maxsize=64)
+def _image(name: str, kind: str) -> Optional[np.ndarray]:
+    path = os.path.join(texture_dir(), name, f"{kind}.jpg")
+    if not os.path.exists(path):
+        return None
+    im = Image.open(path)
+    im = im.convert("RGB") if kind == "color" else im.convert("L")
+    return np.asarray(im, float) / 255
+
+
+def _sample(img: np.ndarray, u: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Bilinear, wrapping."""
+    h, w = img.shape[:2]
+    x = (u % 1.0) * w - 0.5
+    y = (1 - v % 1.0) * h - 0.5
+    x0, y0 = np.floor(x).astype(int), np.floor(y).astype(int)
+    fx, fy = x - x0, y - y0
+    if img.ndim == 3:
+        fx, fy = fx[:, None], fy[:, None]
+    g = lambda yy, xx: img[yy % h, xx % w]
+    return ((g(y0, x0) * (1 - fx) + g(y0, x0 + 1) * fx) * (1 - fy)
+            + (g(y0 + 1, x0) * (1 - fx) + g(y0 + 1, x0 + 1) * fx) * fy)
+
+
+def _triplanar(img: np.ndarray, p: np.ndarray, n: np.ndarray, tile: float) -> np.ndarray:
+    w = np.abs(n) ** 4 + 1e-9
+    w /= w.sum(1, keepdims=True)
+    out = 0
+    for axis, (a, b) in enumerate(((1, 2), (0, 2), (0, 1))):  # along x the image spans y, z; ...
+        s = _sample(img, p[:, a] / tile, p[:, b] / tile)
+        out = out + (w[:, axis:axis + 1] if s.ndim == 2 else w[:, axis]) * s
+    return out
+
+
+def texture(name: str, scale: float = 1.0, tint=None, roughness: Optional[float] = None,
+            metalness: Optional[float] = None, density: Optional[float] = None) -> Material:
+    """An image texture set (see TEXTURE_SETS): wood_planks, bricks, ...
+    scale multiplies the set's real-world tile size; tint recolors it while
+    keeping its light and dark detail (painted_metal, plastic, fabric and
+    leather are meant to be tinted)."""
+    sets = texture_sets()
+    if name not in sets:
+        raise ValueError(f"texture {name!r}: want one of {', '.join(sorted(sets))}")
+    s = sets[name]
+    color = _image(name, "color")
+    if color is None:
+        raise ValueError(f"texture {name!r} is not installed on this worker")
+    rough, metal = _image(name, "roughness"), _image(name, "metalness")
+    tile = float(s["tile_m"]) * float(scale)
+    if tile <= 0:
+        raise ValueError("scale must be positive")
+    t = rgb(tint) if tint is not None else None
+    mean_lum = float(color.mean()) or 1.0
+
+    def color_fn(p, n):
+        c = _triplanar(color, p, n, tile)
+        if t is None:
+            return c
+        return np.clip(t * (c.mean(1, keepdims=True) / mean_lum), 0, 1)
+    r_fn = None if roughness is not None or rough is None else (lambda p, n: _triplanar(rough, p, n, tile))
+    m_fn = None if metalness is not None or metal is None else (lambda p, n: _triplanar(metal, p, n, tile))
+    return Material(name, color_fn,
+                    roughness if roughness is not None else (0.6 if rough is None else float(rough.mean())),
+                    metalness if metalness is not None else (0.0 if metal is None else float(metal.mean())),
+                    density if density is not None else float(s["density"]),
+                    {"texture": name, "scale": scale, **({"tint": tint} if tint is not None else {})},
+                    r_fn, m_fn)
+
+
 LIBRARY = {
     "flat": (flat, "One solid color: flat(color, roughness=0.6, metalness=0.0, density=1000)"),
     "plastic": (plastic, "Slightly mottled plastic: plastic(color, roughness=0.45)"),
@@ -215,4 +310,5 @@ LIBRARY = {
     "cardboard": (cardboard, "Corrugated-box cardboard: cardboard(color)"),
     "glass": (glass, "Tinted glass, rendered opaque (Gazebo has no blending): glass(color)"),
     "stripes": (stripes, "Bands of a color over another material: stripes(base, color, ranges=[(z0, z1)], axis='z')"),
+    "texture": (texture, "A CC0 photo texture set, to scale: texture(name, scale=1.0, tint=None)"),
 }

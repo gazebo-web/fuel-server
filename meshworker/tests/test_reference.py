@@ -40,3 +40,9 @@ def test_materials_table_matches_library():
     table = (REF / "materials.md").read_text()
     for name in gz.LIBRARY:
         assert f"gz.{name}(" in table, f"materials.md doesn't document gz.{name}"
+
+
+def test_texture_table_lists_every_set():
+    table = (REF / "materials.md").read_text()
+    for name in gz.texture_sets():
+        assert f"`{name}`" in table, f"materials.md doesn't list texture set {name}"

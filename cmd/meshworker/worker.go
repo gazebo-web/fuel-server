@@ -46,7 +46,11 @@ type config struct {
 	// ExtraRO are paths the jail binds read-only over its empty /home and
 	// /root: a development venv and its interpreter. The image needs none.
 	ExtraRO []string
-	command func(dir string) *exec.Cmd
+	// CPUs are the processors jobs may run on; each concurrent job slot
+	// is pinned to its own pair, so a job's thread pools (embree sizes
+	// its pool by the CPUs it can see) match its share.
+	CPUs    []int
+	command func(dir string, slot int) *exec.Cmd
 }
 
 var nameRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
@@ -69,7 +73,7 @@ type job struct {
 
 type worker struct {
 	cfg   config
-	slots chan struct{} // running jobs
+	slots chan int      // free job slots; a running job holds one
 	queue chan struct{} // running + waiting jobs
 
 	mu      sync.Mutex
@@ -89,11 +93,14 @@ func newWorker(cfg config) (*worker, error) {
 	}
 	w := &worker{
 		cfg:     cfg,
-		slots:   make(chan struct{}, cfg.Concurrency),
+		slots:   make(chan int, cfg.Concurrency),
 		queue:   make(chan struct{}, cfg.Concurrency+cfg.QueueLen),
 		jobs:    map[string]*job{},
 		running: map[string]*job{},
 		cache:   newLRU(cfg.CacheBytes),
+	}
+	for i := 0; i < cfg.Concurrency; i++ {
+		w.slots <- i
 	}
 	if w.cfg.command == nil {
 		w.cfg.command = w.jailed
@@ -253,9 +260,9 @@ func (w *worker) submit(key string, body []byte) (*job, error) {
 	w.running[key] = j
 	go func() {
 		defer func() { <-w.queue }()
-		w.slots <- struct{}{}
-		res := w.execute(body)
-		<-w.slots
+		slot := <-w.slots
+		res := w.execute(body, slot)
+		w.slots <- slot
 		w.mu.Lock()
 		j.res, j.at = res, time.Now()
 		delete(w.running, key)
@@ -287,7 +294,7 @@ func newID() string {
 }
 
 // execute runs one job in a fresh directory and tars what it wrote.
-func (w *worker) execute(body []byte) result {
+func (w *worker) execute(body []byte, slot int) result {
 	dir, err := os.MkdirTemp(w.cfg.WorkDir, "job-")
 	if err != nil {
 		return result{err: err}
@@ -302,7 +309,7 @@ func (w *worker) execute(body []byte) result {
 
 	ctx, cancel := context.WithTimeout(context.Background(), w.cfg.JobTimeout)
 	defer cancel()
-	cmd := w.cfg.command(dir)
+	cmd := w.cfg.command(dir, slot)
 	cmd.Dir = dir
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	var stderr bytes.Buffer
@@ -351,7 +358,18 @@ func (w *worker) execute(body []byte) result {
 // rlimits via prlimit. Hiding matters even without a network: anything the
 // code can read it could copy into the model files it returns. The worker
 // container itself runs under gVisor in production.
-func (w *worker) jailed(dir string) *exec.Cmd {
+// slotCPUs is the CPU list ("4,5") for a job slot, or "" when there are
+// too few CPUs to pin.
+func (w *worker) slotCPUs(slot int) string {
+	n := len(w.cfg.CPUs)
+	if n < 2 {
+		return ""
+	}
+	a, b := w.cfg.CPUs[(2*slot)%n], w.cfg.CPUs[(2*slot+1)%n]
+	return strconv.Itoa(a) + "," + strconv.Itoa(b)
+}
+
+func (w *worker) jailed(dir string, slot int) *exec.Cmd {
 	// The job directory appears at /tmp/job: the root is read-only, so the
 	// mount point has to be inside the jail's own /tmp.
 	py := []string{w.cfg.Python, "-m", "gzmesh.run", "/tmp/job/job.json", "/tmp/job/out"}
@@ -383,6 +401,9 @@ func (w *worker) jailed(dir string) *exec.Cmd {
 	for _, kv := range jobEnv(w.cfg.GzmeshDir, "/tmp") {
 		k, v, _ := strings.Cut(kv, "=")
 		args = append(args, "--setenv", k, v)
+	}
+	if cpus := w.slotCPUs(slot); cpus != "" {
+		args = append(args, "taskset", "-c", cpus)
 	}
 	args = append(args, limits...)
 	args = append(args, py...)
