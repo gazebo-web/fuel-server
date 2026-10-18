@@ -30,7 +30,7 @@ import trimesh
 
 from . import atlas, collision, export, inertia, parts, preview, tessellate
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 ALLOWED_IMPORTS = {"build123d", "gzmesh", "math", "numpy", "random", "itertools", "functools", "typing",
                    "dataclasses", "collections", "copy"}
@@ -159,7 +159,7 @@ def build_model(job: dict, out: str) -> dict:
 
     inertials = inertia.compute_links(asm.links, j.get("mass"), j.get("density"))
     total_area = sum(m.area for m in meshes)
-    warnings, links, link_reports = [], [], []
+    warnings, links, link_reports, solids = [], [], [], {}
     timings["bake_s"] = timings["collision_s"] = 0.0
     for lk, lmeshes, inert in zip(asm.links, by_link, inertials):
         t = time.monotonic()
@@ -173,6 +173,7 @@ def build_model(job: dict, out: str) -> dict:
         solid, solid_volume, w = watertight(lk.parts, max(tess["tolerance_m"], 1e-4))
         warnings += w
         solid.apply_translation(offset)
+        solids[lk.name] = solid
         shapes, coll = collision.build(solid, solid_volume, j["collision"])
         timings["collision_s"] += time.monotonic() - t
 
@@ -185,7 +186,8 @@ def build_model(job: dict, out: str) -> dict:
         if inert.volume > solid_volume * 1.02:
             warnings.append(f"{where}parts overlap: their volumes add up to {inert.volume:.4g} m³ but the solid is "
                             f"{solid_volume:.4g} m³, so the mass counts the overlap twice")
-        links.append(export.LinkOut(lk.name, visual, inert, shapes, name if single else f"{name}_{lk.name}"))
+        links.append(export.LinkOut(lk.name, visual, inert, shapes, name if single else f"{name}_{lk.name}",
+                                    friction=lk.friction))
         link_reports.append({
             "name": lk.name,
             "parts": [{"name": p.name, "material": p.material.describe(),
@@ -204,13 +206,20 @@ def build_model(job: dict, out: str) -> dict:
         warnings.append(f"decimated from {tess['before_decimation']} to {tess['triangles']} triangles to fit "
                         f"tri_budget; raise it if detail was lost")
     warnings += joint_warnings(asm, links, offset)
+    by_name = {lk.name: lk for lk in links}
+    sensor_reports, w = place_sensors(asm, by_name, solids, offset)
+    warnings += w
+    plugins, plugin_reports, w = resolve_plugins(asm, by_name, offset)
+    warnings += w
 
     root = os.path.join(out, "models", name)
     files = export.write_model(root, name, links=links, joints=asm.joints, offset=offset, static=j["static"],
-                               sdf_version=j["sdf_version"], description=j["description"], source=j["code"])
+                               sdf_version=j["sdf_version"], description=j["description"], source=j["code"],
+                               plugins=plugins)
     t = time.monotonic()
     moved = moved_links(asm, links, offset) if asm.joints else None
-    preview.sheet([lk.visual for lk in links], moved=moved).save(os.path.join(out, "preview.png"))
+    markers = [(sn.name, sn.kind, sn.pos, look_direction(sn.rpy)) for lk in links for sn in lk.sensors]
+    preview.sheet([lk.visual for lk in links], moved=moved, markers=markers).save(os.path.join(out, "preview.png"))
     timings["preview_s"] = time.monotonic() - t
     timings["total_s"] = time.monotonic() - t0
 
@@ -242,7 +251,122 @@ def build_model(job: dict, out: str) -> dict:
                 "axis": [round(float(x), 5) for x in jt.axis]}),
             **({"limits": [jt.lower, jt.upper]} if jt.kind in ("revolute", "prismatic") else {}),
         } for jt in asm.joints]
+    if sensor_reports:
+        report["sensors"] = sensor_reports
+    if plugin_reports:
+        report["plugins"] = plugin_reports
+    systems = world_systems(asm)
+    if systems:
+        report["world_systems"] = {
+            "note": "the world must load these systems or the sensors publish nothing; add each <plugin> "
+                    "inside <world>, next to Physics, UserCommands and SceneBroadcaster",
+            "plugins": systems}
     return report
+
+
+# Topics each sensor type publishes, under
+# /world/<world>/model/<instance>/link/<link>/sensor/<name>/.
+SENSOR_TOPICS = {"camera": ["image", "camera_info"], "depth_camera": ["depth_image", "points", "camera_info"],
+                 "rgbd_camera": ["image", "depth_image", "points", "camera_info"],
+                 "gpu_lidar": ["scan", "scan/points"], "imu": ["imu"]}
+SENSORS_SYSTEM = ('<plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">'
+                  '<render_engine>ogre2</render_engine></plugin>')
+IMU_SYSTEM = '<plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>'
+
+
+def world_systems(asm) -> list[str]:
+    kinds = {s.kind for s in asm.sensors}
+    out = []
+    if kinds - {"imu"}:
+        out.append(SENSORS_SYSTEM)
+    if "imu" in kinds:
+        out.append(IMU_SYSTEM)
+    return out
+
+
+def look_direction(rpy) -> np.ndarray:
+    """The sensor's +X in the model frame, for roll-pitch-yaw rpy."""
+    from trimesh.transformations import euler_matrix
+    return euler_matrix(*rpy, axes="sxyz")[:3, 0]
+
+
+def place_sensors(asm, links: dict, solids: dict, offset) -> tuple[list, list]:
+    """Attaches each sensor to its link's output, moved by offset like
+    everything else; warns about sensors buried in or far from their
+    link."""
+    reports, warnings = [], []
+    for s in asm.sensors:
+        lk = links[s.link]
+        placed = parts.Sensor(s.name, s.kind, s.link, s.pos + offset, s.rpy, s.rate, s.params)
+        lk.sensors.append(placed)
+        lo, hi = lk.visual.bounds
+        margin = 0.25 * float((hi - lo).max())
+        if ((placed.pos < lo - margin) | (placed.pos > hi + margin)).any():
+            warnings.append(f"sensor {s.name!r}: pos {np.round(s.pos, 3).tolist()} is far from link {s.link!r}; "
+                            f"sensor positions are in the model frame, as built")
+        else:
+            try:
+                buried = bool(solids[s.link].contains([placed.pos])[0])
+            except Exception:
+                buried = False
+            if buried and s.kind != "imu":
+                warnings.append(f"sensor {s.name!r} is inside link {s.link!r}'s solid, so it sees the inside "
+                                f"of the part; move it onto the surface")
+        base = f"/world/<world>/model/<instance>/link/{s.link}/sensor/{s.name}/"
+        reports.append({"name": s.name, "type": s.kind, "link": s.link,
+                        "position_m": [round(float(x), 4) + 0.0 for x in placed.pos],
+                        **({} if s.kind == "imu" else {
+                            "looks_toward": [round(float(x), 3) + 0.0 for x in look_direction(s.rpy)]}),
+                        "rate_hz": s.rate, "topics": [base + t for t in SENSOR_TOPICS[s.kind]]})
+    return reports, warnings
+
+
+def wheel_radius(jt, child, offset) -> float:
+    """The largest distance of the wheel link's surface from the joint
+    axis."""
+    o = jt.origin + offset
+    return float(np.linalg.norm(np.cross(child.visual.vertices - o, jt.axis), axis=1).max())
+
+
+def resolve_plugins(asm, links: dict, offset) -> tuple[list, list, list]:
+    """(kind, params) for export with wheel geometry filled in, reports
+    with each plugin's topics, and warnings about wheels that would drive
+    the robot the wrong way."""
+    joints = {jt.name: jt for jt in asm.joints}
+    plugins, reports, warnings = [], [], []
+    for p in asm.plugins:
+        k = dict(p.params)
+        if p.kind == "diff_drive":
+            left = [joints[n] for n in k["left"]]
+            right = [joints[n] for n in k["right"]]
+            L = np.mean([jt.origin for jt in left], axis=0)
+            R = np.mean([jt.origin for jt in right], axis=0)
+            if "wheel_separation" not in k:
+                axis = left[0].axis
+                k["wheel_separation"] = float(abs((L - R) @ axis)) or float(np.linalg.norm(L - R))
+            if "wheel_radius" not in k:
+                k["wheel_radius"] = float(np.mean([wheel_radius(jt, links[jt.child], offset) for jt in left + right]))
+            if (L - R)[1] <= 0:
+                warnings.append("diff_drive: the left wheels aren't on the +Y side of the right ones; the front is "
+                                "+X, so left is +Y. Swap left and right, or the robot turns the wrong way")
+            for jt in left + right:
+                if jt.axis[1] < 0.7:
+                    warnings.append(f"diff_drive: joint {jt.name!r} axis is {np.round(jt.axis, 3).tolist()}; "
+                                    f"wheel axes must be (0, 1, 0) so positive speed rolls toward +X")
+            reports.append({"type": "diff_drive", "cmd_vel": "/model/<instance>/cmd_vel",
+                            "odometry": "/model/<instance>/odometry",
+                            "wheel_separation_m": round(k["wheel_separation"], 4),
+                            "wheel_radius_m": round(k["wheel_radius"], 4), "max_speed_mps": k["max_speed"]})
+        elif p.kind == "joint_states":
+            reports.append({"type": "joint_states", "topic": "/world/<world>/model/<instance>/joint_state"})
+        elif p.kind == "position_controller":
+            reports.append({"type": "position_controller", "joint": k["joint"],
+                            "topic": f"/model/<instance>/joint/{k['joint']}/0/cmd_pos"})
+        elif p.kind == "velocity_controller":
+            reports.append({"type": "velocity_controller", "joint": k["joint"],
+                            "topic": f"/model/<instance>/joint/{k['joint']}/cmd_vel"})
+        plugins.append((p.kind, k))
+    return plugins, reports, warnings
 
 
 def moved_links(asm, links, offset) -> list:

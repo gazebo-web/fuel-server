@@ -13,6 +13,8 @@ const goodWorld = `<?xml version="1.0"?>
     <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics">
       <engine><filename>gz-physics-dartsim-plugin</filename></engine>
     </plugin>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
     <include>
       <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Table</uri>
       <name>table</name>

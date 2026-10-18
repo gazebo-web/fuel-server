@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -50,6 +51,9 @@ type Case struct {
 	WantGenerated int `json:"want_generated,omitempty"`
 	// WantCalls is a minimum number of calls per tool across all turns.
 	WantCalls map[string]int `json:"want_calls,omitempty"`
+	// WantTopics are kinds of data ("scan", "image", "imu", "odometry")
+	// some topic must publish when the world runs in Gazebo (with -gazebo).
+	WantTopics []string `json:"want_topics,omitempty"`
 }
 
 // Result is the outcome of one case.
@@ -71,6 +75,7 @@ type Result struct {
 	Usage     Usage          `json:"usage"`
 	Reply     string         `json:"reply,omitempty"`
 	Judged    []Judgement    `json:"judged,omitempty"`
+	Topics    []string       `json:"topics,omitempty"`
 }
 
 type runner struct {
@@ -81,6 +86,7 @@ type runner struct {
 	http               *http.Client
 	judge              *judge // nil: no vision judge
 	judgeMin           int
+	gzcheck, gazeboDir string // gzcheck.sh and where projects are downloaded; "" skips the Gazebo check
 }
 
 func main() {
@@ -97,6 +103,8 @@ func main() {
 	judgeKey := flag.String("judge-key-file", "", "Anthropic API key file: score generated models' previews with a vision model")
 	judgeModel := flag.String("judge-model", "claude-sonnet-5-5", "vision judge model")
 	flag.IntVar(&r.judgeMin, "judge-min", 0, "fail a case whose generated model scores below this (1-5); 0 only reports")
+	flag.StringVar(&r.gzcheck, "gazebo", "", "gzcheck.sh: run worlds of cases with want_topics in Gazebo (Docker)")
+	flag.StringVar(&r.gazeboDir, "gazebo-dir", filepath.Join(os.Getenv("HOME"), ".cache", "aismoke"), "where -gazebo downloads projects")
 	flag.Parse()
 
 	if *judgeKey != "" {
@@ -266,6 +274,10 @@ func (r *runner) run(c Case) Result {
 		return string(b), true
 	}
 	score(c, string(world), load, &res)
+	if len(c.WantTopics) > 0 && r.gzcheck != "" {
+		r.gazeboCheck(ctx, name, c.WantTopics, &res)
+		res.Passed = len(res.Failures) == 0
+	}
 	return res
 }
 

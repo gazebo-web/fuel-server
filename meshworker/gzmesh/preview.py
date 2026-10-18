@@ -25,11 +25,18 @@ VIEWS = (
 )
 
 
-def sheet(visuals, tile: int = 384, moved=None) -> Image.Image:
+# Sensor marker colors by type.
+MARKER_COLORS = {"camera": (30, 90, 230), "depth_camera": (30, 170, 230), "rgbd_camera": (30, 170, 230),
+                 "gpu_lidar": (220, 40, 40), "imu": (30, 160, 60)}
+
+
+def sheet(visuals, tile: int = 384, moved=None, markers=()) -> Image.Image:
     """Four views of one textured mesh or a list of them (the links of an
     articulated model), drawn into a shared depth buffer. moved, for an
     articulated model, is the links with their joints moved: it replaces
-    the front view, so doors, drawers and wheels show how they move."""
+    the front view, so doors, drawers and wheels show how they move.
+    markers are sensors, (name, kind, position, looking direction), drawn
+    over the model as a dot with a line the way it looks."""
     if isinstance(visuals, trimesh.Trimesh):
         visuals = [visuals]
     meshes = _prepared(visuals)
@@ -46,7 +53,10 @@ def sheet(visuals, tile: int = 384, moved=None) -> Image.Image:
         else:
             img = render(meshes, allv, d, up, tile)
         im = Image.fromarray((img * 255).astype(np.uint8))
-        ImageDraw.Draw(im).text((6, 4), label, fill=(40, 40, 40))
+        draw = ImageDraw.Draw(im)
+        draw.text((6, 4), label, fill=(40, 40, 40))
+        if markers and not (moved is not None and i == 2):
+            _markers(draw, markers, allv, d, up, tile)
         out.paste(im, ((i % 2) * tile, (i // 2) * tile))
     return out
 
@@ -56,9 +66,7 @@ def _prepared(visuals):
              np.asarray(m.visual.material.baseColorTexture.convert("RGB"), float) / 255) for m in visuals]
 
 
-def render(meshes, allv, d, up, size):
-    """meshes: (vertices, faces, normals, uv, texture) tuples; allv frames
-    the view."""
+def _frame(allv, d, up):
     d = d / np.linalg.norm(d)
     right = np.cross(up, d)
     right /= np.linalg.norm(right)
@@ -66,6 +74,30 @@ def render(meshes, allv, d, up, size):
     center = (allv.min(0) + allv.max(0)) / 2
     q = allv - center
     half = max(np.abs(q @ right).max(), np.abs(q @ cam_up).max()) * 1.12 or 1.0
+    return d, right, cam_up, center, half
+
+
+def _markers(draw, markers, allv, d, up, size):
+    d, right, cam_up, center, half = _frame(allv, d, up)
+
+    def px(p):
+        q = np.asarray(p) - center
+        return ((q @ right / half * 0.5 + 0.5) * (size - 1), (0.5 - q @ cam_up / half * 0.5) * (size - 1))
+
+    for name, kind, pos, look in markers:
+        color = MARKER_COLORS.get(kind, (200, 0, 200))
+        x, y = px(pos)
+        if kind != "imu":
+            ex, ey = px(np.asarray(pos) + np.asarray(look) * half * 0.35)
+            draw.line((x, y, ex, ey), fill=color, width=3)
+        draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill=color, outline=(255, 255, 255))
+        draw.text((x + 7, y - 6), name, fill=color)
+
+
+def render(meshes, allv, d, up, size):
+    """meshes: (vertices, faces, normals, uv, texture) tuples; allv frames
+    the view."""
+    d, right, cam_up, center, half = _frame(allv, d, up)
     # Light each view from above and to the right of its camera, so every
     # view, including the back one, shows its faces lit.
     light = d * 0.7 + cam_up * 0.6 + right * 0.4

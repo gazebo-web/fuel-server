@@ -323,3 +323,98 @@ def test_preview_shows_joints_moved(build):
     t = sheet.shape[0] // 2
     rest, moved = sheet[20:t, :t], sheet[t + 20:, :t]  # skip the labels
     assert np.abs(rest - moved).mean() > 2
+
+
+ROVER = """
+from build123d import *
+import gzmesh as gz
+
+def build():
+    body = Pos(0, 0, 0.12) * Box(0.4, 0.28, 0.1)
+    caster = Pos(-0.15, 0, 0.035) * Sphere(0.035)
+    links = [gz.link("chassis", body), gz.link("caster", caster, friction=0)]
+    joints = [gz.fixed("caster_mount", "chassis", "caster")]
+    for side, y in (("left", 0.17), ("right", -0.17)):
+        links.append(gz.link(f"wheel_{side}", Pos(0.05, y, 0.07) * Rot(90, 0, 0) * Cylinder(0.07, 0.04)))
+        joints.append(gz.continuous(f"wheel_{side}_joint", "chassis", f"wheel_{side}",
+                                    origin=(0.05, y, 0.07), axis={"left": AXIS_L, "right": AXIS_R}[side]))
+    return gz.model(links=links, joints=joints,
+                    sensors=[gz.lidar("lidar", "chassis", pos=(0, 0, 0.18), samples=90, fov=1.5),
+                             gz.camera("cam", "chassis", pos=CAM, rpy=(0, 0.2, 0)),
+                             gz.depth_camera("depth", "chassis", pos=(0.2, 0.05, 0.12)),
+                             gz.imu("imu", "chassis", pos=(0, 0, 0.12))],
+                    plugins=[gz.diff_drive(LEFT, RIGHT), gz.joint_states()])
+"""
+
+
+def rover(cam=(0.201, 0, 0.14), left="wheel_left_joint", right="wheel_right_joint", axis_left=(0, 1, 0),
+          axis_right=(0, 1, 0)):
+    return (ROVER.replace("CAM", repr(cam)).replace("LEFT", repr(left)).replace("RIGHT", repr(right))
+            .replace("AXIS_L", repr(axis_left)).replace("AXIS_R", repr(axis_right)))
+
+
+def test_robot_sensors_and_plugins(build):
+    code, r, out = build(rover())
+    assert code == 0, r
+    assert r["warnings"] == [], r["warnings"]
+    m = sdf(out, "thing").find("model")
+    sensors = {s.get("name"): s for s in m.findall("link[@name='chassis']/sensor")}
+    assert {n: s.get("type") for n, s in sensors.items()} == {
+        "lidar": "gpu_lidar", "cam": "camera", "depth": "depth_camera", "imu": "imu"}
+    assert sensors["cam"].find("pose").text == "0.201 0 0.14 0 0.2 0"
+    assert sensors["lidar"].find("lidar/scan/horizontal/samples").text == "90"
+    assert sensors["lidar"].find("lidar/scan/horizontal/max_angle").text == "0.75"
+    assert sensors["depth"].find("camera/image/format").text == "R_FLOAT32"
+    assert m.find("link[@name='caster']/collision/surface/friction/ode/mu").text == "0"
+    assert m.find("link[@name='chassis']/collision/surface") is None
+
+    dd = m.find("plugin[@name='gz::sim::systems::DiffDrive']")
+    assert dd.find("left_joint").text == "wheel_left_joint" and dd.find("right_joint").text == "wheel_right_joint"
+    assert float(dd.find("wheel_separation").text) == pytest.approx(0.34)
+    assert float(dd.find("wheel_radius").text) == pytest.approx(0.07, abs=2e-3)
+    assert m.find("plugin[@name='gz::sim::systems::JointStatePublisher']") is not None
+
+    by = {s["name"]: s for s in r["sensors"]}
+    assert by["cam"]["topics"][0] == "/world/<world>/model/<instance>/link/chassis/sensor/cam/image"
+    assert by["cam"]["looks_toward"][0] > 0.95 and by["cam"]["looks_toward"][2] < 0  # pitched down
+    assert "looks_toward" not in by["imu"]
+    assert r["plugins"][0]["cmd_vel"] == "/model/<instance>/cmd_vel"
+    assert [p.split('"')[1] for p in r["world_systems"]["plugins"]] == ["gz-sim-sensors-system", "gz-sim-imu-system"]
+
+
+def test_preview_marks_sensors(build):
+    from PIL import Image
+    _, _, out = build(rover().replace("sensors=[", "sensors=[] and ["))
+    a = np.asarray(Image.open(out / "preview.png").convert("RGB"), int)
+    _, _, out = build(rover())
+    b = np.asarray(Image.open(out / "preview.png").convert("RGB"), int)
+    red = (b[..., 0] > 200) & (b[..., 1] < 80) & (b[..., 2] < 80)  # the lidar marker
+    assert red.sum() > 30 and ((a[..., 0] > 200) & (a[..., 1] < 80) & (a[..., 2] < 80)).sum() == 0
+
+
+@pytest.mark.parametrize("kw, warning", [
+    ({"cam": (0, 0, 0.12)}, "sensor 'cam' is inside link 'chassis'"),
+    ({"cam": (5, 0, 0.12)}, "sensor 'cam': pos [5.0, 0.0, 0.12] is far from link 'chassis'"),
+    ({"left": "wheel_right_joint", "right": "wheel_left_joint"}, "aren't on the +Y side"),
+    ({"axis_right": (0, -1, 0)}, "joint 'wheel_right_joint' axis is [0.0, -1.0, 0.0]"),
+])
+def test_robot_warnings(build, kw, warning):
+    code, r, _ = build(rover(**kw))
+    assert code == 0 and any(warning in w for w in r["warnings"]), r["warnings"]
+
+
+@pytest.mark.parametrize("change, error", [
+    (("gz.imu(\"imu\", \"chassis\"", "gz.imu(\"imu\", \"nope\""), "sensor 'imu': no link named 'nope'"),
+    (("gz.imu(\"imu\"", "gz.imu(\"cam\""), "sensor names must be unique"),
+    (("samples=90", "samples=0"), "sensor 'lidar' samples must be a number from 1"),
+    (("gz.diff_drive(", "gz.diff_drive(\"caster_mount\", "), "joint 'caster_mount' is fixed; wheels need"),
+    (("gz.joint_states()", "gz.joint_states(), gz.joint_states()"), "at most one gz.joint_states()"),
+    (("plugins=[", "plugins=[gz.position_controller(\"nope\"), "), "position_controller: no joint named 'nope'"),
+    (("friction=0", "friction=-1"), "friction must be a number from 0 to 10"),
+])
+def test_robot_errors(build, change, error):
+    code_ = rover().replace(*change)
+    if "gz.diff_drive(\"caster_mount\"" in code_:
+        code_ = code_.replace("'wheel_left_joint', 'wheel_right_joint'", "'wheel_right_joint'")
+    code, r, _ = build(code_)
+    assert code == 2 and error in r["error"], r

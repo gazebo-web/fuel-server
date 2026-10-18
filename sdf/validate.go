@@ -74,6 +74,10 @@ type Options struct {
 	// map, e.g. "model://crate/meshes/visual.glb" or "meshes/visual.glb".
 	// A non-nil error is reported as a validation error.
 	ResolveFile func(uri string) error
+	// IncludedModel, when set, returns the SDF of the model an <include>
+	// URI names, if it can (project models), so world checks see the
+	// sensors inside included models.
+	IncludedModel func(uri string) (string, bool)
 }
 
 // Warning is an error a resolver returns to report a warning instead of
@@ -142,6 +146,7 @@ func ValidateWithOptions(input string, opts Options) ValidationResult {
 		}
 	}
 	v.checkSemantics(root)
+	v.checkSystems(root)
 	return v.result()
 }
 

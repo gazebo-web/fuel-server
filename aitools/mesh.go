@@ -284,7 +284,7 @@ func (t *tools) commitGenerated(tc *mcp.ToolContext, project, model, baseRev str
 			path.Join(dir, "previews", "preview.png"),
 	}
 	for _, k := range []string{"bounding_box_m", "triangles", "collision", "inertial", "parts", "links", "joints",
-		"warnings", "tessellation"} {
+		"sensors", "plugins", "world_systems", "warnings", "tessellation"} {
 		if v, ok := out.report[k]; ok {
 			summary[k] = v
 		}

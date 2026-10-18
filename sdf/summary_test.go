@@ -7,7 +7,7 @@ func TestSummarize(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Version != "1.9" || s.World != "demo" || len(s.Plugins) != 1 || len(s.Entities) != 2 {
+	if s.Version != "1.9" || s.World != "demo" || len(s.Plugins) != 3 || len(s.Entities) != 2 {
 		t.Fatalf("summary %+v", s)
 	}
 	inc, cart := s.Entities[0], s.Entities[1]

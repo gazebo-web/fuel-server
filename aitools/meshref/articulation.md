@@ -71,3 +71,5 @@ def build():
 - The report lists each link's mass and collision, and each joint.
 - A warning flags a joint origin far from both its links. That usually means the wrong frame, or millimeters where meters were meant.
 - The preview shows the rest pose.
+
+For sensors and drive controllers, see topic "robots".

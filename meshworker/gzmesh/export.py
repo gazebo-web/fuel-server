@@ -13,7 +13,8 @@ meshes/<name>_<link>.glb and meshes/<name>_<link>_collision_<i>.glb.
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 from xml.sax.saxutils import escape
 
 import numpy as np
@@ -21,7 +22,7 @@ import trimesh
 
 from .collision import Shape
 from .inertia import Inertial
-from .parts import Joint
+from .parts import Joint, Sensor
 
 # Revolute limits that mean "unlimited" to Gazebo (as in its diff_drive
 # example), for continuous joints.
@@ -35,10 +36,13 @@ class LinkOut:
     inertial: Inertial
     shapes: list
     stem: str  # file stem: <model> for a one-link model, else <model>_<link>
+    friction: Optional[float] = None
+    sensors: list = field(default_factory=list)  # parts.Sensor, poses already offset
 
 
 def num(x: float) -> str:
-    return f"{float(x):.6g}"
+    x = float(x)
+    return "0" if abs(x) < 1e-12 else f"{x:.6g}"
 
 
 def pose(p) -> str:
@@ -51,7 +55,7 @@ def write_glb(mesh: trimesh.Trimesh, path: str):
         f.write(trimesh.exchange.gltf.export_glb(trimesh.Scene(mesh), include_normals=True))
 
 
-def collision_xml(i: int, s: Shape, stem: str) -> str:
+def collision_xml(i: int, s: Shape, stem: str, friction: Optional[float] = None) -> str:
     if s.kind == "box":
         geom = f"<box><size>{pose(s.size)}</size></box>"
     elif s.kind == "cylinder":
@@ -61,14 +65,78 @@ def collision_xml(i: int, s: Shape, stem: str) -> str:
     else:
         geom = f"<mesh><uri>meshes/{stem}_collision_{i}.glb</uri></mesh>"
     p = f"\n        <pose>{pose(s.pose)}</pose>" if any(abs(v) > 1e-12 for v in s.pose) else ""
+    surface = "" if friction is None else (
+        f"\n        <surface><friction><ode><mu>{num(friction)}</mu><mu2>{num(friction)}</mu2></ode></friction></surface>")
     return f"""      <collision name="collision_{i}">{p}
-        <geometry>{geom}</geometry>
+        <geometry>{geom}</geometry>{surface}
       </collision>"""
+
+
+def sensor_xml(s: Sensor) -> str:
+    """One <sensor>; s.pos is in the link frame (the model frame, offset)."""
+    k = s.params
+    if s.kind in ("camera", "depth_camera", "rgbd_camera"):
+        fmt = "<format>R_FLOAT32</format>" if s.kind == "depth_camera" else ""
+        body = f"""
+        <camera>
+          <horizontal_fov>{num(k["fov"])}</horizontal_fov>
+          <image><width>{k["width"]}</width><height>{k["height"]}</height>{fmt}</image>
+          <clip><near>{num(k["near"])}</near><far>{num(k["far"])}</far></clip>
+        </camera>"""
+    elif s.kind == "gpu_lidar":
+        vertical = "" if k["vertical_samples"] <= 1 else f"""
+            <vertical><samples>{k["vertical_samples"]}</samples><resolution>1</resolution><min_angle>{num(-k["vertical_fov"] / 2)}</min_angle><max_angle>{num(k["vertical_fov"] / 2)}</max_angle></vertical>"""
+        body = f"""
+        <lidar>
+          <scan>
+            <horizontal><samples>{k["samples"]}</samples><resolution>1</resolution><min_angle>{num(-k["fov"] / 2)}</min_angle><max_angle>{num(k["fov"] / 2)}</max_angle></horizontal>{vertical}
+          </scan>
+          <range><min>{num(k["min_range"])}</min><max>{num(k["max_range"])}</max><resolution>0.01</resolution></range>
+        </lidar>"""
+    else:
+        body = ""
+    return f"""      <sensor name="{s.name}" type="{s.kind}">
+        <pose>{pose([*s.pos, *s.rpy])}</pose>
+        <always_on>true</always_on>
+        <update_rate>{num(s.rate)}</update_rate>
+        <visualize>true</visualize>{body}
+      </sensor>"""
+
+
+def plugin_xml(kind: str, k: dict) -> str:
+    """One model <plugin>; k holds resolved parameters (wheel geometry
+    filled in)."""
+    if kind == "diff_drive":
+        joints = "".join(f"\n      <left_joint>{n}</left_joint>" for n in k["left"]) + \
+                 "".join(f"\n      <right_joint>{n}</right_joint>" for n in k["right"])
+        return f"""    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">{joints}
+      <wheel_separation>{num(k["wheel_separation"])}</wheel_separation>
+      <wheel_radius>{num(k["wheel_radius"])}</wheel_radius>
+      <max_linear_velocity>{num(k["max_speed"])}</max_linear_velocity>
+      <min_linear_velocity>{num(-k["max_speed"])}</min_linear_velocity>
+      <odom_publish_frequency>20</odom_publish_frequency>
+    </plugin>"""
+    if kind == "joint_states":
+        return """    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher"/>"""
+    if kind == "position_controller":
+        limit = "" if "max_effort" not in k else (
+            f"\n      <cmd_max>{num(k['max_effort'])}</cmd_max><cmd_min>{num(-k['max_effort'])}</cmd_min>")
+        return f"""    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>{k["joint"]}</joint_name>
+      <p_gain>{num(k["p_gain"])}</p_gain>
+      <d_gain>{num(k["d_gain"])}</d_gain>{limit}
+    </plugin>"""
+    if kind == "velocity_controller":
+        return f"""    <plugin filename="gz-sim-joint-controller-system" name="gz::sim::systems::JointController">
+      <joint_name>{k["joint"]}</joint_name>
+    </plugin>"""
+    raise ValueError(f"unknown plugin {kind!r}")
 
 
 def link_xml(lk: LinkOut) -> str:
     I, c = lk.inertial.inertia, lk.inertial.center
-    collisions = "\n".join(collision_xml(i, s, lk.stem) for i, s in enumerate(lk.shapes))
+    collisions = "\n".join(collision_xml(i, s, lk.stem, lk.friction) for i, s in enumerate(lk.shapes))
+    sensors = "".join("\n" + sensor_xml(s) for s in lk.sensors)
     return f"""    <link name="{lk.name}">
       <inertial>
         <pose>{pose([*c, 0, 0, 0])}</pose>
@@ -82,7 +150,7 @@ def link_xml(lk: LinkOut) -> str:
       <visual name="visual">
         <geometry><mesh><uri>meshes/{lk.stem}.glb</uri></mesh></geometry>
       </visual>
-{collisions}
+{collisions}{sensors}
     </link>"""
 
 
@@ -116,8 +184,11 @@ def joint_xml(j: Joint, offset: np.ndarray) -> str:
     </joint>"""
 
 
-def model_sdf(name: str, sdf_version: str, static: bool, links: list, joints: list, offset: np.ndarray) -> str:
-    body = "\n".join([link_xml(lk) for lk in links] + [joint_xml(j, offset) for j in joints])
+def model_sdf(name: str, sdf_version: str, static: bool, links: list, joints: list, offset: np.ndarray,
+              plugins: tuple = ()) -> str:
+    """plugins: (kind, resolved params) pairs."""
+    body = "\n".join([link_xml(lk) for lk in links] + [joint_xml(j, offset) for j in joints] +
+                     [plugin_xml(kind, k) for kind, k in plugins])
     return f"""<?xml version="1.0"?>
 <!-- Generated by the AI Builder mesh worker from source/model.py.
      Edit the source and regenerate; don't edit the meshes. -->
@@ -143,7 +214,7 @@ def model_config(name: str, sdf_version: str, description: str) -> str:
 
 
 def write_model(root: str, name: str, *, links: list, joints: list, offset: np.ndarray, static: bool,
-                sdf_version: str, description: str, source: str) -> list[str]:
+                sdf_version: str, description: str, source: str, plugins: tuple = ()) -> list[str]:
     """Writes the model folder under root; returns the paths written,
     relative to root."""
     files = []
@@ -156,7 +227,7 @@ def write_model(root: str, name: str, *, links: list, joints: list, offset: np.n
                 write_glb(s.mesh, os.path.join(root, rel))
                 files.append(rel)
     texts = {
-        "model.sdf": model_sdf(name, sdf_version, static, links, joints, offset),
+        "model.sdf": model_sdf(name, sdf_version, static, links, joints, offset, plugins),
         "model.config": model_config(name, sdf_version, description),
         "source/model.py": source,
     }

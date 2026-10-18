@@ -177,7 +177,14 @@ func (t *tools) validateIn(tc *mcp.ToolContext, project, filePath, rev, doc stri
 	}
 	pf := newProjectFiles(filePath, files)
 	remote := t.uriResolver(tc)
-	return sdf.ValidateWithOptions(doc, sdf.Options{
+	read := func(file string) (string, bool) {
+		if !pf.files[file] {
+			return "", false
+		}
+		b, _, em := projectService.ReadFile(tc.Ctx, tc.DB, *tc.User.Username, project, file, rev, tc.User)
+		return string(b), em == nil
+	}
+	r := sdf.ValidateWithOptions(doc, sdf.Options{
 		ResolveURI: func(uri string) error {
 			if handled, err := pf.resolveInclude(uri); handled {
 				return err
@@ -185,7 +192,31 @@ func (t *tools) validateIn(tc *mcp.ToolContext, project, filePath, rev, doc stri
 			return remote(uri)
 		},
 		ResolveFile: pf.resolveFile,
+		IncludedModel: func(uri string) (string, bool) {
+			if !strings.HasPrefix(uri, "model://") {
+				return "", false
+			}
+			return read(path.Join(modelsDir, strings.Trim(strings.TrimPrefix(uri, "model://"), "/"), "model.sdf"))
+		},
 	})
+	// A project model with sensors: check the world that includes it, which
+	// this write didn't touch.
+	if m := strings.SplitN(filePath, "/", 3); len(m) == 3 && m[0] == modelsDir && m[2] == "model.sdf" {
+		if world, ok := read(worldFile); ok && includesModel(world, m[1]) {
+			for _, p := range sdf.MissingWorldSystems(world, doc) {
+				r.Warnings = append(r.Warnings, sdf.ValidationError{Message: fmt.Sprintf(
+					"%s includes this model, but its sensors publish nothing until %s gets %s", worldFile, worldFile, p)})
+			}
+		}
+	}
+	return r
+}
+
+// worldFile is the project's world, as the agent and viewer name it.
+const worldFile = "world.sdf"
+
+func includesModel(world, model string) bool {
+	return regexp.MustCompile(`model://` + regexp.QuoteMeta(model) + `/?\s*<`).MatchString(world)
 }
 
 // -- model.config ----------------------------------------------------------------

@@ -80,5 +80,58 @@
     "min_entities": 1,
     "want_generated": 1,
     "want_joints": 4
+  },
+  {
+    "id": "sensor-robot",
+    "prompt": "Build a two-wheeled differential-drive robot with a 2D lidar, a front camera and an IMU, and put it in a small walled room with a few boxes to drive around.",
+    "min_entities": 3,
+    "want_joints": 2,
+    "want_topics": [
+      "scan",
+      "image",
+      "imu",
+      "odometry"
+    ]
+  },
+  {
+    "id": "custom-robot",
+    "prompt": "Generate a custom delivery robot (generate the mesh yourself) with a rounded body, two drive wheels, a caster, a lidar on top and a front camera, and put it in the world.",
+    "min_entities": 1,
+    "want_generated": 1,
+    "want_joints": 2,
+    "want_topics": [
+      "scan",
+      "image",
+      "odometry"
+    ]
+  },
+  {
+    "id": "robot-arm",
+    "prompt": "Put a table in the world with a simple robot arm on it: a base, three revolute joints with position controllers, and a camera on the wrist.",
+    "min_entities": 2,
+    "want_joints": 3,
+    "want_topics": [
+      "image"
+    ]
+  },
+  {
+    "id": "truck-bays",
+    "prompt": "Build a warehouse loading dock with three truck bays: roll-up doors, a raised dock platform, dock bumpers, and a box truck backed into one bay.",
+    "min_entities": 8
+  },
+  {
+    "id": "laundry-room",
+    "prompt": "Make a laundry room with a washer, a dryer, a utility sink, wall shelves and a laundry basket.",
+    "min_entities": 6
+  },
+  {
+    "id": "bedroom",
+    "prompt": "Make a bedroom with a bed, two nightstands with lamps, a dresser, a wardrobe and a rug.",
+    "min_entities": 7
+  },
+  {
+    "id": "storage-bins",
+    "prompt": "Build a storage area with metal shelving units holding plastic storage bins, and a few bins stacked on the floor.",
+    "min_entities": 6
   }
 ]

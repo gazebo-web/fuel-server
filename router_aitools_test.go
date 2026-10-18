@@ -388,6 +388,15 @@ func TestAIToolsProjectModels(t *testing.T) {
 	rec = aiRequest(t, "GET", "/1.0/projects/"+name+"/models", jwt, nil)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), `"uri":"model://crate"`)
+
+	// Sensors need world systems: a model write warns about the world that
+	// includes it, and the world check sees sensors inside included models.
+	withCamera := strings.Replace(withMesh, "</link>", `<sensor name="cam" type="camera"/></link>`, 1)
+	w = mcpJSON(t, jwt, "project_write_file", map[string]any{"name": name, "path": "models/crate/model.sdf", "content": withCamera})
+	assert.Contains(t, w["validation"].(map[string]any)["summary"],
+		"world.sdf includes this model, but its sensors publish nothing until world.sdf gets <plugin filename=\"gz-sim-sensors-system\"")
+	val = mcpJSON(t, jwt, "sdf_validate", map[string]any{"name": name, "path": "world.sdf"})
+	assert.Contains(t, val["summary"], "camera sensors (model crate_1) publish nothing")
 }
 
 // A signed file URL serves one revision without an Authorization header,
