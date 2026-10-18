@@ -10,7 +10,7 @@
 // Contact: info@openrobotics.org
 //
 // swagger:meta
-// go:generate swagger generate spec -m
+//go:generate swagger generate spec -m
 package main
 
 // \todo Add in the following to the comments at the top of this file to enable
