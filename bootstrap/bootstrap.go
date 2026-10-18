@@ -24,9 +24,12 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/gazebo-web/gz-go/v7/storage"
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 
+	"github.com/gazebo-web/fuel-server/auth"
 	"github.com/gazebo-web/fuel-server/bundles/subt"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/permissions"
@@ -90,6 +93,29 @@ func Server(logger gz.Logger) {
 	if err != nil {
 		log.Fatal("Failed to initialize web server:", err)
 	}
+}
+
+// Verifier is the JWT check both binaries use (package auth, configured
+// by the AUTH0_* variables).
+func Verifier() *auth.Verifier {
+	cfg := auth.ConfigFromEnv()
+	// The key gz-go holds, which Server set from the same variable and
+	// which may be changed at runtime.
+	cfg.PublicKeySource = globals.Server.Auth0RsaPublicKey
+	v, err := auth.NewVerifier(cfg)
+	if err != nil {
+		log.Fatal("Failed to set up authentication: ", err)
+	}
+	return v
+}
+
+// ConfigureRoutes sets up routes on a gz router with the auth package's
+// JWT checks in place of gz-go's (gz.Server.ConfigureRouterWithRoutes).
+func ConfigureRoutes(v *auth.Verifier, pathPrefix string, router *mux.Router, routes gz.Routes) {
+	usersDB := func() *gorm.DB { return globals.Server.UsersDb }
+	gz.NewRouterConfigurer(router, nil).
+		SetAuthHandlers(v.Optional(), v.Required(usersDB)).
+		ConfigureRouter(pathPrefix, routes)
 }
 
 // VCS uses go-git for resource repositories.

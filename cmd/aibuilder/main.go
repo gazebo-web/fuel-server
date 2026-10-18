@@ -70,7 +70,7 @@ func main() {
 		Encryptor:     enc,
 		Providers:     reg,
 		Tools:         aitools.NewRegistry(toolCfg),
-		Auth:          aibuilder.GzAuth(db, globals.Server),
+		Auth:          aibuilder.Authenticate(db, bootstrap.Verifier()),
 		Effort:        env("AI_BUILDER_EFFORT", "high"),
 		AllowedOrigin: env("AI_BUILDER_ALLOWED_ORIGIN", "http://localhost:3001"),
 	})

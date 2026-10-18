@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gazebo-web/fuel-server/auth"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
@@ -18,7 +19,7 @@ func Login(tx *gorm.DB, w http.ResponseWriter,
 	r *http.Request) (interface{}, *gz.ErrMsg) {
 	// Sanity check: Make sure that we have a user with the identity contained in
 	// the JWT.
-	identity, ok := gz.GetUserIdentity(r)
+	identity, ok := auth.Identity(r)
 	if !ok {
 		return nil, gz.NewErrorMessage(gz.ErrorAuthJWTInvalid)
 	}
@@ -41,7 +42,7 @@ func UserCreate(tx *gorm.DB, w http.ResponseWriter,
 		return nil, em
 	}
 
-	if identity, ok := gz.GetUserIdentity(r); ok {
+	if identity, ok := auth.Identity(r); ok {
 		u.Identity = &identity
 	} else {
 		return nil, gz.NewErrorMessage(gz.ErrorAuthJWTInvalid)

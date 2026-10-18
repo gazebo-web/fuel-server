@@ -5,12 +5,14 @@ import (
 
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
+
+	"github.com/gazebo-web/fuel-server/auth"
 )
 
 // FromRequest returns the user a request is authenticated as: the owner of
 // its Private-Token (a personal access token), which supersedes a JWT, or
 // the user whose identity is the subject of its JWT. The JWT must already
-// be validated by gz's JWT middleware. It is the one resolver for the web
+// be validated by the auth package's middleware. It is the one resolver for the web
 // server's routes and the AI Builder agent.
 func FromRequest(tx *gorm.DB, r *http.Request) (*User, *gz.ErrMsg) {
 	if token := r.Header.Get("Private-Token"); len(token) > 0 {
@@ -24,7 +26,7 @@ func FromRequest(tx *gorm.DB, r *http.Request) (*User, *gz.ErrMsg) {
 		}
 		return user, nil
 	}
-	identity, valid := gz.GetUserIdentity(r)
+	identity, valid := auth.Identity(r)
 	if !valid {
 		return nil, gz.NewErrorMessage(gz.ErrorAuthJWTInvalid)
 	}

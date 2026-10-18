@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"

@@ -21,6 +21,7 @@ import (
 	"github.com/gazebo-web/fuel-server/aibuilder"
 	"github.com/gazebo-web/fuel-server/aibuilder/llm"
 	"github.com/gazebo-web/fuel-server/aitools"
+	"github.com/gazebo-web/fuel-server/bootstrap"
 	"github.com/gazebo-web/fuel-server/globals"
 )
 
@@ -143,7 +144,7 @@ func TestAIBuilderAgent(t *testing.T) {
 	require.NoError(t, err)
 	srv, err := aibuilder.NewServer(globals.Server.Db, aibuilder.Config{
 		Encryptor: enc, Providers: providers, Tools: aitools.NewRegistry(aitools.Config{}),
-		Auth: aibuilder.GzAuth(globals.Server.Db, globals.Server),
+		Auth: aibuilder.Authenticate(globals.Server.Db, bootstrap.Verifier()),
 	})
 	require.NoError(t, err)
 	ts := httptest.NewServer(srv.Handler())

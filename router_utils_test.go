@@ -6,7 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
+	gojwt "github.com/golang-jwt/jwt/v5"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/cmd/token-generator/generator"
 	"github.com/gazebo-web/fuel-server/globals"
@@ -23,6 +24,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 )
 
 // Test utilities and some mocks
@@ -290,7 +292,16 @@ func generateJWT(jwt testJWT, t *testing.T) string {
 		return *jwt.jwt
 	}
 
-	token, err := generator.GenerateTokenRSA256(testPrivateKeyAsPEM, *jwt.jwtClaims)
+	// Tokens need an expiry (package auth); tests that don't set one get
+	// one an hour away.
+	claims := gojwt.MapClaims{}
+	for k, v := range *jwt.jwtClaims {
+		claims[k] = v
+	}
+	if _, ok := claims["exp"]; !ok {
+		claims["exp"] = time.Now().Add(time.Hour).Unix()
+	}
+	token, err := generator.GenerateTokenRSA256(testPrivateKeyAsPEM, claims)
 	assert.NoError(t, err, "Error while generating token")
 	return token
 }

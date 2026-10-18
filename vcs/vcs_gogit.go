@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"io"
 	"log"
 	"os"
@@ -265,7 +265,10 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 		gitUser = gitName
 	}
 
+	// Every update is a new version, even when the files didn't change
+	// (go-git v5 refuses empty commits unless asked).
 	_, err = w.Commit("ReplaceFiles - new version", &git.CommitOptions{
+		AllowEmptyCommits: true,
 		Author: &object.Signature{
 			Name:  gitUser,
 			Email: gitEmail,

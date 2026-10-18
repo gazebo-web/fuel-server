@@ -77,11 +77,11 @@ func init() {
 
 	// Create the main Router and set it to the server.
 	// Note: here it is the place to define multiple APIs
-	s := globals.Server
+	verifier := bootstrap.Verifier()
 	mainRouter := gz.NewRouter()
 	apiPrefix := "/" + globals.APIVersion
 	r := mainRouter.PathPrefix(apiPrefix).Subrouter()
-	s.ConfigureRouterWithRoutes(apiPrefix, r, routes)
+	bootstrap.ConfigureRoutes(verifier, apiPrefix, r, routes)
 
 	// MCP server: registry gets its tools populated below after the rest
 	// of the app state (globals.Permissions, globals.VCSRepoFactory, ...)
@@ -92,7 +92,7 @@ func init() {
 	// Now create a sub router for SubT, enabled with /subt/
 	subtPrefix := apiPrefix + "/subt"
 	sub := mainRouter.PathPrefix(subtPrefix).Subrouter()
-	s.ConfigureRouterWithRoutes(subtPrefix, sub, subTRoutes)
+	bootstrap.ConfigureRoutes(verifier, subtPrefix, sub, subTRoutes)
 
 	// Special swagger.json file server route
 	swaggerRoute := "/" + globals.APIVersion + "/swagger.json"

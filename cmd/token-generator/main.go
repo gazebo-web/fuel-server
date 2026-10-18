@@ -6,10 +6,11 @@ package main
 // Import this file's dependencies
 import (
 	"errors"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gazebo-web/fuel-server/cmd/token-generator/generator"
 	"log"
 	"os"
+	"time"
 )
 
 var gTestPrivateKey string
@@ -40,8 +41,10 @@ func init() {
 }
 
 func main() {
+	// fuel-server rejects tokens without an expiry.
 	jwtClaims := jwt.MapClaims{
 		"sub": gIdentity,
+		"exp": time.Now().Add(30 * 24 * time.Hour).Unix(),
 	}
 
 	testPrivateKeyAsPEM := []byte("-----BEGIN RSA PRIVATE KEY-----\n" + gTestPrivateKey + "\n-----END RSA PRIVATE KEY-----")

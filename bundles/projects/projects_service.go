@@ -16,10 +16,10 @@ import (
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
+	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/jinzhu/gorm"
-	git "gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 // AutoSaveMessage is the canonical commit message used by

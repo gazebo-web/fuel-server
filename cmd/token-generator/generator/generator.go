@@ -6,7 +6,7 @@ package generator
 // Import this file's dependencies
 import (
 	"encoding/base64"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"log"
 )
 

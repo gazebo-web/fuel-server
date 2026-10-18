@@ -53,11 +53,13 @@ func (r *turnRunner) start(turn *ChatTurn, run func(ctx context.Context, out cha
 	go func() {
 		defer cancel()
 		status, errText := r.record(ctx, turn.ID, out)
-		// The done event first: a finished turn always has one.
-		r.append(turn.ID, Event{Type: EventDone, Status: status, Error: errText})
+		// Finished before the done event, so whoever sees done (and then
+		// reads the history) sees the turn finished. A follower here won't
+		// mistake the gap for a turn that died: it's still in cancels.
 		if err := r.store.FinishTurn(turn.ID, status, errText); err != nil {
 			log.Printf("aibuilder: finish turn %s: %v", turn.ID, err)
 		}
+		r.append(turn.ID, Event{Type: EventDone, Status: status, Error: errText})
 		r.mu.Lock()
 		delete(r.cancels, turn.ID)
 		r.mu.Unlock()
