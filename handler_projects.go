@@ -1,8 +1,11 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -441,6 +444,43 @@ func buildFileTree(files []string) []*fileTreeNode {
 		}
 	}
 	return root
+}
+
+// ProjectExportZip handles GET /1.0/projects/{name}/export.zip: every file
+// of the project at HEAD, in a folder named after the project.
+func ProjectExportZip(name string, jwtUser *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+
+	if jwtUser == nil {
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
+	}
+	s := &projects.Service{}
+	files, rev, em := s.ListFiles(r.Context(), tx, *jwtUser.Username, name, "", jwtUser)
+	if em != nil {
+		return nil, em
+	}
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, f := range files {
+		b, _, em := s.ReadFile(r.Context(), tx, *jwtUser.Username, name, f, rev, jwtUser)
+		if em != nil {
+			return nil, em
+		}
+		fw, err := zw.Create(name + "/" + f)
+		if err == nil {
+			_, err = fw.Write(b)
+		}
+		if err != nil {
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, name+".zip"))
+	_, _ = w.Write(buf.Bytes())
+	return nil, nil
 }
 
 // ProjectModels handles GET /1.0/projects/{name}/models?rev=: the project's

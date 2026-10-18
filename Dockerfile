@@ -10,8 +10,10 @@ RUN apt-get update && apt-get install -y nano vim &&  \
 COPY . /root/gz-fuelserver
 WORKDIR /root/gz-fuelserver
 
-# Build app
-RUN go build
+# Build app. The image holds both binaries: fuel-server (the default) and
+# the AI Builder agent, run as a second container on the same host with
+# command "aibuilder" (port 8010).
+RUN go build && go build -o /usr/local/bin/aibuilder ./cmd/aibuilder
 CMD ["./fuel-server"]
 
-EXPOSE 8000
+EXPOSE 8000 8010

@@ -2972,6 +2972,24 @@ var routes = gz.Routes{
 		},
 	},
 
+	// /projects/{name}/export.zip — every file at HEAD, as a zip.
+	gz.Route{
+		Name:          "ProjectExportZip",
+		Description:   "Download a project's files at HEAD as a zip",
+		URI:           "/projects/{name}/export.zip",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Zip of the project at HEAD",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameHandler("name", true, ProjectExportZip)))},
+				},
+			},
+		},
+	},
+
 	// /projects/{name}/models — the project's custom models.
 	gz.Route{
 		Name:          "ProjectModels",

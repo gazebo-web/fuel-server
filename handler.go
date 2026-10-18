@@ -378,35 +378,11 @@ func getValidationErrorsExtraInfo(err error) []string {
 // This function can return ErrorAuthJWTInvalid if the token cannot be
 // read, or ErrorAuthNoUser no user with such identity exists in the DB.
 func getUserFromJWT(tx *gorm.DB, r *http.Request) (*users.User, bool, gz.ErrMsg) {
-	var user *users.User
-
-	// Check if a Private-Token is used, which will supercede a JWT token.
-	if token := r.Header.Get("Private-Token"); len(token) > 0 {
-		var accessToken *gz.AccessToken
-		var err *gz.ErrMsg
-		if accessToken, err = gz.ValidateAccessToken(token, tx); err != nil {
-			return nil, false, gz.ErrorMessage(gz.ErrorUnauthorized)
-		}
-
-		user = new(users.User)
-		if err := tx.Where("id = ?", accessToken.UserID).First(user).Error; err != nil {
-			return nil, false, *gz.NewErrorMessage(gz.ErrorUnauthorized)
-		}
-	} else {
-		identity, valid := gz.GetUserIdentity(r)
-		if !valid {
-			return nil, false, gz.ErrorMessage(gz.ErrorAuthJWTInvalid)
-		}
-
-		var em *gz.ErrMsg
-		user, em = users.ByIdentity(tx, identity, false)
-		if em != nil {
-			return nil, false, *em
-		}
+	user, em := users.FromRequest(tx, r)
+	if em != nil {
+		return nil, false, *em
 	}
-
-	errMsg := gz.ErrorMessageOK()
-	return user, true, errMsg
+	return user, true, gz.ErrorMessageOK()
 }
 
 // getRequestFiles return the multipart form files from the request field "file"
