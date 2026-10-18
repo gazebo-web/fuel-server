@@ -18,6 +18,7 @@ gives the agent a clear error, not the security boundary.
 import ast
 import builtins
 import json
+import math
 import os
 import re
 import sys
@@ -29,7 +30,7 @@ import trimesh
 
 from . import atlas, collision, export, inertia, parts, preview, tessellate
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 ALLOWED_IMPORTS = {"build123d", "gzmesh", "math", "numpy", "random", "itertools", "functools", "typing",
                    "dataclasses", "collections", "copy"}
@@ -128,75 +129,138 @@ def watertight(ps: list[parts.Part], tolerance: float) -> tuple[trimesh.Trimesh,
     return mesh, vol, warnings
 
 
+def link_texture_size(area: float, total: float, size: int) -> int:
+    """Texture size for a link with `area` of the model's `total` surface:
+    the same texel density as one atlas of `size` for the whole model,
+    rounded to a power of two, at least 256."""
+    want = size * math.sqrt(area / total) if total > 0 else size
+    return int(min(size, max(256, 2 ** round(math.log2(max(want, 1))))))
+
+
 def build_model(job: dict, out: str) -> dict:
     t0 = time.monotonic()
     timings = {}
     j = check_job(job)
     name = j["name"]
     tree = check_code(j["code"])
-    ps = parts.normalize(run_code(tree))
+    asm = parts.normalize(run_code(tree))
+    single = len(asm.links) == 1
     timings["code_s"] = time.monotonic() - t0
 
     t = time.monotonic()
-    meshes, tess = tessellate.tessellate_parts(ps, j["tri_budget"])
-    mesh, face_part = tessellate.combine(meshes)
-    offset = tessellate.bottom_center_offset(mesh)
-    mesh.apply_translation(offset)
+    all_parts = [p for lk in asm.links for p in lk.parts]
+    meshes, tess = tessellate.tessellate_parts(all_parts, j["tri_budget"])
+    by_link, i = [], 0
+    for lk in asm.links:
+        by_link.append(meshes[i:i + len(lk.parts)])
+        i += len(lk.parts)
+    offset = tessellate.bottom_center_offset(tessellate.combine(meshes)[0])
     timings["tessellate_s"] = time.monotonic() - t
 
-    t = time.monotonic()
-    visual, utilization = atlas.bake(mesh, face_part, [p.material for p in ps], j["texture_size"])
-    timings["bake_s"] = time.monotonic() - t
+    inertials = inertia.compute_links(asm.links, j.get("mass"), j.get("density"))
+    total_area = sum(m.area for m in meshes)
+    warnings, links, link_reports = [], [], []
+    timings["bake_s"] = timings["collision_s"] = 0.0
+    for lk, lmeshes, inert in zip(asm.links, by_link, inertials):
+        t = time.monotonic()
+        mesh, face_part = tessellate.combine(lmeshes)
+        mesh.apply_translation(offset)
+        size = j["texture_size"] if single else link_texture_size(mesh.area, total_area, j["texture_size"])
+        visual, utilization = atlas.bake(mesh, face_part, [p.material for p in lk.parts], size)
+        timings["bake_s"] += time.monotonic() - t
 
-    t = time.monotonic()
-    solid, solid_volume, warnings = watertight(ps, max(tess["tolerance_m"], 1e-4))
-    solid.apply_translation(offset)
-    shapes, coll = collision.build(solid, solid_volume, j["collision"])
-    timings["collision_s"] = time.monotonic() - t
+        t = time.monotonic()
+        solid, solid_volume, w = watertight(lk.parts, max(tess["tolerance_m"], 1e-4))
+        warnings += w
+        solid.apply_translation(offset)
+        shapes, coll = collision.build(solid, solid_volume, j["collision"])
+        timings["collision_s"] += time.monotonic() - t
 
-    inert = inertia.compute(ps, j.get("mass"), j.get("density"))
-    inert.center = inert.center + offset
-    inert.check()
-    if inert.volume > solid_volume * 1.02:
-        warnings.append(f"parts overlap: their volumes add up to {inert.volume:.4g} m³ but the solid is "
-                        f"{solid_volume:.4g} m³, so the mass counts the overlap twice")
+        inert.center = inert.center + offset
+        try:
+            inert.check()
+        except ValueError as e:
+            raise ValueError(f"link {lk.name!r}: {e}") from None
+        where = "" if single else f"link {lk.name!r}: "
+        if inert.volume > solid_volume * 1.02:
+            warnings.append(f"{where}parts overlap: their volumes add up to {inert.volume:.4g} m³ but the solid is "
+                            f"{solid_volume:.4g} m³, so the mass counts the overlap twice")
+        links.append(export.LinkOut(lk.name, visual, inert, shapes, name if single else f"{name}_{lk.name}"))
+        link_reports.append({
+            "name": lk.name,
+            "parts": [{"name": p.name, "material": p.material.describe(),
+                       "volume_m3": round(float(p.shape.volume), 8)} for p in lk.parts],
+            "triangles": int(len(visual.faces)),
+            "bounding_box_m": [round(float(x), 4) for x in visual.extents],
+            "texture": {"size": size, "atlas_utilization": round(utilization, 3)},
+            "collision": {**coll, "shapes": [
+                {"kind": s.kind, **({"vertices": int(len(s.mesh.vertices))} if s.kind == "mesh" else {})}
+                for s in shapes]},
+            "inertial": {"mass_kg": round(inert.mass, 6), "volume_m3": round(solid_volume, 8),
+                         "center_of_mass_m": [round(float(x), 5) for x in inert.center],
+                         "principal_moments": [float(f"{x:.6g}") for x in np.linalg.eigvalsh(inert.inertia)]},
+        })
     if tess["decimated"]:
         warnings.append(f"decimated from {tess['before_decimation']} to {tess['triangles']} triangles to fit "
                         f"tri_budget; raise it if detail was lost")
+    warnings += joint_warnings(asm, links, offset)
 
     root = os.path.join(out, "models", name)
-    files = export.write_model(root, name, visual=visual, shapes=shapes, inertial=inert, static=j["static"],
+    files = export.write_model(root, name, links=links, joints=asm.joints, offset=offset, static=j["static"],
                                sdf_version=j["sdf_version"], description=j["description"], source=j["code"])
     t = time.monotonic()
-    preview.sheet(visual).save(os.path.join(out, "preview.png"))
+    preview.sheet([lk.visual for lk in links]).save(os.path.join(out, "preview.png"))
     timings["preview_s"] = time.monotonic() - t
     timings["total_s"] = time.monotonic() - t0
 
-    size = visual.extents
-    principal = np.linalg.eigvalsh(inert.inertia)
-    return {
+    lo = np.min([lk.visual.bounds[0] for lk in links], axis=0)
+    hi = np.max([lk.visual.bounds[1] for lk in links], axis=0)
+    report = {
         "ok": True,
         "name": name,
         "uri": f"model://{name}",
         "files": [f"models/{name}/{f}" for f in files],
-        "bounding_box_m": [round(float(x), 4) for x in size],
-        "triangles": int(len(visual.faces)),
-        "vertices": int(len(visual.vertices)),
+        "bounding_box_m": [round(float(x), 4) for x in hi - lo],
+        "triangles": sum(r["triangles"] for r in link_reports),
         "tessellation": tess,
-        "parts": [{"name": p.name, "material": p.material.describe(), "volume_m3": round(float(p.shape.volume), 8)}
-                  for p in ps],
-        "texture": {"size": j["texture_size"], "atlas_utilization": round(utilization, 3)},
-        "collision": {**coll, "shapes": [
-            {"kind": s.kind, **({"vertices": int(len(s.mesh.vertices))} if s.kind == "mesh" else {})}
-            for s in shapes]},
-        "inertial": {"mass_kg": round(inert.mass, 6), "volume_m3": round(solid_volume, 8),
-                     "center_of_mass_m": [round(float(x), 5) for x in inert.center],
-                     "principal_moments": [float(f"{x:.6g}") for x in principal]},
         "static": j["static"],
         "warnings": warnings,
         "timings": {k: round(v, 3) for k, v in timings.items()},
         "versions": versions(),
     }
+    if single:
+        lr = link_reports[0]
+        report.update(parts=lr["parts"], texture=lr["texture"], collision=lr["collision"], inertial=lr["inertial"])
+    else:
+        report["inertial"] = {"mass_kg": round(sum(lk.inertial.mass for lk in links), 6)}
+        report["links"] = link_reports
+        report["joints"] = [{
+            "name": jt.name, "type": jt.kind, "parent": jt.parent, "child": jt.child,
+            **({} if jt.kind == "fixed" else {
+                "origin_m": [round(float(x), 5) for x in jt.origin + offset],
+                "axis": [round(float(x), 5) for x in jt.axis]}),
+            **({"limits": [jt.lower, jt.upper]} if jt.kind in ("revolute", "prismatic") else {}),
+        } for jt in asm.joints]
+    return report
+
+
+def joint_warnings(asm, links, offset) -> list[str]:
+    """A joint whose origin is far from both links it connects is almost
+    always a mistake (an origin in the wrong frame, or millimeters for
+    meters)."""
+    out = []
+    boxes = {lk.name: lk.visual.bounds for lk in links}
+    for jt in asm.joints:
+        if jt.kind == "fixed":
+            continue
+        o = jt.origin + offset
+        lo = np.minimum(boxes[jt.parent][0], boxes[jt.child][0])
+        hi = np.maximum(boxes[jt.parent][1], boxes[jt.child][1])
+        margin = 0.25 * float((hi - lo).max())
+        if ((o < lo - margin) | (o > hi + margin)).any():
+            out.append(f"joint {jt.name!r}: origin {np.round(jt.origin, 3).tolist()} is far from links "
+                       f"{jt.parent!r} and {jt.child!r}; joint origins are in the model frame, as built")
+    return out
 
 
 def versions() -> dict:

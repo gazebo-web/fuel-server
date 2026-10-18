@@ -29,7 +29,7 @@ import (
 )
 
 // gzmeshVersion is part of the cache key; bump it with gzmesh/run.py VERSION.
-const gzmeshVersion = "0.1.0"
+const gzmeshVersion = "0.2.0"
 
 type config struct {
 	Addr, Token             string

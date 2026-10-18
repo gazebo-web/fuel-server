@@ -177,7 +177,7 @@ func TestMeshAPIReference(t *testing.T) {
 			t.Errorf("topic %q: missing %q", topic, want)
 		}
 	}
-	if topics := meshTopics(); len(topics) < 8 || topics[0] != "booleans_patterns" {
+	if topics := strings.Join(meshTopics(), " "); !strings.Contains(topics, "articulation") || !strings.Contains(topics, "booleans_patterns") {
 		t.Errorf("topics %v", topics)
 	}
 }

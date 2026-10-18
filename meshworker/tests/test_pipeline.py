@@ -198,3 +198,95 @@ def test_code_errors_are_reported_with_lines(build, code_, error, line):
 def test_job_errors(build, job, error):
     code, r, _ = build(BOX, **job)
     assert code == 2 and error in r["error"], r
+
+
+LEVER = """
+from build123d import *
+import gzmesh as gz
+
+def build():
+    post = Box(0.2, 0.2, 1.0, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    arm = Pos(0.4, 0, 0.95) * Box(0.6, 0.05, 0.05)
+    return gz.model(
+        links=[gz.link("post", gz.part(post, "post", gz.concrete())),
+               gz.link("arm", gz.part(arm, "arm", gz.painted_metal("red")))],
+        joints=[gz.revolute("pivot", "post", "arm", origin=(0.1, 0, 0.95), axis=(0, 2, 0), lower=-3, upper=3)])
+"""
+
+
+def test_articulated_model(build):
+    """Verified in Gazebo Harmonic: the arm swings about the pivot, keeping
+    its distance to it (meshworker/spike/README.md)."""
+    code, r, out = build(LEVER, mass=50)
+    assert code == 0, r
+    m = out / "models" / "thing"
+    for f in ("meshes/thing_post.glb", "meshes/thing_arm.glb"):
+        assert (m / f).is_file(), f
+    assert [l["name"] for l in r["links"]] == ["post", "arm"]
+    assert sum(l["inertial"]["mass_kg"] for l in r["links"]) == pytest.approx(50)
+    # Steel arm vs concrete post: densities keep their ratio when scaled.
+    post, arm = r["links"]
+    assert arm["inertial"]["mass_kg"] / arm["inertial"]["volume_m3"] / (
+        post["inertial"]["mass_kg"] / post["inertial"]["volume_m3"]) == pytest.approx(7850 / 2400, rel=1e-3)
+
+    root = sdf(out, "thing")
+    assert [l.get("name") for l in root.findall("model/link")] == ["post", "arm"]
+    j = root.find("model/joint")
+    assert j.get("type") == "revolute" and j.find("parent").text == "post" and j.find("child").text == "arm"
+    # The model's bounding box spans x -0.1..0.7, so the origin moves by -0.3.
+    assert [float(x) for x in j.find("pose").text.split()] == pytest.approx([-0.2, 0, 0.95, 0, 0, 0])
+    assert [float(x) for x in j.find("axis/xyz").text.split()] == pytest.approx([0, 1, 0])
+    assert float(j.find("axis/limit/lower").text) == -3 and float(j.find("axis/limit/upper").text) == 3
+    assert r["joints"][0]["origin_m"] == pytest.approx([-0.2, 0, 0.95])
+    for link in root.findall("model/link"):
+        assert link.find("visual/geometry/mesh/uri").text == f"meshes/thing_{link.get('name')}.glb"
+
+
+def test_continuous_and_prismatic_joints(build):
+    code, r, out = build("""
+from build123d import *
+import gzmesh as gz
+
+def build():
+    body = Box(0.4, 0.3, 0.2, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    slider = Pos(0.25, 0, 0.1) * Box(0.1, 0.1, 0.1)
+    wheel = Pos(0, 0.2, 0.1) * Rot(90, 0, 0) * Cylinder(0.08, 0.04)
+    return gz.model(
+        links=[gz.link("body", body), gz.link("slider", slider), gz.link("wheel", wheel)],
+        joints=[gz.prismatic("slide", "body", "slider", origin=(0.2, 0, 0.1), axis=(1, 0, 0), lower=0, upper=0.2),
+                gz.continuous("axle", "body", "wheel", origin=(0, 0.2, 0.1), axis=(0, 1, 0))])
+""")
+    assert code == 0, r
+    joints = {j.get("name"): j for j in sdf(out, "thing").findall("model/joint")}
+    assert joints["slide"].get("type") == "prismatic"
+    assert joints["axle"].get("type") == "revolute"  # unlimited, as Gazebo's diff_drive example does
+    assert float(joints["axle"].find("axis/limit/upper").text) > 1e300
+    assert r["warnings"] == []
+
+
+@pytest.mark.parametrize("joints, error", [
+    ('[gz.revolute("j", "a", "nope", (0, 0, 0), (0, 0, 1), 0, 1)]', "no link named 'nope'"),
+    ('[]', "unconnected roots"),
+    ('[gz.revolute("j", "a", "b", (0, 0, 0), (0, 0, 1), 0, 1), gz.revolute("k", "b", "a", (0, 0, 0), (0, 0, 1), 0, 1)]',
+     "unconnected roots"),
+    ('[gz.revolute("j", "a", "b", (0, 0, 0), (0, 0, 1), 1, 0)]', "lower (1.0) must be less than upper"),
+    ('[gz.revolute("j", "a", "b", (0, 0, 0), (0, 0, 0), 0, 1)]', "axis must not be zero"),
+    ('[gz.revolute("j", "a", "b", (0, 0, 0), (0, 0, 1), 0, 7)]', "use gz.continuous"),
+    ('[gz.revolute("j", "a", "b", (0, 0, 0), (0, 0, 1), 0, 1), gz.revolute("j", "a", "b", (0, 0, 0), (0, 0, 1), 0, 1)]',
+     "joint names must be unique"),
+])
+def test_joint_errors(build, joints, error):
+    code, r, _ = build(f"""
+from build123d import *
+import gzmesh as gz
+
+def build():
+    a, b = gz.link("a", Box(1, 1, 1)), gz.link("b", Pos(2, 0, 0) * Box(1, 1, 1))
+    return gz.model(links=[a, b], joints={joints})
+""")
+    assert code == 2 and error in r["error"], r
+
+
+def test_far_joint_origin_warns(build):
+    code, r, _ = build(LEVER.replace("origin=(0.1, 0, 0.95)", "origin=(100, 0, 950)"))
+    assert code == 0 and any("far from links" in w for w in r["warnings"]), r["warnings"]

@@ -72,8 +72,10 @@ func (t *tools) registerMesh(reg *mcp.Registry) {
 		Spec: mcp.ToolSpec{
 			Name: "model_generate",
 			Description: "Generate a custom mesh model from build123d Python you write, for objects that Fuel " +
-				"doesn't have and primitives can't shape well (curves, fillets, sweeps, holes, text). The " +
-				"code defines build() returning gz.part(shape, name, material) parts; the server " +
+				"doesn't have and primitives can't shape well (curves, fillets, sweeps, holes, text), " +
+				"including ones with moving parts (doors, drawers, wheels: links and joints). The code " +
+				"defines build() returning gz.part(shape, name, material) parts or a gz.model of links " +
+				"and joints; the server " +
 				"tessellates, textures, adds collision and exact inertia, and commits models/<model>/ with " +
 				"your code in source/model.py. Returns a report and a preview image: check it, then fix " +
 				"the code and call again with the same model to replace it. Read mesh_api_reference first. " +
@@ -277,7 +279,8 @@ func (t *tools) commitGenerated(tc *mcp.ToolContext, project, model, baseRev str
 		"preview": "attached: three-quarter from the front (+X -Y) and back (-X +Y), front (+X), top; also " +
 			path.Join(dir, "previews", "preview.png"),
 	}
-	for _, k := range []string{"bounding_box_m", "triangles", "collision", "inertial", "parts", "warnings", "tessellation"} {
+	for _, k := range []string{"bounding_box_m", "triangles", "collision", "inertial", "parts", "links", "joints",
+		"warnings", "tessellation"} {
 		if v, ok := out.report[k]; ok {
 			summary[k] = v
 		}

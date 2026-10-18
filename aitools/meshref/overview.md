@@ -27,4 +27,4 @@ def build():
     ]
 ```
 
-Topics: `positioning`, `sketches`, `sweep_loft`, `fillet_chamfer`, `booleans_patterns`, `materials`, `errors`.
+Topics: `positioning`, `sketches`, `sweep_loft`, `fillet_chamfer`, `booleans_patterns`, `articulation` (doors, drawers, wheels), `materials`, `errors`.
