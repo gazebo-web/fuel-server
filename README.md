@@ -421,6 +421,14 @@ Deployments to AWS Elastic Beanstalk (EBS) are managed through the [deploy](.git
      gh workflow run deploy.yml -f tag=v2.11.0 -f environment=production
      ```
 
+Notes:
+
+* Tags must look like `vMAJOR.MINOR.PATCH`, optionally with a suffix such as `v2.11.0-rc1`. Other tag names are rejected.
+* Only tags on `main` can be deployed to `production`.
+* The workflow waits for Elastic Beanstalk to finish and fails if the environment ends up on a different version (for example after a rollback) or with Red health.
+* GitHub does not start the workflow for tags pushed using the workflow's built-in `GITHUB_TOKEN`, or when more than three tags are pushed at once. Use `workflow_dispatch` for those.
+* In addition to the permissions needed to upload and deploy, the AWS credentials for each environment need `elasticbeanstalk:DescribeApplicationVersions` and `elasticbeanstalk:DescribeEnvironments`.
+
 # AWS Configuration
 
 * Elastic Beanstalk runs Go in a docker container

@@ -22,6 +22,10 @@ on:
           - production
         default: staging
 
+# The job only reads the repository; AWS access comes from environment secrets.
+permissions:
+  contents: read
+
 concurrency:
   group: deploy-${{ inputs.environment || 'staging' }}
   cancel-in-progress: false
@@ -34,25 +38,48 @@ jobs:
     env:
       TARGET_ENV: ${{ inputs.environment || 'staging' }}
       TARGET_TAG: ${{ inputs.tag || github.ref_name }}
+      EB_APPLICATION: gz-fuel-server
+      EB_ENVIRONMENT: gz-fuel-server-${{ inputs.environment || 'staging' }}
+      S3_BUCKET: fuel.gazebosim.org
     steps:
+      # The tag name ends up in shell commands, S3 keys and EB version labels,
+      # so reject anything that is not a plain release tag before using it.
+      - name: Validate release tag
+        run: |
+          if [[ ! "$TARGET_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::'${TARGET_TAG}' is not a release tag (expected e.g. v2.11.0 or v2.11.0-rc1)"
+            exit 1
+          fi
+
       - name: Checkout tag
-        uses: actions/checkout@v3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ env.TARGET_TAG }}
+          # Full history is needed to check that the tag is on main.
+          fetch-depth: 0
+          persist-credentials: false
 
+      - name: Verify tag is on main
+        if: env.TARGET_ENV == 'production'
+        run: |
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::Tag ${TARGET_TAG} is not on main; refusing to deploy it to production"
+            exit 1
+          fi
+
+      # Values derived from the validated tag are exported as environment
+      # variables so that later steps never interpolate them into scripts.
       - name: Determine version metadata
-        id: meta
         run: |
           COMMIT_SHA=$(git rev-parse HEAD)
-          SHORT_SHA=$(git rev-parse --short HEAD)
+          SHORT_SHA=$(git rev-parse --short=12 HEAD)
           VERSION_LABEL="ver-${TARGET_TAG}-${SHORT_SHA}"
-          S3_KEY="deploy_package-${VERSION_LABEL}.zip"
-          echo "commit_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "version_label=${VERSION_LABEL}" >> "$GITHUB_OUTPUT"
-          echo "s3_key=${S3_KEY}" >> "$GITHUB_OUTPUT"
+          echo "COMMIT_SHA=${COMMIT_SHA}" >> "$GITHUB_ENV"
+          echo "VERSION_LABEL=${VERSION_LABEL}" >> "$GITHUB_ENV"
+          echo "S3_KEY=deploy_package-${VERSION_LABEL}.zip" >> "$GITHUB_ENV"
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.19'
 
@@ -63,10 +90,10 @@ jobs:
         #   run: go test -v ./...
 
       - name: Generate deployment package
-        run: zip -r "${{ steps.meta.outputs.s3_key }}" . -x '*.git*'
+        run: zip -r "$S3_KEY" . -x '*.git*'
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -76,11 +103,11 @@ jobs:
         id: eb_version
         run: |
           EXISTING=$(aws elasticbeanstalk describe-application-versions \
-            --application-name gz-fuel-server \
-            --version-labels "${{ steps.meta.outputs.version_label }}" \
+            --application-name "$EB_APPLICATION" \
+            --version-labels "$VERSION_LABEL" \
             --query "ApplicationVersions[0].VersionLabel" \
             --output text)
-          if [ "$EXISTING" = "${{ steps.meta.outputs.version_label }}" ]; then
+          if [ "$EXISTING" = "$VERSION_LABEL" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -88,20 +115,63 @@ jobs:
 
       - name: Upload package to S3 bucket
         if: steps.eb_version.outputs.exists == 'false'
-        run: aws s3 cp "${{ steps.meta.outputs.s3_key }}" "s3://fuel.gazebosim.org/${{ steps.meta.outputs.s3_key }}"
+        run: aws s3 cp "$S3_KEY" "s3://${S3_BUCKET}/${S3_KEY}"
 
       - name: Create new ElasticBeanstalk Application Version
         if: steps.eb_version.outputs.exists == 'false'
         run: |
           aws elasticbeanstalk create-application-version \
-            --application-name gz-fuel-server \
-            --source-bundle S3Bucket="fuel.gazebosim.org",S3Key="${{ steps.meta.outputs.s3_key }}" \
-            --version-label "${{ steps.meta.outputs.version_label }}" \
-            --description "tag-${{ env.TARGET_TAG }}-sha-${{ steps.meta.outputs.commit_sha }}"
+            --application-name "$EB_APPLICATION" \
+            --source-bundle S3Bucket="$S3_BUCKET",S3Key="$S3_KEY" \
+            --version-label "$VERSION_LABEL" \
+            --description "tag-${TARGET_TAG}-sha-${COMMIT_SHA}"
+
+      # The concurrency group only serialises workflow runs. A deployment
+      # started elsewhere (console, legacy branch workflow) can still be in
+      # progress, and EB rejects updates until the environment is Ready.
+      - name: Wait for environment to be ready
+        timeout-minutes: 30
+        run: |
+          while true; do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --environment-names "$EB_ENVIRONMENT" --no-include-deleted \
+              --query "Environments[0].Status" --output text)
+            case "$STATUS" in
+              Ready) exit 0 ;;
+              None) echo "::error::Environment ${EB_ENVIRONMENT} not found"; exit 1 ;;
+            esac
+            echo "${EB_ENVIRONMENT} is ${STATUS}; waiting..."
+            sleep 20
+          done
 
       - name: Deploy ElasticBeanstalk Application Version
         run: |
           aws elasticbeanstalk update-environment \
-            --environment-name "gz-fuel-server-${{ env.TARGET_ENV }}" \
-            --version-label "${{ steps.meta.outputs.version_label }}"
+            --environment-name "$EB_ENVIRONMENT" \
+            --version-label "$VERSION_LABEL"
 
+      # update-environment returns as soon as the deployment starts. Wait for
+      # it to finish and confirm EB did not roll back to the previous version.
+      - name: Verify deployment
+        timeout-minutes: 30
+        run: |
+          while true; do
+            # Sleep first so the poll does not see the pre-update Ready state.
+            sleep 20
+            read -r STATUS HEALTH DEPLOYED <<< "$(aws elasticbeanstalk describe-environments \
+              --environment-names "$EB_ENVIRONMENT" --no-include-deleted \
+              --query "Environments[0].[Status,Health,VersionLabel]" --output text)"
+            if [ "$STATUS" = "Ready" ]; then
+              break
+            fi
+            echo "${EB_ENVIRONMENT} is ${STATUS} (health ${HEALTH}); waiting..."
+          done
+          echo "${EB_ENVIRONMENT}: version ${DEPLOYED}, health ${HEALTH}"
+          if [ "$DEPLOYED" != "$VERSION_LABEL" ]; then
+            echo "::error::${EB_ENVIRONMENT} is running ${DEPLOYED}, expected ${VERSION_LABEL}"
+            exit 1
+          fi
+          if [ "$HEALTH" = "Red" ]; then
+            echo "::error::${EB_ENVIRONMENT} is Red after deploying ${VERSION_LABEL}"
+            exit 1
+          fi
