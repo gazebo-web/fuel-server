@@ -3079,29 +3079,6 @@ var routes = gz.Routes{
 		SecureMethods: gz.SecureMethods{},
 	},
 
-	/////////
-	// MCP //
-	/////////
-	//
-	// Single JSON-RPC 2.0 endpoint over HTTP. Every tool invocation runs
-	// as the authenticated caller, so the existing RBAC + private-resource
-	// query-time filters apply to MCP calls automatically. External agents
-	// (Claude Desktop, CLIs) can connect with the same Bearer/Private-Token
-	// credentials they already use for the REST API.
-	gz.Route{
-		Name:          "MCP",
-		Description:   "Model Context Protocol endpoint",
-		URI:           "/mcp",
-		Headers:       gz.AuthHeadersRequired,
-		Methods:       gz.Methods{},
-		SecureMethods: gz.SecureMethods{
-			gz.Method{
-				Type:        "POST",
-				Description: "Dispatch one MCP JSON-RPC request",
-				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.Handler(NoResult(MCPEndpoint))},
-				},
-			},
-		},
-	},
+	// The MCP endpoint, /1.0/mcp, is mounted ahead of these routes: see
+	// mountMCP in handler_mcp.go.
 } // routes

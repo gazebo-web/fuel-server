@@ -389,13 +389,17 @@ func AccessTokenDelete(jwtUser *User, tx *gorm.DB, accessToken gz.AccessToken) (
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
-	// Permanently delete the token
+	// Permanently delete the token and its scopes
+	tx.Where("token_id = ?", token.ID).Delete(&AccessTokenScope{})
 	tx.Unscoped().Delete(&token)
 	return nil, nil
 }
 
 // AccessTokenCreate creates a new access token for a user.
-func AccessTokenCreate(jwtUser *User, tx *gorm.DB, accessTokenCreateRequest gz.AccessTokenCreateRequest) (interface{}, *gz.ErrMsg) {
+// scopes limits what the token may do (allowed lists the known scopes);
+// none means full access.
+func AccessTokenCreate(jwtUser *User, tx *gorm.DB, accessTokenCreateRequest gz.AccessTokenCreateRequest,
+	scopes, allowed []string) (interface{}, *gz.ErrMsg) {
 
 	newToken, saltedToken, err := accessTokenCreateRequest.Create(tx)
 
@@ -404,5 +408,8 @@ func AccessTokenCreate(jwtUser *User, tx *gorm.DB, accessTokenCreateRequest gz.A
 	}
 
 	tx.Model(jwtUser).Association("AccessTokens").Append(saltedToken)
+	if em := setTokenScopes(tx, saltedToken.ID, scopes, allowed); em != nil {
+		return nil, em
+	}
 	return newToken, nil
 }

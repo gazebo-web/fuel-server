@@ -15,11 +15,13 @@ import (
 	"time"
 
 	"github.com/gazebo-web/fuel-server/aitools"
+	"github.com/gazebo-web/fuel-server/bootstrap"
 	"github.com/gazebo-web/fuel-server/bundles/projects"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/mcp"
 	"github.com/gazebo-web/fuel-server/sdf"
+	jwt5 "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,6 +52,10 @@ func aiRequest(t *testing.T, method, url, jwt string, body any) *httptest.Respon
 	req, _ := http.NewRequest(method, url, b)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
+	if strings.HasSuffix(url, "/mcp") {
+		// Streamable HTTP clients must accept both.
+		req.Header.Set("Accept", "application/json, text/event-stream")
+	}
 	rec := httptest.NewRecorder()
 	globals.Server.Router.ServeHTTP(rec, req)
 	return rec
@@ -713,4 +719,103 @@ func TestAIToolsModelSizes(t *testing.T) {
 	box := summary.Summary.Entities[0].BBox.(map[string]any)
 	assert.Equal(t, []any{1.6, 2.5, 0.0}, box["world_min"])
 	assert.Equal(t, []any{2.4, 3.5, 0.75}, box["world_max"])
+}
+
+// The public MCP endpoint's OAuth surface (design §8.4): protected
+// resource metadata, 401s that point at it, personal access tokens with
+// scopes, and OAuth tokens limited to this resource and their scopes.
+func TestMCPAuth(t *testing.T) {
+	setup()
+	jwt := createValidJWTForIdentity("mcp-auth-identity", t)
+	username := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(username, jwt, t)
+
+	call := func(h http.Handler, path, header, value, method, tool string) *httptest.ResponseRecorder {
+		body := map[string]any{"jsonrpc": "2.0", "id": 1, "method": method}
+		if tool != "" {
+			body["params"] = map[string]any{"name": tool, "arguments": map[string]any{}}
+		}
+		b, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", path, bytes.NewReader(b))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		if header != "" {
+			req.Header.Set(header, value)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+	toolsOf := func(rec *httptest.ResponseRecorder) string {
+		var resp struct {
+			Result struct {
+				Tools []struct{ Name string } `json:"tools"`
+			} `json:"result"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp), rec.Body.String())
+		var names []string
+		for _, tool := range resp.Result.Tools {
+			names = append(names, tool.Name)
+		}
+		return strings.Join(names, " ")
+	}
+	router := globals.Server.Router
+
+	// Metadata, at the RFC 9728 path for /mcp and the bare one.
+	for _, p := range []string{"/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-protected-resource"} {
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
+		require.Equal(t, http.StatusOK, rec.Code, p)
+		var meta map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &meta))
+		assert.Equal(t, "http://example.com/mcp", meta["resource"])
+		assert.Equal(t, []any{"fuel:read", "project:read", "project:write", "mesh:generate"}, meta["scopes_supported"])
+	}
+
+	// No token: 401 pointing at the metadata, on /mcp and /1.0/mcp.
+	for _, p := range []string{"/mcp", "/1.0/mcp"} {
+		rec := call(router, p, "", "", "tools/list", "")
+		assert.Equal(t, http.StatusUnauthorized, rec.Code, p)
+		assert.Contains(t, rec.Header().Get("WWW-Authenticate"),
+			`resource_metadata="http://example.com/.well-known/oauth-protected-resource/mcp"`)
+	}
+
+	// The web session's token sees every tool (no resource configured).
+	all := toolsOf(call(router, "/mcp", "Authorization", "Bearer "+jwt, "tools/list", ""))
+	assert.Contains(t, all, "project_write_file")
+
+	// A personal access token limited to reading, as Bearer or Private-Token.
+	rec := aiRequest(t, "POST", "/1.0/users/"+username+"/access-tokens", jwt,
+		map[string]any{"name": "readonly", "scopes": []string{"fuel:read", "project:read"}})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var tok struct{ Prefix, Key string }
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &tok))
+	pat := tok.Prefix + "." + tok.Key
+	for _, h := range [][2]string{{"Authorization", "Bearer " + pat}, {"Private-Token", pat}} {
+		names := toolsOf(call(router, "/mcp", h[0], h[1], "tools/list", ""))
+		assert.Contains(t, names, "fuel_search_models", h[0])
+		assert.Contains(t, names, "project_read_file", h[0])
+		assert.NotContains(t, names, "project_write_file", h[0])
+	}
+	// Tools outside the token's scopes aren't served at all.
+	rec = call(router, "/mcp", "Private-Token", pat, "tools/call", "project_create")
+	assert.Contains(t, rec.Body.String(), `unknown tool \"project_create\"`, rec.Body.String())
+	rec = aiRequest(t, "POST", "/1.0/users/"+username+"/access-tokens", jwt,
+		map[string]any{"name": "bogus", "scopes": []string{"everything"}})
+	assert.NotEqual(t, http.StatusOK, rec.Code, "unknown scopes are refused")
+	assert.Equal(t, http.StatusUnauthorized,
+		call(router, "/mcp", "Authorization", "Bearer nope.nope", "tools/list", "").Code)
+
+	// With a resource configured, an OAuth token must be for it, and grants
+	// only the scopes it carries.
+	cfg := mcpConfig{Resource: "https://fuel.test/mcp", AuthServers: []string{"https://tenant.test/"}}
+	endpoint := mcpEndpoint(buildMCPRegistry(), bootstrap.Verifier(), cfg)
+	forUs := generateJWT(testJWT{jwtClaims: &jwt5.MapClaims{"sub": "mcp-auth-identity",
+		"aud": []string{"https://fuel.test/mcp"}, "scope": "openid fuel:read project:read"}}, t)
+	names := toolsOf(call(endpoint, "/mcp", "Authorization", "Bearer "+forUs, "tools/list", ""))
+	assert.Contains(t, names, "fuel_search_models")
+	assert.NotContains(t, names, "project_write_file")
+	rec = call(endpoint, "/mcp", "Authorization", "Bearer "+jwt, "tools/list", "")
+	assert.Equal(t, http.StatusUnauthorized, rec.Code, "a token for another audience")
+	assert.Contains(t, rec.Header().Get("WWW-Authenticate"), "https://fuel.test/.well-known/oauth-protected-resource/mcp")
 }

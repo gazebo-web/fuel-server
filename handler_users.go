@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gazebo-web/fuel-server/aitools"
 	"github.com/gazebo-web/fuel-server/auth"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/globals"
@@ -194,11 +195,19 @@ func AccessTokenCreate(username string, jwtUser *users.User, tx *gorm.DB, w http
 		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
-	// Parse the name of the token.
-	var accessTokenCreateInfo gz.AccessTokenCreateRequest
+	// Parse the name of the token and, optionally, the scopes that limit
+	// what it can do with the AI tools (all of them if none are given).
+	var accessTokenCreateInfo accessTokenCreateRequest
 	if em := ParseStruct(&accessTokenCreateInfo, r, false); em != nil {
 		return nil, em
 	}
 
-	return users.AccessTokenCreate(jwtUser, tx, accessTokenCreateInfo)
+	return users.AccessTokenCreate(jwtUser, tx, accessTokenCreateInfo.AccessTokenCreateRequest,
+		accessTokenCreateInfo.Scopes, aitools.Scopes)
+}
+
+// accessTokenCreateRequest is gz-go's request plus scopes.
+type accessTokenCreateRequest struct {
+	gz.AccessTokenCreateRequest
+	Scopes []string `json:"scopes,omitempty" form:"scopes"`
 }

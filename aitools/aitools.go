@@ -81,6 +81,7 @@ func NewRegistry(cfg Config) *mcp.Registry {
 	if cfg.MeshWorkerURL != "" {
 		t.registerMesh(reg)
 	}
+	annotate(reg)
 	return reg
 }
 

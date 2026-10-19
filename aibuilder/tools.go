@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/jinzhu/gorm"
@@ -16,8 +15,8 @@ import (
 
 // userTools are the aitools registry's tools, called in-process as one
 // user (design §3.2.2): no HTTP hop to fuel-server and no forwarded token.
-// Each call runs in its own transaction, committed unless the tool fails
-// with a Go error, as fuel-server's MCP endpoint does.
+// mcp.Registry.Call runs each in its own transaction, as fuel-server's MCP
+// endpoint does.
 type userTools struct {
 	reg  *mcp.Registry
 	db   *gorm.DB
@@ -34,40 +33,15 @@ func (t *userTools) Tools() []llm.Tool {
 }
 
 func (t *userTools) Call(ctx context.Context, name string, input map[string]interface{}) (interface{}, error) {
-	tool, ok := t.reg.Get(name)
-	if !ok {
-		return nil, fmt.Errorf("unknown tool %q", name)
-	}
-	if input == nil {
-		input = map[string]interface{}{}
-	}
-	tx := t.db.Begin()
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
-	res, err := callTool(tool, mcp.NewToolContext(ctx, tx, t.user, nil), input)
+	// The web app's session has every scope (Scopes nil).
+	res, err := t.reg.Call(ctx, mcp.Caller{User: t.user, DB: t.db}, name, input)
 	if err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-	if err := tx.Commit().Error; err != nil {
 		return nil, err
 	}
 	if res.IsError {
 		return nil, errors.New(joinText(res.Content))
 	}
 	return unwrapContent(res.Content), nil
-}
-
-// callTool runs a tool handler, turning a panic into an error so one bad
-// tool call doesn't take the agent down.
-func callTool(tool mcp.Tool, tc *mcp.ToolContext, input map[string]interface{}) (res mcp.CallToolResult, err error) {
-	defer func() {
-		if p := recover(); p != nil {
-			err = fmt.Errorf("internal error in %s: %v", tool.Spec.Name, p)
-		}
-	}()
-	return tool.Handler(tc, input)
 }
 
 func joinText(blocks []mcp.ContentBlock) string {

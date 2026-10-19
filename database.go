@@ -81,6 +81,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&worlds.WorldMetadatum{},
 			&projects.Project{},
 			&aitools.ModelSize{},
+			&users.AccessTokenScope{},
 			&reviews.ModelReview{},
 			globals.Permissions.DBTable(),
 
@@ -155,6 +156,9 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 			&users.UniqueOwner{},
 			&models.Tag{},
 			&category.Category{},
+			// Tokens point at users by id, which restart after the drop.
+			&users.AccessTokenScope{},
+			&gz.AccessToken{},
 			globals.Permissions.DBTable(),
 		)
 		// Now also remove many_to_many tables, because they are not automatically removed.

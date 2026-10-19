@@ -34,12 +34,26 @@ type ToolHandler func(tc *ToolContext, args map[string]any) (CallToolResult, err
 type Tool struct {
 	Spec    ToolSpec
 	Handler ToolHandler
-	// RequiredScopes lists PAT scopes needed to invoke this tool.
-	// Empty means "no scope restriction" — JWTs satisfy everything,
-	// PATs satisfy anything as long as they have at least one matching
-	// scope. Phase 2 issues only *:read PATs; write tools should list
-	// the corresponding *:write scope so PATs are rejected.
+	// RequiredScopes are the scopes a caller needs, all of them, to see
+	// and call this tool (design §8.4). Empty means any signed-in caller.
 	RequiredScopes []string
+	// Annotations describe the tool's effects to clients.
+	Annotations Annotations
+}
+
+// Annotations are MCP tool annotations: hints clients use to decide, for
+// example, whether to ask the user before a call.
+type Annotations struct {
+	// ReadOnly tools change nothing.
+	ReadOnly bool
+	// Destructive tools may overwrite or delete existing data (meaningful
+	// only when not ReadOnly).
+	Destructive bool
+	// Idempotent tools have no further effect when called again with the
+	// same arguments.
+	Idempotent bool
+	// OpenWorld tools reach outside this server (another Fuel catalog).
+	OpenWorld bool
 }
 
 // Registry is a concurrency-safe mapping from tool name to Tool.

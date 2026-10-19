@@ -99,3 +99,28 @@ func TestSDFComputeInertia(t *testing.T) {
 		}
 	}
 }
+
+func TestToolAnnotations(t *testing.T) {
+	reg := NewRegistry(Config{MeshWorkerURL: "http://meshworker:8020"})
+	known := map[string]bool{}
+	for _, s := range Scopes {
+		known[s] = true
+	}
+	for _, spec := range reg.Specs() {
+		if _, ok := toolAnnotations[spec.Name]; !ok {
+			t.Errorf("%s has no annotations", spec.Name)
+		}
+		tool, _ := reg.Get(spec.Name)
+		for _, s := range tool.RequiredScopes {
+			if !known[s] {
+				t.Errorf("%s needs unknown scope %q", spec.Name, s)
+			}
+		}
+		if tool.Annotations.ReadOnly && len(tool.RequiredScopes) > 0 && tool.RequiredScopes[0] == "project:write" {
+			t.Errorf("%s writes but is marked read-only", spec.Name)
+		}
+	}
+	if gen, _ := reg.Get("model_generate"); len(gen.RequiredScopes) != 2 {
+		t.Errorf("model_generate scopes %v", gen.RequiredScopes)
+	}
+}

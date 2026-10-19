@@ -136,8 +136,40 @@ func parsePublicKey(s string) (*rsa.PublicKey, error) {
 // Claims are a verified token's claims.
 type Claims = jwt.MapClaims
 
+// Scopes are the scopes a token grants: its space-separated "scope" claim
+// plus Auth0's "permissions" list (RBAC).
+func Scopes(c Claims) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(s string) {
+		if s != "" && !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	if s, ok := c["scope"].(string); ok {
+		for _, f := range strings.Fields(s) {
+			add(f)
+		}
+	}
+	if ps, ok := c["permissions"].([]any); ok {
+		for _, p := range ps {
+			if s, ok := p.(string); ok {
+				add(s)
+			}
+		}
+	}
+	return out
+}
+
 // Verify checks a token and returns its claims.
 func (v *Verifier) Verify(ctx context.Context, token string) (Claims, error) {
+	return v.VerifyFor(ctx, token, v.cfg.Audiences)
+}
+
+// VerifyFor is Verify with its own accepted audiences (none: not
+// checked), e.g. the MCP endpoint's resource URL.
+func (v *Verifier) VerifyFor(ctx context.Context, token string, audiences []string) (Claims, error) {
 	opts := []jwt.ParserOption{
 		jwt.WithValidMethods([]string{"RS256"}),
 		jwt.WithExpirationRequired(),
@@ -170,9 +202,9 @@ func (v *Verifier) Verify(ctx context.Context, token string) (Claims, error) {
 		return nil, err
 	}
 	// golang-jwt checks one audience; any of ours will do.
-	if len(v.cfg.Audiences) > 0 {
+	if len(audiences) > 0 {
 		aud, err := claims.GetAudience()
-		if err != nil || !overlaps(aud, v.cfg.Audiences) {
+		if err != nil || !overlaps(aud, audiences) {
 			return nil, errors.New("token is not for this server (audience)")
 		}
 	}

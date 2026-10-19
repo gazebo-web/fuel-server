@@ -79,15 +79,13 @@ func init() {
 	// Note: here it is the place to define multiple APIs
 	verifier := bootstrap.Verifier()
 	mainRouter := gz.NewRouter()
+	// The public MCP endpoint, ahead of the /1.0 API. Its registry gets its
+	// tools populated now, but they only use app state (globals.Permissions,
+	// globals.VCSRepoFactory, ...) when called, after init has finished.
+	mountMCP(mainRouter, buildMCPRegistry(), verifier)
 	apiPrefix := "/" + globals.APIVersion
 	r := mainRouter.PathPrefix(apiPrefix).Subrouter()
 	bootstrap.ConfigureRoutes(verifier, apiPrefix, r, routes)
-
-	// MCP server: registry gets its tools populated below after the rest
-	// of the app state (globals.Permissions, globals.VCSRepoFactory, ...)
-	// has been initialized. The registry is stored in a package-level
-	// variable so the route handler can see it.
-	initMCPServer(buildMCPRegistry())
 
 	// Now create a sub router for SubT, enabled with /subt/
 	subtPrefix := apiPrefix + "/subt"
