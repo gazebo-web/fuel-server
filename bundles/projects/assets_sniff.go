@@ -21,14 +21,15 @@ const (
 
 // supportedTypes names what can be uploaded.
 const supportedTypes = "PNG, JPEG, WebP, PDF, SVG, DXF, GLB, OBJ, STL or DAE, " +
-	"or a zip of one mesh with its textures, or of a texture set"
+	"or a zip of any of these, texture sets and Gazebo model folders"
 
 var meshExts = map[string]bool{".glb": true, ".gltf": true, ".obj": true, ".stl": true, ".dae": true}
 var imageExts = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true}
 
 // sniffAsset decides an upload's kind and media type from its content,
-// never its name. A zip must hold exactly one mesh (plus what it uses) or
-// only images (a texture set).
+// never its name. A zip holding one mesh (plus what it uses) is a mesh,
+// one of only images a texture set; any other zip is a bundle, unpacked
+// into files of their own (assets_bundle.go).
 func sniffAsset(data []byte) (kind, mime string, info AssetInfo, err error) {
 	head := data
 	if len(head) > 8192 {
@@ -118,8 +119,8 @@ func isOBJ(text string) bool {
 }
 
 // sniffZip checks a zip's entries (count, unpacked size, safe names) and
-// whether it is a mesh with its files or a texture set. Its info lists the
-// files and, for a mesh, the main one.
+// whether it is a mesh with its files, a texture set, or a bundle to
+// unpack. Its info lists the files and, for a mesh, the main one.
 func sniffZip(data []byte) (kind, mime string, info AssetInfo, err error) {
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
@@ -127,6 +128,7 @@ func sniffZip(data []byte) (kind, mime string, info AssetInfo, err error) {
 	}
 	var files, meshes []string
 	images := 0
+	hasModelConfig := false
 	var total uint64
 	for _, f := range zr.File {
 		name := f.Name
@@ -145,6 +147,7 @@ func sniffZip(data []byte) (kind, mime string, info AssetInfo, err error) {
 			return "", "", nil, fmt.Errorf("the zip unpacks to more than %d MB", MaxAssetZipUnpacked>>20)
 		}
 		files = append(files, name)
+		hasModelConfig = hasModelConfig || path.Base(name) == "model.config"
 		ext := strings.ToLower(path.Ext(name))
 		switch {
 		case meshExts[ext]:
@@ -154,13 +157,16 @@ func sniffZip(data []byte) (kind, mime string, info AssetInfo, err error) {
 		}
 	}
 	switch {
+	case hasModelConfig:
+		// Gazebo models (and maybe more): unpacked by expandBundle.
+		return assetBundle, "application/zip", AssetInfo{"files": files}, nil
 	case len(meshes) == 1:
 		return AssetMesh, "application/zip", AssetInfo{"files": files, "main": meshes[0]}, nil
-	case len(meshes) > 1:
-		return "", "", nil, fmt.Errorf("the zip has %d meshes (%s); upload one model per zip",
-			len(meshes), strings.Join(meshes, ", "))
 	case images > 0 && images == len(files):
 		return AssetTexture, "application/zip", AssetInfo{"files": files}, nil
+	case len(files) == 0:
+		return "", "", nil, fmt.Errorf("the zip is empty")
 	}
-	return "", "", nil, fmt.Errorf("the zip must hold one mesh with its textures, or only texture images")
+	// Several meshes, or a mix of files: unpacked into files of their own.
+	return assetBundle, "application/zip", AssetInfo{"files": files}, nil
 }

@@ -96,8 +96,9 @@ func TestProjectAssets(t *testing.T) {
 	svg := []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`)
 	rec := uploadAssets(t, jwt, name, map[string][]byte{"plans/floorplan.png": plan, "crate.glb": glb, "room.svg": svg}, "")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	var added []projects.Asset
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &added))
+	var res projects.AddResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	added := res.Assets
 	require.Len(t, added, 3)
 	byName := map[string]projects.Asset{}
 	for _, a := range added {
@@ -260,4 +261,70 @@ func mcpContent(t *testing.T, jwt, tool string, args map[string]any) []map[strin
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp), rec.Body.String())
 	require.False(t, resp.Result.IsError, rec.Body.String())
 	return resp.Result.Content
+}
+
+// A zip of several files is unpacked; its Gazebo model folders become
+// project models.
+func TestProjectAssetsBundle(t *testing.T) {
+	jwt := createValidJWTForIdentity("assets-bundle-identity", t)
+	username := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(username, jwt, t)
+	name := fmt.Sprintf("bundle-%d", time.Now().UnixNano())
+	mcpJSON(t, jwt, "project_create", map[string]any{"name": name})
+
+	defer func(f projects.AssetInspector) { projects.InspectAsset = f }(projects.InspectAsset)
+	projects.InspectAsset = func(_ context.Context, _, kind, _, _ string, _ []byte) (projects.AssetInfo, map[string][]byte, error) {
+		if kind == projects.AssetModel {
+			return projects.AssetInfo{"size": []float64{1, 0.5, 2}}, nil, nil
+		}
+		return nil, nil, nil
+	}
+
+	shelf := `<?xml version="1.0"?><sdf version="1.9"><model name="shelf"><static>true</static><link name="l">` +
+		`<visual name="v"><geometry><box><size>1 0.5 2</size></box></geometry></visual></link></model></sdf>`
+	zip := zipFiles(t, map[string][]byte{
+		"site/models/Shelf_01/model.config":    []byte(`<model><name>Shelf</name><sdf version="1.9">model.sdf</sdf></model>`),
+		"site/models/Shelf_01/model.sdf":       []byte(shelf),
+		"site/models/Shelf_01/thumbnails/1.png": assetTestPNG(t, 16, 16),
+		"site/props/chair.obj":                 []byte("mtllib chair.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n"),
+		"site/props/chair.mtl":                 []byte("newmtl wood\nmap_Kd wood.png\n"),
+		"site/props/wood.png":                  assetTestPNG(t, 8, 8),
+		"site/plan.png":                        assetTestPNG(t, 100, 50),
+		"site/README.md":                       []byte("hello"),
+	})
+	rec := uploadAssets(t, jwt, name, map[string][]byte{"site.zip": zip}, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var res projects.AddResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	kinds := map[string]string{}
+	for _, a := range res.Assets {
+		kinds[a.Name] = a.Kind
+		assert.Equal(t, "site.zip", a.Info["from_zip"], a.Name)
+	}
+	assert.Equal(t, map[string]string{"chair.obj": "mesh", "plan.png": "image", "Shelf_01": "model"}, kinds)
+	assert.Equal(t, []string{"site.zip: site/README.md"}, res.Skipped)
+
+	// The model is in the project, with the measured size and its thumbnail.
+	files := mcpJSON(t, jwt, "project_list_files", map[string]any{"name": name})
+	assert.Contains(t, fmt.Sprint(files["files"]), "models/Shelf_01/model.sdf")
+	assert.Contains(t, fmt.Sprint(files["files"]), "models/Shelf_01/thumbnails/1.png")
+	list := mcpJSON(t, jwt, "asset_list", map[string]any{"name": name})
+	assert.Contains(t, fmt.Sprint(list["files"]), "uri:model://Shelf_01")
+	content := mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "Shelf_01"})
+	require.Len(t, content, 2, "with its thumbnail")
+	assert.Contains(t, content[0]["text"], `"errors": 0`)
+
+	// A world can include it; validation finds it in the project.
+	world := `<?xml version="1.0"?><sdf version="1.9"><world name="w"><include><uri>model://Shelf_01</uri>` +
+		`<name>s1</name></include></world></sdf>`
+	w := mcpJSON(t, jwt, "project_write_file", map[string]any{"name": name, "path": "world.sdf", "content": world})
+	assert.Equal(t, true, w["validation"].(map[string]any)["valid"], w["validation"])
+
+	// Uploading it again adds a second model rather than replacing the first.
+	rec = uploadAssets(t, jwt, name, map[string][]byte{"again.zip": zipFiles(t, map[string][]byte{
+		"Shelf_01/model.config": []byte(`<model><sdf version="1.9">model.sdf</sdf></model>`),
+		"Shelf_01/model.sdf":    []byte(shelf), "Shelf_01/notes/plan.pdf": []byte("%PDF-1.4")})}, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"model":"Shelf_01_2"`)
+
 }

@@ -187,6 +187,8 @@ type AssetUpload struct {
 	// Kind optionally overrides the detected kind; only "texture" is
 	// accepted, for an image meant as a material.
 	Kind string
+	// Info is kept with the file: where in a zip it came from.
+	Info AssetInfo
 }
 
 // assetIDRe matches an asset id: 12 hex characters.
@@ -252,10 +254,20 @@ func assetErr(code int64, format string, a ...any) *gz.ErrMsg {
 	return em
 }
 
+// AddResult is what an upload added: the files, and the names of files in
+// zips that were skipped (not a kind the AI can use).
+type AddResult struct {
+	Assets  []Asset  `json:"assets"`
+	Skipped []string `json:"skipped,omitempty"`
+}
+
 // AddAssets checks and stores uploads in a project the caller can write.
-// Either every file is added or none is.
+// Zips that aren't one mesh or one texture set are unpacked (bundles):
+// their files are added one by one and their Gazebo model folders become
+// project models. Either everything is added or nothing is (a failure
+// after the models' commit leaves them in the repo).
 func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUser *users.User,
-	ups []AssetUpload) ([]Asset, *gz.ErrMsg) {
+	ups []AssetUpload) (*AddResult, *gz.ErrMsg) {
 	p, em := s.GetForCaller(tx, name, jwtUser)
 	if em != nil {
 		return nil, em
@@ -279,10 +291,6 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 	if err := tx.Where("project_id = ?", p.ID).Find(&existing).Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
 	}
-	if len(existing)+len(ups) > MaxProjectAssets {
-		return nil, assetErr(gz.ErrorFormInvalidValue, "a project holds at most %d files; it has %d",
-			MaxProjectAssets, len(existing))
-	}
 	// Names are unique as the database compares them, which ignores case.
 	taken := map[string]bool{}
 	var total int64
@@ -298,22 +306,54 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 		views map[string][]byte
 	}
 	var out []prepared
-	for _, up := range ups {
+	var models []modelFolder
+	var modelFrom []string // the zip each model came from
+	result := &AddResult{}
+	addSize := func(fname string, n int) *gz.ErrMsg {
+		if total += int64(n); total > MaxProjectAssetsSize {
+			return assetErr(gz.ErrorFormInvalidValue, "a project's files may total at most %d MB",
+				MaxProjectAssetsSize>>20)
+		}
+		if userTotal.N+total > MaxUserAssetsSize {
+			return assetErr(gz.ErrorFormInvalidValue, "your project files may total at most %d GB; "+
+				"delete some to make room", MaxUserAssetsSize>>30)
+		}
+		return nil
+	}
+	for i := 0; i < len(ups); i++ { // ups grows as bundles unpack
+		up := ups[i]
 		fname := cleanAssetName(up.Name)
 		if len(up.Data) > MaxAssetSize {
 			return nil, assetErr(gz.ErrorFormInvalidValue, "%s: larger than %d MB", fname, MaxAssetSize>>20)
 		}
-		if total += int64(len(up.Data)); total > MaxProjectAssetsSize {
-			return nil, assetErr(gz.ErrorFormInvalidValue, "a project's files may total at most %d MB",
-				MaxProjectAssetsSize>>20)
-		}
-		if userTotal.N+total > MaxUserAssetsSize {
-			return nil, assetErr(gz.ErrorFormInvalidValue, "your project files may total at most %d GB; "+
-				"delete some to make room", MaxUserAssetsSize>>30)
-		}
 		kind, mime, info, err := sniffAsset(up.Data)
 		if err != nil {
 			return nil, assetErr(gz.ErrorFormInvalidValue, "%s: %v", fname, err)
+		}
+		if kind == assetBundle {
+			if up.Info["from_zip"] != nil {
+				result.Skipped = append(result.Skipped, fmt.Sprint(up.Info["path"])+" (a zip inside a zip)")
+				continue
+			}
+			if up.Kind != "" {
+				return nil, assetErr(gz.ErrorFormInvalidValue, "%s: a zip of several files can't be one texture", fname)
+			}
+			more, ms, skipped, err := expandBundle(fname, up.Data)
+			if err != nil {
+				return nil, assetErr(gz.ErrorFormInvalidValue, "%s: %v", fname, err)
+			}
+			ups = append(ups, more...)
+			models = append(models, ms...)
+			for range ms {
+				modelFrom = append(modelFrom, fname)
+			}
+			for _, sk := range skipped {
+				result.Skipped = append(result.Skipped, fname+": "+sk)
+			}
+			continue
+		}
+		if em := addSize(fname, len(up.Data)); em != nil {
+			return nil, em
 		}
 		switch up.Kind {
 		case "", kind:
@@ -334,25 +374,65 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 			}
 			info = merge(info, more)
 		}
+		info = merge(info, up.Info)
 		status, errMsg := AssetReady, ""
 		if views == nil {
 			views, info, status, errMsg = inspect(ctx, *jwtUser.Username, kind, mime, info, data)
 		}
 		fname = uniqueFoldedName(fname, taken)
 		taken[strings.ToLower(fname)] = true
-		sum := sha256.Sum256(data)
-		a := Asset{
-			ID: newAssetID(), ProjectID: p.ID, Name: fname, Kind: kind, Mime: mime,
-			Size: int64(len(data)), SHA256: hex.EncodeToString(sum[:]),
-			Status: status, Error: errMsg, Info: merge(info, nil), CreatedBy: *jwtUser.Username,
+		out = append(out, prepared{newAsset(p, fname, kind, mime, data, info, views, status, errMsg, jwtUser), data, views})
+	}
+
+	// Gazebo models: committed to the repo as models/<name>/ in one
+	// commit, each recorded as a file of kind model.
+	repoFiles := map[string][]byte{}
+	if len(models) > 0 {
+		files, _, em := s.ListFiles(ctx, tx, *p.Owner, *p.Name, "", jwtUser)
+		if em != nil {
+			return nil, em
 		}
-		var names []string
-		for v := range views {
-			names = append(names, v)
+		takenModels := map[string]bool{}
+		for _, f := range files {
+			if rest, ok := strings.CutPrefix(f, "models/"); ok {
+				takenModels[strings.ToLower(strings.SplitN(rest, "/", 2)[0])] = true
+			}
 		}
-		sort.Strings(names)
-		a.Views = strings.Join(names, ",")
-		out = append(out, prepared{a, data, views})
+		for i, m := range models {
+			mname := modelName(m.dir, takenModels)
+			rewriteModelURIs(m, path.Base(m.dir), mname)
+			zipData, err := zipOf(prefixed(mname+"/", m.files))
+			if err != nil {
+				return nil, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+			}
+			if em := addSize(mname, len(zipData)); em != nil {
+				return nil, em
+			}
+			info := merge(modelInfo(mname, m), AssetInfo{"from_zip": modelFrom[i], "path": m.dir})
+			views := modelThumbnail(m)
+			status, errMsg := AssetReady, ""
+			// The worker measures the model; its pictures are the model's own
+			// thumbnails, if it has any.
+			_, measured, st, msg := inspect(ctx, *jwtUser.Username, AssetModel, "application/zip", info, zipData)
+			info, status, errMsg = measured, st, msg
+			fname := uniqueFoldedName(mname, taken)
+			taken[strings.ToLower(fname)] = true
+			out = append(out, prepared{newAsset(p, fname, AssetModel, "application/zip", zipData, info, views, status,
+				errMsg, jwtUser), zipData, views})
+			for rel, b := range m.files {
+				repoFiles[path.Join("models", mname, rel)] = b
+			}
+		}
+	}
+	if len(existing)+len(out) > MaxProjectAssets {
+		return nil, assetErr(gz.ErrorFormInvalidValue, "a project holds at most %d files; it has %d and this "+
+			"upload adds %d", MaxProjectAssets, len(existing), len(out))
+	}
+	if len(repoFiles) > 0 {
+		if _, em := s.WriteFiles(ctx, tx, *p.Owner, *p.Name, repoFiles, nil, jwtUser, WriteFileOptions{
+			CommitMessage: AutoSaveMessage + ": uploaded models"}); em != nil {
+			return nil, em
+		}
 	}
 
 	var added []Asset
@@ -388,7 +468,31 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 		a.ViewList = splitViews(a.Views)
 		added = append(added, a)
 	}
-	return added, nil
+	result.Assets = added
+	return result, nil
+}
+
+func newAsset(p *Project, name, kind, mime string, data []byte, info AssetInfo, views map[string][]byte,
+	status, errMsg string, user *users.User) Asset {
+	sum := sha256.Sum256(data)
+	var names []string
+	for v := range views {
+		names = append(names, v)
+	}
+	sort.Strings(names)
+	return Asset{
+		ID: newAssetID(), ProjectID: p.ID, Name: name, Kind: kind, Mime: mime,
+		Size: int64(len(data)), SHA256: hex.EncodeToString(sum[:]), Status: status, Error: errMsg,
+		Info: merge(info, nil), Views: strings.Join(names, ","), CreatedBy: *user.Username,
+	}
+}
+
+func prefixed(prefix string, files map[string][]byte) map[string][]byte {
+	out := make(map[string][]byte, len(files))
+	for n, b := range files {
+		out[prefix+n] = b
+	}
+	return out
 }
 
 // inspect makes the views of an upload the server can't draw itself, on
@@ -435,6 +539,15 @@ func (s *Service) RetryAsset(ctx context.Context, tx *gorm.DB, name, ref string,
 		return nil, em
 	}
 	views, info, status, errMsg := inspect(ctx, *jwtUser.Username, a.Kind, a.Mime, a.Info, data)
+	if views == nil {
+		// Measuring a model makes no pictures: keep its thumbnail.
+		views = map[string][]byte{}
+		for _, v := range splitViews(a.Views) {
+			if b, err := os.ReadFile(filepath.Join(assetDir(p, a.ID), v)); err == nil {
+				views[v] = b
+			}
+		}
+	}
 	dir := assetDir(p, a.ID)
 	for v, b := range views {
 		if err := os.WriteFile(filepath.Join(dir, v), b, 0600); err != nil {

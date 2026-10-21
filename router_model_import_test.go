@@ -177,6 +177,16 @@ func TestAIToolsModelImport(t *testing.T) {
 	assert.Equal(t, "input/original.stl", job["path"])
 	assert.Equal(t, "mm", job["units"])
 
+	// An uploaded Gazebo model is already a project model.
+	rec = uploadAssets(t, jwt, name, map[string][]byte{"parts.zip": zipFiles(t, map[string][]byte{
+		"Bin/model.config": []byte(`<model><sdf version="1.9">model.sdf</sdf></model>`),
+		"Bin/model.sdf":    []byte(`<?xml version="1.0"?><sdf version="1.9"><model name="bin"><link name="l"/></model></sdf>`),
+		"Bin/photo2.png":   assetTestPNG(t, 4, 4)})}, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	r = call("model_import", map[string]any{"name": name, "asset": "Bin", "model": "bin2"})
+	assert.True(t, r.IsError)
+	assert.Contains(t, r.Content[0].Text, "already a project model: include it with <uri>model://Bin</uri>")
+
 	r = call("model_import", map[string]any{"name": name, "asset": "photo.png", "model": "photo"})
 	assert.True(t, r.IsError)
 	assert.Contains(t, r.Content[0].Text, "not a mesh")

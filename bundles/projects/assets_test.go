@@ -88,14 +88,22 @@ func TestSniffAsset(t *testing.T) {
 		"empty":       nil,
 		"exe":         []byte("MZ\x90\x00\x03\x00\x00\x00\x04\x00"),
 		"plain text":  []byte("hello, this is a note"),
-		"two meshes":  zipBytes(t, map[string]string{"a.obj": "", "b.stl": ""}),
 		"traversal":   zipBytes(t, map[string]string{"../evil.obj": ""}),
-		"mixed zip":   zipBytes(t, map[string]string{"notes.txt": "", "a.png": ""}),
 		"invalid zip": []byte("PK\x03\x04garbage"),
 	}
 	for name, data := range bad {
 		if kind, _, _, err := sniffAsset(data); err == nil {
 			t.Errorf("%s: accepted as %s", name, kind)
+		}
+	}
+
+	// Several meshes, or a mix of files: a bundle, unpacked on upload.
+	for name, data := range map[string][]byte{
+		"two meshes": zipBytes(t, map[string]string{"a.obj": "", "b.stl": ""}),
+		"mixed zip":  zipBytes(t, map[string]string{"notes.txt": "", "a.png": ""}),
+	} {
+		if kind, _, _, err := sniffAsset(data); kind != assetBundle || err != nil {
+			t.Errorf("%s: %s %v", name, kind, err)
 		}
 	}
 

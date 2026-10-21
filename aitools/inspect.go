@@ -43,8 +43,32 @@ func (m *meshClient) inspector() projects.AssetInspector {
 			return nil, nil, projects.RetryableError{Err: fmt.Errorf("too many files to preview (%d a minute, %d a day); "+
 				"try again in %s", inspectPerMinute, inspectPerDay, wait.Round(time.Second))}
 		}
+		if kind == projects.AssetModel {
+			return m.measureModel(ctx, data)
+		}
 		return m.inspect(ctx, kind, file, main, data)
 	}
+}
+
+// measureModel measures an uploaded Gazebo model (a zip of its folder) as
+// the worker measures Fuel models: its size as Gazebo shows it.
+func (m *meshClient) measureModel(ctx context.Context, zip []byte) (projects.AssetInfo, map[string][]byte, error) {
+	body, err := m.measure(ctx, zip)
+	if err != nil {
+		return nil, nil, projects.RetryableError{Err: fmt.Errorf("the model couldn't be measured: %v", err)}
+	}
+	var r measureReport
+	if err := json.Unmarshal(body, &r); err != nil {
+		return nil, nil, projects.RetryableError{Err: fmt.Errorf("mesh worker: bad report: %v", err)}
+	}
+	if !r.OK {
+		return nil, nil, fmt.Errorf("the model couldn't be measured: %s", r.Error)
+	}
+	info := projects.AssetInfo{"size": r.Size[:], "bbox": map[string]any{"min": r.BBox.Min[:], "max": r.BBox.Max[:]}}
+	if len(r.Warnings) > 0 {
+		info["measure_warnings"] = r.Warnings
+	}
+	return info, nil, nil
 }
 
 // inspect posts an upload to the worker and returns its info and views.

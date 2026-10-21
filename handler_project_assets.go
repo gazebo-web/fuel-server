@@ -26,7 +26,9 @@ const maxAssetRequestBytes = 4*projects.MaxAssetSize + 1<<20
 
 // ProjectAssetsUpload handles POST /1.0/projects/{name}/assets: a
 // multipart form with one or more "file" parts and an optional "kind"
-// ("texture" marks images as a material). Returns the added files.
+// ("texture" marks images as a material). Returns {assets, skipped}: the
+// added files (a zip of several files adds each, and its Gazebo models)
+// and the names of files in zips that were skipped.
 func ProjectAssetsUpload(name string, jwtUser *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 

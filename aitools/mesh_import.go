@@ -77,6 +77,10 @@ func (t *tools) modelImport(tc *mcp.ToolContext, args map[string]any) (mcp.CallT
 	if em != nil {
 		return gzError(em), nil
 	}
+	if a.Kind == projects.AssetModel {
+		return mcp.ErrorResult(fmt.Sprintf("%s is already a project model: include it with <uri>%v</uri>",
+			a.Name, a.Info["uri"])), nil
+	}
 	if a.Kind != projects.AssetMesh {
 		return mcp.ErrorResult(fmt.Sprintf("%s is a %s, not a mesh; model_import takes GLB, OBJ, STL or DAE uploads",
 			a.Name, a.Kind)), nil

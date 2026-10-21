@@ -17,7 +17,8 @@ func (t *tools) registerAssets(reg *mcp.Registry) {
 		Spec: mcp.ToolSpec{
 			Name: "asset_list",
 			Description: "List the files the user uploaded to a project to build from: photos, drawings " +
-				"and floor plans, meshes and texture sets. Use asset_view to look at one.",
+				"and floor plans, meshes, texture sets, and Gazebo models (kind model: already project models, " +
+				"included by their uri). Use asset_view to look at one.",
 			InputSchema: schema([]string{"name"}, map[string]any{"name": str("Project name")}),
 		},
 		RequiredScopes: []string{"project:read"},
@@ -48,7 +49,9 @@ func (t *tools) registerAssets(reg *mcp.Registry) {
 		Spec: mcp.ToolSpec{
 			Name: "asset_upload",
 			Description: "Add a file to a project for building from: " + strings.ReplaceAll(supportedUploads, "\n", " ") +
-				". Up to about 12 MB as base64. Users can also upload on the project page.",
+				". A zip of several files is unpacked into files of their own, and its Gazebo model folders " +
+				"(with model.config) become project models. Up to about 12 MB as base64. Users can also upload " +
+				"on the project page.",
 			InputSchema: schema([]string{"name", "filename", "content_base64"}, map[string]any{
 				"name":           str("Project name"),
 				"filename":       str("File name, e.g. 'floorplan.png'"),
@@ -62,13 +65,27 @@ func (t *tools) registerAssets(reg *mcp.Registry) {
 }
 
 const supportedUploads = "PNG, JPEG or WebP images, PDF, SVG or DXF drawings, GLB, OBJ, STL or DAE meshes, " +
-	"or a zip of one mesh with its textures or of a texture set"
+	"texture sets, Gazebo model folders, or a zip of any of these"
+
+func summaries(list []projects.Asset) []map[string]any {
+	out := make([]map[string]any, 0, len(list))
+	for _, a := range list {
+		out = append(out, assetSummary(a))
+	}
+	return out
+}
 
 // assetSummary is a short description for listings.
 func assetSummary(a projects.Asset) map[string]any {
 	out := map[string]any{"id": a.ID, "name": a.Name, "kind": a.Kind, "size": a.Size, "status": a.Status}
 	if a.Error != "" {
 		out["error"] = a.Error
+	}
+	if uri, ok := a.Info["uri"].(string); ok && a.Kind == projects.AssetModel {
+		out["uri"] = uri // already a project model: include it
+	}
+	if from, ok := a.Info["from_zip"]; ok {
+		out["from_zip"] = from
 	}
 	var parts []string
 	if w, ok := a.Info["width"]; ok {
@@ -113,11 +130,7 @@ func (t *tools) assetList(tc *mcp.ToolContext, args map[string]any) (mcp.CallToo
 	if em != nil {
 		return gzError(em), nil
 	}
-	out := make([]map[string]any, 0, len(list))
-	for _, a := range list {
-		out = append(out, assetSummary(a))
-	}
-	return jsonResult(map[string]any{"files": out})
+	return jsonResult(map[string]any{"files": summaries(list)})
 }
 
 func (t *tools) assetView(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
@@ -183,10 +196,18 @@ func (t *tools) assetUpload(tc *mcp.ToolContext, args map[string]any) (mcp.CallT
 	if err != nil {
 		return mcp.ErrorResult("content_base64 is not valid base64: " + err.Error()), nil
 	}
-	added, em := projectService.AddAssets(tc.Ctx, tc.DB, v[0], tc.User,
+	res, em := projectService.AddAssets(tc.Ctx, tc.DB, v[0], tc.User,
 		[]projects.AssetUpload{{Name: v[1], Data: data, Kind: argString(args, "kind")}})
 	if em != nil {
 		return gzError(em), nil
 	}
-	return jsonResult(assetSummary(added[0]))
+	if len(res.Assets) == 1 && len(res.Skipped) == 0 {
+		return jsonResult(assetSummary(res.Assets[0]))
+	}
+	// A zip of several files: one entry each.
+	out := map[string]any{"files": summaries(res.Assets)}
+	if len(res.Skipped) > 0 {
+		out["skipped"] = res.Skipped
+	}
+	return jsonResult(out)
 }
