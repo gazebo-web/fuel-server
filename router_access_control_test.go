@@ -44,11 +44,11 @@ func TestTransferByNonOwner(t *testing.T) {
 			b := new(bytes.Buffer)
 			assert.NoError(t, json.NewEncoder(b).Encode(map[string]string{"destOwner": testOrg}))
 			uri := "/1.0/" + username + "/" + asset + "/transfer"
-			gztest.AssertRouteMultipleArgs("POST", uri, b, http.StatusUnauthorized, &anotherJwt, "text/plain; charset=utf-8", t)
+			gztest.AssertRouteMultipleArgs("POST", uri, b, http.StatusUnauthorized, &anotherJwt, ctTextPlain, t)
 
 			// The asset is still owned by the original user.
 			gztest.AssertRouteMultipleArgs("GET", "/1.0/"+username+"/"+asset, nil, http.StatusOK, &jwtDef, "application/json", t)
-			gztest.AssertRouteMultipleArgs("GET", "/1.0/"+testOrg+"/"+asset, nil, http.StatusNotFound, &jwtDef, "text/plain; charset=utf-8", t)
+			gztest.AssertRouteMultipleArgs("GET", "/1.0/"+testOrg+"/"+asset, nil, http.StatusNotFound, &jwtDef, ctTextPlain, t)
 		})
 	}
 }
@@ -73,30 +73,25 @@ func TestLikedPrivateResourcesVisibility(t *testing.T) {
 	// The org owner likes a private model and a private world of the org.
 	createTestModelWithOwner(t, &myJWT, "privateLiked", testOrg, true)
 	createTestWorldWithOwner(t, &myJWT, "privateLiked", testOrg, true)
-	gztest.AssertRouteMultipleArgs("POST", "/1.0/"+testOrg+"/models/privateLiked/likes", nil, http.StatusOK, &myJWT, "text/plain; charset=utf-8", t)
-	gztest.AssertRouteMultipleArgs("POST", "/1.0/"+testOrg+"/worlds/privateLiked/likes", nil, http.StatusOK, &myJWT, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/"+testOrg+"/models/privateLiked/likes", nil, http.StatusOK, &myJWT, ctTextPlain, t)
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/"+testOrg+"/worlds/privateLiked/likes", nil, http.StatusOK, &myJWT, ctTextPlain, t)
 
-	modelsURI := "/1.0/" + testUser + "/likes/models"
-	worldsURI := "/1.0/" + testUser + "/likes/worlds"
-	modelTests := []resourceSearchTest{
-		{uriTest{"liked models seen by the org owner", modelsURI, newJWT(myJWT), nil, false}, 1, "privateLiked", ""},
-		{uriTest{"liked models seen by a non member", modelsURI, newJWT(jwt2), nil, false}, 0, "", ""},
-		{uriTest{"liked models seen anonymously", modelsURI, nil, nil, false}, 0, "", ""},
+	runners := map[string]func(*testing.T, resourceSearchTest){
+		"models": runSubtestWithModelSearchTestData,
+		"worlds": runSubtestWithWorldSearchTestData,
 	}
-	for _, test := range modelTests {
-		t.Run(test.testDesc, func(t *testing.T) {
-			runSubtestWithModelSearchTestData(t, test)
-		})
-	}
-	worldTests := []resourceSearchTest{
-		{uriTest{"liked worlds seen by the org owner", worldsURI, newJWT(myJWT), nil, false}, 1, "privateLiked", ""},
-		{uriTest{"liked worlds seen by a non member", worldsURI, newJWT(jwt2), nil, false}, 0, "", ""},
-		{uriTest{"liked worlds seen anonymously", worldsURI, nil, nil, false}, 0, "", ""},
-	}
-	for _, test := range worldTests {
-		t.Run(test.testDesc, func(t *testing.T) {
-			runSubtestWithWorldSearchTestData(t, test)
-		})
+	for kind, run := range runners {
+		uri := "/1.0/" + testUser + "/likes/" + kind
+		tests := []resourceSearchTest{
+			{uriTest{"liked " + kind + " seen by the org owner", uri, newJWT(myJWT), nil, false}, 1, "privateLiked", ""},
+			{uriTest{"liked " + kind + " seen by a non member", uri, newJWT(jwt2), nil, false}, 0, "", ""},
+			{uriTest{"liked " + kind + " seen anonymously", uri, nil, nil, false}, 0, "", ""},
+		}
+		for _, test := range tests {
+			t.Run(test.testDesc, func(t *testing.T) {
+				run(t, test)
+			})
+		}
 	}
 }
 
@@ -109,7 +104,7 @@ func TestListWithUnknownCredentials(t *testing.T) {
 	// A bad access token is rejected.
 	gztest.AssertRouteMultipleArgsStruct(gztest.RequestArgs{Method: "GET", Route: "/1.0/models",
 		Headers: map[string]string{"Private-Token": "invalid-token"}},
-		http.StatusUnauthorized, "text/plain; charset=utf-8", t)
+		http.StatusUnauthorized, ctTextPlain, t)
 
 	// A valid JWT for an identity that has no user is treated as anonymous.
 	noUserJWT := createValidJWTForIdentity("identity-without-user", t)
@@ -124,11 +119,11 @@ func TestElasticSearchAdminWithoutUser(t *testing.T) {
 
 	noUserJWT := createValidJWTForIdentity("identity-without-user", t)
 	for _, method := range []string{"GET", "POST"} {
-		gztest.AssertRouteMultipleArgs(method, "/1.0/admin/search", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
+		gztest.AssertRouteMultipleArgs(method, "/1.0/admin/search", nil, http.StatusUnauthorized, &noUserJWT, ctTextPlain, t)
 	}
-	gztest.AssertRouteMultipleArgs("GET", "/1.0/admin/search/rebuild", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
-	gztest.AssertRouteMultipleArgs("DELETE", "/1.0/admin/search/1", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
-	gztest.AssertRouteMultipleArgs("GET", "/1.0/users", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("GET", "/1.0/admin/search/rebuild", nil, http.StatusUnauthorized, &noUserJWT, ctTextPlain, t)
+	gztest.AssertRouteMultipleArgs("DELETE", "/1.0/admin/search/1", nil, http.StatusUnauthorized, &noUserJWT, ctTextPlain, t)
+	gztest.AssertRouteMultipleArgs("GET", "/1.0/users", nil, http.StatusUnauthorized, &noUserJWT, ctTextPlain, t)
 }
 
 // TestTeamsAreScopedToTheirOrganization checks that the teams routes of an
@@ -150,19 +145,16 @@ func TestTeamsAreScopedToTheirOrganization(t *testing.T) {
 	username2 := createUserWithJWT(jwt2, t)
 	defer removeUserWithJWT(username2, jwt2, t)
 	otherOrg := gz.RandomString(8)
-	b := new(bytes.Buffer)
-	assert.NoError(t, json.NewEncoder(b).Encode(users.Organization{Name: &otherOrg}))
-	gztest.AssertRouteMultipleArgs("POST", "/1.0/organizations", b, http.StatusOK, &jwt2, ctJSON, t)
-	defer gztest.AssertRouteMultipleArgs("DELETE", "/1.0/organizations/"+otherOrg, nil, http.StatusOK, &jwt2, ctJSON, t)
+	defer createOrganizationWithJWT(t, otherOrg, jwt2)()
 
 	// The other org's routes do not reach the victim org's team.
 	otherURI := "/1.0/organizations/" + otherOrg + "/teams/devs"
-	gztest.AssertRouteMultipleArgs("GET", otherURI, nil, http.StatusNotFound, &jwt2, "text/plain; charset=utf-8", t)
-	b = new(bytes.Buffer)
+	gztest.AssertRouteMultipleArgs("GET", otherURI, nil, http.StatusNotFound, &jwt2, ctTextPlain, t)
+	b := new(bytes.Buffer)
 	desc := "changed"
 	assert.NoError(t, json.NewEncoder(b).Encode(users.UpdateTeamForm{Description: &desc}))
-	gztest.AssertRouteMultipleArgs("PATCH", otherURI, b, http.StatusNotFound, &jwt2, "text/plain; charset=utf-8", t)
-	gztest.AssertRouteMultipleArgs("DELETE", otherURI, nil, http.StatusNotFound, &jwt2, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("PATCH", otherURI, b, http.StatusNotFound, &jwt2, ctTextPlain, t)
+	gztest.AssertRouteMultipleArgs("DELETE", otherURI, nil, http.StatusNotFound, &jwt2, ctTextPlain, t)
 
 	// The victim org's team is unchanged.
 	bslice, _ := gztest.AssertRouteMultipleArgs("GET", "/1.0/organizations/"+victimOrg+"/teams/devs", nil, http.StatusOK, &jwt, ctJSON, t)
@@ -197,7 +189,7 @@ func TestRevokeAnotherUsersAccessToken(t *testing.T) {
 	body = new(bytes.Buffer)
 	assert.NoError(t, json.NewEncoder(body).Encode(newToken))
 	gztest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username2+"/access-tokens/revoke", body,
-		http.StatusNotFound, &jwt2, "text/plain; charset=utf-8", t)
+		http.StatusNotFound, &jwt2, ctTextPlain, t)
 
 	// The token still exists.
 	response, _ = gztest.AssertRouteMultipleArgs("GET", "/1.0/users/"+username+"/access-tokens", nil,
@@ -281,11 +273,11 @@ func TestTeamPermissionGroupConflicts(t *testing.T) {
 	defer createOrganizationWithJWT(t, orgB, jwt2)()
 	b := new(bytes.Buffer)
 	assert.NoError(t, json.NewEncoder(b).Encode(users.CreateTeamForm{Name: "c", Visible: &notVisible}))
-	gztest.AssertRouteMultipleArgs("POST", "/1.0/organizations/"+orgB+"/teams", b, http.StatusConflict, &jwt2, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/organizations/"+orgB+"/teams", b, http.StatusConflict, &jwt2, ctTextPlain, t)
 
 	// The same applies the other way around.
 	addTeamToOrg(orgB, jwt2, users.CreateTeamForm{Name: "d", Visible: &notVisible}, t)
 	b = new(bytes.Buffer)
 	assert.NoError(t, json.NewEncoder(b).Encode(users.CreateTeamForm{Name: "b_t_d", Visible: &notVisible}))
-	gztest.AssertRouteMultipleArgs("POST", "/1.0/organizations/"+orgA+"/teams", b, http.StatusConflict, &jwt, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/organizations/"+orgA+"/teams", b, http.StatusConflict, &jwt, ctTextPlain, t)
 }

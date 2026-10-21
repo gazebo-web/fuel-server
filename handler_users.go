@@ -51,15 +51,8 @@ func UserCreate(tx *gorm.DB, w http.ResponseWriter,
 }
 
 // UserList returns a list with all users.
-func UserList(p *gz.PaginationRequest, _ *users.User, tx *gorm.DB,
+func UserList(p *gz.PaginationRequest, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.PaginationResult, *gz.ErrMsg) {
-
-	user, ok, errMsg := getUserFromJWT(tx, r)
-
-	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != gz.ErrorAuthNoUser) {
-		return nil, nil, &errMsg
-	}
 
 	if user == nil || !globals.Permissions.IsSystemAdmin(*user.Username) {
 		return nil, nil, gz.NewErrorMessage(gz.ErrorUnauthorized)

@@ -7,7 +7,6 @@ import (
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -346,17 +345,12 @@ func (ms *OrganizationService) CreateTeam(ctx context.Context, tx *gorm.DB,
 		return nil, em
 	}
 
-	// Sanity check: make sure the team does NOT exist
-	if _, err := ByTeamName(tx, org, t.Name, true); err == nil {
-		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists, nil, []string{t.Name})
-	}
-	// Team members are stored in a permissions group named after the org and
-	// the team, and different org and team names can produce the same group
-	// name (eg. org "a" with team "b_t_c", and org "a_t_b" with team "c"). Make
-	// sure no other team uses the group of the new team.
+	// Sanity check: make sure no team, including deleted ones, uses the
+	// permissions group of the new team. Different org and team names can
+	// produce the same group name (eg. org "a" with team "b_t_c", and org
+	// "a_t_b" with team "c").
 	if teamGroupNameInUse(tx, getCasbinNameForTeam(*org.Name, t.Name)) {
-		extra := fmt.Sprintf("Team name [%s] conflicts with an existing team", t.Name)
-		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists, nil, []string{extra})
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists, nil, []string{t.Name})
 	}
 
 	// Add the team to the database.
@@ -386,7 +380,7 @@ func (ms *OrganizationService) RemoveTeam(ctx context.Context, tx *gorm.DB,
 		return nil, em
 	}
 	// Sanity check: make sure the team is valid
-	team, em := ByTeamName(tx, org, teamName, false)
+	team, em := ByTeamName(tx, org, teamName)
 	if em != nil {
 		return nil, em
 	}
@@ -475,7 +469,7 @@ func (ms *OrganizationService) GetTeams(p *gz.PaginationRequest, tx *gorm.DB,
 	// if the user can edit the org then he can see ALL teams
 	canEditOrg, _ := globals.Permissions.IsAuthorized(*user.Username, orgName, permissions.Write)
 	if !canEditOrg {
-		userTeams := getTeamsForUser(*org.Name, *user.Username)
+		userTeams := getTeamsForUser(tx, org, *user.Username)
 		// for a non admin, only return visible teams AND teams which the user is member
 		q = q.Where("(visible = ? OR name in (?))", true, userTeams)
 	}
@@ -513,7 +507,7 @@ func (ms *OrganizationService) GetTeamDetails(ctx context.Context, tx *gorm.DB,
 	}
 
 	// Sanity check: make sure the team exist
-	team, em := ByTeamName(tx, org, teamName, false)
+	team, em := ByTeamName(tx, org, teamName)
 	if em != nil {
 		return nil, em
 	}
@@ -580,7 +574,7 @@ func (ms *OrganizationService) UpdateTeam(ctx context.Context, tx *gorm.DB,
 		return nil, em
 	}
 	// Sanity check: make sure the team exist
-	team, em := ByTeamName(tx, org, teamName, false)
+	team, em := ByTeamName(tx, org, teamName)
 	if em != nil {
 		return nil, em
 	}
@@ -642,16 +636,16 @@ func getUsersForTeam(org, team string) []string {
 	return globals.Permissions.GetUsersForGroup(teamGroupName)
 }
 
-// returns the organization teams of a user, by browsing the casbin roles.
-func getTeamsForUser(org, user string) []string {
+// returns the names of the organization teams of a user, by checking the
+// user's casbin groups.
+func getTeamsForUser(tx *gorm.DB, org *Organization, user string) []string {
+	var names []string
+	tx.Model(&Team{}).Where("organization_id = ?", org.ID).Pluck("name", &names)
+	groups := globals.Permissions.GetGroupsAndRolesForUser(user)
 	teams := make([]string, 0)
-	roles := globals.Permissions.GetGroupsAndRolesForUser(user)
-	re := regexp.MustCompile("^" + regexp.QuoteMeta(org) + "_t_(.+)$")
-	for g := range roles {
-		s := re.FindStringSubmatch(g)
-		if s != nil {
-			team := s[1]
-			teams = append(teams, team)
+	for _, name := range names {
+		if _, ok := groups[getCasbinNameForTeam(*org.Name, name)]; ok {
+			teams = append(teams, name)
 		}
 	}
 	return teams
@@ -700,6 +694,7 @@ func getCasbinNameForTeam(org, team string) string {
 // teams of deleted organizations, uses the given permissions group name.
 func teamGroupNameInUse(tx *gorm.DB, teamGroupName string) bool {
 	var count int
+	// Note: this builds the same name as getCasbinNameForTeam.
 	tx.Table("teams").
 		Joins("JOIN organizations ON organizations.id = teams.organization_id").
 		Where("CONCAT(organizations.name, '_t_', teams.name) = ?", teamGroupName).

@@ -39,14 +39,14 @@ func processTransferRequest(sourceOwner string, user *users.User, tx *gorm.DB, r
 
 	// Step 2: only the source owner can transfer its assets. Assets are only
 	// transferred from users to organizations.
-	if user == nil || user.Username == nil || *user.Username != sourceOwner {
+	if *user.Username != sourceOwner {
 		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
 	// Step 3: check write permissions of the requesting user
-	if ok, em := globals.Permissions.IsAuthorized(*user.Username,
+	if ok, em := globals.Permissions.IsAuthorized(sourceOwner,
 		transferAsset.DestOwner, permissions.Write); !ok {
-		extra := fmt.Sprintf("User [%s] is not authorized", *user.Username)
+		extra := fmt.Sprintf("User [%s] is not authorized", sourceOwner)
 		return nil, gz.NewErrorMessageWithArgs(gz.ErrorUnauthorized, em.BaseError, []string{extra})
 	}
 

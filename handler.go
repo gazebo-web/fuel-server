@@ -374,6 +374,16 @@ func getValidationErrorsExtraInfo(err error) []string {
 	return extra
 }
 
+// ensureSystemAdmin returns an error unless the user of the request is a
+// system admin.
+func ensureSystemAdmin(tx *gorm.DB, r *http.Request) *gz.ErrMsg {
+	user, ok, _ := getUserFromJWT(tx, r)
+	if !ok || !globals.Permissions.IsSystemAdmin(*user.Username) {
+		return gz.NewErrorMessage(gz.ErrorUnauthorized)
+	}
+	return nil
+}
+
 // getUserFromJWT returns the User associated to the http request's JWT token.
 // This function can return ErrorAuthJWTInvalid if the token cannot be
 // read, or ErrorAuthNoUser no user with such identity exists in the DB.

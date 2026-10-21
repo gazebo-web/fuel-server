@@ -911,7 +911,7 @@ func isbasicModelListQuery(p *gz.PaginationRequest, owner *string,
 	categories *category.Categories, ignoreMemcache bool) bool {
 	return !ignoreMemcache && owner == nil && order == "" && search == "" && likedBy == nil &&
 		user == nil && (categories == nil || len(*categories) == 0) &&
-		p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20))
+		p != nil && (!p.PageRequested || p.PerPage == 20)
 }
 
 // getModelListCache attempts to get a query result from memcache.
