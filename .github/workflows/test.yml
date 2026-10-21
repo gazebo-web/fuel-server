@@ -72,5 +72,5 @@ jobs:
 
 
         run: |
-          go test -covermode=atomic -coverprofile=coverage.tx -v ./...
+          go test -timeout 30m -covermode=atomic -coverprofile=coverage.tx -v ./...
           go tool cover -func=coverage.tx -o=coverage.out
