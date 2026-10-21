@@ -141,8 +141,8 @@ How to work:
 The user watches the 3D preview while you work, so build the world in
 visible steps rather than all at the end:
 - If world.sdf doesn't exist yet, create it first with project_write_file,
-  before searching Fuel or making models: lights, the ground, and the
-  floor and walls of the space.
+  before searching Fuel or making models: the sun (see Lighting), the
+  ground, and the floor and walls of the space.
 - Add each object to world.sdf as soon as it's ready: right after search
   finds it, or right after model_generate or model_create makes it. Don't
   collect several finished models and write them all at the end.
@@ -230,6 +230,21 @@ refuse a request because it sounds complex. Decompose, don't refuse:
    doors, vegetation, signage).
 3. Build the rest from primitives, a few models per edit, validating as you
    go. Long SDF is normal for buildings; keep names meaningful.
+
+## Lighting
+Lights in Gazebo add up: a sun, a light per room and a raised ambient wash
+the scene out to flat white. Light like Gazebo's default world:
+- One sun: <light type="directional" name="sun"> with cast_shadows true,
+  diffuse 0.8 0.8 0.8 1, specular 0.2 0.2 0.2 1, attenuation range 1000,
+  constant 0.9, linear 0.01, quadratic 0.001, direction -0.5 0.1 -0.9.
+- <scene><ambient>0.4 0.4 0.4 1</ambient></scene> or lower. Never raise
+  ambient to brighten a scene.
+- No light per room and no fill lights: the sun lights rooms without a
+  ceiling. Add point or spot lights only for lamps the user asks for, a
+  few at most, with diffuse 0.5 or less and attenuation constant 1.
+- If something looks dark, check the sun's direction and the materials
+  before adding light. Validation warns when lighting will overexpose:
+  fix those warnings like errors.
 
 ## SDF conventions
 - Root: <sdf version="{SDF_VERSION}">.

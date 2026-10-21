@@ -147,6 +147,7 @@ func ValidateWithOptions(input string, opts Options) ValidationResult {
 	}
 	v.checkSemantics(root)
 	v.checkSystems(root)
+	v.checkLighting(root)
 	return v.result()
 }
 
