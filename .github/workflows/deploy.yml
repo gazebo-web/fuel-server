@@ -54,7 +54,16 @@ jobs:
         # Add the `always` in case the application version from the previous
         # step already exists, which would cause a failure.
         if: always()
-        run: aws elasticbeanstalk update-environment --environment-name gz-fuel-server-staging --version-label "ver-${{ github.sha }}"
+        # The MCP endpoint's sign-in settings (docs/ai-builder-mcp-auth0-setup.md):
+        # the endpoint's URL, which must equal the Auth0 API identifier, and
+        # the staging tenant. None is secret.
+        run: |
+          aws elasticbeanstalk update-environment --environment-name gz-fuel-server-staging \
+          --version-label "ver-${{ github.sha }}" \
+          --option-settings \
+            Namespace=aws:elasticbeanstalk:application:environment,OptionName=AI_TOOLS_MCP_RESOURCE,Value=https://staging-fuel.gazebosim.org/mcp \
+            Namespace=aws:elasticbeanstalk:application:environment,OptionName=AUTH0_ISSUER,Value=https://gazebosim-staging.us.auth0.com/ \
+            Namespace=aws:elasticbeanstalk:application:environment,OptionName=AUTH0_JWKS_URL,Value=https://gazebosim-staging.us.auth0.com/.well-known/jwks.json
 
 
   production-deploy:
