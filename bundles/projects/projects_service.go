@@ -305,7 +305,8 @@ func (s *Service) Update(tx *gorm.DB, owner, name string, jwtUser *users.User,
 }
 
 // Delete soft-deletes the row. The on-disk repo is left in place (mirrors
-// Model / World behavior) so history can be recovered operationally.
+// Model / World behavior) so history can be recovered operationally; the
+// project's uploaded files are removed.
 func (s *Service) Delete(tx *gorm.DB, owner, name string, jwtUser *users.User) *gz.ErrMsg {
 	p, em := s.Get(tx, owner, name, jwtUser)
 	if em != nil {
@@ -315,6 +316,9 @@ func (s *Service) Delete(tx *gorm.DB, owner, name string, jwtUser *users.User) *
 		return gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 	if err := tx.Delete(p).Error; err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
+	}
+	if err := deleteProjectAssets(tx, p); err != nil {
 		return gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 	return nil

@@ -1,0 +1,205 @@
+package main
+
+import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gazebo-web/fuel-server/bundles/projects"
+	"github.com/gazebo-web/fuel-server/globals"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// Project files over the REST API and the AI tools.
+
+func assetTestPNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewNRGBA(image.Rect(0, 0, w, h))
+	for x := 0; x < w; x++ {
+		img.Set(x, h/2, color.NRGBA{0, 0, 0, 255})
+	}
+	var buf bytes.Buffer
+	require.NoError(t, png.Encode(&buf, img))
+	return buf.Bytes()
+}
+
+func uploadAssets(t *testing.T, jwt, project string, files map[string][]byte, kind string) *httptest.ResponseRecorder {
+	t.Helper()
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	for name, data := range files {
+		w, err := mw.CreateFormFile("file", name)
+		require.NoError(t, err)
+		_, _ = w.Write(data)
+	}
+	if kind != "" {
+		_ = mw.WriteField("kind", kind)
+	}
+	require.NoError(t, mw.Close())
+	req, _ := http.NewRequest("POST", "/1.0/projects/"+project+"/assets", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	rec := httptest.NewRecorder()
+	globals.Server.Router.ServeHTTP(rec, req)
+	return rec
+}
+
+func getNoAuth(path string) *httptest.ResponseRecorder {
+	req, _ := http.NewRequest("GET", path, nil)
+	rec := httptest.NewRecorder()
+	globals.Server.Router.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestProjectAssets(t *testing.T) {
+	jwt := createValidJWTForIdentity("assets-identity", t)
+	username := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(username, jwt, t)
+	name := fmt.Sprintf("assets-%d", time.Now().UnixNano())
+	mcpJSON(t, jwt, "project_create", map[string]any{"name": name})
+
+	plan := assetTestPNG(t, 2000, 1000)
+	glb := append([]byte("glTF\x02\x00\x00\x00"), make([]byte, 64)...)
+	svg := []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`)
+	rec := uploadAssets(t, jwt, name, map[string][]byte{"plans/floorplan.png": plan, "crate.glb": glb, "room.svg": svg}, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var added []projects.Asset
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &added))
+	require.Len(t, added, 3)
+	byName := map[string]projects.Asset{}
+	for _, a := range added {
+		byName[a.Name] = a
+	}
+	img := byName["floorplan.png"]
+	assert.Equal(t, projects.AssetImage, img.Kind)
+	assert.Equal(t, []string{"ai.jpg", "thumb.jpg"}, img.ViewList)
+	assert.EqualValues(t, 2000, img.Info["width"])
+	assert.Equal(t, projects.AssetMesh, byName["crate.glb"].Kind)
+	assert.Equal(t, projects.AssetDrawing, byName["room.svg"].Kind)
+
+	// A bad file refuses the whole request; a repeated name gets a suffix.
+	rec = uploadAssets(t, jwt, name, map[string][]byte{"a.png": plan, "virus.exe": []byte("MZ\x90\x00\x03")}, "")
+	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), "virus.exe")
+	rec = uploadAssets(t, jwt, name, map[string][]byte{"floorplan.png": plan}, "texture")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"name":"floorplan-2.png"`)
+	assert.Contains(t, rec.Body.String(), `"kind":"texture"`)
+
+	rec = aiRequest(t, "GET", "/1.0/projects/"+name+"/assets", jwt, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var list []projects.Asset
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &list))
+	assert.Len(t, list, 4)
+
+	// Files: an image shows inline; an SVG only downloads; nothing runs script.
+	rec = aiRequest(t, "GET", "/1.0/projects/"+name+"/assets/"+img.ID+"/original", jwt, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "image/png", rec.Header().Get("Content-Type"))
+	assert.True(t, strings.HasPrefix(rec.Header().Get("Content-Disposition"), "inline"))
+	assert.Contains(t, rec.Header().Get("Content-Security-Policy"), "sandbox")
+	rec = aiRequest(t, "GET", "/1.0/projects/"+name+"/assets/room.svg/original", jwt, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.True(t, strings.HasPrefix(rec.Header().Get("Content-Disposition"), "attachment"))
+	assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+	rec = aiRequest(t, "GET", "/1.0/projects/"+name+"/assets/"+img.ID+"/thumb.jpg", jwt, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "image/jpeg", rec.Header().Get("Content-Type"))
+	assert.NotEqual(t, http.StatusOK, aiRequest(t, "GET", "/1.0/projects/"+name+"/assets/"+img.ID+"/../../files/x", jwt, nil).Code)
+	assert.Equal(t, http.StatusNotFound, aiRequest(t, "GET", "/1.0/projects/"+name+"/assets/crate.glb/ai.jpg", jwt, nil).Code)
+
+	// Signed URLs serve files without a login, and only files.
+	rec = aiRequest(t, "GET", "/1.0/projects/"+name+"/assets-url", jwt, nil)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var u struct {
+		BasePath string `json:"base_path"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &u))
+	assert.Equal(t, http.StatusOK, getNoAuth(u.BasePath+"/"+img.ID+"/thumb.jpg").Code)
+	token := strings.TrimPrefix(u.BasePath, "/1.0/project-assets/")
+	assert.Equal(t, http.StatusUnauthorized, getNoAuth("/1.0/project-files/"+token+"/files/.gitignore").Code)
+	rec = aiRequest(t, "GET", "/1.0/projects/"+name+"/file-url", jwt, nil)
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &u))
+	repoToken := strings.TrimPrefix(u.BasePath, "/1.0/project-files/")
+	assert.Equal(t, http.StatusUnauthorized, getNoAuth("/1.0/project-assets/"+repoToken+"/"+img.ID+"/thumb.jpg").Code)
+
+	// Another user sees nothing.
+	otherJWT := createValidJWTForIdentity("assets-other-identity", t)
+	other := createUserWithJWT(otherJWT, t)
+	defer removeUserWithJWT(other, otherJWT, t)
+	assert.NotEqual(t, http.StatusOK, aiRequest(t, "GET", "/1.0/projects/"+name+"/assets", otherJWT, nil).Code)
+	assert.NotEqual(t, http.StatusOK, uploadAssets(t, otherJWT, name, map[string][]byte{"x.png": plan}, "").Code)
+
+	// Rename and delete.
+	rec = aiRequest(t, "PATCH", "/1.0/projects/"+name+"/assets/crate.glb", jwt, map[string]string{"name": "room.svg"})
+	assert.NotEqual(t, http.StatusOK, rec.Code, rec.Body.String())
+	rec = aiRequest(t, "PATCH", "/1.0/projects/"+name+"/assets/crate.glb", jwt, map[string]string{"name": "box.glb"})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"name":"box.glb"`)
+	p, err := projects.GetProjectByName(globals.Server.Db, name, username)
+	require.NoError(t, err)
+	dir := filepath.Join(filepath.Dir(filepath.Dir(*p.Location)), "project-assets", *p.UUID, byName["crate.glb"].ID)
+	require.DirExists(t, dir)
+	require.Equal(t, http.StatusOK, aiRequest(t, "DELETE", "/1.0/projects/"+name+"/assets/box.glb", jwt, nil).Code)
+	assert.NoDirExists(t, dir)
+	assert.Equal(t, http.StatusNotFound, aiRequest(t, "GET", "/1.0/projects/"+name+"/assets/box.glb", jwt, nil).Code)
+
+	// The AI tools.
+	files := mcpJSON(t, jwt, "asset_list", map[string]any{"name": name})["files"].([]any)
+	assert.Len(t, files, 3)
+	assert.Contains(t, fmt.Sprint(files), "2000×1000 px")
+	content := mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "floorplan.png", "grid": true})
+	require.Len(t, content, 2)
+	assert.Contains(t, content[0]["text"], "10%")
+	assert.Equal(t, "image/jpeg", content[1]["mimeType"])
+	content = mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "room.svg"})
+	require.Len(t, content, 1)
+	assert.Contains(t, content[0]["text"], "no picture")
+
+	up := mcpJSON(t, jwt, "asset_upload", map[string]any{"name": name, "filename": "sketch.png",
+		"content_base64": "data:image/png;base64," + base64.StdEncoding.EncodeToString(assetTestPNG(t, 10, 10))})
+	assert.Equal(t, "image", up["kind"])
+	text, isErr := mcpCall(t, jwt, "asset_upload", map[string]any{"name": name, "filename": "x.bin", "content_base64": "!!"})
+	assert.True(t, isErr, text)
+
+	// Deleting the project removes its files.
+	require.Equal(t, http.StatusOK, aiRequest(t, "DELETE", "/1.0/projects/"+name, jwt, nil).Code)
+	assert.NoDirExists(t, filepath.Dir(dir))
+	var n int
+	globals.Server.Db.Model(&projects.Asset{}).Where("project_id = ?", p.ID).Count(&n)
+	assert.Zero(t, n)
+	_, err = os.Stat(*p.Location)
+	assert.NoError(t, err, "the repo itself is kept")
+}
+
+// mcpContent invokes a tool and returns its content blocks.
+func mcpContent(t *testing.T, jwt, tool string, args map[string]any) []map[string]string {
+	t.Helper()
+	rec := aiRequest(t, "POST", "/1.0/mcp", jwt, map[string]any{
+		"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+		"params": map[string]any{"name": tool, "arguments": args},
+	})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var resp struct {
+		Result struct {
+			Content []map[string]string `json:"content"`
+			IsError bool                `json:"isError"`
+		} `json:"result"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp), rec.Body.String())
+	require.False(t, resp.Result.IsError, rec.Body.String())
+	return resp.Result.Content
+}

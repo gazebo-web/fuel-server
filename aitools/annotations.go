@@ -30,8 +30,11 @@ var toolAnnotations = map[string]mcp.Annotations{
 	"project_list_versions": {ReadOnly: true},
 	"project_list_models":   {ReadOnly: true},
 	"scene_summary":         {ReadOnly: true},
+	"asset_list":            {ReadOnly: true},
+	"asset_view":            {ReadOnly: true},
 
 	"project_create":     {},
+	"asset_upload":       {},
 	"project_checkpoint": {},
 	"model_create":       {},
 	// These overwrite what is there: a file, or a model's whole folder.

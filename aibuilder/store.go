@@ -31,13 +31,15 @@ func (ChatSession) TableName() string { return "ai_chat_sessions" }
 
 // ChatMessage is one message of the conversation's history.
 type ChatMessage struct {
-	ID        uint      `gorm:"primary_key" json:"-"`
-	SessionID string    `gorm:"type:varchar(36);index" json:"session_id"`
-	Role      string    `gorm:"type:varchar(16)" json:"role"` // user, assistant or tool_result
-	Content   string    `gorm:"type:mediumtext" json:"content"`
-	ToolName  string    `gorm:"type:varchar(128)" json:"tool_name,omitempty"`
-	ToolID    string    `gorm:"type:varchar(128)" json:"tool_id,omitempty"`
-	CreatedAt time.Time `gorm:"type:datetime(6)" json:"timestamp"`
+	ID        uint   `gorm:"primary_key" json:"-"`
+	SessionID string `gorm:"type:varchar(36);index" json:"session_id"`
+	Role      string `gorm:"type:varchar(16)" json:"role"` // user, assistant or tool_result
+	Content   string `gorm:"type:mediumtext" json:"content"`
+	ToolName  string `gorm:"type:varchar(128)" json:"tool_name,omitempty"`
+	ToolID    string `gorm:"type:varchar(128)" json:"tool_id,omitempty"`
+	// Attachments are the files on a user message.
+	Attachments Attachments `gorm:"type:text" json:"attachments,omitempty"`
+	CreatedAt   time.Time   `gorm:"type:datetime(6)" json:"timestamp"`
 }
 
 // TableName keeps the agent's tables together.

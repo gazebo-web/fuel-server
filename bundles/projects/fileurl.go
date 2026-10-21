@@ -129,6 +129,9 @@ func (s *Service) FileByToken(ctx context.Context, tx *gorm.DB, token, relPath s
 	if em != nil {
 		return nil, em
 	}
+	if rev == assetsRev {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnauthorized, ErrBadFileToken)
+	}
 	b, _, err := readFileAt(*p.Location, relPath, rev)
 	if err != nil {
 		return nil, repoErr(err)
@@ -142,6 +145,9 @@ func (s *Service) FilesByToken(tx *gorm.DB, token, dir string) ([]string, *gz.Er
 	p, rev, em := projectForToken(tx, token)
 	if em != nil {
 		return nil, em
+	}
+	if rev == assetsRev {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorUnauthorized, ErrBadFileToken)
 	}
 	files, _, err := listFilesAt(*p.Location, rev)
 	if err != nil {
@@ -158,6 +164,42 @@ func (s *Service) FilesByToken(tx *gorm.DB, token, dir string) ([]string, *gz.Er
 		return nil, repoErr(fmt.Errorf("%w: %s", ErrFileNotFound, dir))
 	}
 	return out, nil
+}
+
+// assetsRev is the "revision" of a token for a project's uploaded files
+// (assets.go) rather than a commit of its repo.
+const assetsRev = "@assets"
+
+// SignAssetsURL issues a signed base path for a project's uploaded files:
+// BasePath/<asset id>/<file> serves its original or a view, so <img> tags
+// can show them.
+func (s *Service) SignAssetsURL(tx *gorm.DB, name string, jwtUser *users.User) (*FileURL, *gz.ErrMsg) {
+	p, em := s.GetForCaller(tx, name, jwtUser)
+	if em != nil {
+		return nil, em
+	}
+	exp := time.Now().Add(FileURLTTL).Truncate(time.Second)
+	return &FileURL{
+		BasePath:  "/" + apiVersion + "/project-assets/" + signFileToken(*p.Owner, *p.Name, assetsRev, exp),
+		ExpiresAt: exp,
+	}, nil
+}
+
+// AssetFileByToken is the path of an uploaded file's original or view
+// through a token from SignAssetsURL.
+func (s *Service) AssetFileByToken(tx *gorm.DB, token, ref, file string) (*Asset, string, *gz.ErrMsg) {
+	p, rev, em := projectForToken(tx, token)
+	if em != nil {
+		return nil, "", em
+	}
+	if rev != assetsRev {
+		return nil, "", gz.NewErrorMessageWithBase(gz.ErrorUnauthorized, ErrBadFileToken)
+	}
+	a, em := findAsset(tx, p, ref)
+	if em != nil {
+		return nil, "", em
+	}
+	return assetFilePath(p, a, file)
 }
 
 func projectForToken(tx *gorm.DB, token string) (*Project, string, *gz.ErrMsg) {

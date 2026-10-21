@@ -125,6 +125,8 @@ type chatRequest struct {
 	Message  string `json:"message"`
 	Provider string `json:"provider,omitempty"`
 	Model    string `json:"model,omitempty"`
+	// Attachments are project files (ids or names) sent with the message.
+	Attachments []string `json:"attachments,omitempty"`
 }
 
 // session resolves the URL's project for the caller and its chat session.
@@ -148,12 +150,17 @@ func (s *Server) session(w http.ResponseWriter, r *http.Request) (*projects.Proj
 
 func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	var body chatRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Message == "" {
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || (body.Message == "" && len(body.Attachments) == 0) {
 		writeError(w, http.StatusBadRequest, "message required")
 		return
 	}
 	p, cs, ok := s.session(w, r)
 	if !ok {
+		return
+	}
+	in, err := resolveAttachments(s.db, *p.Name, userFrom(r), body.Message, body.Attachments)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	provider, key, ok := s.provider(w, username(r), body.Provider)
@@ -181,7 +188,7 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	cfg.Effort = s.cfg.Effort
 	engine := NewEngine(provider, &userTools{reg: s.cfg.Tools, db: s.db, user: userFrom(r)}, cfg)
 	s.turns.start(turn, func(ctx context.Context, out chan<- Event) {
-		engine.Run(ctx, history, body.Message, cs.ID, out, s.store.AppendMessage)
+		engine.Run(ctx, history, in, cs.ID, out, s.store.AppendMessage)
 	})
 	w.Header().Set("X-Turn-ID", turn.ID)
 	s.follow(w, r, turn.ID, 0)

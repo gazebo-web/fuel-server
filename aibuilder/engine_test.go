@@ -85,7 +85,7 @@ func TestEngineTextOnly(t *testing.T) {
 	out := make(chan Event, 16)
 	var stored []ChatMessage
 	appender := func(m *ChatMessage) error { stored = append(stored, *m); return nil }
-	go e.Run(context.Background(), nil, "hi", "sess", out, appender)
+	go e.Run(context.Background(), nil, UserInput{Text: "hi"}, "sess", out, appender)
 
 	events := drainEvents(t, out)
 	require.NotEmpty(t, events)
@@ -119,7 +119,7 @@ func TestEngineWithToolCall(t *testing.T) {
 
 	out := make(chan Event, 32)
 	appender := func(m *ChatMessage) error { return nil }
-	go e.Run(context.Background(), nil, "echo hi", "sess", out, appender)
+	go e.Run(context.Background(), nil, UserInput{Text: "echo hi"}, "sess", out, appender)
 	events := drainEvents(t, out)
 
 	types_ := []EventType{}
@@ -159,7 +159,7 @@ func runWrite(t *testing.T, server testServer) []Event {
 	reg := &testTools{}
 	reg.Add(server)
 	out := make(chan Event, 16)
-	go NewEngine(p, reg, DefaultEngineConfig()).Run(context.Background(), nil, "build", "sess", out, func(*ChatMessage) error { return nil })
+	go NewEngine(p, reg, DefaultEngineConfig()).Run(context.Background(), nil, UserInput{Text: "build"}, "sess", out, func(*ChatMessage) error { return nil })
 	return drainEvents(t, out)
 }
 
@@ -187,7 +187,7 @@ func TestEngineSendsSystemPromptAsCachedPrefix(t *testing.T) {
 	cfg := DefaultEngineConfig()
 	cfg.SystemPrompt = "stable prompt"
 	out := make(chan Event, 8)
-	go NewEngine(p, &testTools{}, cfg).Run(context.Background(), nil, "hello", "sess", out, func(*ChatMessage) error { return nil })
+	go NewEngine(p, &testTools{}, cfg).Run(context.Background(), nil, UserInput{Text: "hello"}, "sess", out, func(*ChatMessage) error { return nil })
 	drainEvents(t, out)
 	require.Len(t, p.reqs, 1)
 	assert.Equal(t, "stable prompt", p.reqs[0].CachedPrefix)
@@ -230,7 +230,7 @@ func TestEngineReplaysNativeMessage(t *testing.T) {
 	cfg := DefaultEngineConfig()
 	cfg.Effort = "medium"
 	out := make(chan Event, 32)
-	go NewEngine(p, reg, cfg).Run(context.Background(), nil, "echo hi", "sess", out, func(*ChatMessage) error { return nil })
+	go NewEngine(p, reg, cfg).Run(context.Background(), nil, UserInput{Text: "echo hi"}, "sess", out, func(*ChatMessage) error { return nil })
 	events := drainEvents(t, out)
 
 	require.Len(t, p.reqs, 2)

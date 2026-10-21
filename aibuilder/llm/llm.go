@@ -15,6 +15,9 @@ type Message struct {
 	Content     string       `json:"content,omitempty"`
 	ToolCalls   []ToolCall   `json:"tool_calls,omitempty"`
 	ToolResults []ToolResult `json:"tool_results,omitempty"`
+	// Images are pictures sent with a user message: the files a user
+	// attached. Providers send them beside Content.
+	Images []Image `json:"-"`
 	// Native is an assistant message's content in the provider's own
 	// format, as streamed (ChunkNative). The provider named by
 	// NativeProvider replays it verbatim instead of rebuilding the
@@ -190,13 +193,32 @@ type Image struct {
 }
 
 // RichResult is a tool result that carries images beside its value.
-// Providers that accept images in tool results (Anthropic) send both; for
-// everything else, including the stored chat history, it marshals as the
-// value alone with a note that the images were left out.
+// Anthropic sends both in the tool result; other providers send the value
+// and then the images in a user message (ToolResultImages). As JSON, e.g.
+// in the stored chat history, it is the value with a count of its images.
 type RichResult struct {
 	Value  interface{}
 	Images []Image
 }
+
+// ToolResultImages are the images in a message's tool results, for
+// providers whose tool results hold only text: they send them in a user
+// message after the results instead.
+func ToolResultImages(results []ToolResult) []Image {
+	var out []Image
+	for _, tr := range results {
+		if rich, ok := tr.Content.(RichResult); ok {
+			out = append(out, rich.Images...)
+		}
+	}
+	return out
+}
+
+// ToolImagesNote introduces images moved out of tool results.
+const ToolImagesNote = "Images returned by the tool calls above:"
+
+// DataURL is an image as a data: URL.
+func (i Image) DataURL() string { return "data:" + i.MimeType + ";base64," + i.Data }
 
 // MarshalJSON is the text-only form.
 func (r RichResult) MarshalJSON() ([]byte, error) {
@@ -205,7 +227,7 @@ func (r RichResult) MarshalJSON() ([]byte, error) {
 		for k, v := range m {
 			cp[k] = v
 		}
-		cp["images_omitted"] = len(r.Images)
+		cp["images"] = len(r.Images)
 		return json.Marshal(cp)
 	}
 	return json.Marshal(r.Value)

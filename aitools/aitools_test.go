@@ -15,6 +15,7 @@ func TestCatalog(t *testing.T) {
 	}
 	sort.Strings(names)
 	want := []string{
+		"asset_list", "asset_upload", "asset_view",
 		"fuel_get_model_details", "fuel_get_model_sdf", "fuel_get_world_sdf", "fuel_search_models", "fuel_search_worlds",
 		"model_create",
 		"project_checkpoint", "project_create", "project_edit_file", "project_get", "project_list",

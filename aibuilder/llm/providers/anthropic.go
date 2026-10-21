@@ -129,6 +129,14 @@ type anthropicContentBlock struct {
 	IsError   bool        `json:"is_error,omitempty"`
 
 	CacheControl *anthropicCacheControlSpec `json:"cache_control,omitempty"`
+	// Source is set only on image blocks.
+	Source *anthropicImageSource `json:"source,omitempty"`
+}
+
+type anthropicImageSource struct {
+	Type      string `json:"type"`
+	MediaType string `json:"media_type"`
+	Data      string `json:"data"`
 }
 
 // anthropicMessage.Content is []anthropicContentBlock, or the
@@ -233,6 +241,11 @@ func buildAnthropicRequest(req llm.Request) ([]byte, error) {
 			continue
 		}
 		blocks := []anthropicContentBlock{}
+		// Attached images come before the text that asks about them.
+		for _, img := range m.Images {
+			blocks = append(blocks, anthropicContentBlock{Type: "image",
+				Source: &anthropicImageSource{Type: "base64", MediaType: img.MimeType, Data: img.Data}})
+		}
 		if m.Content != "" {
 			blocks = append(blocks, anthropicContentBlock{Type: "text", Text: m.Content})
 		}

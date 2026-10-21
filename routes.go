@@ -3028,6 +3028,110 @@ var routes = gz.Routes{
 		},
 	},
 
+	// /projects/{name}/assets... — the files a user gives the AI to build
+	// from (photos, drawings, meshes, textures), kept beside the repo.
+	gz.Route{
+		Name:          "ProjectAssets",
+		Description:   "List or upload a project's files",
+		URI:           "/projects/{name}/assets",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "List the project's files",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectAssetsList))},
+				},
+			},
+			gz.Method{
+				Type:        "POST",
+				Description: "Upload files (multipart, field file)",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectAssetsUpload))},
+				},
+			},
+		},
+	},
+	gz.Route{
+		Name:          "ProjectAssetsURL",
+		Description:   "Get a signed URL for a project's files",
+		URI:           "/projects/{name}/assets-url",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Sign a URL for the project's files",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectAssetsURL))},
+				},
+			},
+		},
+	},
+	gz.Route{
+		Name:          "ProjectAsset",
+		Description:   "A project file",
+		URI:           "/projects/{name}/assets/{asset}",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Get a file's details",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectAsset))},
+				},
+			},
+			gz.Method{
+				Type:        "PATCH",
+				Description: "Rename a file",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectAsset))},
+				},
+			},
+			gz.Method{
+				Type:        "DELETE",
+				Description: "Delete a file",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectAsset))},
+				},
+			},
+		},
+	},
+	gz.Route{
+		Name:          "ProjectAssetFile",
+		Description:   "Read a project file's original or a view",
+		URI:           "/projects/{name}/assets/{asset}/{file}",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Get the original or a view (e.g. thumb.jpg)",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(NameHandler("name", true, ProjectAssetFile)))},
+				},
+			},
+		},
+	},
+	gz.Route{
+		Name:        "ProjectAssetFileByToken",
+		Description: "Read a project file through a signed URL",
+		URI:         "/project-assets/{token}/{asset}/{file}",
+		Headers:     gz.AuthHeadersOptional,
+		Methods: gz.Methods{
+			gz.Method{
+				Type:        "GET",
+				Description: "Get the original or a view",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.Handler(NoResult(ProjectAssetFileByToken))},
+				},
+			},
+		},
+		SecureMethods: gz.SecureMethods{},
+	},
+
 	// /project-files/{token}/... — files of the revision a signed token
 	// grants. No auth header: the token is the credential.
 	gz.Route{

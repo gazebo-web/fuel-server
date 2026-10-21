@@ -70,6 +70,7 @@ type ollamaMessage struct {
 	Role      string           `json:"role"`
 	Content   string           `json:"content"`
 	ToolCalls []ollamaToolCall `json:"tool_calls,omitempty"`
+	Images    []string         `json:"images,omitempty"`
 }
 
 type ollamaToolCall struct {
@@ -127,6 +128,15 @@ func (o *Ollama) ChatStream(ctx context.Context, req llm.Request) (<-chan llm.Ch
 	return out, nil
 }
 
+// ollamaImages are images as Ollama takes them: bare base64.
+func ollamaImages(imgs []llm.Image) []string {
+	var out []string
+	for _, img := range imgs {
+		out = append(out, img.Data)
+	}
+	return out
+}
+
 func buildOllamaRequest(req llm.Request) ([]byte, error) {
 	msgs := []ollamaMessage{}
 	// Ollama has no provider-side prefix cache; concatenate so the model
@@ -162,10 +172,14 @@ func buildOllamaRequest(req llm.Request) ([]byte, error) {
 				content, _ := llm.JSON(tr.Content)
 				msgs = append(msgs, ollamaMessage{Role: "tool", Content: string(content)})
 			}
+			// Tool messages hold only text: images follow as a user message.
+			if imgs := llm.ToolResultImages(m.ToolResults); len(imgs) > 0 {
+				msgs = append(msgs, ollamaMessage{Role: "user", Content: llm.ToolImagesNote, Images: ollamaImages(imgs)})
+			}
 			continue
 		}
-		if m.Content != "" {
-			msgs = append(msgs, ollamaMessage{Role: m.Role, Content: m.Content})
+		if m.Content != "" || len(m.Images) > 0 {
+			msgs = append(msgs, ollamaMessage{Role: m.Role, Content: m.Content, Images: ollamaImages(m.Images)})
 		}
 	}
 	tools := []ollamaTool{}

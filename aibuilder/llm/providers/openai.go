@@ -124,8 +124,9 @@ type openAIToolDef struct {
 }
 
 type openAIMessage struct {
-	Role       string           `json:"role"`
-	Content    string           `json:"content,omitempty"`
+	Role string `json:"role"`
+	// Content is a string, or a list of parts for a message with images.
+	Content    interface{}      `json:"content,omitempty"`
 	ToolCalls  []openAIToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string           `json:"tool_call_id,omitempty"`
 	Name       string           `json:"name,omitempty"`
@@ -218,6 +219,10 @@ func buildOpenAIRequest(req llm.Request) ([]byte, error) {
 				content, _ := llm.JSON(tr.Content)
 				msgs = append(msgs, openAIMessage{Role: "tool", ToolCallID: tr.ToolCallID, Content: string(content)})
 			}
+			// Tool messages hold only text: images follow as a user message.
+			if imgs := llm.ToolResultImages(m.ToolResults); len(imgs) > 0 {
+				msgs = append(msgs, openAIMessage{Role: "user", Content: openAIParts(llm.ToolImagesNote, imgs)})
+			}
 		case len(m.ToolCalls) > 0:
 			calls := make([]openAIToolCall, 0, len(m.ToolCalls))
 			for _, tc := range m.ToolCalls {
@@ -230,7 +235,13 @@ func buildOpenAIRequest(req llm.Request) ([]byte, error) {
 				oaTC.Function.Arguments = string(args)
 				calls = append(calls, oaTC)
 			}
-			msgs = append(msgs, openAIMessage{Role: "assistant", Content: m.Content, ToolCalls: calls})
+			msg := openAIMessage{Role: "assistant", ToolCalls: calls}
+			if m.Content != "" {
+				msg.Content = m.Content
+			}
+			msgs = append(msgs, msg)
+		case len(m.Images) > 0:
+			msgs = append(msgs, openAIMessage{Role: m.Role, Content: openAIParts(m.Content, m.Images)})
 		default:
 			if m.Content == "" {
 				continue
@@ -255,6 +266,19 @@ func buildOpenAIRequest(req llm.Request) ([]byte, error) {
 		StreamOptions: &openAIStreamOptions{IncludeUsage: true},
 	}
 	return llm.JSON(body)
+}
+
+// openAIParts is a content list: the text, then the images.
+func openAIParts(text string, images []llm.Image) []map[string]interface{} {
+	parts := []map[string]interface{}{}
+	if text != "" {
+		parts = append(parts, map[string]interface{}{"type": "text", "text": text})
+	}
+	for _, img := range images {
+		parts = append(parts, map[string]interface{}{"type": "image_url",
+			"image_url": map[string]string{"url": img.DataURL()}})
+	}
+	return parts
 }
 
 func parseOpenAIStream(r io.Reader, out chan<- llm.Chunk, model string) {

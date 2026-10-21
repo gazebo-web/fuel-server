@@ -226,6 +226,7 @@ func humanizeID(id string) string {
 
 type geminiPart struct {
 	Text             string              `json:"text,omitempty"`
+	InlineData       *geminiBlob         `json:"inlineData,omitempty"`
 	FunctionCall     *geminiFuncCall     `json:"functionCall,omitempty"`
 	FunctionResponse *geminiFuncResponse `json:"functionResponse,omitempty"`
 	// ThoughtSignature is emitted by Gemini 2.5+ "thinking" models on any
@@ -233,6 +234,11 @@ type geminiPart struct {
 	// The API rejects the next turn if the signature isn't echoed back
 	// verbatim on the same part it arrived on.
 	ThoughtSignature string `json:"thoughtSignature,omitempty"`
+}
+
+type geminiBlob struct {
+	MimeType string `json:"mimeType"`
+	Data     string `json:"data"`
 }
 
 type geminiFuncCall struct {
@@ -328,6 +334,9 @@ func buildGeminiRequest(req llm.Request) ([]byte, error) {
 			role = "model"
 		}
 		c := geminiContent{Role: role}
+		for _, img := range m.Images {
+			c.Parts = append(c.Parts, geminiPart{InlineData: &geminiBlob{MimeType: img.MimeType, Data: img.Data}})
+		}
 		if m.Content != "" {
 			c.Parts = append(c.Parts, geminiPart{Text: m.Content})
 		}
@@ -346,6 +355,13 @@ func buildGeminiRequest(req llm.Request) ([]byte, error) {
 				Name:     "tool",
 				Response: resp,
 			}})
+		}
+		// Function responses hold only JSON: images follow in the same turn.
+		if imgs := llm.ToolResultImages(m.ToolResults); len(imgs) > 0 {
+			c.Parts = append(c.Parts, geminiPart{Text: llm.ToolImagesNote})
+			for _, img := range imgs {
+				c.Parts = append(c.Parts, geminiPart{InlineData: &geminiBlob{MimeType: img.MimeType, Data: img.Data}})
+			}
 		}
 		if len(c.Parts) > 0 {
 			body.Contents = append(body.Contents, c)

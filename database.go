@@ -80,6 +80,7 @@ func DBMigrate(ctx context.Context, db *gorm.DB) {
 			&worlds.ModelInclude{},
 			&worlds.WorldMetadatum{},
 			&projects.Project{},
+			&projects.Asset{},
 			&aitools.ModelSize{},
 			&users.AccessTokenScope{},
 			&reviews.ModelReview{},

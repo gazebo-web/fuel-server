@@ -76,6 +76,7 @@ func NewRegistry(cfg Config) *mcp.Registry {
 	t.registerFuel(reg)
 	t.registerSDF(reg)
 	t.registerProject(reg)
+	t.registerAssets(reg)
 	t.registerScene(reg)
 	t.registerModels(reg)
 	if cfg.MeshWorkerURL != "" {
