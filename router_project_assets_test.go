@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -71,6 +73,19 @@ func TestProjectAssets(t *testing.T) {
 	name := fmt.Sprintf("assets-%d", time.Now().UnixNano())
 	mcpJSON(t, jwt, "project_create", map[string]any{"name": name})
 
+	// A stand-in for the mesh worker's inspect job.
+	defer func(f projects.AssetInspector) { projects.InspectAsset = f }(projects.InspectAsset)
+	projects.InspectAsset = func(_ context.Context, kind, file, _ string, _ []byte) (projects.AssetInfo, map[string][]byte, error) {
+		switch {
+		case kind == projects.AssetDocument && file == "original.pdf":
+			return projects.AssetInfo{"pages": 2, "pages_shown": 2, "text": "Room 1"},
+				map[string][]byte{"ai.jpg": []byte("A"), "thumb.jpg": []byte("T"), "page-1.jpg": []byte("1"), "page-2.jpg": []byte("2")}, nil
+		case kind == projects.AssetMesh && file == "original.glb":
+			return nil, nil, errors.New("the mesh can't be read: bad header")
+		}
+		return nil, nil, nil
+	}
+
 	plan := assetTestPNG(t, 2000, 1000)
 	glb := append([]byte("glTF\x02\x00\x00\x00"), make([]byte, 64)...)
 	svg := []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`)
@@ -88,7 +103,22 @@ func TestProjectAssets(t *testing.T) {
 	assert.Equal(t, []string{"ai.jpg", "thumb.jpg"}, img.ViewList)
 	assert.EqualValues(t, 2000, img.Info["width"])
 	assert.Equal(t, projects.AssetMesh, byName["crate.glb"].Kind)
+	assert.Equal(t, projects.AssetFailed, byName["crate.glb"].Status, "kept, with the reason")
+	assert.Equal(t, "the mesh can't be read: bad header", byName["crate.glb"].Error)
 	assert.Equal(t, projects.AssetDrawing, byName["room.svg"].Kind)
+	assert.Equal(t, projects.AssetReady, byName["room.svg"].Status)
+
+	// A PDF gets its pages from the worker.
+	rec = uploadAssets(t, jwt, name, map[string][]byte{"spec.pdf": []byte("%PDF-1.7\n")}, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"views":["ai.jpg","page-1.jpg","page-2.jpg","thumb.jpg"]`)
+	content := mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "spec.pdf", "page": 2})
+	require.Len(t, content, 2)
+	assert.Equal(t, base64.StdEncoding.EncodeToString([]byte("2")), content[1]["data"])
+	assert.Contains(t, content[0]["text"], "Room 1")
+	text, isErr := mcpCall(t, jwt, "asset_view", map[string]any{"name": name, "asset": "spec.pdf", "page": 3})
+	assert.True(t, isErr, text)
+	require.Equal(t, http.StatusOK, aiRequest(t, "DELETE", "/1.0/projects/"+name+"/assets/spec.pdf", jwt, nil).Code)
 
 	// A bad file refuses the whole request; a repeated name gets a suffix.
 	rec = uploadAssets(t, jwt, name, map[string][]byte{"a.png": plan, "virus.exe": []byte("MZ\x90\x00\x03")}, "")
@@ -161,7 +191,7 @@ func TestProjectAssets(t *testing.T) {
 	files := mcpJSON(t, jwt, "asset_list", map[string]any{"name": name})["files"].([]any)
 	assert.Len(t, files, 3)
 	assert.Contains(t, fmt.Sprint(files), "2000×1000 px")
-	content := mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "floorplan.png", "grid": true})
+	content = mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "floorplan.png", "grid": true})
 	require.Len(t, content, 2)
 	assert.Contains(t, content[0]["text"], "10%")
 	assert.Equal(t, "image/jpeg", content[1]["mimeType"])
@@ -172,7 +202,7 @@ func TestProjectAssets(t *testing.T) {
 	up := mcpJSON(t, jwt, "asset_upload", map[string]any{"name": name, "filename": "sketch.png",
 		"content_base64": "data:image/png;base64," + base64.StdEncoding.EncodeToString(assetTestPNG(t, 10, 10))})
 	assert.Equal(t, "image", up["kind"])
-	text, isErr := mcpCall(t, jwt, "asset_upload", map[string]any{"name": name, "filename": "x.bin", "content_base64": "!!"})
+	text, isErr = mcpCall(t, jwt, "asset_upload", map[string]any{"name": name, "filename": "x.bin", "content_base64": "!!"})
 	assert.True(t, isErr, text)
 
 	// Deleting the project removes its files.

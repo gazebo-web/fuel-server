@@ -36,6 +36,17 @@ COPY meshworker/requirements.txt /opt/meshworker/requirements.txt
 RUN grep -v '^pytest' /opt/meshworker/requirements.txt > /tmp/req.txt \
  && pip install --no-cache-dir -r /tmp/req.txt \
  && rm /tmp/req.txt
+# resvg draws uploaded SVG drawings (and DXF ones, through ezdxf's SVG
+# output) for the AI to look at: the upstream release binary, checked
+# against its pinned SHA-256.
+ARG RESVG_VERSION=0.48.1
+ARG RESVG_SHA256=fa8c26495a187e592c501db15bf9e8a9fdc051d4b2b336b39703d5b59f912b9d
+RUN python -c "import hashlib, io, tarfile, urllib.request; \
+url = 'https://github.com/linebender/resvg/releases/download/v${RESVG_VERSION}/resvg-linux-x86_64.tar.gz'; \
+data = urllib.request.urlopen(url, timeout=60).read(); \
+assert hashlib.sha256(data).hexdigest() == '${RESVG_SHA256}', 'resvg checksum mismatch'; \
+tarfile.open(fileobj=io.BytesIO(data)).extract('resvg', '/usr/local/bin', filter='data')" \
+ && /usr/local/bin/resvg --version
 # CC0 texture sets, fetched and checked against their pinned SHA-256s.
 COPY meshworker/textures /opt/meshworker/textures
 RUN python /opt/meshworker/textures/fetch.py /opt/meshworker/textures

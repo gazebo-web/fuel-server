@@ -22,6 +22,11 @@ import (
 const stub = `#!/bin/sh
 job="$3"; out="$4"
 echo run >> "$(dirname "$0")/runs.log"
+if [ "$2" = gzmesh.inspect ]; then
+  printf '{"ok":true,"job":%s,"files":"%s"}' "$(cat "$job")" "$(cd "$(dirname "$job")/input" && find . -type f | sort | tr '\n' ' ')" > "$out/report.json"
+  echo jpg > "$out/ai.jpg"
+  exit 0
+fi
 if [ "$2" = gzmesh.measure ]; then
   printf '{"ok":true,"files":"%s"}' "$(cd "$job" && find . -type f | sort | tr '\n' ' ')" > "$out/report.json"
   exit 0
@@ -430,6 +435,59 @@ func TestMeasure(t *testing.T) {
 		t.Errorf("not a zip: %d", resp.StatusCode)
 	}
 	if resp := post(t, srv.URL+"/v1/measure", strings.Repeat("x", 5000)); resp.StatusCode != 413 {
+		t.Errorf("over the size limit: %d", resp.StatusCode)
+	}
+}
+
+func TestInspect(t *testing.T) {
+	_, srv, dir := newTestWorker(t, func(c *config) {
+		c.MaxModelBytes, c.MaxUnpackedBytes, c.MaxModelFiles = 4096, 64, 3
+	})
+	resp := post(t, srv.URL+"/v1/inspect?kind=document&file=plan.pdf", "%PDF-1.4")
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("%d %s", resp.StatusCode, b)
+	}
+	_, files := untar(t, resp.Body)
+	if !strings.Contains(files["report.json"], `"path":"input/plan.pdf"`) ||
+		!strings.Contains(files["report.json"], `"files":"./plan.pdf "`) {
+		t.Errorf("report: %s", files["report.json"])
+	}
+	if files["ai.jpg"] != "jpg\n" {
+		t.Errorf("views: %v", files)
+	}
+
+	// A zip is unpacked and its main file named.
+	resp = post(t, srv.URL+"/v1/inspect?kind=mesh&file=chair.zip&main=chair/chair.obj",
+		zipOf(t, map[string]string{"chair/chair.obj": "v", "chair/chair.mtl": "m"}))
+	_, files = untar(t, resp.Body)
+	if !strings.Contains(files["report.json"], `"path":"input/chair/chair.obj"`) ||
+		!strings.Contains(files["report.json"], "./chair/chair.mtl ./chair/chair.obj") {
+		t.Errorf("zip report: %s", files["report.json"])
+	}
+	// A zip the worker won't unpack gets a report, without running.
+	before := runs(t, dir)
+	resp = post(t, srv.URL+"/v1/inspect?kind=texture&file=t.zip", zipOf(t, map[string]string{"../x.png": ""}))
+	_, files = untar(t, resp.Body)
+	if !strings.Contains(files["report.json"], `"ok":false`) || runs(t, dir) != before {
+		t.Errorf("unsafe zip: %s", files["report.json"])
+	}
+
+	for name, url := range map[string]string{
+		"kind":     "/v1/inspect?kind=exe&file=a.pdf",
+		"file":     "/v1/inspect?kind=document&file=../a.pdf",
+		"no file":  "/v1/inspect?kind=document",
+		"main out": "/v1/inspect?kind=mesh&file=a.zip&main=../../etc/passwd",
+	} {
+		body := "%PDF"
+		if name == "main out" {
+			body = zipOf(t, map[string]string{"a.obj": ""})
+		}
+		if resp := post(t, srv.URL+url, body); resp.StatusCode != 400 {
+			t.Errorf("%s: %d", name, resp.StatusCode)
+		}
+	}
+	if resp := post(t, srv.URL+"/v1/inspect?kind=document&file=a.pdf", strings.Repeat("x", 5000)); resp.StatusCode != 413 {
 		t.Errorf("over the size limit: %d", resp.StatusCode)
 	}
 }

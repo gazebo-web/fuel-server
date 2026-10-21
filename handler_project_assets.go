@@ -60,7 +60,7 @@ func ProjectAssetsUpload(name string, jwtUser *users.User, tx *gorm.DB,
 		ups = append(ups, projects.AssetUpload{Name: fh.Filename, Data: data, Kind: kind})
 	}
 	s := &projects.Service{}
-	return s.AddAssets(tx, name, jwtUser, ups)
+	return s.AddAssets(r.Context(), tx, name, jwtUser, ups)
 }
 
 // userError is an error whose message the user reads as is.

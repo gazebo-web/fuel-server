@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql/driver"
@@ -138,6 +139,28 @@ func assetsDir(p *Project) string {
 
 func assetDir(p *Project, id string) string { return filepath.Join(assetsDir(p), id) }
 
+// AssetInspector draws and describes an upload the server can't read
+// itself (a PDF, a drawing, a mesh, a texture set): the mesh worker's
+// inspect job, which runs the parsers in its sandbox. It returns what it
+// learned and the views it made (ai.jpg, thumb.jpg, page-N.jpg,
+// preview.png). file is a name with the upload's extension; main is the
+// mesh inside a zip.
+type AssetInspector func(ctx context.Context, kind, file, main string, data []byte) (AssetInfo, map[string][]byte, error)
+
+// InspectAsset is set when a mesh worker is configured (aitools). Without
+// one, such uploads are kept with no pictures.
+var InspectAsset AssetInspector
+
+// inspectTimeout bounds one upload's inspection.
+const inspectTimeout = 2 * time.Minute
+
+// mimeExts is the extension the inspector is given for each type.
+var mimeExts = map[string]string{
+	"application/pdf": ".pdf", "image/svg+xml": ".svg", "image/vnd.dxf": ".dxf",
+	"model/gltf-binary": ".glb", "model/obj": ".obj", "model/stl": ".stl",
+	"model/vnd.collada+xml": ".dae", "application/zip": ".zip",
+}
+
 // AssetUpload is one file to add.
 type AssetUpload struct {
 	Name string
@@ -208,7 +231,8 @@ func assetErr(code int64, format string, a ...any) *gz.ErrMsg {
 
 // AddAssets checks and stores uploads in a project the caller can write.
 // Either every file is added or none is.
-func (s *Service) AddAssets(tx *gorm.DB, name string, jwtUser *users.User, ups []AssetUpload) ([]Asset, *gz.ErrMsg) {
+func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUser *users.User,
+	ups []AssetUpload) ([]Asset, *gz.ErrMsg) {
 	p, em := s.GetForCaller(tx, name, jwtUser)
 	if em != nil {
 		return nil, em
@@ -272,15 +296,28 @@ func (s *Service) AddAssets(tx *gorm.DB, name string, jwtUser *users.User, ups [
 			}
 			info = merge(info, more)
 		}
+		status, errMsg := AssetReady, ""
+		if views == nil && InspectAsset != nil {
+			// Documents, drawings, meshes and texture sets get their views
+			// from the mesh worker. If that fails the file is still kept:
+			// the AI then sees its details only.
+			main, _ := info["main"].(string)
+			ictx, cancel := context.WithTimeout(ctx, inspectTimeout)
+			more, v, err := InspectAsset(ictx, kind, "original"+mimeExts[mime], main, data)
+			cancel()
+			if err != nil {
+				status, errMsg = AssetFailed, err.Error()
+			} else {
+				views, info = v, merge(info, more)
+			}
+		}
 		fname = uniqueName(fname, taken)
 		taken[fname] = true
 		sum := sha256.Sum256(data)
 		a := Asset{
 			ID: newAssetID(), ProjectID: p.ID, Name: fname, Kind: kind, Mime: mime,
 			Size: int64(len(data)), SHA256: hex.EncodeToString(sum[:]),
-			// Documents, drawings and meshes get their views from the mesh
-			// worker; until that runs, they are usable as they are.
-			Status: AssetReady, Info: merge(info, nil), CreatedBy: *jwtUser.Username,
+			Status: status, Error: errMsg, Info: merge(info, nil), CreatedBy: *jwtUser.Username,
 		}
 		var names []string
 		for v := range views {

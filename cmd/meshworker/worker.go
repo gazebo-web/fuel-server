@@ -125,6 +125,7 @@ func (w *worker) routes() http.Handler {
 	})
 	mux.HandleFunc("/v1/jobs", w.auth(w.handleSubmit))
 	mux.HandleFunc("/v1/measure", w.auth(w.handleMeasure))
+	mux.HandleFunc("/v1/inspect", w.auth(w.handleInspect))
 	mux.HandleFunc("/v1/jobs/", w.auth(w.handleGet))
 	return mux
 }

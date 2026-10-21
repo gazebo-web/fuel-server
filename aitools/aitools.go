@@ -15,6 +15,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gazebo-web/fuel-server/bundles/projects"
 	"github.com/gazebo-web/fuel-server/mcp"
 	"github.com/gazebo-web/gz-go/v7"
 )
@@ -65,7 +66,11 @@ func ConfigFromEnv() Config {
 func NewRegistry(cfg Config) *mcp.Registry {
 	reg := mcp.NewRegistry()
 	t := &tools{cfg: cfg, catalogs: catalogsFor(cfg)}
+	// Uploaded project files are inspected on the same worker. This sets a
+	// package variable: the process has one registry and one worker.
+	projects.InspectAsset = nil
 	if cfg.MeshWorkerURL != "" {
+		projects.InspectAsset = newMeshClient(cfg).inspect
 		t.sizes = newSizer(newMeshClient(cfg))
 		// Measure this server's own public models in the background, so
 		// most are known before anyone searches for them.
