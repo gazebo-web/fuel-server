@@ -173,3 +173,42 @@ func TestTeamsAreScopedToTheirOrganization(t *testing.T) {
 	// Team names only need to be unique within an organization.
 	addTeamToOrg(otherOrg, jwt2, users.CreateTeamForm{Name: "devs", Visible: &notVisible}, t)
 }
+
+// TestRevokeAnotherUsersAccessToken checks that a user cannot revoke the
+// access tokens of another user.
+func TestRevokeAnotherUsersAccessToken(t *testing.T) {
+	setup()
+
+	myJWT := os.Getenv("IGN_TEST_JWT")
+	username := createUser(t)
+	defer removeUser(username, t)
+	jwt2 := createValidJWTForIdentity("another-user", t)
+	username2 := createUserWithJWT(jwt2, t)
+	defer removeUserWithJWT(username2, jwt2, t)
+
+	body := new(bytes.Buffer)
+	assert.NoError(t, json.NewEncoder(body).Encode(map[string]string{"name": "myName"}))
+	response, _ := gztest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username+"/access-tokens", body,
+		http.StatusOK, &myJWT, ctJSON, t)
+	var newToken gz.AccessToken
+	require.NoError(t, json.Unmarshal(*response, &newToken))
+
+	// The second user tries to revoke the first user's token through its own route.
+	body = new(bytes.Buffer)
+	assert.NoError(t, json.NewEncoder(body).Encode(newToken))
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username2+"/access-tokens/revoke", body,
+		http.StatusNotFound, &jwt2, "text/plain; charset=utf-8", t)
+
+	// The token still exists.
+	response, _ = gztest.AssertRouteMultipleArgs("GET", "/1.0/users/"+username+"/access-tokens", nil,
+		http.StatusOK, &myJWT, ctJSON, t)
+	var tokens gz.AccessTokens
+	require.NoError(t, json.Unmarshal(*response, &tokens))
+	assert.Equal(t, 1, len(tokens))
+
+	// The owner can still revoke it.
+	body = new(bytes.Buffer)
+	assert.NoError(t, json.NewEncoder(body).Encode(newToken))
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username+"/access-tokens/revoke", body,
+		http.StatusOK, &myJWT, ctJSON, t)
+}

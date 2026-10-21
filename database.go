@@ -147,6 +147,7 @@ func DBDropModels(ctx context.Context, db *gorm.DB) {
 			&collections.Collection{},
 			&users.Team{},
 			&users.Organization{},
+			&gz.AccessToken{},
 			&users.User{},
 			&users.UniqueOwner{},
 			&models.Tag{},
