@@ -23,6 +23,22 @@ import (
 	"strings"
 )
 
+// limitRequestBody is a middleware that rejects requests whose body is larger
+// than globals.MaxUploadBytes. Bodies without a declared length are cut off
+// when they reach the limit, which makes reading them fail.
+func limitRequestBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if globals.MaxUploadBytes > 0 {
+			if r.ContentLength > globals.MaxUploadBytes {
+				http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+				return
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, globals.MaxUploadBytes)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // NoResult is a middleware that adapts a gz.HandlerWithResult into a gz.Handler.
 func NoResult(handler gz.HandlerWithResult) gz.Handler {
 	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) *gz.ErrMsg {

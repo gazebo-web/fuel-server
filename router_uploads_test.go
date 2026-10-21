@@ -181,3 +181,31 @@ func TestResourceVersionZipsAfterUpdate(t *testing.T) {
 		})
 	}
 }
+
+// TestUploadSizeLimit checks that request bodies larger than the configured
+// limit are rejected.
+func TestUploadSizeLimit(t *testing.T) {
+	// General test setup
+	setup()
+
+	jwt := os.Getenv("IGN_TEST_JWT")
+	testUser := createUser(t)
+	defer removeUser(testUser, t)
+
+	defer func(limit int64) { globals.MaxUploadBytes = limit }(globals.MaxUploadBytes)
+	globals.MaxUploadBytes = 16 * 1024
+
+	params := map[string]string{"name": "sizeLimit", "tags": "", "license": "1", "permission": "0"}
+	largeFiles := []gztest.FileDesc{
+		{Path: "model.config", Contents: constModelConfigFileContents},
+		{Path: "large.dae", Contents: string(bytes.Repeat([]byte("a"), 32*1024))},
+	}
+	code, bslice := postWithArgs(t, "/1.0/models", &jwt, params, largeFiles)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, code, string(*bslice))
+
+	smallFiles := []gztest.FileDesc{
+		{Path: "model.config", Contents: constModelConfigFileContents},
+	}
+	code, bslice = postWithArgs(t, "/1.0/models", &jwt, params, smallFiles)
+	assert.Equal(t, http.StatusOK, code, string(*bslice))
+}

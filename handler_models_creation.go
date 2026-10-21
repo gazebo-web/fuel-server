@@ -138,7 +138,7 @@ func modelFn(cm models.CreateModel, tx *gorm.DB, jwtUser *users.User, w http.Res
 //	  -F file=@<full-path-to-file>
 //	  https://localhost:4430/1.0/models --header 'authorization: Bearer <your-jwt-token-here>'
 func ModelCreate(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
-	// TODO: consider limiting max form size (https://golang.org/pkg/net/http/#MaxBytesReader)
+	// Note: the request body size is limited by the limitRequestBody middleware.
 
 	// Parse form's values and files. https://golang.org/pkg/net/http/#Request.ParseMultipartForm
 	if err := r.ParseMultipartForm(0); err != nil {

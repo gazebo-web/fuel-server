@@ -69,6 +69,10 @@ var Permissions *permissions.Permissions
 // MaxCategoriesPerModel defines the maximum amount of categories that can be assigned to a model
 var MaxCategoriesPerModel int
 
+// MaxUploadBytes is the maximum size of a request body, in bytes. Zero or a
+// negative value disables the limit.
+var MaxUploadBytes int64
+
 // ElasticSearch is a pointer to the Elastic Search client.
 var ElasticSearch *elasticsearch.Client
 

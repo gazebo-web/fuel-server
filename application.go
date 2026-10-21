@@ -153,6 +153,7 @@ func init() {
 		http.ServeFile(w, req, "swagger.json")
 	})
 
+	mainRouter.Use(limitRequestBody)
 	globals.Server.SetRouter(mainRouter)
 
 	globals.FlagsEmailRecipient, _ = gz.ReadEnvVar("IGN_FLAGS_EMAIL_TO")
@@ -179,6 +180,14 @@ func init() {
 	if value, err := gz.ReadEnvVar("IGN_MAX_MODEL_CATEGORIES"); err == nil {
 		if convertedValue, err := strconv.Atoi(value); err == nil {
 			globals.MaxCategoriesPerModel = convertedValue
+		}
+	}
+
+	// Default to the nginx client_max_body_size of 2G.
+	globals.MaxUploadBytes = 2 << 30
+	if value, err := gz.ReadEnvVar("IGN_FUEL_MAX_UPLOAD_BYTES"); err == nil {
+		if convertedValue, err := strconv.ParseInt(value, 10, 64); err == nil {
+			globals.MaxUploadBytes = convertedValue
 		}
 	}
 
