@@ -87,13 +87,13 @@ func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
 func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string,
 	order, search string, likedBy *users.User, user *users.User, categories *category.Categories, ignoreMemcache bool) (*fuel.Models, *gz.PaginationResult, *gz.ErrMsg) {
 
-	basicQuery := isbasicModelListQuery(p, owner, order, search, likedBy, ignoreMemcache)
+	basicQuery := isbasicModelListQuery(p, owner, order, search, likedBy, user, categories, ignoreMemcache)
 
 	paginationCacheKey := "models_list_pagination"
 	modelsCacheKey := "models_list_models"
 	if p != nil && p.PageRequested && p.PerPage == 20 {
 		paginationCacheKey = fmt.Sprintf("%s%d", paginationCacheKey, p.Page)
-		modelsCacheKey += fmt.Sprintf("%s%d", modelsCacheKey, p.Page)
+		modelsCacheKey = fmt.Sprintf("%s%d", modelsCacheKey, p.Page)
 	}
 
 	// Try the memory cache first
@@ -900,10 +900,16 @@ func (ms *Service) createUniqueModelName(tx *gorm.DB, name, owner string) (strin
 // isbasicModelListQuery returns a boolean that indicates if this a basic `GET /models` or `GET /models?page=N` query.
 // In this case, we can ideally use the memdory cache to reduce the
 // DB burden.
+// The cached result is shared by all requests, so only anonymous queries
+// without category filters are cached. Results for a logged in user include
+// the private models that user can see.
 // Note: the PerPage default value is 20.
 func isbasicModelListQuery(p *gz.PaginationRequest, owner *string,
-	order, search string, likedBy *users.User, ignoreMemcache bool) bool {
-	return !ignoreMemcache && owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20))
+	order, search string, likedBy *users.User, user *users.User,
+	categories *category.Categories, ignoreMemcache bool) bool {
+	return !ignoreMemcache && owner == nil && order == "" && search == "" && likedBy == nil &&
+		user == nil && (categories == nil || len(*categories) == 0) &&
+		p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20))
 }
 
 // getModelListCache attempts to get a query result from memcache.
