@@ -22,6 +22,10 @@ import (
 const stub = `#!/bin/sh
 job="$3"; out="$4"
 echo run >> "$(dirname "$0")/runs.log"
+if [ "$2" = gzmesh.import_mesh ]; then
+  printf '{"ok":true,"job":%s,"files":"%s"}' "$(cat "$job")" "$(cd "$(dirname "$job")" && find input -type f | sort | tr '\n' ' ')" > "$out/report.json"
+  exit 0
+fi
 if [ "$2" = gzmesh.inspect ]; then
   printf '{"ok":true,"job":%s,"files":"%s"}' "$(cat "$job")" "$(cd "$(dirname "$job")/input" && find . -type f | sort | tr '\n' ' ')" > "$out/report.json"
   echo jpg > "$out/ai.jpg"
@@ -489,5 +493,36 @@ func TestInspect(t *testing.T) {
 	}
 	if resp := post(t, srv.URL+"/v1/inspect?kind=document&file=a.pdf", strings.Repeat("x", 5000)); resp.StatusCode != 413 {
 		t.Errorf("over the size limit: %d", resp.StatusCode)
+	}
+}
+
+func TestImport(t *testing.T) {
+	_, srv, dir := newTestWorker(t, func(c *config) {
+		c.MaxModelBytes, c.MaxUnpackedBytes, c.MaxModelFiles = 4096, 256, 4
+	})
+	job := `{"name":"chair","path":"input/chair.obj"}`
+	resp := post(t, srv.URL+"/v1/import", zipOf(t, map[string]string{"job.json": job, "input/chair.obj": "v",
+		"input/chair.mtl": "m"}))
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("%d %s", resp.StatusCode, b)
+	}
+	_, files := untar(t, resp.Body)
+	if !strings.Contains(files["report.json"], `"name":"chair"`) ||
+		!strings.Contains(files["report.json"], "input/chair.mtl input/chair.obj") {
+		t.Errorf("report: %s", files["report.json"])
+	}
+	before := runs(t, dir)
+	for name, z := range map[string]map[string]string{
+		"no job":   {"input/a.obj": "v"},
+		"bad name": {"job.json": `{"name":"Chair"}`},
+		"spoof":    {"job.json": job, "out/report.json": `{"ok":true}`},
+	} {
+		if resp := post(t, srv.URL+"/v1/import", zipOf(t, z)); resp.StatusCode != 400 {
+			t.Errorf("%s: %d", name, resp.StatusCode)
+		}
+	}
+	if runs(t, dir) != before {
+		t.Error("refused imports ran")
 	}
 }

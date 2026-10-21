@@ -559,6 +559,8 @@ func TestAIToolsModelGenerate(t *testing.T) {
 	}))
 	defer worker.Close()
 
+	// The registry points uploads' inspection at its worker too.
+	defer func(f projects.AssetInspector) { projects.InspectAsset = f }(projects.InspectAsset)
 	reg := aitools.NewRegistry(aitools.Config{MeshWorkerURL: worker.URL})
 	call := func(tool string, args map[string]any, as *mcp.ToolContext) mcp.CallToolResult {
 		t.Helper()
@@ -607,7 +609,7 @@ func TestAIToolsModelGenerate(t *testing.T) {
 	// The worker failed, not the code: the hint says so.
 	r = call("model_generate", map[string]any{"name": name, "model": "cone", "code": "INTERNAL"}, tc)
 	assert.True(t, r.IsError)
-	assert.Contains(t, r.Content[0].Text, "not your code")
+	assert.Contains(t, r.Content[0].Text, "not your input")
 
 	// A hand-made model is not overwritten.
 	mcpJSON(t, jwt, "model_create", map[string]any{"name": name, "model": "shelf"})
@@ -684,6 +686,7 @@ func TestAIToolsModelSizes(t *testing.T) {
 	assert.Zero(t, hidden, "private models aren't measured")
 	calls := len(measured)
 
+	defer func(f projects.AssetInspector) { projects.InspectAsset = f }(projects.InspectAsset)
 	reg := aitools.NewRegistry(cfg)
 	tc := &mcp.ToolContext{Ctx: context.Background(), DB: globals.Server.Db, User: user}
 	call := func(tool string, args map[string]any) string {

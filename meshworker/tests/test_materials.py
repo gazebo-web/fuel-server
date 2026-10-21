@@ -77,3 +77,30 @@ def test_texture_is_to_scale():
     c = m.color(p, n)
     assert np.allclose(c[0], c[1], atol=1e-6) and not np.allclose(c[0], c[2], atol=1e-3)
 
+
+
+def _b64_jpeg(color, mode="RGB"):
+    import base64
+    import io
+
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new(mode, (16, 16), color).save(buf, "JPEG")
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def test_project_texture(build):
+    code = (
+        "from build123d import *\n"
+        "import gzmesh as gz\n"
+        "def build():\n"
+        "    return gz.part(Box(0.5, 0.5, 0.5), 'block', gz.texture('project:brick', scale=2))\n"
+    )
+    textures = {"brick": {"color": _b64_jpeg((160, 50, 30)), "roughness": _b64_jpeg(200, "L"), "tile_m": 0.5}}
+    rc, report, out = build(code, project_textures=textures)
+    assert rc == 0, report
+    assert report["parts"][0]["material"]["texture"] == "project:brick"
+    assert report["parts"][0]["material"]["roughness"] == pytest.approx(200 / 255, abs=0.02)
+
+    rc, report, _ = build(code.replace("project:brick", "project:tiles"), project_textures=textures)
+    assert rc == 2 and "no texture file named 'tiles'" in report["error"]

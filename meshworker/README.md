@@ -12,6 +12,8 @@ The AI Builder's mesh worker (plan §5 in `docs/ai-builder-models-and-meshes-pla
   - `export.py`: GLB, `model.sdf` and `model.config`.
   - `preview.py`: a 2×2 software-rendered sheet.
   - `run.py`: job checks, the import allow-list, the report.
+  - `inspect.py`: pictures and details of a user's uploaded project file (PDF pages, SVG and DXF drawings, mesh previews, texture sets), for the AI to look at. `POST /v1/inspect`.
+  - `import_mesh.py`: an uploaded mesh to a model folder: scaled, Z up, simplified, with collision and inertia. `POST /v1/import` takes a zip of `job.json` and `input/...`.
 - `spike/`: the C1 format spike that validated GLB in Gazebo Harmonic, gz-sim 11 and gzweb.
 
 ## Moving parts
@@ -34,5 +36,7 @@ To come in C1:
 uv venv --python 3.12 venv && uv pip install --python venv/bin/python -r requirements.txt
 PYTHONPATH=. venv/bin/python -m pytest tests
 ```
+
+The SVG and DXF tests need the resvg binary: put it on `PATH` or set `GZMESH_RESVG`. The image installs the upstream release, checked against its SHA-256 in the Dockerfile.
 
 GLB files are written Z-up with no root rotation, the convention both Gazebo and gzweb need (see `spike/README.md`). `gltf-transform validate` reports no errors or warnings on them.

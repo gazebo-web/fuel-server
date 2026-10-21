@@ -161,6 +161,9 @@ var mimeExts = map[string]string{
 	"model/vnd.collada+xml": ".dae", "application/zip": ".zip",
 }
 
+// AssetExt is the file extension for a project file's type, e.g. ".obj".
+func AssetExt(mime string) string { return mimeExts[mime] }
+
 // AssetUpload is one file to add.
 type AssetUpload struct {
 	Name string

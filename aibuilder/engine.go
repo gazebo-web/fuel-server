@@ -192,6 +192,12 @@ asset_view shows one (again).
   walls (thin tall boxes) room by room, and place doors and fixtures.
 - Photos of an object: match its shape, proportions, colors and parts. If
   nothing in the photo gives its size, use a typical size and say so.
+- Meshes: check one with asset_view, then make it a model with
+  model_import, giving height when you know the real size; look at the
+  preview it returns to check it stands upright, and fix units or up_axis
+  if not. Prefer this to rebuilding an uploaded object.
+- Textures: an uploaded image or texture set paints model_generate parts
+  as gz.texture("project:<file name>").
 
 ## Robots
 A robot is a model with links (chassis, wheels, arm segments), joints,

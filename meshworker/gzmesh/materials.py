@@ -228,9 +228,37 @@ def texture_sets() -> dict:
         return {}
 
 
+# Texture sets the user uploaded to the project, sent with the job and
+# named "project:<name>": name -> {"dir": folder of <map>.jpg, "tile_m"}.
+PROJECT_TEXTURES: dict = {}
+PROJECT_PREFIX = "project:"
+
+
+def add_project_textures(textures: dict, folder: str):
+    """Write a job's project textures ({name: {"color": base64 JPEG,
+    "roughness"?, "metalness"?, "tile_m"?}}) under folder and make them
+    available to texture()."""
+    import base64
+    import io
+
+    for i, (name, t) in enumerate(sorted(textures.items())):
+        if not isinstance(t, dict) or not isinstance(t.get("color"), str):
+            raise ValueError(f"project texture {name!r} has no color map")
+        d = os.path.join(folder, f"t{i}")
+        os.makedirs(d, exist_ok=True)
+        for kind in ("color", "roughness", "metalness"):
+            if isinstance(t.get(kind), str):
+                im = Image.open(io.BytesIO(base64.b64decode(t[kind])))
+                im.convert("RGB" if kind == "color" else "L").save(os.path.join(d, f"{kind}.jpg"), quality=90)
+        PROJECT_TEXTURES[PROJECT_PREFIX + name] = {"dir": d, "tile_m": float(t.get("tile_m") or 1.0),
+                                                   "density": 1000, "description": "uploaded to the project"}
+    _image.cache_clear()
+
+
 @lru_cache(maxsize=64)
 def _image(name: str, kind: str) -> Optional[np.ndarray]:
-    path = os.path.join(texture_dir(), name, f"{kind}.jpg")
+    base = PROJECT_TEXTURES[name]["dir"] if name in PROJECT_TEXTURES else os.path.join(texture_dir(), name)
+    path = os.path.join(base, f"{kind}.jpg")
     if not os.path.exists(path):
         return None
     im = Image.open(path)
@@ -264,12 +292,16 @@ def _triplanar(img: np.ndarray, p: np.ndarray, n: np.ndarray, tile: float) -> np
 
 def texture(name: str, scale: float = 1.0, tint=None, roughness: Optional[float] = None,
             metalness: Optional[float] = None, density: Optional[float] = None) -> Material:
-    """An image texture set (see TEXTURE_SETS): wood_planks, bricks, ...
+    """An image texture set (see TEXTURE_SETS): wood_planks, bricks, ...,
+    or "project:<name>" for one the user uploaded to the project.
     scale multiplies the set's real-world tile size; tint recolors it while
     keeping its light and dark detail (painted_metal, plastic, fabric and
     leather are meant to be tinted)."""
-    sets = texture_sets()
+    sets = {**texture_sets(), **PROJECT_TEXTURES}
     if name not in sets:
+        if name.startswith(PROJECT_PREFIX):
+            raise ValueError(f"texture {name!r}: the project has no texture file named {name[len(PROJECT_PREFIX):]!r}"
+                             " (asset_list shows them; upload one first)")
         raise ValueError(f"texture {name!r}: want one of {', '.join(sorted(sets))}")
     s = sets[name]
     color = _image(name, "color")

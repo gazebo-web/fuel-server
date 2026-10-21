@@ -91,7 +91,9 @@ func defaultConfig() config {
 		KeepResults: 10 * time.Minute,
 		CacheBytes:  1 << 30,
 		MaxOutput:   30 << 20,
-		MaxJobBytes: 256 << 10,
+		// Code is small; a job can also carry a few project texture sets
+		// (about 1 MB of maps each, as base64).
+		MaxJobBytes: 8 << 20,
 		// Fuel models are mostly a few MB; the largest public ones (whole
 		// environments) are a few hundred.
 		MaxModelBytes:    256 << 20,

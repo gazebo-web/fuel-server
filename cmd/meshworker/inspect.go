@@ -139,3 +139,89 @@ func (w *worker) reportOnly(dir string, report map[string]any) result {
 	}
 	return result{body: tarball, ctype: "application/x-tar"}
 }
+
+// Import jobs: an uploaded mesh to a model folder (gzmesh.import_mesh),
+// laid out like a model job's result.
+//
+//	POST /v1/import?wait=90   zip of job.json and input/... (the mesh and its files)
+//	  -> 200 tarball | 202 | 400 | 413 | 429
+
+// importVersion is part of the import cache key; bump it with
+// gzmesh/import_mesh.py VERSION.
+const importVersion = "1"
+
+func (w *worker) handleImport(rw http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		httpError(rw, http.StatusMethodNotAllowed, "POST a zip")
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, w.cfg.MaxModelBytes+1))
+	if err != nil {
+		httpError(rw, http.StatusBadRequest, err.Error())
+		return
+	}
+	if int64(len(body)) > w.cfg.MaxModelBytes {
+		httpError(rw, http.StatusRequestEntityTooLarge, fmt.Sprintf("the upload is larger than %d MB", w.cfg.MaxModelBytes>>20))
+		return
+	}
+	zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		httpError(rw, http.StatusBadRequest, "body must be a zip: "+err.Error())
+		return
+	}
+	var job map[string]any
+	for _, f := range zr.File {
+		switch name := path.Clean(f.Name); {
+		case name == "job.json":
+			rc, err := f.Open()
+			if err == nil {
+				err = json.NewDecoder(io.LimitReader(rc, 64<<10)).Decode(&job)
+				rc.Close()
+			}
+			if err != nil {
+				httpError(rw, http.StatusBadRequest, "job.json: "+err.Error())
+				return
+			}
+		case strings.HasPrefix(name, "input/") || f.FileInfo().IsDir():
+		default:
+			httpError(rw, http.StatusBadRequest, "the zip may hold only job.json and input/...")
+			return
+		}
+	}
+	if job == nil {
+		httpError(rw, http.StatusBadRequest, "the zip has no job.json")
+		return
+	}
+	if name, _ := job["name"].(string); !nameRE.MatchString(name) {
+		httpError(rw, http.StatusBadRequest, "name must be lowercase letters, digits and underscores, starting with a letter")
+		return
+	}
+	wait, ok := w.waitParam(rw, r)
+	if !ok {
+		return
+	}
+	sum := sha256.Sum256(append([]byte("import\n"+importVersion+"\n"), body...))
+	w.serve(rw, r, hex.EncodeToString(sum[:]), "application/x-tar", wait, func(slot int) result {
+		return w.importJob(zr, slot)
+	})
+}
+
+func (w *worker) importJob(zr *zip.Reader, slot int) result {
+	dir, err := w.jobDir()
+	if err != nil {
+		return result{err: err}
+	}
+	defer os.RemoveAll(dir)
+	if err := w.unzip(zr, dir); err != nil {
+		return w.reportOnly(dir, map[string]any{"ok": false, "error": err.Error()})
+	}
+	code, err := w.run(dir, slot, "gzmesh.import_mesh", "job.json")
+	if err != nil {
+		return result{err: err}
+	}
+	tarball, err := tarDir(filepath.Join(dir, "out"), w.cfg.MaxOutput)
+	if err != nil {
+		return result{err: err}
+	}
+	return result{body: tarball, ctype: "application/x-tar", internal: code == 1}
+}

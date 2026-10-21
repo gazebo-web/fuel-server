@@ -56,8 +56,16 @@ type meshTools struct {
 // result is committed by model_generate_status for the same user.
 type pendingMesh struct {
 	user, project, model, baseRev string
-	at                            time.Time
+	// retry tells the model how to fix a failed result.
+	retry string
+	at    time.Time
 }
+
+// Retry hints for a failed result.
+const (
+	retryGenerate = "fix the code and call model_generate again with the same model"
+	retryImport   = "change the settings (units, height, up_axis, collision) and call model_import again"
+)
 
 func (t *tools) registerMesh(reg *mcp.Registry) {
 	t.mesh = &meshTools{
@@ -118,14 +126,14 @@ func (t *tools) registerMesh(reg *mcp.Registry) {
 	})
 	reg.Register(mcp.Tool{
 		Spec: mcp.ToolSpec{
-			Name:        "mesh_list_materials",
-			Description: "Materials for model_generate parts: names, parameters, default densities.",
-			InputSchema: schema(nil, map[string]any{}),
+			Name: "mesh_list_materials",
+			Description: "Materials for model_generate parts: names, parameters, default densities. With a " +
+				"project name, also the texture sets the user uploaded, used as gz.texture(\"project:<name>\").",
+			InputSchema: schema(nil, map[string]any{"name": str("Project name: also list its uploaded textures")}),
 		},
-		Handler: func(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
-			return t.meshAPIReference(tc, map[string]any{"topic": "materials"})
-		},
+		Handler: t.meshListMaterials,
 	})
+	t.registerImport(reg)
 }
 
 func meshTopics() []string {
@@ -203,18 +211,32 @@ func (t *tools) modelGenerate(tc *mcp.ToolContext, args map[string]any) (mcp.Cal
 	if s, ok := args["static"].(bool); ok {
 		job["static"] = s
 	}
+	textures, errRes := t.projectTextures(tc, project, code)
+	if errRes != nil {
+		return *errRes, nil
+	}
+	if len(textures) > 0 {
+		job["project_textures"] = textures
+	}
 	body, _ := json.Marshal(job)
 	tarball, jobID, err := t.mesh.submit(tc.Ctx, body)
 	if err != nil {
 		return mcp.ErrorResult(err.Error()), nil
 	}
-	baseRev := argString(args, "base_rev")
+	return t.finishJob(tc, pendingMesh{user: user, project: project, model: model, baseRev: argString(args, "base_rev"),
+		retry: retryGenerate}, tarball, jobID)
+}
+
+// finishJob commits a worker result, or records a job still running for
+// model_generate_status.
+func (t *tools) finishJob(tc *mcp.ToolContext, p pendingMesh, tarball []byte, jobID string) (mcp.CallToolResult, error) {
 	if jobID != "" {
-		t.mesh.addPending(jobID, pendingMesh{user: user, project: project, model: model, baseRev: baseRev, at: time.Now()})
+		p.at = time.Now()
+		t.mesh.addPending(jobID, p)
 		return jsonResult(map[string]any{"status": "running", "job_id": jobID,
 			"next": "call model_generate_status with this job_id in a little while"})
 	}
-	return t.commitGenerated(tc, project, model, baseRev, tarball)
+	return t.commitGenerated(tc, p.project, p.model, p.baseRev, p.retry, tarball)
 }
 
 func (t *tools) modelGenerateStatus(tc *mcp.ToolContext, args map[string]any) (mcp.CallToolResult, error) {
@@ -232,21 +254,21 @@ func (t *tools) modelGenerateStatus(tc *mcp.ToolContext, args map[string]any) (m
 		return jsonResult(map[string]any{"status": "running", "job_id": id})
 	}
 	t.mesh.dropPending(id)
-	return t.commitGenerated(tc, p.project, p.model, p.baseRev, tarball)
+	return t.commitGenerated(tc, p.project, p.model, p.baseRev, p.retry, tarball)
 }
 
 // commitGenerated commits a worker result as models/<model>/ (replacing the
 // folder) and returns the report, the validation and the preview image.
-func (t *tools) commitGenerated(tc *mcp.ToolContext, project, model, baseRev string, tarball []byte) (mcp.CallToolResult, error) {
+func (t *tools) commitGenerated(tc *mcp.ToolContext, project, model, baseRev, retry string, tarball []byte) (mcp.CallToolResult, error) {
 	out, err := readModelTar(tarball, model)
 	if err != nil {
 		return mcp.ErrorResult("mesh worker: " + err.Error()), nil
 	}
 	if ok, _ := out.report["ok"].(bool); !ok {
-		next := "fix the code and call model_generate again with the same model"
+		next := retry
 		if msg, _ := out.report["error"].(string); strings.HasPrefix(msg, "internal error") {
 			// The pipeline failed, not the code: rewriting the code won't help.
-			next = "the mesh worker failed, not your code; retry once, then build the object from primitives"
+			next = "the mesh worker failed, not your input; retry once, then build the object another way"
 		}
 		res := map[string]any{"error": out.report["error"], "next": next}
 		for _, k := range []string{"line", "detail"} {
@@ -284,7 +306,7 @@ func (t *tools) commitGenerated(tc *mcp.ToolContext, project, model, baseRev str
 			path.Join(dir, "previews", "preview.png"),
 	}
 	for _, k := range []string{"bounding_box_m", "triangles", "collision", "inertial", "parts", "links", "joints",
-		"sensors", "plugins", "world_systems", "warnings", "tessellation"} {
+		"sensors", "plugins", "world_systems", "warnings", "tessellation", "import"} {
 		if v, ok := out.report[k]; ok {
 			summary[k] = v
 		}
@@ -355,12 +377,17 @@ func readModelTar(b []byte, model string) (modelTar, error) {
 // submit posts a job. It returns the result tarball, or a job id when the
 // job is still running after meshWait.
 func (m *meshTools) submit(ctx context.Context, job []byte) (tarball []byte, jobID string, err error) {
+	return m.post(ctx, "/v1/jobs", "application/json", job)
+}
+
+// post sends a job body to one of the worker's job endpoints.
+func (m *meshTools) post(ctx context.Context, endpoint, ctype string, body []byte) (tarball []byte, jobID string, err error) {
 	q := url.Values{"wait": {fmt.Sprint(int(meshWait.Seconds()))}}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, m.base+"/v1/jobs?"+q.Encode(), bytes.NewReader(job))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, m.base+endpoint+"?"+q.Encode(), bytes.NewReader(body))
 	if err != nil {
 		return nil, "", err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", ctype)
 	return m.do(req)
 }
 
@@ -401,7 +428,7 @@ func (m *meshTools) do(req *http.Request) ([]byte, string, error) {
 	case http.StatusTooManyRequests:
 		return nil, "", errors.New("the mesh worker is busy; try again in a minute")
 	case http.StatusNotFound:
-		return nil, "", errors.New("the mesh worker no longer has this job; run model_generate again")
+		return nil, "", errors.New("the mesh worker no longer has this job; run it again")
 	}
 	if msg.Error == "" {
 		msg.Error = fmt.Sprintf("status %d", resp.StatusCode)

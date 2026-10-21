@@ -22,6 +22,8 @@ Give each part a material: `gz.part(shape, name, material)`. Colors are `"#rrggb
 - `scale` multiplies the tile size, for bigger planks or smaller bricks.
 - `tint` recolors a set while keeping its detail. Use it for painted metal, plastic, fabric and leather.
 
+**The user's own textures:** an image or texture set uploaded to the project (asset_list, kind image or texture) works as `gz.texture("project:<file name>")`, e.g. `gz.texture("project:brick.zip")`. It tiles every 1 m, so set `scale` to its real size. `mesh_list_materials` with the project name lists them.
+
 | Set | Looks like | Tile (m) | Density (kg/m³) |
 |---|---|---|---|
 | `wood_planks` | Worn wooden floor planks | 2.0 | 600 |

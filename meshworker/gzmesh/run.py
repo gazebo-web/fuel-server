@@ -3,7 +3,9 @@
     python -m gzmesh.run JOB.json OUT_DIR
 
 JOB.json: {"name", "code", and optionally "mass" or "density", "static",
-"tri_budget", "texture_size", "collision", "sdf_version", "description"}.
+"tri_budget", "texture_size", "collision", "sdf_version", "description",
+"project_textures" (texture sets the user uploaded, for
+texture("project:<name>"): see materials.add_project_textures)}.
 
 OUT_DIR gets models/<name>/ (model.sdf, model.config, meshes/*.glb,
 source/model.py), preview.png and report.json. Exit status 0 means the
@@ -28,7 +30,7 @@ import traceback
 import numpy as np
 import trimesh
 
-from . import atlas, collision, export, inertia, parts, preview, tessellate
+from . import atlas, collision, export, inertia, materials, parts, preview, tessellate
 
 VERSION = "0.3.0"
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
@@ -143,6 +145,8 @@ def build_model(job: dict, out: str) -> dict:
     j = check_job(job)
     name = j["name"]
     tree = check_code(j["code"])
+    if j.get("project_textures"):
+        materials.add_project_textures(j["project_textures"], os.path.join(out, "..", "project_textures"))
     asm = parts.normalize(run_code(tree))
     single = len(asm.links) == 1
     timings["code_s"] = time.monotonic() - t0

@@ -41,6 +41,7 @@ var toolAnnotations = map[string]mcp.Annotations{
 	"project_write_file":    {Destructive: true},
 	"project_edit_file":     {Destructive: true},
 	"model_generate":        {Destructive: true},
+	"model_import":          {Destructive: true},
 	"model_generate_status": {Destructive: true},
 }
 
@@ -48,6 +49,7 @@ var toolAnnotations = map[string]mcp.Annotations{
 var extraScopes = map[string][]string{
 	// Generating runs code on the mesh worker (design §8.5).
 	"model_generate":        {"mesh:generate"},
+	"model_import":          {"mesh:generate"},
 	"model_generate_status": {"mesh:generate"},
 }
 
