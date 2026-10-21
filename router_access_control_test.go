@@ -96,3 +96,34 @@ func TestLikedPrivateResourcesVisibility(t *testing.T) {
 		})
 	}
 }
+
+// TestListWithUnknownCredentials checks list routes when the request has an
+// invalid Private-Token, or a valid JWT for an identity without a user.
+func TestListWithUnknownCredentials(t *testing.T) {
+	// General test setup
+	setup()
+
+	// A bad access token is rejected.
+	gztest.AssertRouteMultipleArgsStruct(gztest.RequestArgs{Method: "GET", Route: "/1.0/models",
+		Headers: map[string]string{"Private-Token": "invalid-token"}},
+		http.StatusUnauthorized, "text/plain; charset=utf-8", t)
+
+	// A valid JWT for an identity that has no user is treated as anonymous.
+	noUserJWT := createValidJWTForIdentity("identity-without-user", t)
+	gztest.AssertRouteMultipleArgs("GET", "/1.0/models", nil, http.StatusOK, &noUserJWT, ctJSON, t)
+}
+
+// TestElasticSearchAdminWithoutUser checks the admin search routes when the
+// JWT identity has no user.
+func TestElasticSearchAdminWithoutUser(t *testing.T) {
+	// General test setup
+	setup()
+
+	noUserJWT := createValidJWTForIdentity("identity-without-user", t)
+	for _, method := range []string{"GET", "POST"} {
+		gztest.AssertRouteMultipleArgs(method, "/1.0/admin/search", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
+	}
+	gztest.AssertRouteMultipleArgs("GET", "/1.0/admin/search/rebuild", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("DELETE", "/1.0/admin/search/1", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("GET", "/1.0/users", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
+}

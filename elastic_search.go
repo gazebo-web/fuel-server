@@ -88,7 +88,7 @@ func DeleteElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 		return nil, &errMsg
 	}
 
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
+	if user == nil || !globals.Permissions.IsSystemAdmin(*user.Username) {
 		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
@@ -126,7 +126,7 @@ func ModifyElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 		return nil, &errMsg
 	}
 
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
+	if user == nil || !globals.Permissions.IsSystemAdmin(*user.Username) {
 		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
@@ -178,7 +178,7 @@ func CreateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 		return nil, &errMsg
 	}
 
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
+	if user == nil || !globals.Permissions.IsSystemAdmin(*user.Username) {
 		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
@@ -219,7 +219,7 @@ func ListElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Reques
 		return nil, &errMsg
 	}
 
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
+	if user == nil || !globals.Permissions.IsSystemAdmin(*user.Username) {
 		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
@@ -242,7 +242,7 @@ func ReconnectElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.R
 		return nil, &errMsg
 	}
 
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
+	if user == nil || !globals.Permissions.IsSystemAdmin(*user.Username) {
 		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
@@ -266,7 +266,7 @@ func RebuildElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Req
 		return nil, &errMsg
 	}
 
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
+	if user == nil || !globals.Permissions.IsSystemAdmin(*user.Username) {
 		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
@@ -292,7 +292,7 @@ func UpdateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 		return nil, &errMsg
 	}
 
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
+	if user == nil || !globals.Permissions.IsSystemAdmin(*user.Username) {
 		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 

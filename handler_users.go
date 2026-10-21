@@ -61,7 +61,7 @@ func UserList(p *gz.PaginationRequest, _ *users.User, tx *gorm.DB,
 		return nil, nil, &errMsg
 	}
 
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
+	if user == nil || !globals.Permissions.IsSystemAdmin(*user.Username) {
 		return nil, nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
 	}
 
