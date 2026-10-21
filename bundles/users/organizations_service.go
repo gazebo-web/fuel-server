@@ -350,6 +350,14 @@ func (ms *OrganizationService) CreateTeam(ctx context.Context, tx *gorm.DB,
 	if _, err := ByTeamName(tx, org, t.Name, true); err == nil {
 		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists, nil, []string{t.Name})
 	}
+	// Team members are stored in a permissions group named after the org and
+	// the team, and different org and team names can produce the same group
+	// name (eg. org "a" with team "b_t_c", and org "a_t_b" with team "c"). Make
+	// sure no other team uses the group of the new team.
+	if teamGroupNameInUse(tx, getCasbinNameForTeam(*org.Name, t.Name)) {
+		extra := fmt.Sprintf("Team name [%s] conflicts with an existing team", t.Name)
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists, nil, []string{extra})
+	}
 
 	// Add the team to the database.
 	team := Team{Name: &t.Name, Visible: *t.Visible, Description: t.Description,
@@ -638,7 +646,7 @@ func getUsersForTeam(org, team string) []string {
 func getTeamsForUser(org, user string) []string {
 	teams := make([]string, 0)
 	roles := globals.Permissions.GetGroupsAndRolesForUser(user)
-	re := regexp.MustCompile(org + "_t_(.+)$")
+	re := regexp.MustCompile("^" + regexp.QuoteMeta(org) + "_t_(.+)$")
 	for g := range roles {
 		s := re.FindStringSubmatch(g)
 		if s != nil {
@@ -686,4 +694,15 @@ func removeUserFromTeam(ctx context.Context, tx *gorm.DB,
 // get the string representing a specific team of a group
 func getCasbinNameForTeam(org, team string) string {
 	return org + "_t_" + team
+}
+
+// teamGroupNameInUse returns true if any team, including deleted teams and
+// teams of deleted organizations, uses the given permissions group name.
+func teamGroupNameInUse(tx *gorm.DB, teamGroupName string) bool {
+	var count int
+	tx.Table("teams").
+		Joins("JOIN organizations ON organizations.id = teams.organization_id").
+		Where("CONCAT(organizations.name, '_t_', teams.name) = ?", teamGroupName).
+		Count(&count)
+	return count > 0
 }
