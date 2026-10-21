@@ -193,6 +193,12 @@ asset_view shows one (again).
   walls (thin tall boxes) room by room, and place doors and fixtures.
 - Photos of an object: match its shape, proportions, colors and parts. If
   nothing in the photo gives its size, use a typical size and say so.
+- Occupancy maps (kind map: a SLAM map's YAML and image): their info has
+  the resolution, origin and extent in meters, and asset_view with grid
+  labels the grid in meters. Dark cells are walls and obstacles, light
+  free floor, grey unknown. Build the world in the map's frame (world x,
+  y = map x, y) so the map lines up with a robot's navigation, and use
+  the obstacle_extent and grid to size and place walls and racks.
 - Gazebo models (kind model, e.g. from an uploaded zip of model folders)
   are already project models: include them by the uri asset_list gives
   (model://<name>), each with its own <name> and <pose>.

@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 	"unicode"
+	"unicode/utf16"
 
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/gz-go/v7"
@@ -58,13 +59,76 @@ const (
 // a mesh's bounds, a texture set's maps.
 type AssetInfo map[string]any
 
-// Value stores AssetInfo as JSON.
+// Value stores AssetInfo as JSON in ASCII: other characters (PDF text, ×,
+// −) as \u escapes, so any column character set holds it (MySQL 5.7's
+// default latin1 rejects them).
 func (i AssetInfo) Value() (driver.Value, error) {
 	if i == nil {
 		return "{}", nil
 	}
 	b, err := json.Marshal(i)
-	return string(b), err
+	if err != nil {
+		return nil, err
+	}
+	return asciiJSON(b), nil
+}
+
+// asciiJSON escapes JSON's non-ASCII characters as \uXXXX (surrogate
+// pairs above the BMP); the JSON means the same.
+func asciiJSON(b []byte) string {
+	var out strings.Builder
+	for _, r := range string(b) {
+		switch {
+		case r < 0x80:
+			out.WriteRune(r)
+		case r > 0xFFFF:
+			r1, r2 := utf16.EncodeRune(r)
+			fmt.Fprintf(&out, "\\u%04x\\u%04x", r1, r2)
+		default:
+			fmt.Fprintf(&out, "\\u%04x", r)
+		}
+	}
+	return out.String()
+}
+
+// AssetError is an error message stored in ASCII: non-ASCII text is kept
+// as a JSON string, read back as it was.
+type AssetError string
+
+// Value stores the message.
+func (e AssetError) Value() (driver.Value, error) {
+	for _, r := range string(e) {
+		if r >= 0x80 {
+			b, err := json.Marshal(string(e))
+			if err != nil {
+				return nil, err
+			}
+			return asciiJSON(b), nil
+		}
+	}
+	return string(e), nil
+}
+
+// Scan reads the message.
+func (e *AssetError) Scan(v any) error {
+	var s string
+	switch x := v.(type) {
+	case nil:
+	case []byte:
+		s = string(x)
+	case string:
+		s = x
+	default:
+		return fmt.Errorf("asset error: unexpected %T", v)
+	}
+	if strings.HasPrefix(s, `"`) {
+		var u string
+		if json.Unmarshal([]byte(s), &u) == nil {
+			s = u
+		}
+	}
+	*e = AssetError(s)
+	return nil
 }
 
 // Scan reads AssetInfo from JSON.
@@ -92,14 +156,14 @@ type Asset struct {
 	ProjectID uint   `gorm:"unique_index:idx_asset_project_name" json:"-"`
 	// Name is the file's name, unique in its project; the AI refers to
 	// files by it or by ID.
-	Name   string    `gorm:"type:varchar(191);unique_index:idx_asset_project_name" json:"name"`
-	Kind   string    `gorm:"type:varchar(16)" json:"kind"`
-	Mime   string    `gorm:"type:varchar(64)" json:"mime"`
-	Size   int64     `json:"size"`
-	SHA256 string    `gorm:"column:sha256;type:char(64)" json:"sha256"`
-	Status string    `gorm:"type:varchar(16)" json:"status"`
-	Error  string    `gorm:"type:text" json:"error,omitempty"`
-	Info   AssetInfo `gorm:"type:mediumtext" json:"info"`
+	Name   string     `gorm:"type:varchar(191);unique_index:idx_asset_project_name" json:"name"`
+	Kind   string     `gorm:"type:varchar(16)" json:"kind"`
+	Mime   string     `gorm:"type:varchar(64)" json:"mime"`
+	Size   int64      `json:"size"`
+	SHA256 string     `gorm:"column:sha256;type:char(64)" json:"sha256"`
+	Status string     `gorm:"type:varchar(16)" json:"status"`
+	Error  AssetError `gorm:"type:text" json:"error,omitempty"`
+	Info   AssetInfo  `gorm:"type:mediumtext" json:"info"`
 	// Views are the derived files beside "original", e.g. ai.jpg.
 	Views     string    `gorm:"type:varchar(1024)" json:"-"`
 	ViewList  []string  `gorm:"-" json:"views"`
@@ -175,7 +239,7 @@ var mimeExts = map[string]string{
 
 // rasterMimes are the images the server reads itself (SVG and DXF are
 // drawings, drawn by the mesh worker).
-var rasterMimes = map[string]bool{"image/png": true, "image/jpeg": true, "image/webp": true}
+var rasterMimes = map[string]bool{"image/png": true, "image/jpeg": true, "image/webp": true, pgmMime: true}
 
 // AssetExt is the file extension for a project file's type, e.g. ".obj".
 func AssetExt(mime string) string { return mimeExts[mime] }
@@ -366,10 +430,17 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 			return nil, assetErr(gz.ErrorFormInvalidValue, "%s: kind can only be set to %q", fname, AssetTexture)
 		}
 		data, views := up.Data, map[string][]byte(nil)
-		if rasterMimes[mime] {
+		switch {
+		case rasterMimes[mime]:
 			var more AssetInfo
 			data, views, more, err = processImage(up.Data, mime)
 			if err != nil {
+				return nil, assetErr(gz.ErrorFormInvalidValue, "%s: %v", fname, err)
+			}
+			info = merge(info, more)
+		case kind == AssetMap:
+			var more AssetInfo
+			if views, more, err = processMap(up.Data); err != nil {
 				return nil, assetErr(gz.ErrorFormInvalidValue, "%s: %v", fname, err)
 			}
 			info = merge(info, more)
@@ -482,7 +553,7 @@ func newAsset(p *Project, name, kind, mime string, data []byte, info AssetInfo, 
 	sort.Strings(names)
 	return Asset{
 		ID: newAssetID(), ProjectID: p.ID, Name: name, Kind: kind, Mime: mime,
-		Size: int64(len(data)), SHA256: hex.EncodeToString(sum[:]), Status: status, Error: errMsg,
+		Size: int64(len(data)), SHA256: hex.EncodeToString(sum[:]), Status: status, Error: AssetError(errMsg),
 		Info: merge(info, nil), Views: strings.Join(names, ","), CreatedBy: *user.Username,
 	}
 }
@@ -564,7 +635,7 @@ func (s *Service) RetryAsset(ctx context.Context, tx *gorm.DB, name, ref string,
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
 	}
 	a.Views, a.ViewList, a.Info, a.Status, a.Error = strings.Join(names, ","), splitViews(strings.Join(names, ",")),
-		info, status, errMsg
+		info, status, AssetError(errMsg)
 	return a, nil
 }
 

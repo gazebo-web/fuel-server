@@ -30,6 +30,7 @@ require (
 	golang.org/x/time v0.16.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/go-playground/validator.v9 v9.31.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -94,5 +95,4 @@ require (
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

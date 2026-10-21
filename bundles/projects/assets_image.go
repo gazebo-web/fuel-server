@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"image/jpeg"
 	_ "image/png" // decode PNG uploads
+	"math"
 	"strconv"
 
 	"golang.org/x/image/draw"
@@ -84,6 +85,8 @@ func processImage(data []byte, mime string) (clean []byte, views map[string][]by
 		clean, err = stripPNGMetadata(data)
 	case "image/webp":
 		clean, err = stripWebPMetadata(data)
+	case pgmMime:
+		clean = data // comments at most; nothing about the camera or place
 	default:
 		err = fmt.Errorf("unsupported image type %s", mime)
 	}
@@ -374,6 +377,15 @@ func stripWebPMetadata(data []byte) ([]byte, error) {
 // a JPEG, so a model can read positions off a drawing ("the wall runs
 // from 20% to 70% across").
 func GridOverlay(jpg []byte) ([]byte, error) {
+	pct := func(f float64) string { return strconv.Itoa(int(math.Round(f*100))) + "%" }
+	return GridOverlayLabels(jpg, pct, pct)
+}
+
+// GridOverlayLabels is GridOverlay with its own labels for the vertical
+// lines (xLabel, along the top) and the horizontal ones (yLabel, down the
+// left), each given the line's fraction of the width or height from the
+// top left: a map labels them in meters.
+func GridOverlayLabels(jpg []byte, xLabel, yLabel func(frac float64) string) ([]byte, error) {
 	if cfg, err := jpeg.DecodeConfig(bytes.NewReader(jpg)); err != nil {
 		return nil, err
 	} else if cfg.Width > 2*AIViewSize || cfg.Height > 2*AIViewSize {
@@ -408,8 +420,8 @@ func GridOverlay(jpg []byte) ([]byte, error) {
 		d.DrawString(s)
 	}
 	for k := 1; k < 10; k++ {
-		label(strconv.Itoa(k*10)+"%", k*w/10+2, 12)
-		label(strconv.Itoa(k*10)+"%", 2, k*h/10-2)
+		label(xLabel(float64(k)/10), k*w/10+2, 12)
+		label(yLabel(float64(k)/10), 2, k*h/10-2)
 	}
 	return encodeJPEG(img, 85)
 }

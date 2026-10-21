@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"path"
 	"strings"
 	"unicode/utf8"
@@ -44,6 +45,8 @@ func sniffAsset(data []byte) (kind, mime string, info AssetInfo, err error) {
 		return AssetImage, "image/jpeg", nil, nil
 	case len(data) > 12 && string(data[:4]) == "RIFF" && string(data[8:12]) == "WEBP":
 		return AssetImage, "image/webp", nil, nil
+	case len(data) > 3 && (string(data[:2]) == "P5" || string(data[:2]) == "P2") && isSpace(data[2]):
+		return AssetImage, pgmMime, nil, nil
 	case bytes.HasPrefix(data, []byte("%PDF-")):
 		return AssetDocument, "application/pdf", nil, nil
 	case bytes.HasPrefix(data, []byte("glTF")):
@@ -69,6 +72,9 @@ func sniffAsset(data []byte) (kind, mime string, info AssetInfo, err error) {
 	case isOBJ(text):
 		return AssetMesh, "model/obj", nil, nil
 	}
+	if _, ok := parseNavMap(data); ok {
+		return "", "", nil, fmt.Errorf("this is a map's YAML: upload it in one zip with its image")
+	}
 	return "", "", nil, fmt.Errorf("unsupported file type; upload %s", supportedTypes)
 }
 
@@ -85,12 +91,26 @@ func validUTF8Prefix(b []byte) bool {
 }
 
 // isBinarySTL: an 80-byte header, a triangle count, 50 bytes per triangle.
+// pgmMime is a portable graymap's type (ROS occupancy map images).
+const pgmMime = "image/x-portable-graymap"
+
+func isSpace(b byte) bool { return b == ' ' || b == '\n' || b == '\r' || b == '\t' }
+
 func isBinarySTL(data []byte) bool {
 	if len(data) < 84 {
 		return false
 	}
 	n := binary.LittleEndian.Uint32(data[80:84])
 	return n > 0 && 84+50*uint64(n) == uint64(len(data))
+}
+
+func zipHas(zr *zip.Reader, name string) bool {
+	for _, f := range zr.File {
+		if f.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // isDXF: DXF files are group-code/value line pairs, starting "0 SECTION"
@@ -129,6 +149,7 @@ func sniffZip(data []byte) (kind, mime string, info AssetInfo, err error) {
 	var files, meshes []string
 	images := 0
 	hasModelConfig := false
+	var mapYAMLs []string // map YAMLs whose image is in the zip
 	var total uint64
 	for _, f := range zr.File {
 		name := f.Name
@@ -148,6 +169,17 @@ func sniffZip(data []byte) (kind, mime string, info AssetInfo, err error) {
 		}
 		files = append(files, name)
 		hasModelConfig = hasModelConfig || path.Base(name) == "model.config"
+		if isYAML(name) && f.UncompressedSize64 <= maxMapYAML {
+			if rc, err := f.Open(); err == nil {
+				b, _ := io.ReadAll(io.LimitReader(rc, maxMapYAML+1))
+				rc.Close()
+				if m, ok := parseNavMap(b); ok {
+					if _, ok := mapImage(name, m, func(n string) bool { return zipHas(zr, n) }); ok {
+						mapYAMLs = append(mapYAMLs, name)
+					}
+				}
+			}
+		}
 		ext := strings.ToLower(path.Ext(name))
 		switch {
 		case meshExts[ext]:
@@ -157,6 +189,9 @@ func sniffZip(data []byte) (kind, mime string, info AssetInfo, err error) {
 		}
 	}
 	switch {
+	case len(mapYAMLs) == 1 && len(files) == 2:
+		// A map: its YAML and its image.
+		return AssetMap, "application/zip", AssetInfo{"files": files, "main": mapYAMLs[0]}, nil
 	case hasModelConfig:
 		// Gazebo models (and maybe more): unpacked by expandBundle.
 		return assetBundle, "application/zip", AssetInfo{"files": files}, nil

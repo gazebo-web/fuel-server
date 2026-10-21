@@ -20,6 +20,7 @@ import (
 //     model (models/<name>/ in the repo), recorded as a file of kind model;
 //   - a mesh goes with the files it uses (an OBJ's material libraries and
 //     their textures, a glTF's buffers and images, Collada's images);
+//   - a map YAML (Nav2/ROS) and the image it names are one map;
 //   - a folder of texture maps (a color map and others) is a texture set;
 //   - other images, PDFs and drawings are files of their own;
 //   - anything else (notes, nested zips, stray files) is skipped and named.
@@ -113,6 +114,26 @@ func expandBundle(zipName string, data []byte) ([]AssetUpload, []modelFolder, []
 
 	var ups []AssetUpload
 	from := func(name string) AssetInfo { return AssetInfo{"from_zip": zipName, "path": name} }
+	// Maps: a YAML and the image it names, as SLAM writes them.
+	for _, f := range files {
+		if claimed[f.name] || !isYAML(f.name) {
+			continue
+		}
+		m, ok := parseNavMap(f.data)
+		if !ok {
+			continue
+		}
+		img, ok := mapImage(f.name, m, func(n string) bool { return byName[n] != nil && !claimed[n] })
+		if !ok {
+			continue
+		}
+		b, err := mapPair(f.name, f.data, img, byName[img])
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		claimed[f.name], claimed[img] = true, true
+		ups = append(ups, AssetUpload{Name: path.Base(f.name), Data: b, Info: from(f.name)})
+	}
 	// Meshes with the files they use.
 	for _, f := range files {
 		if claimed[f.name] || !meshExts[strings.ToLower(path.Ext(f.name))] {
@@ -175,7 +196,7 @@ func expandBundle(zipName string, data []byte) ([]AssetUpload, []modelFolder, []
 			continue
 		}
 		switch strings.ToLower(path.Ext(f.name)) {
-		case ".png", ".jpg", ".jpeg", ".webp", ".pdf", ".svg", ".dxf":
+		case ".png", ".jpg", ".jpeg", ".webp", ".pgm", ".pdf", ".svg", ".dxf":
 			ups = append(ups, AssetUpload{Name: path.Base(f.name), Data: f.data, Info: from(f.name)})
 		default:
 			skipped = append(skipped, f.name)

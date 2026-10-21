@@ -110,7 +110,7 @@ func TestProjectAssets(t *testing.T) {
 	assert.EqualValues(t, 2000, img.Info["width"])
 	assert.Equal(t, projects.AssetMesh, byName["crate.glb"].Kind)
 	assert.Equal(t, projects.AssetFailed, byName["crate.glb"].Status, "kept, with the reason")
-	assert.Equal(t, "the mesh can't be read: bad header", byName["crate.glb"].Error)
+	assert.Equal(t, "the mesh can't be read: bad header", string(byName["crate.glb"].Error))
 	assert.Equal(t, projects.AssetDrawing, byName["room.svg"].Kind)
 	assert.Equal(t, projects.AssetReady, byName["room.svg"].Status)
 
@@ -319,6 +319,23 @@ func TestProjectAssetsBundle(t *testing.T) {
 		`<name>s1</name></include></world></sdf>`
 	w := mcpJSON(t, jwt, "project_write_file", map[string]any{"name": name, "path": "world.sdf", "content": world})
 	assert.Equal(t, true, w["validation"].(map[string]any)["valid"], w["validation"])
+
+	// A SLAM map: its YAML and image are one file with the scale and origin.
+	pix := bytes.Repeat([]byte{254}, 40*20)
+	copy(pix[2*40:3*40], bytes.Repeat([]byte{0}, 40))
+	pgm := append([]byte("P5\n40 20\n255\n"), pix...)
+	rec = uploadAssets(t, jwt, name, map[string][]byte{"map.zip": zipFiles(t, map[string][]byte{
+		"map.yaml": []byte("image: map.pgm\nresolution: 0.05\norigin: [-1.0, -0.5, 0.0]\nnegate: 0\n" +
+			"occupied_thresh: 0.65\nfree_thresh: 0.196\n"),
+		"map.pgm": pgm})}, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"kind":"map"`)
+	list = mcpJSON(t, jwt, "asset_list", map[string]any{"name": name})
+	assert.Contains(t, fmt.Sprint(list["files"]), "occupancy map 2 × 1 m at 0.05 m/px")
+	content = mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "map.zip", "grid": true})
+	require.Len(t, content, 2)
+	assert.Contains(t, content[0]["text"], "labelled in meters")
+	assert.Contains(t, content[0]["text"], `"obstacle_extent"`)
 
 	// Uploading it again adds a second model rather than replacing the first.
 	rec = uploadAssets(t, jwt, name, map[string][]byte{"again.zip": zipFiles(t, map[string][]byte{
