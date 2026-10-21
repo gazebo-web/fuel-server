@@ -460,6 +460,9 @@ func createIndex(ctx context.Context, indexName string) {
             }
           }
         },
+        "private": {
+          "type": "boolean"
+        },
         "tags": {
           "type": "text",
           "fields": {
@@ -729,6 +732,14 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 		}
 	}
 
+	// Only search the resources that the requestor can see, so that the total
+	// hit count does not include private resources.
+	var visibleOwners []string
+	if user != nil {
+		visibleOwners = append(globals.Permissions.GetGroupsForUser(*user.Username), *user.Username)
+	}
+	query = addElasticVisibilityFilter(query, visibleOwners)
+
 	// Encode the search request.
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		return nil, nil, gz.NewErrorMessageWithArgs(gz.ErrorUnexpected, err,
@@ -767,8 +778,7 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 				[]string{"Error parsing the search response error body"})
 		}
 		return nil, nil, gz.NewErrorMessageWithArgs(gz.ErrorUnexpected, err,
-			[]string{"Search error ",
-				errResult["error"].(map[string]string)["reason"]})
+			[]string{"Search error ", elasticErrorReason(errResult)})
 	}
 
 	var elasticResult map[string]interface{}
@@ -815,6 +825,53 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 	// Debug
 	// fmt.Printf("--- End of ElasticSearch ---\n")
 	return result, &page, nil
+}
+
+// addElasticVisibilityFilter restricts an ElasticSearch query to public
+// resources and to the private resources owned by any of the given owners.
+// Resources indexed without a "private" field are treated as public, which
+// matches how they were searched before the field was indexed.
+func addElasticVisibilityFilter(query map[string]interface{}, owners []string) map[string]interface{} {
+	visibility := []interface{}{
+		map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must_not": map[string]interface{}{
+					"term": map[string]interface{}{"private": true},
+				},
+			},
+		},
+	}
+	if len(owners) > 0 {
+		visibility = append(visibility, map[string]interface{}{
+			"terms": map[string]interface{}{"owner.keyword": owners},
+		})
+	}
+	return map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": query["query"],
+				"filter": map[string]interface{}{
+					"bool": map[string]interface{}{
+						"should":               visibility,
+						"minimum_should_match": 1,
+					},
+				},
+			},
+		},
+	}
+}
+
+// elasticErrorReason returns the reason of an ElasticSearch error response.
+func elasticErrorReason(errResult map[string]interface{}) string {
+	switch e := errResult["error"].(type) {
+	case map[string]interface{}:
+		if reason, ok := e["reason"].(string); ok {
+			return reason
+		}
+	case string:
+		return e
+	}
+	return "unknown error"
 }
 
 func createWorldResults(ctx context.Context, user *users.User, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {
