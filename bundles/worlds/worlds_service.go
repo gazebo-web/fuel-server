@@ -573,7 +573,7 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 // updateZip creates a new zip file for the given world and also
 // updates its Filesize field in DB.
 func (ws *Service) updateZip(ctx context.Context, repo vcs.VCS, world *World) *gz.ErrMsg {
-	zSize, path, em := res.ZipResourceTip(ctx, repo, world, worlds)
+	zSize, path, v, em := res.ZipResourceTip(ctx, repo, world, worlds)
 	if em != nil {
 		return em
 	}
@@ -581,11 +581,7 @@ func (ws *Service) updateZip(ctx context.Context, repo vcs.VCS, world *World) *g
 	if err != nil {
 		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
-
-	v, err := res.GetLatestVersion(ctx, world)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	defer f.Close()
 
 	err = ws.Storage.UploadZip(ctx, res.CastResourceToStorageResource(world, uint64(v)), f)
 	if err != nil {

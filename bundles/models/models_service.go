@@ -663,7 +663,7 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 // updates its Filesize field in DB.
 func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS, model *Model) *gz.ErrMsg {
 
-	zSize, path, em := res.ZipResourceTip(ctx, repo, model, "models")
+	zSize, path, v, em := res.ZipResourceTip(ctx, repo, model, "models")
 	if em != nil {
 		return em
 	}
@@ -671,11 +671,7 @@ func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS, model *Mode
 	if err != nil {
 		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
 	}
-
-	v, err := res.GetLatestVersion(ctx, model)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
+	defer f.Close()
 
 	err = ms.Storage.UploadZip(ctx, res.CastResourceToStorageResource(model, uint64(v)), f)
 	if err != nil {

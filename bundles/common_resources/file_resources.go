@@ -213,30 +213,37 @@ func Remove(tx *gorm.DB, res Resource, user string) *gz.ErrMsg {
 	return nil
 }
 
-// ZipResourceTip creates a new zip file for the given resource. Returns the zip
-// Filesize and the path to the given zip file or an error.
+// ZipResourceTip creates a new zip file for the latest version of the given
+// resource. Returns the zip Filesize, the path to the given zip file and the
+// latest version number, or an error.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
-func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, string, *gz.ErrMsg) {
-	zipPath := getOrCreateZipLocation(res, subfolder, "")
+func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, string, int, *gz.ErrMsg) {
+	version, err := GetLatestVersion(ctx, res)
+	if err != nil {
+		gz.LoggerFromContext(ctx).Info("Error getting the latest resource version", err)
+		return -1, "", -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+	}
+	zipPath := getOrCreateZipLocation(res, subfolder, strconv.Itoa(version))
 
-	// If the zippath doesn't exist, then this is the first version. Recompute
-	// the zippath.
-	if _, err := os.Stat(zipPath); err != nil {
-		zipPath = getOrCreateZipLocation(res, subfolder, "1")
+	// A zip downloaded as "tip" is cached separately, and now holds an older
+	// version. Remove it, so it is created again on its next download.
+	tipZipPath := getOrCreateZipLocation(res, subfolder, "")
+	if err := os.Remove(tipZipPath); err != nil && !os.IsNotExist(err) {
+		gz.LoggerFromContext(ctx).Error("Unable to remove the tip zip file", tipZipPath, err)
 	}
 
 	// Zip the model and compute its size
-	_, err := repo.Zip(ctx, "", zipPath)
+	_, err = repo.Zip(ctx, "", zipPath)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Info("Error trying to zip resource", err)
-		return -1, "", gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		return -1, "", -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
 	fInfo, err := os.Stat(zipPath)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Info("Error getting zip file info / stat", err)
-		return -1, "", gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		return -1, "", -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
-	return fInfo.Size(), zipPath, nil
+	return fInfo.Size(), zipPath, version, nil
 }
 
 // getOrCreateZipLocation either returns the path to an existing resource's zip
