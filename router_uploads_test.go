@@ -209,3 +209,50 @@ func TestUploadSizeLimit(t *testing.T) {
 	code, bslice = postWithArgs(t, "/1.0/models", &jwt, params, smallFiles)
 	assert.Equal(t, http.StatusOK, code, string(*bslice))
 }
+
+// TestDeniedPrivacyUpdateKeepsFiles checks that an update that is denied
+// because the user cannot change the privacy setting does not change the
+// files of a model or world.
+func TestDeniedPrivacyUpdateKeepsFiles(t *testing.T) {
+	// General test setup
+	setup()
+
+	myJWT := os.Getenv("IGN_TEST_JWT")
+	testUser := createUser(t)
+	defer removeUser(testUser, t)
+	testOrg := createOrganization(t)
+	defer removeOrganization(testOrg, t)
+
+	// An org member can edit org resources, but not their privacy.
+	memberJWT := createValidJWTForIdentity("another-user-2", t)
+	member := createUserWithJWT(memberJWT, t)
+	defer removeUserWithJWT(member, memberJWT, t)
+	addUserToOrg(member, "member", testOrg, t)
+
+	createTestModelWithOwner(t, &myJWT, "privacy", testOrg, true)
+	createTestWorldWithOwner(t, &myJWT, "privacy", testOrg, true)
+
+	tests := []struct {
+		kind  string
+		url   func(owner, name, version string) string
+		files map[string]bool
+	}{
+		{"models", modelURL, map[string]bool{"thumbnails/": true, "thumbnails/model.sdf": true, "model.config": true}},
+		{"worlds", worldURL, map[string]bool{"thumbnails/": true, "thumbnails/world.sdf": true, "world.world": true}},
+	}
+	for _, test := range tests {
+		t.Run(test.kind, func(t *testing.T) {
+			uri := "/1.0/" + testOrg + "/" + test.kind + "/privacy"
+			params := map[string]string{"private": "false"}
+			files := []gztest.FileDesc{{Path: "other.config", Contents: constModelConfigFileContents}}
+			code, bslice, _ := gztest.SendMultipartMethod(t.Name(), t, "PATCH", uri, &memberJWT, params, files)
+			require.Equal(t, http.StatusUnauthorized, code, string(*bslice))
+
+			// The files and the version did not change.
+			assert.Equal(t, test.files, zipFileNames(t, test.url(testOrg, "privacy", "tip")+".zip", &myJWT))
+			reqArgs := gztest.RequestArgs{Method: "GET", Route: uri, SignedToken: &myJWT}
+			resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, ctJSON, t)
+			ensureIgnResourceVersionHeader(resp.RespRecorder, 1, t)
+		})
+	}
+}

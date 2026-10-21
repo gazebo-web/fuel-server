@@ -508,6 +508,13 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 	if !ok {
 		return nil, err
 	}
+	// Only Owners and Admins can update the privacy setting. Check this before
+	// any change is made, since file changes are not rolled back on error.
+	if private != nil {
+		if ok, em := users.CanPerformWithRole(tx, *world.Owner, *user.Username, permissions.Admin); !ok {
+			return nil, em
+		}
+	}
 
 	// Edit the description, if present.
 	if desc != nil {
@@ -558,11 +565,7 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 
 	// Update privacy, if present.
 	if private != nil {
-		// check if JWT user has permission to update the privacy setting.
-		// Only Owners and Admins can do that.
-		if ok, em := users.CanPerformWithRole(tx, *world.Owner, *user.Username, permissions.Admin); !ok {
-			return nil, em
-		}
+		// The permission to do this was checked above.
 		tx.Model(&world).Update("Private", *private)
 	}
 
