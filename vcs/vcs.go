@@ -86,8 +86,9 @@ func (g *GitVCS) Init(ctx context.Context) error {
 	if err := ensureFolderExists(g.Path); err != nil {
 		return err
 	}
-	// Init the mercurial repository
-	cmd := exec.Command("git", "init", g.Path)
+	// Init the git repository. The rest of the server uses the "master" branch,
+	// so set it regardless of the git default branch configuration.
+	cmd := exec.Command("git", "-c", "init.defaultBranch=master", "init", g.Path)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err := cmd.Run()
@@ -228,6 +229,7 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 		return err
 	}
 	cmd := exec.Command("git", "tag", "-a", tag, "-m", "ign-fuelserver created tag after cloning")
+	cmd.Dir = g.Path
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err := cmd.Run()
@@ -235,7 +237,7 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 		err = gz.WithStack(err)
 		gz.LoggerFromContext(ctx).Info("Error while Tagging repo: " + g.Path + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
 	}
-	return nil
+	return err
 }
 
 // doLocalClone - makes a local clone of source into target

@@ -310,6 +310,9 @@ func CloneResourceRepo(ctx context.Context, res, clone Resource) (vcs.VCS, *gz.E
 	// Open the VCS repo of the source world and clone it
 	repo := globals.VCSRepoFactory(ctx, *res.GetLocation())
 	if err := repo.CloneTo(ctx, *clone.GetLocation()); err != nil {
+		if err := os.RemoveAll(*clone.GetLocation()); err != nil {
+			gz.LoggerFromContext(ctx).Error("Unable to remove directory: ", *clone.GetLocation())
+		}
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 
