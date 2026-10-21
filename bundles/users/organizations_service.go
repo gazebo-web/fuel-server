@@ -347,7 +347,7 @@ func (ms *OrganizationService) CreateTeam(ctx context.Context, tx *gorm.DB,
 	}
 
 	// Sanity check: make sure the team does NOT exist
-	if _, err := ByTeamName(tx, t.Name, true); err == nil {
+	if _, err := ByTeamName(tx, org, t.Name, true); err == nil {
 		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists, nil, []string{t.Name})
 	}
 
@@ -378,7 +378,7 @@ func (ms *OrganizationService) RemoveTeam(ctx context.Context, tx *gorm.DB,
 		return nil, em
 	}
 	// Sanity check: make sure the team is valid
-	team, em := ByTeamName(tx, teamName, false)
+	team, em := ByTeamName(tx, org, teamName, false)
 	if em != nil {
 		return nil, em
 	}
@@ -505,7 +505,7 @@ func (ms *OrganizationService) GetTeamDetails(ctx context.Context, tx *gorm.DB,
 	}
 
 	// Sanity check: make sure the team exist
-	team, em := ByTeamName(tx, teamName, false)
+	team, em := ByTeamName(tx, org, teamName, false)
 	if em != nil {
 		return nil, em
 	}
@@ -572,7 +572,7 @@ func (ms *OrganizationService) UpdateTeam(ctx context.Context, tx *gorm.DB,
 		return nil, em
 	}
 	// Sanity check: make sure the team exist
-	team, em := ByTeamName(tx, teamName, false)
+	team, em := ByTeamName(tx, org, teamName, false)
 	if em != nil {
 		return nil, em
 	}

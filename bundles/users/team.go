@@ -67,15 +67,15 @@ func QueryForTeams(q *gorm.DB) *gorm.DB {
 	return q.Model(&Team{}).Preload("Organization")
 }
 
-// ByTeamName finds a team by name.
-func ByTeamName(tx *gorm.DB, name string, deleted bool) (*Team, *gz.ErrMsg) {
+// ByTeamName finds a team by name within the given organization.
+func ByTeamName(tx *gorm.DB, org *Organization, name string, deleted bool) (*Team, *gz.ErrMsg) {
 	q := tx
 	if deleted {
 		// Allow to search in already deleted teams
 		q = q.Unscoped()
 	}
 	var team Team
-	if QueryForTeams(q).Where("name = ?", name).First(&team); q.Error != nil && !q.RecordNotFound() {
+	if QueryForTeams(q).Where("organization_id = ? AND name = ?", org.ID, name).First(&team); q.Error != nil && !q.RecordNotFound() {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, q.Error)
 	}
 	if team.Name == nil {

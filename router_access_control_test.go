@@ -9,8 +9,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/gz-go/v7"
 	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestTransferByNonOwner checks that only the owner of an asset can transfer
@@ -126,4 +129,47 @@ func TestElasticSearchAdminWithoutUser(t *testing.T) {
 	gztest.AssertRouteMultipleArgs("GET", "/1.0/admin/search/rebuild", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
 	gztest.AssertRouteMultipleArgs("DELETE", "/1.0/admin/search/1", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
 	gztest.AssertRouteMultipleArgs("GET", "/1.0/users", nil, http.StatusUnauthorized, &noUserJWT, "text/plain; charset=utf-8", t)
+}
+
+// TestTeamsAreScopedToTheirOrganization checks that the teams routes of an
+// organization cannot reach a team with the same name in another organization.
+func TestTeamsAreScopedToTheirOrganization(t *testing.T) {
+	setup()
+	jwt := os.Getenv("IGN_TEST_JWT")
+	username := createUser(t)
+	defer removeUser(username, t)
+
+	// The default user owns an org with a private team.
+	victimOrg := createOrganization(t)
+	defer removeOrganization(victimOrg, t)
+	notVisible := false
+	addTeamToOrg(victimOrg, jwt, users.CreateTeamForm{Name: "devs", Visible: &notVisible}, t)
+
+	// Another user owns a different org.
+	jwt2 := createValidJWTForIdentity("another-user", t)
+	username2 := createUserWithJWT(jwt2, t)
+	defer removeUserWithJWT(username2, jwt2, t)
+	otherOrg := gz.RandomString(8)
+	b := new(bytes.Buffer)
+	assert.NoError(t, json.NewEncoder(b).Encode(users.Organization{Name: &otherOrg}))
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/organizations", b, http.StatusOK, &jwt2, ctJSON, t)
+	defer gztest.AssertRouteMultipleArgs("DELETE", "/1.0/organizations/"+otherOrg, nil, http.StatusOK, &jwt2, ctJSON, t)
+
+	// The other org's routes do not reach the victim org's team.
+	otherURI := "/1.0/organizations/" + otherOrg + "/teams/devs"
+	gztest.AssertRouteMultipleArgs("GET", otherURI, nil, http.StatusNotFound, &jwt2, "text/plain; charset=utf-8", t)
+	b = new(bytes.Buffer)
+	desc := "changed"
+	assert.NoError(t, json.NewEncoder(b).Encode(users.UpdateTeamForm{Description: &desc}))
+	gztest.AssertRouteMultipleArgs("PATCH", otherURI, b, http.StatusNotFound, &jwt2, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("DELETE", otherURI, nil, http.StatusNotFound, &jwt2, "text/plain; charset=utf-8", t)
+
+	// The victim org's team is unchanged.
+	bslice, _ := gztest.AssertRouteMultipleArgs("GET", "/1.0/organizations/"+victimOrg+"/teams/devs", nil, http.StatusOK, &jwt, ctJSON, t)
+	var team users.TeamResponse
+	require.NoError(t, json.Unmarshal(*bslice, &team))
+	assert.Nil(t, team.Description)
+
+	// Team names only need to be unique within an organization.
+	addTeamToOrg(otherOrg, jwt2, users.CreateTeamForm{Name: "devs", Visible: &notVisible}, t)
 }
