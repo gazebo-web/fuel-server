@@ -13,6 +13,9 @@ import (
 	"strings"
 )
 
+// DefaultBranch is the branch that holds the versions of a resource.
+const DefaultBranch = "master"
+
 // TODO: consider having a repo.Rollback() to checkout and return to
 // last working version.
 
@@ -54,7 +57,7 @@ func ensureFolderExists(dir string) error {
 func ensureRev(rev string) string {
 	rev = strings.TrimSpace(rev)
 	if rev == "" || rev == "tip" {
-		return "master"
+		return DefaultBranch
 	}
 	return rev
 }
@@ -86,9 +89,9 @@ func (g *GitVCS) Init(ctx context.Context) error {
 	if err := ensureFolderExists(g.Path); err != nil {
 		return err
 	}
-	// Init the git repository. The rest of the server uses the "master" branch,
-	// so set it regardless of the git default branch configuration.
-	cmd := exec.Command("git", "-c", "init.defaultBranch=master", "init", g.Path)
+	// Init the git repository on the DefaultBranch, regardless of the git
+	// default branch configuration.
+	cmd := exec.Command("git", "-c", "init.defaultBranch="+DefaultBranch, "init", g.Path)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err := cmd.Run()

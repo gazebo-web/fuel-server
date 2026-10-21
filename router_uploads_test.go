@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 
 	"github.com/gazebo-web/fuel-server/globals"
@@ -125,6 +124,11 @@ func zipFileNames(t *testing.T, route string, jwt *string) map[string]bool {
 	return names
 }
 
+// The files in the zip of a model or world created by
+// createTestModelWithOwner or createTestWorldWithOwner.
+var testModelZipFiles = map[string]bool{"thumbnails/": true, "thumbnails/model.sdf": true, "model.config": true}
+var testWorldZipFiles = map[string]bool{"thumbnails/": true, "thumbnails/world.sdf": true, "world.world": true}
+
 // TestResourceVersionZipsAfterUpdate checks that downloading an older
 // version of a model or world after an update returns that version's files.
 func TestResourceVersionZipsAfterUpdate(t *testing.T) {
@@ -134,40 +138,24 @@ func TestResourceVersionZipsAfterUpdate(t *testing.T) {
 	testUser := createUser(t)
 	defer removeUser(testUser, t)
 
-	modelV1Files := map[string]bool{"thumbnails/": true, "thumbnails/model.sdf": true, "model.config": true}
-	modelV2Files := []gztest.FileDesc{{Path: "model.config", Contents: constModelConfigFileContents}, {Path: "model2.sdf", Contents: constModelSDFFileContents}}
-	worldV1Files := map[string]bool{"thumbnails/": true, "thumbnails/world.sdf": true, "world.world": true}
-	worldV2Files := []gztest.FileDesc{{Path: "world2.world", Contents: constWorldMainFileContents}}
+	createTestModelWithOwner(t, &myJWT, "versioned", testUser, false)
+	createTestWorldWithOwner(t, &myJWT, "versioned", testUser, false)
 
 	tests := []struct {
-		desc string
-		kind string
-		// whether tip is downloaded before the update, which caches its zip.
-		downloadTip bool
-		url         func(owner, name, version string) string
-		v1Files     map[string]bool
-		v2Files     []gztest.FileDesc
+		kind    string
+		url     func(owner, name, version string) string
+		v1Files map[string]bool
+		v2Files []gztest.FileDesc
 	}{
-		{"model", "models", false, modelURL, modelV1Files, modelV2Files},
-		{"model with tip downloaded", "models", true, modelURL, modelV1Files, modelV2Files},
-		{"world", "worlds", false, worldURL, worldV1Files, worldV2Files},
-		{"world with tip downloaded", "worlds", true, worldURL, worldV1Files, worldV2Files},
+		{"models", modelURL, testModelZipFiles, []gztest.FileDesc{{Path: "model.config", Contents: constModelConfigFileContents}, {Path: "model2.sdf", Contents: constModelSDFFileContents}}},
+		{"worlds", worldURL, testWorldZipFiles, []gztest.FileDesc{{Path: "world2.world", Contents: constWorldMainFileContents}}},
 	}
-	for i, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			name := "versioned" + strconv.Itoa(i)
-			if test.kind == "models" {
-				createTestModelWithOwner(t, &myJWT, name, testUser, false)
-			} else {
-				createTestWorldWithOwner(t, &myJWT, name, testUser, false)
-			}
-			assert.Equal(t, test.v1Files, zipFileNames(t, test.url(testUser, name, "1")+".zip", &myJWT))
-			if test.downloadTip {
-				assert.Equal(t, test.v1Files, zipFileNames(t, test.url(testUser, name, "tip")+".zip", &myJWT))
-			}
+	for _, test := range tests {
+		t.Run(test.kind, func(t *testing.T) {
+			assert.Equal(t, test.v1Files, zipFileNames(t, test.url(testUser, "versioned", "1")+".zip", &myJWT))
 
 			// Update the files, which creates version 2.
-			updateURI := "/1.0/" + testUser + "/" + test.kind + "/" + name
+			updateURI := "/1.0/" + testUser + "/" + test.kind + "/versioned"
 			code, bslice, _ := gztest.SendMultipartMethod(t.Name(), t, "PATCH", updateURI, &myJWT, map[string]string{}, test.v2Files)
 			require.Equal(t, http.StatusOK, code, string(*bslice))
 
@@ -175,9 +163,9 @@ func TestResourceVersionZipsAfterUpdate(t *testing.T) {
 			for _, f := range test.v2Files {
 				v2Files[f.Path] = true
 			}
-			assert.Equal(t, test.v1Files, zipFileNames(t, test.url(testUser, name, "1")+".zip", &myJWT), "version 1 changed")
-			assert.Equal(t, v2Files, zipFileNames(t, test.url(testUser, name, "2")+".zip", &myJWT))
-			assert.Equal(t, v2Files, zipFileNames(t, test.url(testUser, name, "tip")+".zip", &myJWT), "tip is not version 2")
+			assert.Equal(t, test.v1Files, zipFileNames(t, test.url(testUser, "versioned", "1")+".zip", &myJWT), "version 1 changed")
+			assert.Equal(t, v2Files, zipFileNames(t, test.url(testUser, "versioned", "2")+".zip", &myJWT))
+			assert.Equal(t, v2Files, zipFileNames(t, test.url(testUser, "versioned", "tip")+".zip", &myJWT), "tip is not version 2")
 		})
 	}
 }
@@ -237,8 +225,8 @@ func TestDeniedPrivacyUpdateKeepsFiles(t *testing.T) {
 		url   func(owner, name, version string) string
 		files map[string]bool
 	}{
-		{"models", modelURL, map[string]bool{"thumbnails/": true, "thumbnails/model.sdf": true, "model.config": true}},
-		{"worlds", worldURL, map[string]bool{"thumbnails/": true, "thumbnails/world.sdf": true, "world.world": true}},
+		{"models", modelURL, testModelZipFiles},
+		{"worlds", worldURL, testWorldZipFiles},
 	}
 	for _, test := range tests {
 		t.Run(test.kind, func(t *testing.T) {

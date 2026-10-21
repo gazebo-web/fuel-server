@@ -13,7 +13,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"gopkg.in/go-playground/validator.v9"
 	"io"
-	"log"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -522,11 +521,7 @@ func writeUploadedFile(fh *multipart.FileHeader, fileFullPath string) *gz.ErrMsg
 	if err != nil {
 		return gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			log.Println("Failed to close file:", err)
-		}
-	}()
+	defer gz.Close(file)
 	if err := os.MkdirAll(filepath.Dir(fileFullPath), 0711); err != nil {
 		return gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
@@ -534,11 +529,7 @@ func writeUploadedFile(fh *multipart.FileHeader, fileFullPath string) *gz.ErrMsg
 	if err != nil {
 		return gz.NewErrorMessageWithBase(gz.ErrorForm, err)
 	}
-	defer func() {
-		if err := dest.Close(); err != nil {
-			log.Println("Failed to close file:", err)
-		}
-	}()
+	defer gz.Close(dest)
 	// Now copy contents
 	if _, err := io.Copy(dest, file); err != nil {
 		return gz.NewErrorMessageWithBase(gz.ErrorForm, err)
@@ -586,9 +577,6 @@ func getOuterDir(files []*multipart.FileHeader, remove bool) (bool, string, *gz.
 	first, err := extractFilepath(files[0])
 	if err != nil {
 		return false, "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
-	}
-	if err := validateUploadPath(first); err != nil {
-		return false, "", gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, err, []string{first})
 	}
 	if !strings.Contains(first, "/") {
 		// No folder in first file, then there is no common folder

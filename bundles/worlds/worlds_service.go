@@ -565,7 +565,6 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 
 	// Update privacy, if present.
 	if private != nil {
-		// The permission to do this was checked above.
 		tx.Model(&world).Update("Private", *private)
 	}
 
@@ -576,21 +575,10 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 // updateZip creates a new zip file for the given world and also
 // updates its Filesize field in DB.
 func (ws *Service) updateZip(ctx context.Context, repo vcs.VCS, world *World) *gz.ErrMsg {
-	zSize, path, v, em := res.ZipResourceTip(ctx, repo, world, worlds)
+	zSize, em := res.UpdateZip(ctx, repo, ws.Storage, world, worlds)
 	if em != nil {
 		return em
 	}
-	f, err := os.Open(path)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-	defer f.Close()
-
-	err = ws.Storage.UploadZip(ctx, res.CastResourceToStorageResource(world, uint64(v)), f)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-
 	world.Filesize = int(zSize)
 	return nil
 }
