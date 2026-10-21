@@ -13,14 +13,17 @@ type Release struct {
 	ROS2 string
 }
 
-// DefaultRelease is used when a project is created without one.
-const DefaultRelease = "Harmonic"
+// DefaultRelease is used when a project is created without one: Gazebo
+// Jetty, paired with ROS 2 Lyrical (LTS).
+const DefaultRelease = "Jetty"
 
 // releases lists the Gazebo releases new projects can target. Harmonic is
 // the oldest supported (design v3.1, D-4); projects created for older
-// releases still open, but can't be created or switched to.
+// releases still open, but can't be created or switched to. Jetty's
+// sdformat 16 reads SDF 1.12.
 var releases = map[string]Release{
 	"Harmonic": {SDF: "1.9", ROS2: "Jazzy"},
+	"Jetty":    {SDF: "1.12", ROS2: "Lyrical"},
 }
 
 // SupportedReleases returns the release names, sorted.

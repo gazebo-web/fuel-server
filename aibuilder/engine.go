@@ -74,20 +74,20 @@ type EngineConfig struct {
 func DefaultEngineConfig() EngineConfig {
 	return EngineConfig{
 		MaxToolIters: 20,
-		SDFVersion:   "1.9",
+		SDFVersion:   "1.12",
 	}
 }
 
 // BuildSystemPrompt returns the AI Builder system prompt for one project.
 func BuildSystemPrompt(project, gazebo, sdfVersion, ros2 string) string {
 	if gazebo == "" {
-		gazebo = "Harmonic"
+		gazebo = "Jetty"
 	}
 	if sdfVersion == "" {
-		sdfVersion = "1.9"
+		sdfVersion = "1.12"
 	}
 	if ros2 == "" {
-		ros2 = "Jazzy"
+		ros2 = "Lyrical"
 	}
 	return strings.NewReplacer(
 		"{PROJECT}", project,

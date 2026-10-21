@@ -13,7 +13,7 @@ import (
 	"github.com/gazebo-web/fuel-server/sdf"
 )
 
-const defaultSDFVersion = "1.9"
+const defaultSDFVersion = "1.12"
 
 func (t *tools) registerSDF(reg *mcp.Registry) {
 	elem := schema([]string{"element"}, map[string]any{

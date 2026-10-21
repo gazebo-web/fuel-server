@@ -155,6 +155,13 @@ func TestValidate18(t *testing.T) {
 	}
 }
 
+func TestValidate112(t *testing.T) {
+	r := Validate(strings.Replace(goodWorld, `version="1.9"`, `version="1.12"`, 1))
+	if !r.Valid {
+		t.Fatalf("1.12 world should validate: %s", messages(r.Errors))
+	}
+}
+
 func TestValidateToleratesTinyXMLConstructs(t *testing.T) {
 	src := "<sdf version=\"1.9\">\n<!-- a -- comment -->\n<world name=\"w\">\n" +
 		"<plugin filename=\"f\" name=\"n\"><gz::system_priority>10</gz::system_priority></plugin>\n" +

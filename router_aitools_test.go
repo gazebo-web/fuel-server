@@ -282,13 +282,15 @@ func TestProjectReleases(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
 	text, isErr := mcpCall(t, jwt, "project_create", map[string]any{"name": name, "gazebo_release": "Fortress"})
 	assert.True(t, isErr)
-	assert.Contains(t, text, "supported: Harmonic")
+	assert.Contains(t, text, "supported: Harmonic, Jetty")
 
-	// The client's sdf_version is replaced by the release's.
+	// The client's sdf_version is replaced by the release's; the default
+	// is Jetty with ROS 2 Lyrical.
 	rec = aiRequest(t, "POST", "/1.0/projects", jwt, map[string]any{"name": name, "sdf_version": "1.6"})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Contains(t, rec.Body.String(), `"gazebo_version":"Harmonic"`)
-	assert.Contains(t, rec.Body.String(), `"sdf_version":"1.9"`)
+	assert.Contains(t, rec.Body.String(), `"gazebo_version":"Jetty"`)
+	assert.Contains(t, rec.Body.String(), `"sdf_version":"1.12"`)
+	assert.Contains(t, rec.Body.String(), `"ros2_distro":"Lyrical"`)
 
 	rec = aiRequest(t, "PATCH", "/1.0/projects/"+name, jwt, map[string]any{"gazebo_version": "Fortress"})
 	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
@@ -587,7 +589,7 @@ func TestAIToolsModelGenerate(t *testing.T) {
 	assert.Equal(t, "model://cone", res["uri"])
 	assert.Equal(t, true, res["validation"].(map[string]any)["valid"], res["validation"])
 	assert.EqualValues(t, 4034, res["triangles"])
-	assert.Equal(t, "1.9", jobs[0]["sdf_version"])
+	assert.Equal(t, "1.12", jobs[0]["sdf_version"], "the project's release (Jetty by default)")
 	assert.EqualValues(t, 2.5, jobs[0]["mass"])
 	got := files()
 	for _, f := range []string{"models/cone/model.sdf", "models/cone/meshes/cone.glb", "models/cone/meshes/cone_collision_1.glb",
