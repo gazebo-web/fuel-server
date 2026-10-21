@@ -105,6 +105,8 @@ func (ws *Service) WorldList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 	// Check if we should return the list of liked worlds instead.
 	if likedBy != nil {
 		q = q.Joins("JOIN world_likes ON worlds.id = world_likes.world_id").Where("user_id = ?", &likedBy.ID)
+		// Only list the liked resources that the requestor can see.
+		q = res.QueryForResourceVisibility(tx, q, nil, user)
 	} else {
 
 		// filter resources based on privacy setting

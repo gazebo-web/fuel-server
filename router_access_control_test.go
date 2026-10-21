@@ -49,3 +49,50 @@ func TestTransferByNonOwner(t *testing.T) {
 		})
 	}
 }
+
+// TestLikedPrivateResourcesVisibility checks that a user's liked models and
+// worlds only include private resources the requestor can see.
+func TestLikedPrivateResourcesVisibility(t *testing.T) {
+	// General test setup
+	setup()
+
+	myJWT := os.Getenv("IGN_TEST_JWT")
+	testUser := createUser(t)
+	defer removeUser(testUser, t)
+	testOrg := createOrganization(t)
+	defer removeOrganization(testOrg, t)
+
+	// A user that is not a member of the org.
+	jwt2 := createValidJWTForIdentity("another-user", t)
+	testUser2 := createUserWithJWT(jwt2, t)
+	defer removeUserWithJWT(testUser2, jwt2, t)
+
+	// The org owner likes a private model and a private world of the org.
+	createTestModelWithOwner(t, &myJWT, "privateLiked", testOrg, true)
+	createTestWorldWithOwner(t, &myJWT, "privateLiked", testOrg, true)
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/"+testOrg+"/models/privateLiked/likes", nil, http.StatusOK, &myJWT, "text/plain; charset=utf-8", t)
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/"+testOrg+"/worlds/privateLiked/likes", nil, http.StatusOK, &myJWT, "text/plain; charset=utf-8", t)
+
+	modelsURI := "/1.0/" + testUser + "/likes/models"
+	worldsURI := "/1.0/" + testUser + "/likes/worlds"
+	modelTests := []resourceSearchTest{
+		{uriTest{"liked models seen by the org owner", modelsURI, newJWT(myJWT), nil, false}, 1, "privateLiked", ""},
+		{uriTest{"liked models seen by a non member", modelsURI, newJWT(jwt2), nil, false}, 0, "", ""},
+		{uriTest{"liked models seen anonymously", modelsURI, nil, nil, false}, 0, "", ""},
+	}
+	for _, test := range modelTests {
+		t.Run(test.testDesc, func(t *testing.T) {
+			runSubtestWithModelSearchTestData(t, test)
+		})
+	}
+	worldTests := []resourceSearchTest{
+		{uriTest{"liked worlds seen by the org owner", worldsURI, newJWT(myJWT), nil, false}, 1, "privateLiked", ""},
+		{uriTest{"liked worlds seen by a non member", worldsURI, newJWT(jwt2), nil, false}, 0, "", ""},
+		{uriTest{"liked worlds seen anonymously", worldsURI, nil, nil, false}, 0, "", ""},
+	}
+	for _, test := range worldTests {
+		t.Run(test.testDesc, func(t *testing.T) {
+			runSubtestWithWorldSearchTestData(t, test)
+		})
+	}
+}

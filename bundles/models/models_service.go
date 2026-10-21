@@ -130,6 +130,8 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 	// Check if we should return the list of liked models instead.
 	if likedBy != nil {
 		q = q.Joins("JOIN model_likes ON models.id = model_likes.model_id").Where("user_id = ?", &likedBy.ID)
+		// Only list the liked resources that the requestor can see.
+		q = res.QueryForResourceVisibility(tx, q, nil, user)
 	} else {
 
 		// filter resources based on privacy setting
