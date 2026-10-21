@@ -8,6 +8,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/pkg/errors"
@@ -174,23 +175,22 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 	if err != nil {
 		return err
 	}
-	// Get the files iterator
-	iter, err := commit.Files()
+	tree, err := commit.Tree()
 	if err != nil {
 		return gz.WithStack(err)
 	}
 
 	visitedFolders := make(map[string]bool)
-	_ = iter.ForEach(func(f *object.File) error {
+	_ = forEachFile(tree, func(name string) error {
 		// Skip ".git" folder and its contents
-		if strings.HasPrefix(f.Name, ".git") {
+		if strings.HasPrefix(name, ".git") {
 			return nil
 		}
 		// backward compatibility: exclude ".hg" folder too.
-		if strings.HasPrefix(f.Name, ".hg") {
+		if strings.HasPrefix(name, ".hg") {
 			return nil
 		}
-		parentPath := filepath.Clean(filepath.Dir(f.Name))
+		parentPath := filepath.Clean(filepath.Dir(name))
 		// Visit folders?
 		if includeFolders {
 			folders := strings.Split(parentPath, "/")
@@ -212,13 +212,37 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 			}
 		}
 		// Need to prefix all paths with "/" as client code is expecting that.
-		err := fn(filepath.Join("/", f.Name), filepath.Join("/", parentPath), false)
+		err := fn(filepath.Join("/", name), filepath.Join("/", parentPath), false)
 		if err != nil {
 			return gz.WithStack(err)
 		}
 		return nil
 	})
 	return nil
+}
+
+// forEachFile calls fn with the path of each file of the given tree, in the
+// same order as tree.Files(), until fn returns an error. Unlike tree.Files(),
+// it does not load the files smaller than largeObjectThreshold in memory.
+func forEachFile(tree *object.Tree, fn func(name string) error) error {
+	walker := object.NewTreeWalker(tree, true, nil)
+	defer walker.Close()
+	for {
+		name, entry, err := walker.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		// Like tree.Files(), skip folders and submodules.
+		if entry.Mode == filemode.Dir || entry.Mode == filemode.Submodule {
+			continue
+		}
+		if err := fn(name); err != nil {
+			return err
+		}
+	}
 }
 
 // Zip - creates a zip with the repository files, at a given revision.

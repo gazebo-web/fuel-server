@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"fmt"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -183,4 +184,71 @@ func runGitInput(t *testing.T, repo *GoGitVCS, input string, args ...string) str
 	out, err := cmd.Output()
 	require.NoError(t, err)
 	return strings.TrimSpace(string(out))
+}
+
+func TestWalk(t *testing.T) {
+	repo := newTestRepo(t, map[string]string{
+		".gitignore":                   "",
+		".hgignore":                    "",
+		"model.sdf":                    "<sdf/>",
+		"meshes/mesh.dae":              "mesh",
+		"materials/textures/a.png":     "png",
+		"materials/scripts/s.material": "material",
+	})
+	type node struct {
+		path, parent string
+		isDir        bool
+	}
+	walk := func(includeFolders bool) []node {
+		var nodes []node
+		err := repo.Walk(context.Background(), "", includeFolders, func(path, parent string, isDir bool) error {
+			nodes = append(nodes, node{path, parent, isDir})
+			return nil
+		})
+		require.NoError(t, err)
+		return nodes
+	}
+
+	// Folders come before their files, which the file tree needs.
+	assert.Equal(t, []node{
+		{"/materials", "/", true},
+		{"/materials/scripts", "/materials", true},
+		{"/materials/scripts/s.material", "/materials/scripts", false},
+		{"/materials/textures", "/materials", true},
+		{"/materials/textures/a.png", "/materials/textures", false},
+		{"/meshes", "/", true},
+		{"/meshes/mesh.dae", "/meshes", false},
+		{"/model.sdf", "/", false},
+	}, walk(true))
+	assert.Equal(t, []node{
+		{"/materials/scripts/s.material", "/materials/scripts", false},
+		{"/materials/textures/a.png", "/materials/textures", false},
+		{"/meshes/mesh.dae", "/meshes", false},
+		{"/model.sdf", "/", false},
+	}, walk(false))
+}
+
+// TestWalkDoesNotReadFiles checks that Walk does not load in memory the files
+// smaller than largeObjectThreshold.
+func TestWalkDoesNotReadFiles(t *testing.T) {
+	files := map[string]string{}
+	for i := 0; i < 16; i++ {
+		files[fmt.Sprintf("materials/textures/%02d.png", i)] = randomContent(t, largeObjectThreshold/4)
+	}
+	repo := newTestRepo(t, files)
+	// Open the repository again, so that go-git's object cache is empty.
+	walked := GoGitVCS{}.NewRepo(repo.Path)
+
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	n := 0
+	err := walked.Walk(context.Background(), "", true, func(path, parent string, isDir bool) error {
+		n++
+		return nil
+	})
+	runtime.ReadMemStats(&after)
+	require.NoError(t, err)
+	assert.Equal(t, 18, n)
+	assert.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(largeObjectThreshold), "allocated bytes")
 }
