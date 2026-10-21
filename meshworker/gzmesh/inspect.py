@@ -41,6 +41,8 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from PIL import Image
 
+from .simplify import main_color, simplify
+
 VERSION = "1"
 AI_SIZE = 1568
 THUMB_SIZE = 256
@@ -67,6 +69,14 @@ class InspectError(Exception):
 
 
 # -- pictures ------------------------------------------------------------------
+
+def limit_image_pixels():
+    """Refuse images over 50 megapixels (PIL only warns below twice its
+    limit; make that an error too)."""
+    import warnings
+    Image.MAX_IMAGE_PIXELS = 50_000_000
+    warnings.simplefilter("error", Image.DecompressionBombWarning)
+
 
 def fit(img: Image.Image, size: int) -> Image.Image:
     img = img.copy()
@@ -138,21 +148,21 @@ def resvg() -> str:
 
 
 def render_svg(svg_path: str) -> Image.Image:
-    """Rasterize an SVG on white, its long side AI_SIZE pixels."""
+    """Rasterize an SVG on white, fitted in AI_SIZE pixels square. Giving
+    resvg both sides keeps the aspect and bounds the raster, however tall
+    or wide the drawing is."""
     with tempfile.TemporaryDirectory() as tmp:
         png = os.path.join(tmp, "out.png")
-        for flag in ("--width", "--height"):
-            r = subprocess.run([resvg(), "--background", "white", flag, str(AI_SIZE), svg_path, png],
-                               capture_output=True, text=True, timeout=60)
-            if r.returncode != 0:
-                raise InspectError("the SVG can't be drawn: " + (r.stderr.strip().splitlines() or ["?"])[-1])
-            img = Image.open(png)
-            img.load()
-            # A tall drawing rendered by width is too tall: redo by height.
-            if flag == "--width" and img.height > img.width:
-                continue
-            return img
-    return img
+        try:
+            r = subprocess.run([resvg(), "--background", "white", "--width", str(AI_SIZE), "--height", str(AI_SIZE),
+                                svg_path, png], capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            raise InspectError("the drawing took too long to draw")
+        if r.returncode != 0:
+            raise InspectError("the drawing can't be drawn: " + (r.stderr.strip().splitlines() or ["?"])[-1])
+        img = Image.open(png)
+        img.load()
+        return img
 
 
 def svg_info(path: str) -> dict:
@@ -194,9 +204,10 @@ def inspect_dxf(path: str, out: str) -> tuple[dict, list]:
     units = DXF_UNITS.get(doc.header.get("$INSUNITS", 0), "unknown")
     info = {"units": units, "entities": len(msp)}
     ext = bbox.extents(msp, fast=True)
-    if ext.has_data:
-        xy = lambda v: [round(v.x, 4), round(v.y, 4)]  # noqa: E731
-        info["extent"] = {"min": xy(ext.extmin), "max": xy(ext.extmax), "size": xy(ext.size)}
+    if not ext.has_data:
+        raise InspectError("the drawing is empty: its model space has nothing to draw")
+    xy = lambda v: [round(v.x, 4), round(v.y, 4)]  # noqa: E731
+    info["extent"] = {"min": xy(ext.extmin), "max": xy(ext.extmax), "size": xy(ext.size)}
     layers, labels = set(), []
     for e in msp:
         layers.add(e.dxf.get("layer", "0"))
@@ -224,14 +235,22 @@ def inspect_dxf(path: str, out: str) -> tuple[dict, list]:
     # scaling down to AI_SIZE.
     cfg = config.Configuration(background_policy=config.BackgroundPolicy.WHITE,
                                color_policy=config.ColorPolicy.BLACK, min_lineweight=6)
-    Frontend(RenderContext(doc), backend, config=cfg).draw_layout(msp)
-    # A page of the drawing's shape with a thin margin, scaled to fit.
-    w, h = (ext.size.x, ext.size.y) if ext.has_data and ext.size.x > 0 and ext.size.y > 0 else (1, 1)
+    # A page of the drawing's shape with a thin margin, scaled to fit; a
+    # line-like drawing gets a page no thinner than 1:100.
+    w, h = max(ext.size.x, 1e-9), max(ext.size.y, 1e-9)
+    w, h = max(w, h / 100), max(h, w / 100)
     page = layout.Page(400, 400 * h / w, layout.Units.mm, margins=layout.Margins.all(4))
+    try:
+        Frontend(RenderContext(doc), backend, config=cfg).draw_layout(msp)
+        drawing = backend.get_string(page, settings=layout.Settings(fit_page=True))
+    except InspectError:
+        raise
+    except Exception as e:  # noqa: BLE001 - ezdxf raises many kinds on bad drawings
+        raise InspectError(f"the DXF can't be drawn: {type(e).__name__}: {e}")
     with tempfile.TemporaryDirectory() as tmp:
         svg_path = os.path.join(tmp, "drawing.svg")
         with open(svg_path, "w") as f:
-            f.write(backend.get_string(page, settings=layout.Settings(fit_page=True)))
+            f.write(drawing)
         img = render_svg(svg_path)
     views = []
     save_views(out, img, views)
@@ -259,10 +278,13 @@ def up_axis(path: str) -> str:
     return "z" if ext == ".stl" else "y"
 
 
-def units_guess(size: np.ndarray) -> str:
+def units_guess(size: np.ndarray, ext: str = "") -> str:
     """Units a mesh's largest dimension suggests: few objects to place in
-    a world are over 50 m, or under 1 cm."""
+    a world are over 50 m, or under 1 cm. STL files come from CAD and 3D
+    printing, which work in millimeters."""
     d = float(np.max(size))
+    if ext == ".stl" and d > 2:
+        return "millimeters"
     if d > 500:
         return "millimeters"
     if d > 50:
@@ -273,8 +295,8 @@ def units_guess(size: np.ndarray) -> str:
 def to_z_up(up: str) -> np.ndarray:
     if up == "y":  # +Y up to +Z up
         return np.array([[1, 0, 0, 0], [0, 0, -1, 0], [0, 1, 0, 0], [0, 0, 0, 1]], float)
-    if up == "x":
-        return np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]], float)
+    if up == "x":  # +X up to +Z up
+        return np.array([[0, 0, -1, 0], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1]], float)
     return np.eye(4)
 
 
@@ -324,7 +346,7 @@ def preview_meshes(scene, transform: np.ndarray) -> list:
             image = getattr(pbr, "baseColorTexture", None)
             uv = vis.uv
         if image is None:
-            color = mesh_color(m)
+            color = main_color(m)
             image = Image.new("RGB", (1, 1), tuple(int(c) for c in color[:3]))
             uv = np.zeros((len(m.vertices), 2))
         m.visual = TextureVisuals(uv=uv, material=PBRMaterial(baseColorTexture=image.convert("RGB")))
@@ -332,24 +354,7 @@ def preview_meshes(scene, transform: np.ndarray) -> list:
     return out
 
 
-def mesh_color(m) -> np.ndarray:
-    vis = m.visual
-    try:
-        if vis.kind == "vertex" or vis.kind == "face":
-            return np.asarray(vis.main_color, float)
-        mat = vis.material
-        for attr in ("baseColorFactor", "diffuse", "main_color"):
-            c = getattr(mat, attr, None)
-            if c is not None:
-                c = np.asarray(c, float)
-                return c * 255 if c.max() <= 1.0 else c
-    except Exception:  # noqa: BLE001 - fall back to grey
-        pass
-    return np.array([180, 180, 180])
-
-
 def inspect_mesh(path: str, out: str) -> tuple[dict, list]:
-    import fast_simplification
     import trimesh
 
     from . import preview
@@ -367,7 +372,7 @@ def inspect_mesh(path: str, out: str) -> tuple[dict, list]:
         "size": [round(float(v), 4) for v in size],
         "bounds": {"min": [round(float(v), 4) for v in scene.bounds[0]],
                    "max": [round(float(v), 4) for v in scene.bounds[1]]},
-        "units_guess": units_guess(size),
+        "units_guess": units_guess(size, os.path.splitext(path)[1].lower()),
         "up_axis_guess": up,
         "materials": sorted({getattr(getattr(g.visual, "material", None), "name", None) or ""
                              for g in scene.geometry.values()} - {""})[:50],
@@ -380,13 +385,7 @@ def inspect_mesh(path: str, out: str) -> tuple[dict, list]:
     if faces > MAX_PREVIEW_FACES:
         # Coarser copies for the preview only.
         ratio = 1 - MAX_PREVIEW_FACES / faces
-        simple = []
-        for m in meshes:
-            v, f = fast_simplification.simplify(m.vertices, m.faces, ratio)
-            s = trimesh.Trimesh(v, f, process=False)
-            s.visual = trimesh.visual.TextureVisuals(uv=np.zeros((len(v), 2)), material=m.visual.material)
-            simple.append(s)
-        meshes = simple
+        meshes = [simplify(m, ratio) if len(m.faces) > 50 else m for m in meshes]
     sheet = preview.sheet(meshes)
     sheet.save(os.path.join(out, "preview.png"))
     views = ["preview.png"]
@@ -396,19 +395,35 @@ def inspect_mesh(path: str, out: str) -> tuple[dict, list]:
 
 # -- texture sets --------------------------------------------------------------
 
+# Name tokens that are a resolution or format, not a map: 1k, 2K, 4096, jpg.
+NOISE_TOKEN = re.compile(r"^(\d+k|\d{3,5}(px)?|jpe?g|png|webp|exr|tiff?|hd|lod\d*)$")
+TOKEN_KINDS = {}
+for _kind, _words in MAP_WORDS:
+    for _w in _words:
+        TOKEN_KINDS.setdefault(_w.strip("_"), _kind)
+
+
 def map_kind(name: str):
+    """The map a file is, from the last word of its name that names one:
+    Metal032_2K-JPG_Color.jpg is a color map, metal_plate_diff_1k.jpg too."""
     stem = os.path.splitext(os.path.basename(name))[0].lower()
-    for kind, words in MAP_WORDS:
-        if any(w in stem for w in words):
+    tokens = [t for t in re.split(r"[^a-z0-9]+", stem) if t and not NOISE_TOKEN.match(t)]
+    for t in reversed(tokens):
+        if t in TOKEN_KINDS:
+            return TOKEN_KINDS[t]
+    # Run-together names (BricksNormal.png): look inside, color first.
+    for kind, words in sorted(MAP_WORDS, key=lambda kw: kw[0] != "color"):
+        if any(w.strip("_") in stem for w in words if len(w.strip("_")) > 3):
             return kind
     return None
 
 
 def inspect_texture(path: str, out: str) -> tuple[dict, list]:
     files = []
-    for dirpath, _, names in os.walk(path):
+    for dirpath, dirs, names in os.walk(path):
+        dirs[:] = [d for d in dirs if d != "__MACOSX" and not d.startswith(".")]
         for n in names:
-            if os.path.splitext(n)[1].lower() in IMAGE_EXTS:
+            if os.path.splitext(n)[1].lower() in IMAGE_EXTS and not n.startswith("."):
                 files.append(os.path.relpath(os.path.join(dirpath, n), path))
     if not files:
         raise InspectError("the texture set has no images")
@@ -446,7 +461,7 @@ def inspect(job: dict, base: str, out: str) -> dict:
     if not path.startswith(os.path.normpath(base) + os.sep) or not os.path.exists(path):
         raise InspectError("the file to inspect is missing")
     ext = os.path.splitext(path)[1].lower()
-    Image.MAX_IMAGE_PIXELS = 50_000_000
+    limit_image_pixels()
     if kind == "document":
         info, views = inspect_pdf(path, out)
     elif kind == "drawing" and ext == ".dxf":

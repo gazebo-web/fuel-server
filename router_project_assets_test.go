@@ -75,8 +75,13 @@ func TestProjectAssets(t *testing.T) {
 
 	// A stand-in for the mesh worker's inspect job.
 	defer func(f projects.AssetInspector) { projects.InspectAsset = f }(projects.InspectAsset)
-	projects.InspectAsset = func(_ context.Context, kind, file, _ string, _ []byte) (projects.AssetInfo, map[string][]byte, error) {
+	busy := true
+	projects.InspectAsset = func(_ context.Context, _, kind, file, _ string, _ []byte) (projects.AssetInfo, map[string][]byte, error) {
 		switch {
+		case kind == projects.AssetDrawing && file == "original.dxf" && busy:
+			return nil, nil, projects.RetryableError{Err: errors.New("the mesh worker is busy")}
+		case kind == projects.AssetDrawing && file == "original.dxf":
+			return projects.AssetInfo{"units": "meters"}, map[string][]byte{"ai.jpg": []byte("D"), "thumb.jpg": []byte("t")}, nil
 		case kind == projects.AssetDocument && file == "original.pdf":
 			return projects.AssetInfo{"pages": 2, "pages_shown": 2, "text": "Room 1"},
 				map[string][]byte{"ai.jpg": []byte("A"), "thumb.jpg": []byte("T"), "page-1.jpg": []byte("1"), "page-2.jpg": []byte("2")}, nil
@@ -113,11 +118,34 @@ func TestProjectAssets(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), `"views":["ai.jpg","page-1.jpg","page-2.jpg","thumb.jpg"]`)
 	content := mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "spec.pdf", "page": 2})
+	_ = content
 	require.Len(t, content, 2)
 	assert.Equal(t, base64.StdEncoding.EncodeToString([]byte("2")), content[1]["data"])
 	assert.Contains(t, content[0]["text"], "Room 1")
 	text, isErr := mcpCall(t, jwt, "asset_view", map[string]any{"name": name, "asset": "spec.pdf", "page": 3})
 	assert.True(t, isErr, text)
+
+	// A busy worker leaves a file to retry; viewing it retries.
+	rec = uploadAssets(t, jwt, name, map[string][]byte{"site.dxf": []byte("  0\nSECTION\n  2\nHEADER\n")}, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"status":"failed"`)
+	assert.Contains(t, rec.Body.String(), `"retryable":true`)
+	rec = aiRequest(t, "POST", "/1.0/projects/"+name+"/assets/site.dxf/retry", jwt, nil)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"status":"failed"`, "still busy")
+	busy = false
+	content = mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "site.dxf"})
+	require.Len(t, content, 2, "retried, with its picture")
+	assert.Contains(t, content[0]["text"], `"status": "ready"`)
+	require.Equal(t, http.StatusOK, aiRequest(t, "DELETE", "/1.0/projects/"+name+"/assets/site.dxf", jwt, nil).Code)
+
+	// Names differing in case are the same name to the database.
+	rec = uploadAssets(t, jwt, name, map[string][]byte{"FloorPlan.PNG": plan}, "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Contains(t, rec.Body.String(), `"name":"FloorPlan-2.PNG"`)
+	rec = aiRequest(t, "PATCH", "/1.0/projects/"+name+"/assets/FloorPlan-2.PNG", jwt, map[string]string{"name": "floorplan-2.png"})
+	require.Equal(t, http.StatusOK, rec.Code, "a change of case only: %s", rec.Body.String())
+	require.Equal(t, http.StatusOK, aiRequest(t, "DELETE", "/1.0/projects/"+name+"/assets/floorplan-2.png", jwt, nil).Code)
 	require.Equal(t, http.StatusOK, aiRequest(t, "DELETE", "/1.0/projects/"+name+"/assets/spec.pdf", jwt, nil).Code)
 
 	// A bad file refuses the whole request; a repeated name gets a suffix.

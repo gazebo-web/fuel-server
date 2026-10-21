@@ -517,6 +517,7 @@ func TestImport(t *testing.T) {
 		"no job":   {"input/a.obj": "v"},
 		"bad name": {"job.json": `{"name":"Chair"}`},
 		"spoof":    {"job.json": job, "out/report.json": `{"ok":true}`},
+		"spoof \\": {"job.json": job, "input/..\\out\\report.json": `{"ok":true}`},
 	} {
 		if resp := post(t, srv.URL+"/v1/import", zipOf(t, z)); resp.StatusCode != 400 {
 			t.Errorf("%s: %d", name, resp.StatusCode)

@@ -196,8 +196,12 @@ def model_sdf(name: str, sdf_version: str, static: bool, links: list, joints: li
     """plugins: (kind, resolved params) pairs."""
     body = "\n".join([link_xml(lk) for lk in links] + [joint_xml(j, offset) for j in joints] +
                      [plugin_xml(kind, k) for kind, k in plugins])
+    # "--" can't appear in an XML comment, and a file name in the note may
+    # hold it.
+    while "--" in note:
+        note = note.replace("--", "-")
     return f"""<?xml version="1.0"?>
-<!-- {note} -->
+<!-- {note.rstrip("-")} -->
 <sdf version="{sdf_version}">
   <model name="{name}">
     <static>{"true" if static else "false"}</static>

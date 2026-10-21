@@ -3100,6 +3100,22 @@ var routes = gz.Routes{
 		},
 	},
 	gz.Route{
+		Name:          "ProjectAssetRetry",
+		Description:   "Make a failed project file's pictures again",
+		URI:           "/projects/{name}/assets/{asset}/retry",
+		Headers:       gz.AuthHeadersRequired,
+		Methods:       gz.Methods{},
+		SecureMethods: gz.SecureMethods{
+			gz.Method{
+				Type:        "POST",
+				Description: "Inspect the file again",
+				Handlers: gz.FormatHandlers{
+					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, ProjectAssetRetry))},
+				},
+			},
+		},
+	},
+	gz.Route{
 		Name:          "ProjectAssetFile",
 		Description:   "Read a project file's original or a view",
 		URI:           "/projects/{name}/assets/{asset}/{file}",

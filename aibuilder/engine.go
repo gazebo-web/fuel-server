@@ -36,6 +36,7 @@ var writeTools = map[string]bool{
 	"model_create":          true,
 	"model_generate":        true,
 	"model_generate_status": true,
+	"model_import":          true,
 }
 
 // Event is a single output from the engine streamed to the client.
@@ -302,6 +303,7 @@ func (e *Engine) Run(
 
 	assistantText := strings.Builder{}
 	pendingToolCalls := map[string]*llm.ToolCall{}
+	noImages := false
 
 	for iter := 0; iter < e.cfg.MaxToolIters; iter++ {
 		req := llm.Request{
@@ -311,7 +313,17 @@ func (e *Engine) Run(
 			Tools:        tools,
 			Effort:       e.cfg.Effort,
 		}
+		if noImages {
+			req.Messages = withoutImages(messages)
+		}
 		stream, err := e.provider.ChatStream(ctx, req)
+		if err != nil && !noImages && hasImages(messages) && imagesRefused(err) {
+			// A model that can't take images (o3-mini, many local ones):
+			// carry on without them for the rest of the turn.
+			noImages = true
+			req.Messages = withoutImages(messages)
+			stream, err = e.provider.ChatStream(ctx, req)
+		}
 		if err != nil {
 			out <- Event{Type: EventError, Error: err.Error()}
 			return
@@ -423,6 +435,50 @@ func buildLLMHistory(hist []ChatMessage, in UserInput) []llm.Message {
 		}
 	}
 	out = append(out, llm.Message{Role: "user", Content: withNote(in.Text, in.Attachments), Images: in.Images})
+	return out
+}
+
+func hasImages(msgs []llm.Message) bool {
+	for _, m := range msgs {
+		if len(m.Images) > 0 || len(llm.ToolResultImages(m.ToolResults)) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// imagesRefused reports whether a provider error is a model refusing
+// image input.
+func imagesRefused(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "image") || strings.Contains(msg, "vision") || strings.Contains(msg, "multimodal")
+}
+
+// noImagesNote replaces the pictures of a message for a model that can't
+// see them.
+const noImagesNote = "[This model can't take images, so the pictures were left out; use the files' details instead.]"
+
+// withoutImages is msgs with every image left out: a note in their place
+// on user messages, and tool results as their values.
+func withoutImages(msgs []llm.Message) []llm.Message {
+	out := make([]llm.Message, len(msgs))
+	for i, m := range msgs {
+		if len(m.Images) > 0 {
+			m.Images = nil
+			m.Content = strings.TrimSpace(m.Content + "\n\n" + noImagesNote)
+		}
+		if len(llm.ToolResultImages(m.ToolResults)) > 0 {
+			trs := make([]llm.ToolResult, len(m.ToolResults))
+			for j, tr := range m.ToolResults {
+				if rich, ok := tr.Content.(llm.RichResult); ok {
+					tr.Content = rich.Value
+				}
+				trs[j] = tr
+			}
+			m.ToolResults = trs
+		}
+		out[i] = m
+	}
 	return out
 }
 

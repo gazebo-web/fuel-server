@@ -27,10 +27,32 @@ const inspectMaxTar = 64 << 20
 // viewNameRE is a view the worker may return.
 var viewNameRE = regexp.MustCompile(`^(ai\.jpg|thumb\.jpg|preview\.png|page-[0-9]{1,3}\.jpg)$`)
 
+// Inspections share the worker with model jobs, so each user gets a
+// budget of them (separate from model_generate's).
+const (
+	inspectPerMinute = 30
+	inspectPerDay    = 500
+)
+
+// inspector is projects.InspectAsset: the worker's inspect job, rate
+// limited per user. Failures that aren't the file's are retryable.
+func (m *meshClient) inspector() projects.AssetInspector {
+	limit := newRateLimiter(inspectPerMinute, inspectPerDay)
+	return func(ctx context.Context, user, kind, file, main string, data []byte) (projects.AssetInfo, map[string][]byte, error) {
+		if wait, ok := limit.allow(user, time.Now()); !ok {
+			return nil, nil, projects.RetryableError{Err: fmt.Errorf("too many files to preview (%d a minute, %d a day); "+
+				"try again in %s", inspectPerMinute, inspectPerDay, wait.Round(time.Second))}
+		}
+		return m.inspect(ctx, kind, file, main, data)
+	}
+}
+
 // inspect posts an upload to the worker and returns its info and views.
-// A file the worker can't read is an error saying why.
+// A file the worker can't read is an error saying why; the worker being
+// busy, down or slow is a projects.RetryableError.
 func (m *meshClient) inspect(ctx context.Context, kind, file, main string, data []byte) (projects.AssetInfo,
 	map[string][]byte, error) {
+	retry := func(err error) error { return projects.RetryableError{Err: err} }
 
 	q := url.Values{"kind": {kind}, "file": {file}, "wait": {"90"}}
 	if main != "" {
@@ -46,7 +68,7 @@ func (m *meshClient) inspect(ctx context.Context, kind, file, main string, data 
 		}
 		resp, err := m.http.Do(req)
 		if err != nil {
-			return nil, nil, fmt.Errorf("the preview couldn't be made: the mesh worker is unavailable")
+			return nil, nil, retry(errors.New("the preview couldn't be made: the mesh worker is unavailable"))
 		}
 		body, err := io.ReadAll(io.LimitReader(resp.Body, inspectMaxTar+1))
 		resp.Body.Close()
@@ -54,7 +76,11 @@ func (m *meshClient) inspect(ctx context.Context, kind, file, main string, data 
 			return nil, nil, fmt.Errorf("mesh worker: %w", err)
 		}
 		if resp.Header.Get("Content-Type") == "application/x-tar" {
-			return readInspection(body)
+			info, views, err := readInspection(body)
+			if err != nil && resp.StatusCode != http.StatusOK {
+				err = retry(err) // the worker's own failure (exit 1), not the file's
+			}
+			return info, views, err
 		}
 		var msg struct {
 			Error string `json:"error"`
@@ -69,17 +95,21 @@ func (m *meshClient) inspect(ctx context.Context, kind, file, main string, data 
 			select {
 			case <-time.After(2 * time.Second):
 			case <-ctx.Done():
-				return nil, nil, errors.New("the preview took too long to make")
+				return nil, nil, retry(errors.New("the preview took too long to make"))
 			}
 		case http.StatusTooManyRequests:
-			return nil, nil, errors.New("the preview couldn't be made: the mesh worker is busy")
+			return nil, nil, retry(errors.New("the preview couldn't be made: the mesh worker is busy"))
 		case http.StatusRequestEntityTooLarge:
 			return nil, nil, errors.New("the file is too large to preview")
 		default:
 			if msg.Error == "" {
 				msg.Error = fmt.Sprintf("status %d", resp.StatusCode)
 			}
-			return nil, nil, fmt.Errorf("the preview couldn't be made: %s", msg.Error)
+			err := fmt.Errorf("the preview couldn't be made: %s", msg.Error)
+			if resp.StatusCode >= 500 {
+				return nil, nil, retry(err)
+			}
+			return nil, nil, err
 		}
 	}
 }
@@ -106,6 +136,8 @@ func readInspection(tarball []byte) (projects.AssetInfo, map[string][]byte, erro
 			return nil, nil, fmt.Errorf("mesh worker: bad result: %w", err)
 		}
 		switch name := path.Clean(h.Name); {
+		case name == "report.json" && len(data) > 1<<20:
+			return nil, nil, errors.New("mesh worker: report too large")
 		case name == "report.json":
 			if err := json.Unmarshal(data, &report); err != nil {
 				return nil, nil, fmt.Errorf("mesh worker: bad report: %w", err)

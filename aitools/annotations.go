@@ -53,12 +53,21 @@ var extraScopes = map[string][]string{
 	"model_generate_status": {"mesh:generate"},
 }
 
+// slowTools wait on the mesh worker, for up to a few minutes: they run
+// without the per-call transaction so they don't hold a database
+// connection meanwhile (mcp.Tool.OwnTransactions).
+var slowTools = map[string]bool{
+	"asset_upload": true, "asset_view": true, "model_generate": true, "model_generate_status": true,
+	"model_import": true,
+}
+
 // annotate sets every registered tool's annotations and extra scopes.
 func annotate(reg *mcp.Registry) {
 	for _, spec := range reg.Specs() {
 		t, _ := reg.Get(spec.Name)
 		t.Annotations = toolAnnotations[spec.Name]
 		t.RequiredScopes = append(t.RequiredScopes, extraScopes[spec.Name]...)
+		t.OwnTransactions = slowTools[spec.Name]
 		reg.Register(t)
 	}
 }

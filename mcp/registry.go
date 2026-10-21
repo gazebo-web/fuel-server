@@ -39,6 +39,11 @@ type Tool struct {
 	RequiredScopes []string
 	// Annotations describe the tool's effects to clients.
 	Annotations Annotations
+	// OwnTransactions runs the handler on the plain database handle instead
+	// of a transaction, for tools that wait on slow work (the mesh worker):
+	// a transaction would hold a pooled connection all that time. Their
+	// writes go through services that keep themselves consistent.
+	OwnTransactions bool
 }
 
 // Annotations are MCP tool annotations: hints clients use to decide, for

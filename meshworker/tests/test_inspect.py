@@ -147,3 +147,42 @@ def test_texture_set(tmp_path):
 def test_path_must_stay_in_job(tmp_path):
     code, report, _ = run(tmp_path, "mesh", "../../etc/passwd")
     assert code == 2 and "missing" in report["error"]
+
+
+@needs_resvg
+def test_tall_svg_is_bounded(tmp_path):
+    (tmp_path / "tall.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20000">'
+                                       '<rect width="10" height="20000"/></svg>')
+    code, report, out = run(tmp_path, "drawing", "tall.svg")
+    assert code == 0, report
+    w, h = Image.open(out / "ai.jpg").size
+    assert h == inspect.AI_SIZE and w < 10
+
+
+@needs_resvg
+def test_empty_dxf(tmp_path):
+    import ezdxf
+    ezdxf.new().saveas(tmp_path / "empty.dxf")
+    code, report, _ = run(tmp_path, "drawing", "empty.dxf")
+    assert code == 2 and "empty" in report["error"], report
+
+
+@pytest.mark.parametrize("name, kind", [
+    ("Metal032_2K-JPG_Color.jpg", "color"), ("metal_plate_diff_1k.jpg", "color"),
+    ("Metal032_2K-JPG_Metalness.jpg", "metalness"), ("Bricks_NormalGL.png", "normal"),
+    ("brick_rough_4k.png", "roughness"), ("Wood_AO.png", "ao"), ("BricksNormal.png", "normal"),
+    ("wood_basecolor.png", "color"), ("readme.jpg", None),
+])
+def test_map_names(name, kind):
+    assert inspect.map_kind(name) == kind
+
+
+def test_texture_set_ignores_mac_leftovers(tmp_path):
+    d = tmp_path / "input"
+    (d / "__MACOSX").mkdir(parents=True)
+    (d / "__MACOSX" / "._wood_color.jpg").write_bytes(b"\x00\x05\x16\x07")
+    (d / "._wood_color.jpg").write_bytes(b"\x00\x05\x16\x07")
+    Image.new("RGB", (16, 16), (120, 80, 40)).save(d / "wood_color.jpg")
+    code, report, _ = run(tmp_path, "texture", "input")
+    assert code == 0, report
+    assert report["info"]["maps"] == {"color": "wood_color.jpg"}

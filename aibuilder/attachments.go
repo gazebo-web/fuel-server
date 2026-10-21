@@ -10,6 +10,7 @@ import (
 	"github.com/gazebo-web/fuel-server/aibuilder/llm"
 	"github.com/gazebo-web/fuel-server/bundles/projects"
 	"github.com/gazebo-web/fuel-server/bundles/users"
+	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
 )
 
@@ -102,7 +103,7 @@ func resolveAttachments(db *gorm.DB, project string, user *users.User, text stri
 	for _, ref := range refs {
 		p, a, em := projectService.GetAsset(db, project, ref, user)
 		if em != nil {
-			return in, fmt.Errorf("attached file %q: %s", ref, em.Msg)
+			return in, fmt.Errorf("attached file %q: %s", ref, errText(em))
 		}
 		if seen[a.ID] {
 			continue
@@ -115,11 +116,19 @@ func resolveAttachments(db *gorm.DB, project string, user *users.User, text stri
 		if a.HasView("ai.jpg") {
 			b, em := projects.ReadAssetView(p, a, "ai.jpg")
 			if em != nil {
-				return in, fmt.Errorf("attached file %q: %s", a.Name, em.Msg)
+				return in, fmt.Errorf("attached file %q: %s", a.Name, errText(em))
 			}
 			in.Images = append(in.Images, llm.Image{MimeType: "image/jpeg", Data: base64.StdEncoding.EncodeToString(b)})
 		}
 		in.Attachments = append(in.Attachments, att)
 	}
 	return in, nil
+}
+
+// errText is an error message with its cause.
+func errText(em *gz.ErrMsg) string {
+	if em.BaseError != nil && em.BaseError.Error() != "" && em.BaseError.Error() != em.Msg {
+		return em.Msg + ": " + em.BaseError.Error()
+	}
+	return em.Msg
 }

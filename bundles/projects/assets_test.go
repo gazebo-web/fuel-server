@@ -145,36 +145,51 @@ func TestProcessImageStripsMetadata(t *testing.T) {
 		if jpegOrientation(data) != o {
 			t.Fatalf("orientation %d not read", o)
 		}
+		// A Multi-Picture file: a second image, with its own EXIF, after the first.
+		data = append(data, exifJPEG(t, 8, 8, 1)...)
 		clean, views, info, err := processImage(data, "image/jpeg")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if bytes.Contains(clean, []byte("GPS")) || bytes.Contains(clean, []byte("Exif")) {
+		if bytes.Contains(clean, []byte("GPS")) {
 			t.Errorf("orientation %d: metadata kept", o)
 		}
+		if got := jpegOrientation(clean); got != o {
+			t.Errorf("orientation %d: the original says %d", o, got)
+		}
+		if o == 1 && bytes.Contains(clean, []byte("Exif")) {
+			t.Error("an EXIF segment was kept with nothing to say")
+		}
+		// The original keeps its pixels as stored; the views are upright.
 		cfg, err := jpeg.DecodeConfig(bytes.NewReader(clean))
 		if err != nil {
 			t.Fatal(err)
 		}
+		if cfg.Width != 40 || cfg.Height != 20 {
+			t.Errorf("orientation %d: original %dx%d", o, cfg.Width, cfg.Height)
+		}
+		ai, err := jpeg.Decode(bytes.NewReader(views["ai.jpg"]))
+		if err != nil {
+			t.Fatal(err)
+		}
 		wantW, wantH := 40, 20
-		if o == 6 { // rotated a quarter turn
+		if o == 6 { // a quarter turn
 			wantW, wantH = 20, 40
 		}
-		if cfg.Width != wantW || cfg.Height != wantH || info["width"] != wantW || info["height"] != wantH {
-			t.Errorf("orientation %d: %dx%d, info %v", o, cfg.Width, cfg.Height, info)
-		}
-		if len(views["ai.jpg"]) == 0 || len(views["thumb.jpg"]) == 0 {
-			t.Errorf("views missing: %v", len(views))
+		if b := ai.Bounds(); b.Dx() != wantW || b.Dy() != wantH || info["width"] != wantW || info["height"] != wantH {
+			t.Errorf("orientation %d: view %v, info %v", o, b, info)
 		}
 		if o == 6 {
 			// The red band ends up on the right.
-			img, _ := jpeg.Decode(bytes.NewReader(clean))
-			if r, g, _, _ := img.At(17, 20).RGBA(); r < 2*g {
-				t.Errorf("not rotated: %v", img.At(17, 20))
+			if r, g, _, _ := ai.At(17, 20).RGBA(); r < 2*g {
+				t.Errorf("not rotated: %v", ai.At(17, 20))
 			}
-			if r, g, _, _ := img.At(2, 20).RGBA(); r > 2*g {
-				t.Errorf("red on the left: %v", img.At(2, 20))
+			if r, g, _, _ := ai.At(2, 20).RGBA(); r > 0x4000 && r > 2*g {
+				t.Errorf("red on the left: %v", ai.At(2, 20))
 			}
+		}
+		if bytes.Count(clean, []byte{0xff, 0xd8}) != 1 {
+			t.Error("the second image was kept")
 		}
 	}
 
@@ -264,5 +279,14 @@ func TestAssetNames(t *testing.T) {
 	taken := map[string]bool{"a.png": true, "a-2.png": true}
 	if got := uniqueName("a.png", taken); got != "a-3.png" {
 		t.Errorf("uniqueName = %q", got)
+	}
+	lower := map[string]bool{"plan.png": true, "plan-2.png": true}
+	for in, want := range map[string]string{"Plan.png": "Plan-3.png", "PLAN-2.png": "PLAN-3.png", "other.png": "other.png"} {
+		if got := uniqueFoldedName(in, lower); got != want {
+			t.Errorf("uniqueFoldedName(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := cleanAssetName("chair 🪑.obj"); got != "chair _.obj" {
+		t.Errorf("emoji: %q", got)
 	}
 }

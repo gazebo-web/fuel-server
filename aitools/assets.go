@@ -129,6 +129,12 @@ func (t *tools) assetView(tc *mcp.ToolContext, args map[string]any) (mcp.CallToo
 	if em != nil {
 		return gzError(em), nil
 	}
+	if retry, _ := a.Info["retryable"].(bool); retry && a.Status == projects.AssetFailed {
+		// Its pictures weren't made because the worker was busy: try again.
+		if b, em := projectService.RetryAsset(tc.Ctx, tc.DB, v[0], a.ID, tc.User); em == nil {
+			a = b
+		}
+	}
 	details := assetSummary(*a)
 	details["mime"] = a.Mime
 	details["info"] = a.Info

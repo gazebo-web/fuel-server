@@ -70,7 +70,7 @@ func NewRegistry(cfg Config) *mcp.Registry {
 	// package variable: the process has one registry and one worker.
 	projects.InspectAsset = nil
 	if cfg.MeshWorkerURL != "" {
-		projects.InspectAsset = newMeshClient(cfg).inspect
+		projects.InspectAsset = newMeshClient(cfg).inspector()
 		t.sizes = newSizer(newMeshClient(cfg))
 		// Measure this server's own public models in the background, so
 		// most are known before anyone searches for them.

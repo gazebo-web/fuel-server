@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -223,7 +224,7 @@ func (t *tools) projectTextures(tc *mcp.ToolContext, project, code string) (map[
 func textureMaps(p *projects.Project, a *projects.Asset) (map[string]any, error) {
 	original, em := projects.ReadAssetView(p, a, "original")
 	if em != nil {
-		return nil, fmt.Errorf("%s", em.Msg)
+		return nil, errors.New(gzError(em).Content[0].Text)
 	}
 	raw := map[string][]byte{}
 	switch {
@@ -274,14 +275,7 @@ func textureMaps(p *projects.Project, a *projects.Asset) (map[string]any, error)
 // mapJPEG decodes a map, scales it to at most textureMapSize and encodes
 // it as JPEG.
 func mapJPEG(b []byte) ([]byte, error) {
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
-	if err != nil {
-		return nil, err
-	}
-	if int64(cfg.Width)*int64(cfg.Height) > projects.MaxAssetPixels {
-		return nil, fmt.Errorf("too large (%d×%d)", cfg.Width, cfg.Height)
-	}
-	img, _, err := image.Decode(bytes.NewReader(b))
+	img, err := projects.DecodeImage(b)
 	if err != nil {
 		return nil, err
 	}

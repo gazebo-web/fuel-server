@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	_ "image/png" // decode PNG uploads
 	"strconv"
 
 	"golang.org/x/image/draw"
@@ -26,31 +27,59 @@ const (
 	thumbSize  = 256
 )
 
-// processImage returns the cleaned original, the derived views and info.
-func processImage(data []byte, mime string) (clean []byte, views map[string][]byte, info AssetInfo, err error) {
+// maxDecodeBytes caps the memory one decoded image may take (pixels
+// times bytes per pixel): a 50 MP 16-bit PNG would be 400 MB, and
+// compresses to almost nothing.
+const maxDecodeBytes = 256 << 20
+
+// decodeSlots bounds how many large images decode at once.
+var decodeSlots = make(chan struct{}, 2)
+
+// DecodeImage decodes an upload within the pixel and memory limits,
+// waiting for a decode slot.
+func DecodeImage(data []byte) (image.Image, error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unreadable image: %v", err)
+		return nil, fmt.Errorf("unreadable image: %v", err)
 	}
-	if int64(cfg.Width)*int64(cfg.Height) > MaxAssetPixels {
-		return nil, nil, nil, fmt.Errorf("the image is %d×%d; the limit is %d megapixels",
+	px := int64(cfg.Width) * int64(cfg.Height)
+	if px > MaxAssetPixels {
+		return nil, fmt.Errorf("the image is %d×%d; the limit is %d megapixels",
 			cfg.Width, cfg.Height, MaxAssetPixels/1_000_000)
 	}
+	bpp := int64(4)
+	switch cfg.ColorModel {
+	case color.RGBA64Model, color.NRGBA64Model:
+		bpp = 8
+	case color.Gray16Model:
+		bpp = 2
+	}
+	if px*bpp > maxDecodeBytes {
+		return nil, fmt.Errorf("the image is %d×%d at 16 bits a channel, too large to read; save it at 8 bits",
+			cfg.Width, cfg.Height)
+	}
+	decodeSlots <- struct{}{}
+	defer func() { <-decodeSlots }()
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unreadable image: %v", err)
+		return nil, fmt.Errorf("unreadable image: %v", err)
+	}
+	return img, nil
+}
+
+// processImage returns the cleaned original, the derived views and info.
+// A JPEG's orientation stays a tag on the original (in a new, minimal
+// EXIF segment) and is applied to the views, which are small.
+func processImage(data []byte, mime string) (clean []byte, views map[string][]byte, info AssetInfo, err error) {
+	img, err := DecodeImage(data)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	orientation := 1
 	switch mime {
 	case "image/jpeg":
 		orientation = jpegOrientation(data)
-		if orientation == 1 {
-			clean, err = stripJPEGMetadata(data)
-		} else {
-			// The orientation lives in the EXIF being removed, so apply it.
-			img = orient(img, orientation)
-			clean, err = encodeJPEG(img, 95)
-		}
+		clean, err = stripJPEGMetadata(data, orientation)
 	case "image/png":
 		clean, err = stripPNGMetadata(data)
 	case "image/webp":
@@ -61,16 +90,20 @@ func processImage(data []byte, mime string) (clean []byte, views map[string][]by
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ai, err := encodeJPEG(flatten(fit(img, AIViewSize)), 85)
+	ai, err := encodeJPEG(flatten(orient(fit(img, AIViewSize), orientation)), 85)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	thumb, err := encodeJPEG(flatten(fit(img, thumbSize)), 80)
+	thumb, err := encodeJPEG(flatten(orient(fit(img, thumbSize), orientation)), 80)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	b := img.Bounds()
-	info = AssetInfo{"width": b.Dx(), "height": b.Dy()}
+	w, h := b.Dx(), b.Dy()
+	if orientation >= 5 {
+		w, h = h, w
+	}
+	info = AssetInfo{"width": w, "height": h}
 	return clean, map[string][]byte{"ai.jpg": ai, "thumb.jpg": thumb}, info, nil
 }
 
@@ -108,8 +141,11 @@ func encodeJPEG(img image.Image, quality int) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// orient applies an EXIF orientation (2-8) to img.
+// orient applies an EXIF orientation (2-8) to img; 1 returns it as is.
 func orient(img image.Image, o int) image.Image {
+	if o < 2 || o > 8 {
+		return img
+	}
 	b := img.Bounds()
 	w, h := b.Dx(), b.Dy()
 	if o >= 5 {
@@ -195,33 +231,84 @@ func tiffOrientation(t []byte) int {
 	return 0
 }
 
-// stripJPEGMetadata drops APP segments other than JFIF (APP0), ICC color
-// profiles (APP2) and Adobe color info (APP14), plus comments, without
-// re-encoding.
-func stripJPEGMetadata(data []byte) ([]byte, error) {
+// stripJPEGMetadata keeps a JPEG's image and color data and drops the
+// rest, without re-encoding:
+//   - kept: JFIF (APP0), ICC color profiles (APP2 "ICC_PROFILE"), Adobe
+//     color info (APP14), tables, frames and scans;
+//   - dropped: EXIF and XMP (camera, time, location), other APP segments,
+//     comments, and anything after the end of the image, where
+//     Multi-Picture files carry more images with their own EXIF.
+//
+// An orientation other than 1 is written back as the only EXIF tag, so
+// the photo still shows upright.
+func stripJPEGMetadata(data []byte, orientation int) ([]byte, error) {
+	bad := fmt.Errorf("unreadable JPEG")
 	out := bytes.NewBuffer(make([]byte, 0, len(data)))
 	out.Write(data[:2])
+	if orientation >= 2 && orientation <= 8 {
+		out.Write(orientationEXIF(orientation))
+	}
+	keep := func(marker byte, seg []byte) bool {
+		switch {
+		case marker == 0xe2:
+			return bytes.HasPrefix(seg, []byte("ICC_PROFILE\x00"))
+		case marker == 0xe0 || marker == 0xee:
+			return true
+		case marker >= 0xe1 && marker <= 0xef, marker == 0xfe:
+			return false
+		}
+		return true
+	}
 	i := 2
-	for i+4 <= len(data) {
+	for i+2 <= len(data) {
 		if data[i] != 0xff {
-			return nil, fmt.Errorf("unreadable JPEG")
+			return nil, bad
 		}
 		marker := data[i+1]
-		if marker == 0xda { // start of scan: the rest is image data
-			break
+		if marker == 0xff { // fill byte
+			i++
+			continue
+		}
+		if marker == 0xd9 { // end of image: stop, dropping what follows
+			out.Write(data[i : i+2])
+			return out.Bytes(), nil
+		}
+		if i+4 > len(data) {
+			return nil, bad
 		}
 		n := int(binary.BigEndian.Uint16(data[i+2 : i+4]))
 		if n < 2 || i+2+n > len(data) {
-			return nil, fmt.Errorf("unreadable JPEG")
+			return nil, bad
 		}
-		keep := !(marker >= 0xe1 && marker <= 0xef && marker != 0xe2 && marker != 0xee) && marker != 0xfe
-		if keep {
+		if keep(marker, data[i+4:i+2+n]) {
 			out.Write(data[i : i+2+n])
 		}
 		i += 2 + n
+		if marker != 0xda {
+			continue
+		}
+		// A scan's entropy-coded data runs to the next marker that isn't a
+		// stuffed 0xff00 or a restart marker.
+		start := i
+		for i+1 < len(data) && !(data[i] == 0xff && data[i+1] != 0 && (data[i+1] < 0xd0 || data[i+1] > 0xd7)) {
+			i++
+		}
+		out.Write(data[start:i])
 	}
-	out.Write(data[i:])
-	return out.Bytes(), nil
+	return nil, bad
+}
+
+// orientationEXIF is an APP1 segment holding only an orientation tag.
+func orientationEXIF(o int) []byte {
+	tiff := []byte("MM\x00\x2a\x00\x00\x00\x08")
+	tiff = binary.BigEndian.AppendUint16(tiff, 1)                       // one entry
+	tiff = append(tiff, 0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01) // orientation, SHORT, 1 value
+	tiff = binary.BigEndian.AppendUint16(tiff, uint16(o))
+	tiff = append(tiff, 0, 0, 0, 0, 0, 0) // padding, then no next IFD
+	seg := append([]byte("Exif\x00\x00"), tiff...)
+	out := []byte{0xff, 0xe1}
+	out = binary.BigEndian.AppendUint16(out, uint16(len(seg)+2))
+	return append(out, seg...)
 }
 
 // stripPNGMetadata drops eXIf, text and time chunks.
@@ -238,8 +325,12 @@ func stripPNGMetadata(data []byte) ([]byte, error) {
 		if n < 0 || end > len(data) {
 			return nil, fmt.Errorf("unreadable PNG")
 		}
-		if !drop[string(data[i+4:i+8])] {
+		typ := string(data[i+4 : i+8])
+		if !drop[typ] {
 			out.Write(data[i:end])
+		}
+		if typ == "IEND" {
+			break // some tools append bytes after the image; drop them
 		}
 		i = end
 	}
@@ -283,6 +374,11 @@ func stripWebPMetadata(data []byte) ([]byte, error) {
 // a JPEG, so a model can read positions off a drawing ("the wall runs
 // from 20% to 70% across").
 func GridOverlay(jpg []byte) ([]byte, error) {
+	if cfg, err := jpeg.DecodeConfig(bytes.NewReader(jpg)); err != nil {
+		return nil, err
+	} else if cfg.Width > 2*AIViewSize || cfg.Height > 2*AIViewSize {
+		return nil, fmt.Errorf("the picture is %d×%d, larger than a view", cfg.Width, cfg.Height)
+	}
 	src, err := jpeg.Decode(bytes.NewReader(jpg))
 	if err != nil {
 		return nil, err

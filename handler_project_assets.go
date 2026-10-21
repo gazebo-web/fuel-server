@@ -113,6 +113,18 @@ func ProjectAsset(name string, jwtUser *users.User, tx *gorm.DB,
 	return a, em
 }
 
+// ProjectAssetRetry handles POST /1.0/projects/{name}/assets/{asset}/retry:
+// make a failed file's pictures again (after the mesh worker was busy).
+func ProjectAssetRetry(name string, jwtUser *users.User, tx *gorm.DB,
+	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+
+	if jwtUser == nil {
+		return nil, gz.NewErrorMessage(gz.ErrorAuthNoUser)
+	}
+	s := &projects.Service{}
+	return s.RetryAsset(r.Context(), tx, name, mux.Vars(r)["asset"], jwtUser)
+}
+
 // ProjectAssetFile handles GET /1.0/projects/{name}/assets/{asset}/{file}:
 // the original ("original") or a view (e.g. thumb.jpg).
 func ProjectAssetFile(name string, jwtUser *users.User, tx *gorm.DB,

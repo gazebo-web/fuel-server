@@ -30,14 +30,19 @@ import traceback
 import numpy as np
 import trimesh
 
+from PIL import Image
+
 from . import collision, export, inspect, preview
 from .inertia import Inertial
+from .simplify import flat_material, main_color, simplify
 
 VERSION = "1"
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 UNITS = {"mm": 0.001, "cm": 0.01, "m": 1.0, "in": 0.0254, "ft": 0.3048}
 GUESSED_UNITS = {"millimeters": "mm", "centimeters": "cm", "meters": "m"}
 TRI_BUDGET = (500, 200_000)
+MAX_TEXTURE = 2048
+MERGE_PARTS = 64
 DEFAULTS = {"units": "auto", "up_axis": "auto", "static": False, "collision": "auto", "tri_budget": 50_000,
             "sdf_version": "1.9", "description": "", "source_name": ""}
 # Without a mass or density: water, about right for furniture and props
@@ -72,40 +77,57 @@ def check_job(job: dict) -> dict:
     return j
 
 
-def simplify(m: trimesh.Trimesh, ratio: float) -> trimesh.Trimesh:
-    """m with about ratio of its faces removed. UVs follow the vertices
-    they collapse into, so textures stay on (seams may show)."""
-    import fast_simplification
-
-    _, _, collapses = fast_simplification.simplify(m.vertices, m.faces, ratio, return_collapses=True)
-    v, f, mapping = fast_simplification.replay_simplification(m.vertices, m.faces, collapses)
-    out = trimesh.Trimesh(v, f, process=False)
-    vis = m.visual
-    if isinstance(vis, trimesh.visual.TextureVisuals) and vis.uv is not None and len(vis.uv) == len(m.vertices):
-        uv = np.zeros((len(v), 2))
-        uv[mapping] = vis.uv
-        out.visual = trimesh.visual.TextureVisuals(uv=uv, material=vis.material)
-    elif vis.kind == "vertex":
-        colors = np.zeros((len(v), 4), np.uint8)
-        colors[mapping] = vis.vertex_colors
-        out.visual = trimesh.visual.ColorVisuals(out, vertex_colors=colors)
-    else:
-        out.visual = trimesh.visual.ColorVisuals(out, face_colors=np.tile(inspect.mesh_color(m)[:3].astype(np.uint8),
-                                                                          (len(f), 1)))
-    return out
-
-
 def gltf_ready(m: trimesh.Trimesh) -> trimesh.Trimesh:
-    """m with a PBR material whose textures glTF and Gazebo take (RGB or
-    RGBA PNG/JPEG)."""
+    """m with a PBR material Gazebo renders as the upload looked: a color
+    material when it has only vertex or face colors (Gazebo ignores those),
+    not metal unless a map says so (glTF's default is fully metal), RGB or
+    RGBA textures at most MAX_TEXTURE pixels, and cutouts (alpha) as MASK,
+    the only alpha mode Gazebo draws double-sided."""
     vis = m.visual
-    if isinstance(vis, trimesh.visual.TextureVisuals):
-        mat = vis.material.to_pbr() if hasattr(vis.material, "to_pbr") else vis.material
-        tex = getattr(mat, "baseColorTexture", None)
-        if tex is not None and tex.mode not in ("RGB", "RGBA"):
-            mat.baseColorTexture = tex.convert("RGBA" if "A" in tex.mode else "RGB")
-        m.visual = trimesh.visual.TextureVisuals(uv=vis.uv, material=mat)
+    if not isinstance(vis, trimesh.visual.TextureVisuals):
+        m.visual = trimesh.visual.TextureVisuals(material=flat_material(main_color(m)))
+        return m
+    mat = vis.material.to_pbr() if hasattr(vis.material, "to_pbr") else vis.material
+    if getattr(mat, "metallicRoughnessTexture", None) is None and mat.metallicFactor is None:
+        mat.metallicFactor = 0.0
+    tex = getattr(mat, "baseColorTexture", None)
+    if tex is not None:
+        if tex.mode not in ("RGB", "RGBA"):
+            tex = tex.convert("RGBA" if "A" in tex.mode or tex.mode == "P" else "RGB")
+        if max(tex.size) > MAX_TEXTURE:
+            tex = tex.copy()
+            tex.thumbnail((MAX_TEXTURE, MAX_TEXTURE), Image.LANCZOS)
+        if tex.mode == "RGBA" and tex.getextrema()[3][0] < 255:
+            mat.alphaMode, mat.alphaCutoff, mat.doubleSided = "MASK", 0.5, True
+        elif tex.mode == "RGBA":
+            tex = tex.convert("RGB")
+        mat.baseColorTexture = tex
+    m.visual = trimesh.visual.TextureVisuals(uv=vis.uv, material=mat)
     return m
+
+
+def merge_parts(meshes: list) -> list:
+    """Many small parts (a scan split into pieces, a model of hundreds of
+    bolts) as one mesh per material, so simplifying can reach the budget
+    and the GLB isn't hundreds of meshes."""
+    groups = {}
+    for m in meshes:
+        vis = m.visual
+        if isinstance(vis, trimesh.visual.TextureVisuals) and vis.uv is not None:
+            key = ("texture", id(vis.material))
+        else:
+            key = ("color", tuple(int(c) for c in main_color(m)))
+        groups.setdefault(key, []).append(m)
+    out = []
+    for (kind, _), ms in groups.items():
+        if len(ms) == 1:
+            out.append(ms[0])
+            continue
+        merged = trimesh.util.concatenate(ms)
+        if kind == "color":
+            merged.visual = trimesh.visual.TextureVisuals(material=flat_material(main_color(ms[0])))
+        out.append(merged)
+    return out
 
 
 def mass_properties(solid: trimesh.Trimesh, density: float) -> tuple[float, np.ndarray, np.ndarray, float]:
@@ -148,8 +170,12 @@ def build(job: dict, base: str, out: str) -> dict:
             raise ImportError_("the mesh is flat, so it has no height to scale to")
         s, how = float(j["height"]) / float(size[2]), f"height {j['height']} m"
     else:
-        units = j["units"] if j["units"] != "auto" else GUESSED_UNITS[inspect.units_guess(size)]
+        ext = os.path.splitext(path)[1].lower()
+        units = j["units"] if j["units"] != "auto" else GUESSED_UNITS[inspect.units_guess(size, ext)]
         s, how = UNITS[units], f"units {units}" + (" (guessed)" if j["units"] == "auto" else "")
+        if j["units"] == "auto":
+            warnings.append(f"units guessed as {units}, so the model is {np.max(size) * UNITS[units]:.3g} m across; "
+                            "give height (or units) if that's wrong")
     for m in meshes:
         m.apply_scale(s)
     size = size * s
@@ -158,11 +184,15 @@ def build(job: dict, base: str, out: str) -> dict:
 
     # Simplify to the budget.
     before = sum(len(m.faces) for m in meshes)
+    if len(meshes) > MERGE_PARTS:
+        meshes = merge_parts(meshes)
     if before > j["tri_budget"]:
         ratio = 1 - j["tri_budget"] / before
         meshes = [simplify(m, ratio) if len(m.faces) > 50 else m for m in meshes]
-        warnings.append(f"simplified from {before} to {sum(len(m.faces) for m in meshes)} triangles to fit "
-                        f"tri_budget; textures may show seams")
+        after = sum(len(m.faces) for m in meshes)
+        warnings.append(f"simplified from {before} to {after} triangles to fit tri_budget; textures may show seams")
+        if after > j["tri_budget"] * 1.2:
+            warnings.append(f"still {after} triangles, over tri_budget {j['tri_budget']}: the mesh has many small parts")
 
     # Origin at the bottom center.
     lo = np.min([m.bounds[0] for m in meshes], axis=0)
@@ -176,13 +206,28 @@ def build(job: dict, base: str, out: str) -> dict:
     # closed, else its convex hull.
     whole = trimesh.util.concatenate([trimesh.Trimesh(m.vertices, m.faces, process=False) for m in meshes])
     whole.merge_vertices()
-    hull = collision.limit_vertices(trimesh.convex.convex_hull(whole.vertices))
+    if whole.is_watertight and whole.volume < 0:
+        whole.invert()  # inside out
     closed = bool(whole.is_watertight and whole.is_winding_consistent and whole.volume > 1e-12)
+    try:
+        hull = collision.limit_vertices(trimesh.convex.convex_hull(whole.vertices))
+        if not hull.volume > 1e-12:
+            raise ValueError("no volume")
+    except Exception:  # noqa: BLE001 - qhull fails on coplanar points
+        raise ImportError_("the mesh is flat (all in one plane), so it has no volume for collision or mass; "
+                           "give it some thickness, or build it from a thin box instead")
     solid = whole if closed else hull
-    if not closed:
-        warnings.append("the mesh isn't closed, so collision and inertia use its convex hull; "
-                        "pass collision: convex for a closer collision shape")
-    shapes, coll = collision.build(solid, float(solid.volume), j["collision"])
+    if closed:
+        shapes, coll = collision.build(solid, float(solid.volume), j["collision"])
+    elif j["collision"] == "primitive":
+        shapes, coll = collision.build(hull, float(hull.volume), "primitive")
+    else:
+        # An open mesh's own surface decomposes (CoACD takes non-manifold
+        # input), so a table keeps its legs apart; its hull would be a block.
+        shapes, coll = collision.decompose(whole), {"mode": j["collision"], "open_mesh": True}
+        coll["hulls"] = len(shapes)
+        warnings.append("the mesh isn't closed, so inertia uses its convex hull and collision is a convex "
+                        "decomposition of its surface")
 
     volume = float(solid.volume)
     if j.get("mass") is not None:

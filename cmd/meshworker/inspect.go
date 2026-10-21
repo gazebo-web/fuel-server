@@ -171,7 +171,9 @@ func (w *worker) handleImport(rw http.ResponseWriter, r *http.Request) {
 	}
 	var job map[string]any
 	for _, f := range zr.File {
-		switch name := path.Clean(f.Name); {
+		// unzip reads a backslash as a separator; so must this check, or
+		// "input/..\out\x" would pass it and land in out/.
+		switch name := path.Clean(strings.ReplaceAll(f.Name, "\\", "/")); {
 		case name == "job.json":
 			rc, err := f.Open()
 			if err == nil {

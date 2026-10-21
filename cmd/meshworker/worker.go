@@ -389,6 +389,12 @@ func (w *worker) run(dir string, slot int, module, input string) (int, error) {
 		return 0, err
 	}
 	log.Printf("meshworker: job %s exit %d in %s", filepath.Base(dir), code, time.Since(start).Round(time.Millisecond))
+	if code != 0 && code != 1 && code != 2 {
+		// Killed (a CPU or memory limit) or crashed: whatever report.json
+		// holds wasn't written by a finished pipeline, so don't serve it.
+		msg := strings.TrimSpace(stderr.String())
+		return 0, fmt.Errorf("the job was stopped (exit %d), probably by a memory or CPU limit: %s", code, lastLines(msg, 5))
+	}
 
 	out := filepath.Join(dir, "out")
 	if _, err := os.Stat(filepath.Join(out, "report.json")); err != nil {

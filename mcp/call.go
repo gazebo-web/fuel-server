@@ -56,8 +56,8 @@ func (r *Registry) Call(ctx context.Context, c Caller, name string, args map[str
 	if args == nil {
 		args = map[string]any{}
 	}
-	if c.DB == nil { // no database (tests): no transaction
-		return run(t, &ToolContext{Ctx: ctx, User: c.User, Scopes: c.Scopes}, args)
+	if c.DB == nil || t.OwnTransactions { // no database (tests), or the tool manages its own
+		return run(t, &ToolContext{Ctx: ctx, DB: c.DB, User: c.User, Scopes: c.Scopes}, args)
 	}
 	tx := c.DB.Begin()
 	if tx.Error != nil {

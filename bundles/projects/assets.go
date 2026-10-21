@@ -14,7 +14,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -40,6 +42,7 @@ const (
 	MaxAssetZipEntries   = 200
 	MaxProjectAssetsSize = 500 << 20
 	MaxProjectAssets     = 200
+	MaxUserAssetsSize    = 2 << 30
 	MaxAssetPixels       = 50_000_000
 	maxAssetNameLen      = 120
 )
@@ -145,7 +148,16 @@ func assetDir(p *Project, id string) string { return filepath.Join(assetsDir(p),
 // learned and the views it made (ai.jpg, thumb.jpg, page-N.jpg,
 // preview.png). file is a name with the upload's extension; main is the
 // mesh inside a zip.
-type AssetInspector func(ctx context.Context, kind, file, main string, data []byte) (AssetInfo, map[string][]byte, error)
+// user is who uploads, for the worker's per-user limits.
+type AssetInspector func(ctx context.Context, user, kind, file, main string, data []byte) (AssetInfo, map[string][]byte, error)
+
+// RetryableError is an inspection that failed for a passing reason (the
+// worker busy, down or slow; a rate limit), not because of the file.
+// The file is kept, marked failed, and can be inspected again.
+type RetryableError struct{ Err error }
+
+func (e RetryableError) Error() string { return e.Err.Error() }
+func (e RetryableError) Unwrap() error { return e.Err }
 
 // InspectAsset is set when a mesh worker is configured (aitools). Without
 // one, such uploads are kept with no pictures.
@@ -160,6 +172,10 @@ var mimeExts = map[string]string{
 	"model/gltf-binary": ".glb", "model/obj": ".obj", "model/stl": ".stl",
 	"model/vnd.collada+xml": ".dae", "application/zip": ".zip",
 }
+
+// rasterMimes are the images the server reads itself (SVG and DXF are
+// drawings, drawn by the mesh worker).
+var rasterMimes = map[string]bool{"image/png": true, "image/jpeg": true, "image/webp": true}
 
 // AssetExt is the file extension for a project file's type, e.g. ".obj".
 func AssetExt(mime string) string { return mimeExts[mime] }
@@ -190,8 +206,12 @@ func newAssetID() string {
 func cleanAssetName(name string) string {
 	name = path.Base(strings.ReplaceAll(name, "\\", "/"))
 	name = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) || r == '/' {
+		switch {
+		case unicode.IsControl(r) || r == '/':
 			return -1
+		case r > 0xFFFF:
+			// The database's utf8 holds three bytes per character: no emoji.
+			return '_'
 		}
 		return r
 	}, name)
@@ -246,6 +266,15 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 	if len(ups) == 0 {
 		return nil, assetErr(gz.ErrorMissingField, "no files")
 	}
+	// One upload at a time per owner, so the limits below can't be raced.
+	// (Per process: with several replicas each enforces its own share.)
+	unlock := lockOwner(*p.Owner)
+	defer unlock()
+	var userTotal struct{ N int64 }
+	if err := tx.Raw(`SELECT COALESCE(SUM(a.size), 0) AS n FROM project_assets a JOIN projects p ON p.id = a.project_id
+		WHERE p.owner = ? AND p.deleted_at IS NULL`, *p.Owner).Scan(&userTotal).Error; err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
+	}
 	var existing []Asset
 	if err := tx.Where("project_id = ?", p.ID).Find(&existing).Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
@@ -254,12 +283,14 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 		return nil, assetErr(gz.ErrorFormInvalidValue, "a project holds at most %d files; it has %d",
 			MaxProjectAssets, len(existing))
 	}
+	// Names are unique as the database compares them, which ignores case.
 	taken := map[string]bool{}
 	var total int64
 	for _, a := range existing {
-		taken[a.Name] = true
+		taken[strings.ToLower(a.Name)] = true
 		total += a.Size
 	}
+	userTotal.N -= total
 
 	type prepared struct {
 		asset Asset
@@ -276,6 +307,10 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 			return nil, assetErr(gz.ErrorFormInvalidValue, "a project's files may total at most %d MB",
 				MaxProjectAssetsSize>>20)
 		}
+		if userTotal.N+total > MaxUserAssetsSize {
+			return nil, assetErr(gz.ErrorFormInvalidValue, "your project files may total at most %d GB; "+
+				"delete some to make room", MaxUserAssetsSize>>30)
+		}
 		kind, mime, info, err := sniffAsset(up.Data)
 		if err != nil {
 			return nil, assetErr(gz.ErrorFormInvalidValue, "%s: %v", fname, err)
@@ -291,7 +326,7 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 			return nil, assetErr(gz.ErrorFormInvalidValue, "%s: kind can only be set to %q", fname, AssetTexture)
 		}
 		data, views := up.Data, map[string][]byte(nil)
-		if strings.HasPrefix(mime, "image/") && mime != "image/svg+xml" {
+		if rasterMimes[mime] {
 			var more AssetInfo
 			data, views, more, err = processImage(up.Data, mime)
 			if err != nil {
@@ -300,22 +335,11 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 			info = merge(info, more)
 		}
 		status, errMsg := AssetReady, ""
-		if views == nil && InspectAsset != nil {
-			// Documents, drawings, meshes and texture sets get their views
-			// from the mesh worker. If that fails the file is still kept:
-			// the AI then sees its details only.
-			main, _ := info["main"].(string)
-			ictx, cancel := context.WithTimeout(ctx, inspectTimeout)
-			more, v, err := InspectAsset(ictx, kind, "original"+mimeExts[mime], main, data)
-			cancel()
-			if err != nil {
-				status, errMsg = AssetFailed, err.Error()
-			} else {
-				views, info = v, merge(info, more)
-			}
+		if views == nil {
+			views, info, status, errMsg = inspect(ctx, *jwtUser.Username, kind, mime, info, data)
 		}
-		fname = uniqueName(fname, taken)
-		taken[fname] = true
+		fname = uniqueFoldedName(fname, taken)
+		taken[strings.ToLower(fname)] = true
 		sum := sha256.Sum256(data)
 		a := Asset{
 			ID: newAssetID(), ProjectID: p.ID, Name: fname, Kind: kind, Mime: mime,
@@ -348,7 +372,15 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 			return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 		}
 		a := pr.asset
-		if err := tx.Create(&a).Error; err != nil {
+		err := tx.Create(&a).Error
+		// The database may see two names as the same where Go doesn't
+		// (accents): take the next free suffix.
+		for i := 0; err != nil && isDuplicate(err) && i < 20; i++ {
+			taken[strings.ToLower(a.Name)] = true
+			a.Name = uniqueFoldedName(a.Name, taken)
+			err = tx.Create(&a).Error
+		}
+		if err != nil {
 			_ = os.RemoveAll(dir)
 			cleanup()
 			return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
@@ -357,6 +389,102 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 		added = append(added, a)
 	}
 	return added, nil
+}
+
+// inspect makes the views of an upload the server can't draw itself, on
+// the mesh worker. It returns the views, the info (the server's own keys
+// win over the worker's) and the status: ready, or failed with the reason
+// (retryable when the failure was the worker's, not the file's).
+func inspect(ctx context.Context, user, kind, mime string, info AssetInfo, data []byte) (map[string][]byte,
+	AssetInfo, string, string) {
+	if InspectAsset == nil {
+		return nil, info, AssetReady, ""
+	}
+	main, _ := info["main"].(string)
+	ictx, cancel := context.WithTimeout(ctx, inspectTimeout)
+	defer cancel()
+	more, views, err := InspectAsset(ictx, user, kind, "original"+mimeExts[mime], main, data)
+	var retry RetryableError
+	switch {
+	case errors.As(err, &retry):
+		out := merge(info, nil)
+		out["retryable"] = true
+		return nil, out, AssetFailed, err.Error() + "; retry it later"
+	case err != nil:
+		return nil, info, AssetFailed, err.Error()
+	}
+	out := merge(more, info)
+	delete(out, "retryable")
+	return views, out, AssetReady, ""
+}
+
+// RetryAsset inspects again a file whose inspection failed.
+func (s *Service) RetryAsset(ctx context.Context, tx *gorm.DB, name, ref string, jwtUser *users.User) (*Asset, *gz.ErrMsg) {
+	p, a, em := s.GetAsset(tx, name, ref, jwtUser)
+	if em != nil {
+		return nil, em
+	}
+	if !s.canWrite(p, jwtUser) {
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	}
+	if a.Status != AssetFailed {
+		return a, nil
+	}
+	data, em := ReadAssetView(p, a, "original")
+	if em != nil {
+		return nil, em
+	}
+	views, info, status, errMsg := inspect(ctx, *jwtUser.Username, a.Kind, a.Mime, a.Info, data)
+	dir := assetDir(p, a.ID)
+	for v, b := range views {
+		if err := os.WriteFile(filepath.Join(dir, v), b, 0600); err != nil {
+			return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		}
+	}
+	var names []string
+	for v := range views {
+		names = append(names, v)
+	}
+	sort.Strings(names)
+	if err := tx.Model(a).Updates(map[string]any{"views": strings.Join(names, ","), "info": info,
+		"status": status, "error": errMsg}).Error; err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbSave, err)
+	}
+	a.Views, a.ViewList, a.Info, a.Status, a.Error = strings.Join(names, ","), splitViews(strings.Join(names, ",")),
+		info, status, errMsg
+	return a, nil
+}
+
+func isDuplicate(err error) bool { return strings.Contains(err.Error(), "Duplicate entry") }
+
+// uniqueFoldedName is uniqueName with names compared ignoring case.
+func uniqueFoldedName(name string, takenLower map[string]bool) string {
+	if !takenLower[strings.ToLower(name)] {
+		return name
+	}
+	ext := path.Ext(name)
+	stem := strings.TrimSuffix(name, ext)
+	if i := strings.LastIndex(stem, "-"); i > 0 {
+		if _, err := strconv.Atoi(stem[i+1:]); err == nil {
+			stem = stem[:i]
+		}
+	}
+	for n := 2; ; n++ {
+		c := fmt.Sprintf("%s-%d%s", stem, n, ext)
+		if !takenLower[strings.ToLower(c)] {
+			return c
+		}
+	}
+}
+
+var ownerLocks sync.Map // owner -> *sync.Mutex
+
+// lockOwner serializes uploads of one owner; call the returned unlock.
+func lockOwner(owner string) func() {
+	m, _ := ownerLocks.LoadOrStore(owner, &sync.Mutex{})
+	mu := m.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
 }
 
 func merge(a, b AssetInfo) AssetInfo {
@@ -464,7 +592,10 @@ func (s *Service) RenameAsset(tx *gorm.DB, name, ref, newName string, jwtUser *u
 		return a, nil
 	}
 	var n int
-	tx.Model(&Asset{}).Where("project_id = ? AND name = ?", p.ID, clean).Count(&n)
+	if err := tx.Model(&Asset{}).Where("project_id = ? AND name = ? AND id <> ?", p.ID, clean, a.ID).
+		Count(&n).Error; err != nil {
+		return nil, gz.NewErrorMessageWithBase(gz.ErrorNoDatabase, err)
+	}
 	if n > 0 {
 		return nil, assetErr(gz.ErrorResourceExists, "a file named %q already exists", clean)
 	}

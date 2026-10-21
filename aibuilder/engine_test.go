@@ -295,3 +295,46 @@ func (r *testTools) Call(ctx context.Context, name string, input map[string]inte
 	}
 	return nil, errors.New("unknown tool")
 }
+
+// textOnlyProvider refuses requests with images, like o3-mini does.
+type textOnlyProvider struct{ scriptedProvider }
+
+func (p *textOnlyProvider) ChatStream(ctx context.Context, req llm.Request) (<-chan llm.Chunk, error) {
+	for _, m := range req.Messages {
+		if len(m.Images) > 0 || len(llm.ToolResultImages(m.ToolResults)) > 0 {
+			p.mu.Lock()
+			p.reqs = append(p.reqs, req)
+			p.mu.Unlock()
+			return nil, errors.New("openai: status 400: Invalid content type. image_url is only supported by certain models")
+		}
+	}
+	return p.scriptedProvider.ChatStream(ctx, req)
+}
+
+// imageTools returns a tool result with a picture (model_generate's preview).
+type imageTools struct{ testTools }
+
+func (*imageTools) Call(context.Context, string, map[string]interface{}) (interface{}, error) {
+	return llm.RichResult{Value: map[string]interface{}{"ok": true}, Images: []llm.Image{{MimeType: "image/png", Data: "UA=="}}}, nil
+}
+
+func TestEngineDropsImagesForTextOnlyModels(t *testing.T) {
+	p := &textOnlyProvider{scriptedProvider{rounds: [][]llm.Chunk{
+		{{Type: llm.ChunkToolCall, ToolCall: &llm.ToolCall{ID: "t1", Name: "echo"}}},
+		{{Type: llm.ChunkText, Text: "done"}},
+	}}}
+	out := make(chan Event, 16)
+	in := UserInput{Text: "make this", Images: []llm.Image{{MimeType: "image/jpeg", Data: "SQ=="}}}
+	go NewEngine(p, &imageTools{}, DefaultEngineConfig()).Run(context.Background(), nil, in, "sess", out,
+		func(*ChatMessage) error { return nil })
+	evs := drainEvents(t, out)
+	assert.Equal(t, EventDone, evs[len(evs)-1].Type, "%+v", evs)
+	for _, ev := range evs {
+		assert.NotEqual(t, EventError, ev.Type, ev.Error)
+	}
+	// Refused once, then the rest of the turn goes without images.
+	require.Len(t, p.reqs, 3)
+	last := p.reqs[2].Messages
+	assert.Contains(t, last[0].Content, "can't take images")
+	assert.False(t, hasImages(last))
+}
