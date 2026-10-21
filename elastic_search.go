@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
+	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
@@ -734,11 +735,7 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 
 	// Only search the resources that the requestor can see, so that the total
 	// hit count does not include private resources.
-	var visibleOwners []string
-	if user != nil {
-		visibleOwners = append(globals.Permissions.GetGroupsForUser(*user.Username), *user.Username)
-	}
-	query = addElasticVisibilityFilter(query, visibleOwners)
+	query = addElasticVisibilityFilter(query, res.VisibleOwners(user))
 
 	// Encode the search request.
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {

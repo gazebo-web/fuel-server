@@ -109,16 +109,14 @@ func TestElasticSearchVisibility(t *testing.T) {
 	assert.Equal(t, []string{"esPublicModel"}, names)
 	assert.Equal(t, "1", total)
 
-	// Private models are not found or counted for other users.
-	for desc, jwt := range map[string]*string{"anonymous": nil, "org member": &memberJWT, "owner": &myJWT} {
+	// Private models are only found and counted for their owner.
+	names, total = search(t, "esPrivateModel", &myJWT)
+	assert.Equal(t, []string{"esPrivateModel"}, names)
+	assert.Equal(t, "1", total)
+	for desc, jwt := range map[string]*string{"anonymous": nil, "org member": &memberJWT} {
 		names, total := search(t, "esPrivateModel", jwt)
-		if desc == "owner" {
-			assert.Equal(t, []string{"esPrivateModel"}, names, desc)
-			assert.Equal(t, "1", total, desc)
-		} else {
-			assert.Empty(t, names, desc)
-			assert.Equal(t, "0", total, desc)
-		}
+		assert.Empty(t, names, desc)
+		assert.Equal(t, "0", total, desc)
 	}
 
 	// After transferring the private model to the org, its members find it.

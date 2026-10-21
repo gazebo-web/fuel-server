@@ -361,12 +361,19 @@ func QueryForResourceVisibility(tx, q *gorm.DB, owner *string, user *users.User)
 		if user == nil {
 			q = q.Where("private = ?", 0)
 		} else {
-			userGroups := globals.Permissions.GetGroupsForUser(*user.Username)
-			userGroups = append(userGroups, *user.Username)
-			q = q.Where("private = ? OR owner IN (?)", 0, userGroups)
+			q = q.Where("private = ? OR owner IN (?)", 0, VisibleOwners(user))
 		}
 	}
 	return q
+}
+
+// VisibleOwners returns the owners whose private resources the given user can
+// see: the user itself and its groups. It returns nil if there is no user.
+func VisibleOwners(user *users.User) []string {
+	if user == nil {
+		return nil
+	}
+	return append(globals.Permissions.GetGroupsForUser(*user.Username), *user.Username)
 }
 
 // MoveResource will move a resource's on-disk location from sourceOwner to destOwner.
