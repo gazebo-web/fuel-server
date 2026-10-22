@@ -295,7 +295,7 @@ func (ms *Service) ModelToProto(model *Model) *fuel.Model {
 		fuelModel.Tags = tags
 	}
 
-	if model.Categories != nil && len(model.Categories) > 0 {
+	if len(model.Categories) > 0 {
 		categories := []string{}
 		for _, category := range model.Categories {
 			categories = append(categories, *category.Name)
