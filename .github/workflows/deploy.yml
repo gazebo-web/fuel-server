@@ -161,9 +161,10 @@ jobs:
             read -r STATUS HEALTH DEPLOYED <<< "$(aws elasticbeanstalk describe-environments \
               --environment-names "$EB_ENVIRONMENT" --no-include-deleted \
               --query "Environments[0].[Status,Health,VersionLabel]" --output text)"
-            if [ "$STATUS" = "Ready" ]; then
-              break
-            fi
+            case "$STATUS" in
+              Ready) break ;;
+              None) echo "::error::Environment ${EB_ENVIRONMENT} not found"; exit 1 ;;
+            esac
             echo "${EB_ENVIRONMENT} is ${STATUS} (health ${HEALTH}); waiting..."
           done
           echo "${EB_ENVIRONMENT}: version ${DEPLOYED}, health ${HEALTH}"
