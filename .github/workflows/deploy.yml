@@ -177,3 +177,27 @@ jobs:
             echo "::error::${EB_ENVIRONMENT} is Red after deploying ${VERSION_LABEL}"
             exit 1
           fi
+          
+      # Health can still be settling when the environment first reports Ready,
+      # so re-check a few times before calling the deployment good.
+      - name: Confirm health after deployment
+        timeout-minutes: 10
+        env:
+          CHECKS: 3
+          INTERVAL_SECONDS: 40
+        run: |
+          for i in $(seq 1 "$CHECKS"); do
+            sleep "$INTERVAL_SECONDS"
+            read -r HEALTH DEPLOYED <<< "$(aws elasticbeanstalk describe-environments \
+              --environment-names "$EB_ENVIRONMENT" --no-include-deleted \
+              --query "Environments[0].[Health,VersionLabel]" --output text)"
+            echo "Check ${i}/${CHECKS}: version ${DEPLOYED}, health ${HEALTH}"
+            if [ "$DEPLOYED" != "$VERSION_LABEL" ]; then
+              echo "::error::${EB_ENVIRONMENT} is running ${DEPLOYED}, expected ${VERSION_LABEL}"
+              exit 1
+            fi
+            if [ "$HEALTH" = "Red" ]; then
+              echo "::error::${EB_ENVIRONMENT} went Red after deploying ${VERSION_LABEL}"
+              exit 1
+            fi
+          done
