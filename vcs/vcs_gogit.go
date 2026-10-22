@@ -80,7 +80,7 @@ func (g *GoGitVCS) assertValidRepo() error {
 }
 
 // getCommit gets a commit object from the given revision. If revision is empty
-// or "tip" then master is used.
+// or "tip" then HEAD is used.
 func (g *GoGitVCS) getCommit(ctx context.Context, rev string) (*object.Commit, error) {
 	rev = ensureRev(rev)
 	// Get revision's hash
@@ -136,7 +136,7 @@ func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string)
 // WalkFn on each leaf file. If includeFolders argument is true then WalkFn
 // will be invoked with folder nodes too. The function returns error if any
 // WalkFn invocation ended with error.
-// Revision argument can be an empty string; in that case the master branch
+// Revision argument can be an empty string; in that case HEAD
 // will be used.
 func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn WalkFn) error {
 	if err := g.assertValidRepo(); err != nil {
@@ -195,7 +195,7 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 }
 
 // Zip - creates a zip with the repository files, at a given revision.
-// If revision is empty or "tip" , last commit from "master" branch will
+// If revision is empty or "tip" , last commit from "HEAD" will
 // be used. If output is empty, then a zip file in the tmp folder will be
 // created.
 // Returns a string path pointing to the created zip file.
@@ -211,7 +211,7 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 	if err := g.assertValidRepo(); err != nil {
 		return err
 	}
-	// First, remove all files from master.
+	// First, remove all files from HEAD.
 	w, err := g.r.Worktree()
 	if err != nil {
 		return gz.WithStack(err)
@@ -323,7 +323,7 @@ func (g *GoGitVCS) HasTag(tag string) (bool, error) {
 }
 
 // RevisionCount - get the number of revisions up to a specific revision
-// If revision is empty, last commit from "master" branch will be used.
+// If revision is empty, last commit from "HEAD" will be used.
 // Returns the number of revisions.
 func (g *GoGitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 	return getRevisionCount(ctx, g.Path, rev)

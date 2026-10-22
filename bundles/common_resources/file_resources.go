@@ -102,7 +102,7 @@ func GetLatestVersion(ctx context.Context, res Resource) (int, error) {
 	repo := globals.VCSRepoFactory(ctx, *res.GetLocation())
 
 	// get the total number of revisions of this file
-	totalRevCount, err := repo.RevisionCount(ctx, vcs.DefaultBranch)
+	totalRevCount, err := repo.RevisionCount(ctx, "HEAD")
 	if err != nil {
 		return -1, err
 	}
