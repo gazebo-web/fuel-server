@@ -411,7 +411,8 @@ func TestUserIndex(t *testing.T) {
 }
 
 // TestUserIndexOrgs tests that GET /users/{username} only lists the
-// organizations the requestor is a member of.
+// organizations the requestor is a member of, and only includes private data
+// for the same user and system admins.
 func TestUserIndexOrgs(t *testing.T) {
 	setup()
 	myJWT := os.Getenv("IGN_TEST_JWT")
@@ -427,6 +428,11 @@ func TestUserIndexOrgs(t *testing.T) {
 	username2 := createUserWithJWT(jwt2, t)
 	defer removeUserWithJWT(username2, jwt2, t)
 	addUserToOrg(username2, "member", org1, t)
+	// An admin of org1 only
+	jwt4 := createValidJWTForIdentity("another-user-4", t)
+	username4 := createUserWithJWT(jwt4, t)
+	defer removeUserWithJWT(username4, jwt4, t)
+	addUserToOrg(username4, "admin", org1, t)
 	// A user that is not a member of any org
 	jwt3 := createValidJWTForIdentity("another-user-3", t)
 	username3 := createUserWithJWT(jwt3, t)
@@ -437,16 +443,22 @@ func TestUserIndexOrgs(t *testing.T) {
 	defer removeUserWithJWT(admin, jwtAdmin, t)
 
 	uri := "/1.0/users/" + username
+	allRoles := map[string]string{org1: "owner", org2: "owner"}
 	tests := []struct {
-		desc    string
-		jwt     *string
-		expOrgs []string
+		desc     string
+		jwt      *string
+		expOrgs  []string
+		expRoles map[string]string
+		// should the returned user data contain private data?
+		expPrivate bool
 	}{
-		{"same user sees all orgs", &myJWT, []string{org1, org2}},
-		{"org1 member only sees org1", &jwt2, []string{org1}},
-		{"non member sees no orgs", &jwt3, []string{}},
-		{"no jwt sees no orgs", nil, []string{}},
-		{"system admin sees all orgs", &jwtAdmin, []string{org1, org2}},
+		{"same user sees all orgs", &myJWT, []string{org1, org2}, allRoles, true},
+		{"org1 member only sees org1", &jwt2, []string{org1}, nil, false},
+		{"org1 admin sees the role in org1, but no private data", &jwt4, []string{org1},
+			map[string]string{org1: "owner"}, false},
+		{"non member sees no orgs", &jwt3, []string{}, nil, false},
+		{"no jwt sees no orgs", nil, []string{}, nil, false},
+		{"system admin sees all orgs", &jwtAdmin, []string{org1, org2}, allRoles, true},
 	}
 
 	for _, test := range tests {
@@ -455,6 +467,13 @@ func TestUserIndexOrgs(t *testing.T) {
 			var ur users.UserResponse
 			require.NoError(t, json.Unmarshal(*bslice, &ur), "Unable to unmarshal user response: %s", string(*bslice))
 			assert.ElementsMatch(t, test.expOrgs, ur.Organizations)
+			assert.Equal(t, test.expRoles, ur.OrgRoles)
+			if test.expPrivate {
+				assert.NotEmpty(t, ur.Email, "UserResponse should contain private data: %v", ur)
+			} else {
+				assert.Empty(t, ur.Email, "UserResponse should NOT contain private data, but it does: %v", ur)
+				assert.Zero(t, ur.ID, "UserResponse should NOT contain the user ID: %v", ur)
+			}
 		})
 	}
 }
