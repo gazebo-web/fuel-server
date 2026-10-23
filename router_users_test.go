@@ -428,11 +428,12 @@ func TestUserIndexOrgs(t *testing.T) {
 	username2 := createUserWithJWT(jwt2, t)
 	defer removeUserWithJWT(username2, jwt2, t)
 	addUserToOrg(username2, "member", org1, t)
-	// An admin of org1 only
+	// An admin of org1 that is a member of org2
 	jwt4 := createValidJWTForIdentity("another-user-4", t)
 	username4 := createUserWithJWT(jwt4, t)
 	defer removeUserWithJWT(username4, jwt4, t)
 	addUserToOrg(username4, "admin", org1, t)
+	addUserToOrg(username4, "member", org2, t)
 	// A user that is not a member of any org
 	jwt3 := createValidJWTForIdentity("another-user-3", t)
 	username3 := createUserWithJWT(jwt3, t)
@@ -454,8 +455,8 @@ func TestUserIndexOrgs(t *testing.T) {
 	}{
 		{"same user sees all orgs", &myJWT, []string{org1, org2}, allRoles, true},
 		{"org1 member only sees org1", &jwt2, []string{org1}, nil, false},
-		{"org1 admin sees the role in org1, but no private data", &jwt4, []string{org1},
-			map[string]string{org1: "owner"}, false},
+		{"org1 admin sees both orgs and the role in org1, but no private data", &jwt4,
+			[]string{org1, org2}, map[string]string{org1: "owner"}, false},
 		{"non member sees no orgs", &jwt3, []string{}, nil, false},
 		{"no jwt sees no orgs", nil, []string{}, nil, false},
 		{"system admin sees all orgs", &jwtAdmin, []string{org1, org2}, allRoles, true},
@@ -470,6 +471,7 @@ func TestUserIndexOrgs(t *testing.T) {
 			assert.Equal(t, test.expRoles, ur.OrgRoles)
 			if test.expPrivate {
 				assert.NotEmpty(t, ur.Email, "UserResponse should contain private data: %v", ur)
+				assert.NotZero(t, ur.ID, "UserResponse should contain the user ID: %v", ur)
 			} else {
 				assert.Empty(t, ur.Email, "UserResponse should NOT contain private data, but it does: %v", ur)
 				assert.Zero(t, ur.ID, "UserResponse should NOT contain the user ID: %v", ur)
@@ -641,7 +643,7 @@ func TestUserPagination(t *testing.T) {
 		{uriTest{"org owner - get all users", uri, jwtDef, invUser, false}, "", []expResUser{
 			{user1, []string{orgName}, true, map[string]string{orgName: "owner"}},
 			{user2, []string{}, false, nil},
-			{user3, []string{orgName}, true, map[string]string{orgName: "member"}},
+			{user3, []string{orgName}, false, map[string]string{orgName: "member"}},
 		}},
 		{uriTest{"org member - get all users", uri, newJWT(jwt3), invUser, false}, "", []expResUser{
 			{user1, []string{orgName}, false, nil},
