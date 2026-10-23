@@ -26,6 +26,7 @@ type worldElastic struct {
 	Owner       string `json:"owner"`
 	Tags        string `json:"tags,omitempty"`
 	Creator     string `json:"creator"`
+	Private     bool   `json:"private"`
 }
 
 // ElasticSearchRemoveWorld removes a world from elastic search
@@ -77,6 +78,7 @@ func ElasticSearchUpdateWorld(ctx context.Context, world World) {
 		Creator:     *world.Creator,
 		Description: *world.Description,
 		Tags:        tagsBuilder.String(),
+		Private:     world.Private != nil && *world.Private,
 	}
 
 	// Add in metadata
