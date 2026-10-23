@@ -153,8 +153,6 @@ func CreateUserResponse(tx *gorm.DB, user, requestor *User) UserResponse {
 	// Private data should be included if the user is the same as the requestor or
 	// if the requestor is a sysAdmin.
 	if requestor != nil {
-		privateAccess := false
-
 		// Checks for System Admin and Same User.
 		isSystemAdmin := globals.Permissions.IsSystemAdmin(*requestor.Username)
 		isSameUser := *user.Identity == *requestor.Identity
@@ -166,25 +164,24 @@ func CreateUserResponse(tx *gorm.DB, user, requestor *User) UserResponse {
 
 		// only is system admin or self
 		if isSystemAdmin || isSameUser {
-			privateAccess = true
 			if user.ExpFeatures != nil {
 				response.ExpFeatures = *user.ExpFeatures
 			}
-		} else {
-			// If the requestor has write access to any user's org, then
-			// we can include private data.
-			for _, r := range orgs {
-				if r != "" {
-					privateAccess = true
-					break
-				}
-			}
-		}
-
-		if privateAccess {
 			response.Email = *user.Email
 			response.ID = user.ID
 			response.OrgRoles = orgs
+		} else {
+			// If the requestor has write access to some of the user's orgs, then
+			// include the user's roles in those orgs.
+			roles := make(map[string]string)
+			for o, r := range orgs {
+				if r != "" {
+					roles[o] = r
+				}
+			}
+			if len(roles) > 0 {
+				response.OrgRoles = roles
+			}
 		}
 	}
 

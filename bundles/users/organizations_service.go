@@ -467,6 +467,9 @@ func (ms *OrganizationService) GetTeams(p *gz.PaginationRequest, tx *gorm.DB,
 		return nil, nil, em
 	}
 	// Check permissions of the requesting user
+	if user == nil {
+		return nil, nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	}
 	ok, em := globals.Permissions.IsAuthorized(*user.Username, orgName, permissions.Read)
 	if !ok {
 		return nil, nil, em
