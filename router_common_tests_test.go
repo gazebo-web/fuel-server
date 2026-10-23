@@ -16,6 +16,8 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -577,4 +579,50 @@ func TestOptionsIndividualFile(t *testing.T) {
 	wSubFolder := worldURL("testuser", "world1", "") + "/1/files/subfolder/file.file"
 	gztest.AssertRoute("OPTIONS", wURI, http.StatusOK, t)
 	gztest.AssertRoute("OPTIONS", wSubFolder, http.StatusOK, t)
+}
+
+// TestGetIndividualLargeFile tests downloading a file that is larger than the
+// git objects that are loaded in memory.
+func TestGetIndividualLargeFile(t *testing.T) {
+	// General test setup
+	setup()
+	testUser := createUser(t)
+	defer removeUser(testUser, t)
+
+	// About 2 MiB of numbered lines.
+	var sb strings.Builder
+	for i := 0; i < 1<<18; i++ {
+		fmt.Fprintf(&sb, "%07d\n", i)
+	}
+	contents := sb.String()
+
+	extraParams := map[string]string{
+		"name":        "large_model",
+		"tags":        "test_tag_1",
+		"description": "description",
+		"license":     "1",
+		"permission":  "0",
+	}
+	files := []gztest.FileDesc{
+		{Path: "model.config", Contents: constModelConfigFileContents},
+		{Path: "meshes/large.txt", Contents: contents},
+	}
+	createResourceWithArgs(t.Name(), "/1.0/models", nil, extraParams, files, t)
+
+	jwt := os.Getenv("IGN_TEST_JWT")
+	uri := modelURL(testUser, "large_model", "") + "/tip/files/meshes/large.txt"
+	reqArgs := gztest.RequestArgs{Method: "GET", Route: uri, SignedToken: &jwt}
+	resp := gztest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, "text/plain; charset=utf-8", t)
+	assert.Equal(t, strconv.Itoa(len(contents)), resp.RespRecorder.Header().Get("Content-Length"))
+	assert.Equal(t, contents, string(*resp.BodyAsBytes))
+	ensureIgnResourceVersionHeader(resp.RespRecorder, 1, t)
+
+	reqArgs.Headers = map[string]string{"Range": "bytes=1048576-1048591"}
+	resp = gztest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusPartialContent, "text/plain; charset=utf-8", t)
+	assert.Equal(t, contents[1048576:1048592], string(*resp.BodyAsBytes))
+
+	// Multi-range requests get the whole file.
+	reqArgs.Headers = map[string]string{"Range": "bytes=1048576-1048591,0-15"}
+	resp = gztest.AssertRouteMultipleArgsStruct(reqArgs, http.StatusOK, "text/plain; charset=utf-8", t)
+	assert.Equal(t, contents, string(*resp.BodyAsBytes))
 }
