@@ -304,13 +304,23 @@ func (ms *OrganizationService) RemoveUserFromOrg(ctx context.Context, tx *gorm.D
 
 // GetOrgUsers returns the list of users of an Organization.
 // The result will be paginated.
-// user argument is the user requesting the operation.
+// user argument is the user requesting the operation. Only members of the
+// organization and system admins can list its users.
 func (ms *OrganizationService) GetOrgUsers(p *gz.PaginationRequest, tx *gorm.DB,
 	orgName string, user *User) (*UserResponses, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Sanity check: make sure the org exist
 	_, em := ByOrganizationName(tx, orgName, false)
 	if em != nil {
+		return nil, nil, em
+	}
+
+	// Membership is private: only the org's members (and system admins) can
+	// list them.
+	if user == nil {
+		return nil, nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	}
+	if ok, em := globals.Permissions.IsAuthorized(*user.Username, orgName, permissions.Read); !ok {
 		return nil, nil, em
 	}
 

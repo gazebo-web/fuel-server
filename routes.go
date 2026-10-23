@@ -2149,7 +2149,8 @@ var routes = gz.Routes{
 			//
 			// Get the list of users of an organization
 			//
-			// Return the list of users of an organization.
+			// Return the list of users of an organization. Only members of the
+			// organization can list its users.
 			//
 			//   Produces:
 			//   - application/json

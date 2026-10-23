@@ -722,18 +722,17 @@ func TestOrganizationUserList(t *testing.T) {
 	// add username3 as a member of the org2 and admin of org1
 	addUserToOrg(username3, "member", testOrg2, t)
 	addUserToOrg(username3, "admin", testOrg, t)
+	// a system admin that is not a member of any org
+	jwtAdmin := createValidJWTForIdentity("sysadmin-user", t)
+	admin := createNamedUserWithJWT(sysAdminForTest, jwtAdmin, t)
+	defer removeUserWithJWT(admin, jwtAdmin, t)
 
 	uriOrg1 := orgUsersRoute(testOrg)
 	uriOrg2 := orgUsersRoute(testOrg2)
 
 	orgUserListTestData := []orgUserListTest{
-		{uriTest{"with no jwt cannot see private data for org1", uriOrg1, nil, nil, true},
-			[]expUser{
-				{username, []string{}, nil},
-				{username2, []string{}, nil},
-				{username3, []string{}, nil},
-			},
-		},
+		{uriTest{"with no jwt cannot list the users of org1", uriOrg1, nil,
+			gz.NewErrorMessage(gz.ErrorUnauthorized), false}, nil},
 		{uriTest{"org owner can see user roles for org1", uriOrg1, jwtDef, nil, true},
 			[]expUser{
 				{username, []string{testOrg, testOrg2}, map[string]string{testOrg: "owner", testOrg2: "owner"}},
@@ -748,22 +747,20 @@ func TestOrganizationUserList(t *testing.T) {
 				{username3, []string{testOrg, testOrg2}, nil},
 			},
 		},
-		{uriTest{"with no jwt cannot see private data for org2", uriOrg2, nil, nil, true},
-			[]expUser{
-				{username, []string{}, nil},
-				{username3, []string{}, nil},
-			},
-		},
+		{uriTest{"with no jwt cannot list the users of org2", uriOrg2, nil,
+			gz.NewErrorMessage(gz.ErrorUnauthorized), false}, nil},
 		{uriTest{"org owner can see user roles for org2", uriOrg2, jwtDef, nil, true},
 			[]expUser{
 				{username, []string{testOrg, testOrg2}, map[string]string{testOrg: "owner", testOrg2: "owner"}},
 				{username3, []string{testOrg, testOrg2}, map[string]string{testOrg: "admin", testOrg2: "member"}},
 			},
 		},
-		{uriTest{"non member jwt2 can only see user's public data for org2", uriOrg2, newJWT(jwt2), nil, true},
+		{uriTest{"non member jwt2 cannot list the users of org2", uriOrg2, newJWT(jwt2),
+			gz.NewErrorMessage(gz.ErrorUnauthorized), false}, nil},
+		{uriTest{"system admin can list the users of org2", uriOrg2, newJWT(jwtAdmin), nil, true},
 			[]expUser{
-				{username, []string{testOrg, testOrg2}, nil},
-				{username3, []string{testOrg, testOrg2}, nil},
+				{username, []string{testOrg, testOrg2}, map[string]string{testOrg: "owner", testOrg2: "owner"}},
+				{username3, []string{testOrg, testOrg2}, map[string]string{testOrg: "admin", testOrg2: "member"}},
 			},
 		},
 	}
