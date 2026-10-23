@@ -414,14 +414,12 @@ func (ms *OrganizationService) RemoveTeam(ctx context.Context, tx *gorm.DB,
 // and associated roles of a user. It only returns non-deleted organizations.
 // If the requestor is the same user then it will include all details. Otherwise
 // the returned organizations will include only those that the requestor can
-// Read or are Public. Roles will be included for those that requestor can Write.
+// Read. Roles will be included for those that requestor can Write.
 func GetOrganizationsAndRolesForUser(tx *gorm.DB, user,
 	requestor *User) (map[string]string, *gz.ErrMsg) {
 
 	orgNames := make([]string, 0)
 	orgsWithRole := globals.Permissions.GetGroupsAndRolesForUser(*user.Username)
-	// TODO should only include names of public orgs or those that the requestor
-	// can read.
 	for g := range orgsWithRole {
 		orgNames = append(orgNames, g)
 	}
@@ -446,8 +444,9 @@ func GetOrganizationsAndRolesForUser(tx *gorm.DB, user,
 			}
 			if hasAccess {
 				result[orgName] = orgsWithRole[orgName]
-			} else {
-				// Currently all orgs are public so no need to check Read access.
+			} else if canRead, _ := globals.Permissions.IsAuthorized(reqName, orgName, permissions.Read); canRead {
+				// Membership is private: only list the orgs the requestor is a
+				// member of, without the role.
 				result[orgName] = ""
 			}
 		}

@@ -410,6 +410,55 @@ func TestUserIndex(t *testing.T) {
 	}
 }
 
+// TestUserIndexOrgs tests that GET /users/{username} only lists the
+// organizations the requestor is a member of.
+func TestUserIndexOrgs(t *testing.T) {
+	setup()
+	myJWT := os.Getenv("IGN_TEST_JWT")
+	// Create a user that owns two orgs
+	username := createUser(t)
+	defer removeUser(username, t)
+	org1 := createOrganization(t)
+	defer removeOrganization(org1, t)
+	org2 := createOrganization(t)
+	defer removeOrganization(org2, t)
+	// A member of org1 only
+	jwt2 := createValidJWTForIdentity("another-user", t)
+	username2 := createUserWithJWT(jwt2, t)
+	defer removeUserWithJWT(username2, jwt2, t)
+	addUserToOrg(username2, "member", org1, t)
+	// A user that is not a member of any org
+	jwt3 := createValidJWTForIdentity("another-user-3", t)
+	username3 := createUserWithJWT(jwt3, t)
+	defer removeUserWithJWT(username3, jwt3, t)
+	// A system admin that is not a member of any org
+	jwtAdmin := createValidJWTForIdentity("sysadmin-user", t)
+	admin := createNamedUserWithJWT(sysAdminForTest, jwtAdmin, t)
+	defer removeUserWithJWT(admin, jwtAdmin, t)
+
+	uri := "/1.0/users/" + username
+	tests := []struct {
+		desc    string
+		jwt     *string
+		expOrgs []string
+	}{
+		{"same user sees all orgs", &myJWT, []string{org1, org2}},
+		{"org1 member only sees org1", &jwt2, []string{org1}},
+		{"non member sees no orgs", &jwt3, []string{}},
+		{"no jwt sees no orgs", nil, []string{}},
+		{"system admin sees all orgs", &jwtAdmin, []string{org1, org2}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			bslice, _ := gztest.AssertRouteMultipleArgs("GET", uri, nil, http.StatusOK, test.jwt, ctJSON, t)
+			var ur users.UserResponse
+			require.NoError(t, json.Unmarshal(*bslice, &ur), "Unable to unmarshal user response: %s", string(*bslice))
+			assert.ElementsMatch(t, test.expOrgs, ur.Organizations)
+		})
+	}
+}
+
 // ownerProfileTest defines a GET /profile/username test case.
 type ownerProfileTest struct {
 	uriTest
