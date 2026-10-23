@@ -20,9 +20,10 @@ type TransferAsset struct {
 }
 
 // processTransferRequest reads the request data into a TransferAsset struct,
-// and checks permissions. A pointer to the TransferAsset is returned, or
-// nil on error.
-func processTransferRequest(sourceOwner string, tx *gorm.DB, r *http.Request) (*TransferAsset, *gz.ErrMsg) {
+// and checks permissions. Only the source owner can transfer its assets, and
+// it needs write permissions on the destination organization. A pointer to
+// the TransferAsset is returned, or nil on error.
+func processTransferRequest(sourceOwner string, user *users.User, tx *gorm.DB, r *http.Request) (*TransferAsset, *gz.ErrMsg) {
 	// TransferAsset is the input data
 	var transferAsset TransferAsset
 	if em := ParseStruct(&transferAsset, r, false); em != nil {
@@ -36,7 +37,13 @@ func processTransferRequest(sourceOwner string, tx *gorm.DB, r *http.Request) (*
 		return nil, gz.NewErrorMessageWithArgs(gz.ErrorNameNotFound, em.BaseError, []string{extra})
 	}
 
-	// Step 2: check write permissions of the requesting user
+	// Step 2: only the source owner can transfer its assets. Assets are only
+	// transferred from users to organizations.
+	if *user.Username != sourceOwner {
+		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	}
+
+	// Step 3: check write permissions of the requesting user
 	if ok, em := globals.Permissions.IsAuthorized(sourceOwner,
 		transferAsset.DestOwner, permissions.Write); !ok {
 		extra := fmt.Sprintf("User [%s] is not authorized", sourceOwner)

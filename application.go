@@ -10,6 +10,7 @@
 // Contact: info@openrobotics.org
 //
 // swagger:meta
+//
 //go:generate swagger generate spec -m
 package main
 
