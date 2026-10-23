@@ -212,7 +212,7 @@ type FailingVCS struct{}
 func (g *FailingVCS) CloneTo(ctx context.Context, target string) error {
 	return errors.New("error")
 }
-func (g *FailingVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (*[]byte, error) {
+func (g *FailingVCS) OpenFile(ctx context.Context, rev string, pathFromRoot string) (*vcs.File, error) {
 	return nil, errors.New("error")
 }
 func (g *FailingVCS) InitRepo(ctx context.Context) error {

@@ -38,19 +38,20 @@ func CastResourceToStorageResource(r Resource, v uint64) storage.Resource {
 	return storage.NewResource(*r.GetUUID(), *r.GetOwner(), v)
 }
 
-// GetFile returns the contents (bytes) of a resource file. Given version is considered.
-// Returns the file's bytes and the resolved version of the resource.
-func GetFile(ctx context.Context, res Resource, path, version string) (*[]byte, int, *gz.ErrMsg) {
+// GetFile returns a resource file. Given version is considered. The file
+// content is not read until requested.
+// Returns the file and the resolved version of the resource.
+func GetFile(ctx context.Context, res Resource, path, version string) (*vcs.File, int, *gz.ErrMsg) {
 	rev, resolvedVersion, em := GetRevisionFromVersion(ctx, res, version)
 	if em != nil {
 		return nil, 0, em
 	}
 	repo := globals.VCSRepoFactory(ctx, *res.GetLocation())
-	bs, err := repo.GetFile(ctx, rev, path)
+	f, err := repo.OpenFile(ctx, rev, path)
 	if err != nil {
 		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorFileNotFound, err)
 	}
-	return bs, resolvedVersion, nil
+	return f, resolvedVersion, nil
 }
 
 // GetRevisionFromVersion finds the revision hash from a given resource version.

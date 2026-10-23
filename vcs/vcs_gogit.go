@@ -7,7 +7,10 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
+	"gopkg.in/src-d/go-git.v4/plumbing/format/objfile"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"io"
 	"log"
 	"os"
@@ -20,6 +23,12 @@ const (
 	gitName  = "ign-fuelserver"
 	gitEmail = "ign-fuelserver@test.org"
 )
+
+// maxInMemoryFileSize is the size of the largest file that OpenFile reads with
+// go-git, which loads the whole file in memory. Larger files are streamed with
+// the git command instead, so that concurrent downloads of large files (eg.
+// meshes) do not exhaust the memory.
+const maxInMemoryFileSize = 1 << 20
 
 // GoGitVCS represents a local Git repo.
 type GoGitVCS struct {
@@ -101,8 +110,9 @@ func (g *GoGitVCS) getCommit(ctx context.Context, rev string) (*object.Commit, e
 	return commit, nil
 }
 
-// GetFile - Gets a single file with a given revision from the repo.
-func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (*[]byte, error) {
+// OpenFile - Gets a single file with a given revision from the repo. The file
+// content is not read until requested.
+func (g *GoGitVCS) OpenFile(ctx context.Context, rev string, pathFromRoot string) (*File, error) {
 	if err := g.assertValidRepo(); err != nil {
 		return nil, err
 	}
@@ -112,24 +122,93 @@ func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string)
 		return nil, err
 	}
 	// retrieve the tree from the commit
-	f, err := commit.File(pathFromRoot)
+	tree, err := commit.Tree()
+	if err != nil {
+		err = gz.WithStack(err)
+		gz.LoggerFromContext(ctx).Info("Error while getting Tree. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
+		return nil, err
+	}
+	// Note: tree.File is not used because it loads the file content.
+	entry, err := tree.FindEntry(pathFromRoot)
+	if err == nil && !entry.Mode.IsFile() {
+		err = object.ErrFileNotFound
+	}
 	if err != nil {
 		err = gz.WithStack(err)
 		gz.LoggerFromContext(ctx).Info("Error while getting File. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
 		return nil, err
 	}
-	reader, err := f.Reader()
+	hash := entry.Hash
+	size, err := g.objectSize(hash)
 	if err != nil {
 		err = gz.WithStack(err)
-		gz.LoggerFromContext(ctx).Info("Error while getting file Reader. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
+		gz.LoggerFromContext(ctx).Info("Error while getting File size. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
 		return nil, err
 	}
-	var bs []byte
-	bs, err = io.ReadAll(reader)
-	if err != nil {
-		err = gz.WithStack(err)
+	open := func() (io.ReadCloser, error) {
+		return catBlob(ctx, g.Path, hash.String())
 	}
-	return &bs, err
+	if size <= maxInMemoryFileSize {
+		open = func() (io.ReadCloser, error) {
+			blob, err := g.r.BlobObject(hash)
+			if err != nil {
+				return nil, gz.WithStack(err)
+			}
+			return blob.Reader()
+		}
+	}
+	return &File{Hash: hash.String(), Size: size, open: open}, nil
+}
+
+// objectSize returns the size of the object with the given hash, without
+// reading its content.
+// Note: go-git's EncodedObjectSize is not used for loose objects because it
+// does not close the object file, which stays open until garbage collected.
+func (g *GoGitVCS) objectSize(hash plumbing.Hash) (size int64, err error) {
+	s, ok := g.r.Storer.(*filesystem.Storage)
+	if !ok {
+		return g.r.Storer.EncodedObjectSize(hash)
+	}
+	fs := s.Filesystem()
+	h := hash.String()
+	f, err := fs.Open(fs.Join("objects", h[:2], h[2:]))
+	if os.IsNotExist(err) {
+		// The object is packed.
+		return g.r.Storer.EncodedObjectSize(hash)
+	}
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	r, err := objfile.NewReader(f)
+	if err != nil {
+		return 0, err
+	}
+	defer r.Close()
+	_, size, err = r.Header()
+	return size, err
+}
+
+// forEachFile calls fn with the path of each file in the tree, as
+// tree.Files().ForEach does, but without loading the files content.
+func forEachFile(tree *object.Tree, fn func(path string) error) error {
+	walker := object.NewTreeWalker(tree, true, nil)
+	defer walker.Close()
+	for {
+		path, entry, err := walker.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if entry.Mode == filemode.Dir || entry.Mode == filemode.Submodule {
+			continue
+		}
+		if err := fn(path); err != nil {
+			return err
+		}
+	}
 }
 
 // Walk - given a revision, Walk func iterates over the repository and invokes the
@@ -147,23 +226,22 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 	if err != nil {
 		return err
 	}
-	// Get the files iterator
-	iter, err := commit.Files()
+	tree, err := commit.Tree()
 	if err != nil {
 		return gz.WithStack(err)
 	}
 
 	visitedFolders := make(map[string]bool)
-	_ = iter.ForEach(func(f *object.File) error {
+	_ = forEachFile(tree, func(name string) error {
 		// Skip ".git" folder and its contents
-		if strings.HasPrefix(f.Name, ".git") {
+		if strings.HasPrefix(name, ".git") {
 			return nil
 		}
 		// backward compatibility: exclude ".hg" folder too.
-		if strings.HasPrefix(f.Name, ".hg") {
+		if strings.HasPrefix(name, ".hg") {
 			return nil
 		}
-		parentPath := filepath.Clean(filepath.Dir(f.Name))
+		parentPath := filepath.Clean(filepath.Dir(name))
 		// Visit folders?
 		if includeFolders {
 			folders := strings.Split(parentPath, "/")
@@ -185,7 +263,7 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 			}
 		}
 		// Need to prefix all paths with "/" as client code is expecting that.
-		err := fn(filepath.Join("/", f.Name), filepath.Join("/", parentPath), false)
+		err := fn(filepath.Join("/", name), filepath.Join("/", parentPath), false)
 		if err != nil {
 			return gz.WithStack(err)
 		}
