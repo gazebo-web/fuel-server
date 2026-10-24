@@ -336,7 +336,14 @@ func (r *runner) run(c Case) Result {
 		return string(b), true
 	}
 	score(c, string(world), load, &res)
-	checkFootprint(c, worldFootprint(string(world), load), &res)
+	files := func(p string) ([]byte, bool) {
+		var b []byte
+		if p == "" || r.call(ctx, "GET", r.fuel+"/1.0/projects/"+url.PathEscape(name)+"/tip/files/"+escapePath(p), nil, &b) != nil {
+			return nil, false
+		}
+		return b, true
+	}
+	checkFootprint(c, worldFootprint(string(world), files), &res)
 	if len(c.WantTopics) > 0 && r.gzcheck != "" {
 		r.gazeboCheck(ctx, name, c.WantTopics, &res)
 		res.Passed = len(res.Failures) == 0
@@ -702,6 +709,15 @@ func (r *runner) open(ctx context.Context, u string, body any) (io.ReadCloser, e
 		return nil, err
 	}
 	return resp.Body, nil
+}
+
+// escapePath escapes each part of a slash-separated path.
+func escapePath(p string) string {
+	parts := strings.Split(p, "/")
+	for i, s := range parts {
+		parts[i] = url.PathEscape(s)
+	}
+	return strings.Join(parts, "/")
 }
 
 func truncate(s string, n int) string {
