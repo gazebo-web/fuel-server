@@ -56,6 +56,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"testing"
 )
 
 // Impl note: we move this as a constant as it is used by tests.
@@ -87,7 +88,9 @@ func init() {
 	logger := gz.NewLogger("init", logStd, verbosity)
 	logCtx := gz.NewContextWithLogger(context.Background(), logger)
 
-	isGoTest = strings.Contains(strings.ToLower(os.Args[0]), "test")
+	// Test mode replaces the system admin, the resource directory and S3, so
+	// only enable it in binaries built by go test, whatever their name.
+	isGoTest = testing.Testing()
 
 	if memcacheAddr, err = gz.ReadEnvVar("GZ_FUEL_MEMCACHED_ADDR"); err != nil && !isGoTest {
 		logger.Info("Missing GZ_FUEL_MEMCACHED_ADDR env variable. Memcached will not be available.")
