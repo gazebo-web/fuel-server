@@ -20,7 +20,9 @@ func TestGeminiStream(t *testing.T) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		io.WriteString(w, sseScript(
 			`{"candidates":[{"content":{"parts":[{"text":"Hello"}]}}]}`,
-			`{"candidates":[{"content":{"parts":[{"text":" world"}]},"finishReason":"STOP"}]}`,
+			`{"candidates":[{"content":{"parts":[{"text":" world"}]},"finishReason":"STOP"}],`+
+				`"usageMetadata":{"promptTokenCount":100,"cachedContentTokenCount":60,"candidatesTokenCount":7,`+
+				`"thoughtsTokenCount":5}}`,
 		))
 	}))
 	defer server.Close()
@@ -31,10 +33,17 @@ func TestGeminiStream(t *testing.T) {
 	require.NoError(t, err)
 
 	var out strings.Builder
+	var usage *llm.Usage
 	for c := range ch {
 		if c.Type == llm.ChunkText {
 			out.WriteString(c.Text)
 		}
+		if c.Type == llm.ChunkUsage {
+			usage = c.Usage
+		}
 	}
 	assert.Equal(t, "Hello world", out.String())
+	// Reported as the chat's usage events count it.
+	require.NotNil(t, usage)
+	assert.Equal(t, llm.Usage{Input: 40, CacheRead: 60, Output: 12, Thinking: 5}, *usage)
 }

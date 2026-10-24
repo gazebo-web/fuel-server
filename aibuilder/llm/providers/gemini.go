@@ -407,6 +407,7 @@ func parseGeminiStream(r io.Reader, out chan<- llm.Chunk, model string) {
 		promptTokens int
 		cachedTokens int
 		outputTokens int
+		thoughts     int
 		sawUsage     bool
 	)
 
@@ -430,6 +431,7 @@ func parseGeminiStream(r io.Reader, out chan<- llm.Chunk, model string) {
 				PromptTokenCount        int `json:"promptTokenCount"`
 				CachedContentTokenCount int `json:"cachedContentTokenCount"`
 				CandidatesTokenCount    int `json:"candidatesTokenCount"`
+				ThoughtsTokenCount      int `json:"thoughtsTokenCount"`
 			} `json:"usageMetadata"`
 		}
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
@@ -439,6 +441,7 @@ func parseGeminiStream(r io.Reader, out chan<- llm.Chunk, model string) {
 			promptTokens = chunk.UsageMetadata.PromptTokenCount
 			cachedTokens = chunk.UsageMetadata.CachedContentTokenCount
 			outputTokens = chunk.UsageMetadata.CandidatesTokenCount
+			thoughts = chunk.UsageMetadata.ThoughtsTokenCount
 			sawUsage = true
 		}
 		for _, c := range chunk.Candidates {
@@ -467,8 +470,12 @@ func parseGeminiStream(r io.Reader, out chan<- llm.Chunk, model string) {
 	}
 	if sawUsage {
 		log.Printf(
-			"llm: provider=gemini model=%s prompt_tokens=%d cached=%d completion_tokens=%d",
-			model, promptTokens, cachedTokens, outputTokens,
+			"llm: provider=gemini model=%s prompt_tokens=%d cached=%d completion_tokens=%d thoughts=%d",
+			model, promptTokens, cachedTokens, outputTokens, thoughts,
 		)
+		// In Anthropic's terms, which the chat's usage events use: input
+		// is the uncached part of the prompt, and output includes thinking.
+		out <- llm.Chunk{Type: llm.ChunkUsage, Usage: &llm.Usage{Input: promptTokens - cachedTokens,
+			CacheRead: cachedTokens, Output: outputTokens + thoughts, Thinking: thoughts}}
 	}
 }
