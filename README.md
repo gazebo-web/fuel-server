@@ -439,17 +439,30 @@ that mounts that environment's EFS filesystem:
     sudo chown -R -h 10001:10001 /fuel
     ```
 
-1. Deploy the new version.
+1. Find out how long the last step will take. The old version keeps creating
+   root-owned files during step 1, and this lists them without changing
+   anything:
 
-1. Right after the deployment finishes, change the owner of anything the old
-   version created during step 1:
+    ```
+    time sudo find /fuel ! -uid 10001 | wc -l
+    ```
+
+1. Deploy the new version. If step 2 took long, deploy when traffic is low.
+
+1. Right after the deployment finishes, change the owner of what the old
+   version created since step 1 started:
 
     ```
     sudo find /fuel ! -uid 10001 -exec chown -h 10001:10001 {} +
     ```
 
-EFS stores numeric owners: the mount script stops `rpc.idmapd`, so the UID
-does not need to exist on the host.
+    This reads every file's metadata again, so it takes about as long as step 2.
+    Until it finishes, uploads, clones and zip downloads can fail for models
+    and worlds that were created or updated during step 1. Everything else
+    works.
+
+EFS keeps owners as numeric IDs, so UID `10001` does not need to exist on the
+host.
 
 ## AWS RDS
 
