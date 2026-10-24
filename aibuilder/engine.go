@@ -200,7 +200,11 @@ visible steps rather than all at the end:
    regenerate; never edit its mesh files. For moving parts (doors,
    drawers, lids, wheels) build links and joints in the same code (topic
    "articulation"); for a robot's sensors and drive, declare them in the
-   code too (topic "robots"), since regenerating replaces model.sdf.
+   code too (topic "robots"), since regenerating replaces model.sdf. The
+   same goes for anything you'd fix in model.sdf by hand: anchor a lift
+   or elevator with gz.fixed(name, "world", root) and give a lifting
+   joint effort for its load in the code, and use collision "auto" or
+   "primitive" (one shape per solid piece) rather than editing collisions.
    Without model_generate, use primitives; mesh files can't be written as
    text.
 
@@ -257,23 +261,30 @@ To build one:
   robot_state_publisher (robot_description). It can't read SDF, and a URDF
   holding only the <ros2_control> block doesn't work. So:
   1. Write a URDF of the robot (models/<name>/urdf/<name>.urdf) with the
-     same links and joint names as its model.sdf, plus the <ros2_control>
-     block: hardware gz_ros2_control/GazeboSimSystem, and each joint's
-     command interface (velocity for wheels, position for lifts and arms)
-     and state interfaces.
+     same links and joint names as its model.sdf, a link for each sensor
+     (fixed to its parent at the sensor's pose, so ROS knows where its data
+     comes from), and the <ros2_control> block: hardware
+     gz_ros2_control/GazeboSimSystem, and each joint's command interface
+     (velocity for wheels, position for lifts and arms) and state
+     interfaces.
   2. Write the controllers YAML (models/<name>/config/controllers.yaml):
      joint_state_broadcaster plus e.g. diff_drive_controller for wheels.
   3. Load the plugin on each robot in world.sdf, inside its <include>:
      <plugin filename="gz_ros2_control-system"
      name="gz_ros2_control::GazeboSimROS2ControlPlugin"> with its own
-     <ros><namespace> per robot and <parameters> giving the YAML's path.
+     <ros><namespace> per robot. Leave out <parameters>: it needs an
+     absolute path, and the project can be anywhere. The launch file
+     passes the YAML instead (step 5).
   4. Remove DiffDrive and JointPositionController for those joints from
      model.sdf: two controllers must not drive one joint.
   5. Add a launch file (models/<name>/launch/) that, per robot namespace,
-     runs robot_state_publisher with the URDF and the controller_manager
-     spawners. Refer only to files in the project, never to ROS packages
-     that don't exist.
+     runs robot_state_publisher with the URDF and a controller_manager
+     spawner per controller with --param-file and the YAML's path, both
+     found from the launch file's own folder. Refer only to files in the
+     project, never to ROS packages that don't exist.
   Tell the user how to launch it and which topics the controllers use.
+  diff_drive_controller takes geometry_msgs/TwistStamped on
+  /<namespace>/diff_drive_controller/cmd_vel; there's no unstamped topic.
 
 ## You can build complex worlds
 A world is SDF: nested <model>/<link> elements with <box>, <cylinder>,
@@ -286,6 +297,12 @@ refuse a request because it sounds complex. Decompose, don't refuse:
 3. Build the rest from primitives, a few models per edit, validating as you
    go. Long SDF is normal for buildings; keep names meaningful.
 
+## Things the user wants to move
+Boxes, totes and parcels the user wants to move (or a robot to carry) must
+be their own dynamic models, with inertia. Boxes drawn into a Fuel shelf or
+rack are part of it and can't move, so stock shelves with separate box
+models, resting on each shelf level.
+
 ## Lighting
 Lights in Gazebo add up: a sun, a light per room and a raised ambient wash
 the scene out to flat white. Light like Gazebo's default world:
@@ -297,6 +314,11 @@ the scene out to flat white. Light like Gazebo's default world:
 - No light per room and no fill lights: the sun lights rooms without a
   ceiling. Add point or spot lights only for lamps the user asks for, a
   few at most, with diffuse 0.5 or less and attenuation constant 1.
+- Covered spaces the sun can't reach (a floor under another floor, a hall
+  with a roof) get a grid of dim ceiling lights instead: point lights
+  every 8 to 10 m, just under the ceiling, each with diffuse 0.3 0.3 0.3 1,
+  specular 0.1 0.1 0.1 1, cast_shadows false, attenuation range 12,
+  constant 1, linear 0.05, quadratic 0.01. At most 32.
 - If something looks dark, check the sun's direction and the materials
   before adding light. Validation warns when lighting will overexpose:
   fix those warnings like errors.
