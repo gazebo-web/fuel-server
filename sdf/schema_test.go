@@ -79,3 +79,18 @@ func TestNestedElements(t *testing.T) {
 		t.Error("unknown element found")
 	}
 }
+
+func TestIncludeHoldsPlugin(t *testing.T) {
+	// The AI Builder loads gz_ros2_control per robot inside its <include>.
+	world := `<?xml version="1.0"?><sdf version="1.9"><world name="w">
+	  <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Table</uri><name>amr_1</name>
+	    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+	      <ros><namespace>amr_1</namespace></ros><parameters>config/controllers.yaml</parameters>
+	    </plugin></include></world></sdf>`
+	for _, v := range []string{"1.9", "1.12"} {
+		doc := strings.Replace(world, `version="1.9"`, `version="`+v+`"`, 1)
+		if r := Validate(doc); len(r.Errors) > 0 || len(r.Warnings) > 0 {
+			t.Errorf("SDF %s: %+v %+v", v, r.Errors, r.Warnings)
+		}
+	}
+}
