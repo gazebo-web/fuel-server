@@ -170,3 +170,49 @@ func TestASCIIStorage(t *testing.T) {
 		t.Errorf("plain text changed: %v", v)
 	}
 }
+
+func TestRotatedMap(t *testing.T) {
+	// testMap turned a quarter turn: the image's width runs along +y and its
+	// height along -x, so x = -1 - v and y = -0.5 + u.
+	yaml := "image: room.pgm\nresolution: 0.05\norigin: [-1.0, -0.5, 1.5707963267948966]\n"
+	views, info, err := processMap(zipBytes(t, map[string]string{"room.yaml": yaml,
+		"room.pgm": string(encodePGM(testMap()))}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ext := info["extent"].(map[string]any)
+	if lo, hi := ext["min"].([]float64), ext["max"].([]float64); lo[0] != -2 || lo[1] != -0.5 || hi[0] != -1 || hi[1] != 1.5 {
+		t.Errorf("extent: %v", ext)
+	}
+	// The wall (row 2, v = 0.875) runs along y at x = -1.875.
+	obs := info["obstacle_extent"].(map[string]any)
+	if lo, hi := obs["min"].([]float64), obs["max"].([]float64); lo[0] != -1.875 || hi[0] != -1.875 || lo[1] != -0.275 || hi[1] != 1.275 {
+		t.Errorf("obstacles: %v", obs)
+	}
+	if _, ok := info["view_px"]; ok {
+		t.Error("a turned view has no pixel crop")
+	}
+	if !strings.Contains(info["reading"].(string), "cos(yaw)") {
+		t.Errorf("reading: %s", info["reading"])
+	}
+	xl, yl, ok := MapGridLabels(info)
+	if !ok || xl(0) != "x -2.0 m" || xl(1) != "x -1.0 m" || yl(0) != "y 1.5 m" || yl(1) != "y -0.5 m" {
+		t.Errorf("labels: %v %q %q %q %q", ok, xl(0), xl(1), yl(0), yl(1))
+	}
+	if _, err := jpeg.DecodeConfig(bytes.NewReader(views["ai.jpg"])); err != nil {
+		t.Error(err)
+	}
+
+	// The turned picture is 1 m wide and 2 m tall; the wall is column 2,
+	// rows 4 to 35, with free floor beside it.
+	m, _ := parseNavMap([]byte(yaml))
+	turned := turnMap(m, testMap(), []float64{-2, -0.5}, []float64{-1, 1.5}).(*image.Gray)
+	if b := turned.Bounds(); b.Dx() != 20 || b.Dy() != 40 {
+		t.Fatalf("size: %v", b)
+	}
+	if turned.GrayAt(2, 4).Y != 0 || turned.GrayAt(2, 35).Y != 0 || turned.GrayAt(3, 20).Y != 254 ||
+		turned.GrayAt(2, 3).Y != 205 || turned.GrayAt(0, 0).Y != 205 {
+		t.Errorf("pixels: %d %d %d %d %d", turned.GrayAt(2, 4).Y, turned.GrayAt(2, 35).Y,
+			turned.GrayAt(3, 20).Y, turned.GrayAt(2, 3).Y, turned.GrayAt(0, 0).Y)
+	}
+}

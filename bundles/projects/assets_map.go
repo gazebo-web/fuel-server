@@ -110,17 +110,20 @@ func processMap(data []byte) (map[string][]byte, AssetInfo, error) {
 		info["yaml"] = string(y)
 	}
 
-	// The AI's view is the mapped part (view_px), at least AIViewSize on its
-	// long side (small maps are scaled up, cells kept sharp), so the grid's
-	// labels fit.
+	// The AI's view is the mapped part, at least AIViewSize on its long side
+	// (small maps are scaled up, cells kept sharp), so the grid's labels fit.
+	// A rotated map is turned to line up with the map frame.
 	var crop image.Image = src
-	if v := info["view_px"].([]int); true {
+	if v, ok := info["view_px"].([]int); ok {
 		r := image.Rect(v[0], v[1], v[2], v[3]).Add(src.Bounds().Min)
 		if sub, ok := src.(interface {
 			SubImage(image.Rectangle) image.Image
 		}); ok && r != src.Bounds() {
 			crop = sub.SubImage(r)
 		}
+	} else {
+		crop = turnMap(m, src, nums(info["view_extent"].(map[string]any)["min"]),
+			nums(info["view_extent"].(map[string]any)["max"]))
 	}
 	b := crop.Bounds()
 	scale := float64(AIViewSize) / float64(max(b.Dx(), b.Dy()))
@@ -142,13 +145,51 @@ func processMap(data []byte) (map[string][]byte, AssetInfo, error) {
 	return map[string][]byte{"ai.jpg": aiJPG, "thumb.jpg": thumb}, info, nil
 }
 
+// mapFrame places a map image in the map frame: the YAML's origin is the
+// image's lower-left corner, turned by its yaw. Columns and rows count
+// cells from the image's top left, and may be fractional.
+type mapFrame struct {
+	ox, oy, r, cos, sin float64
+	h                   int
+}
+
+func newMapFrame(m *navMap, h int) mapFrame {
+	return mapFrame{ox: m.Origin[0], oy: m.Origin[1], r: m.Resolution,
+		cos: math.Cos(m.Origin[2]), sin: math.Sin(m.Origin[2]), h: h}
+}
+
+// world is the map-frame point, in meters, of an image position.
+func (f mapFrame) world(c, row float64) (x, y float64) {
+	u, v := c*f.r, (float64(f.h)-row)*f.r
+	return f.ox + f.cos*u - f.sin*v, f.oy + f.sin*u + f.cos*v
+}
+
+// cell is the image position of a map-frame point.
+func (f mapFrame) cell(x, y float64) (c, row float64) {
+	dx, dy := x-f.ox, y-f.oy
+	return (f.cos*dx + f.sin*dy) / f.r, float64(f.h) - (-f.sin*dx+f.cos*dy)/f.r
+}
+
+// bounds is an axis-aligned box in the map frame.
+type bounds struct{ x0, y0, x1, y1 float64 }
+
+func emptyBounds() bounds { return bounds{math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)} }
+
+func (b *bounds) add(x, y float64) {
+	b.x0, b.y0, b.x1, b.y1 = min(b.x0, x), min(b.y0, y), max(b.x1, x), max(b.y1, y)
+}
+
+func (b bounds) empty() bool { return b.x0 > b.x1 }
+
 // mapInfo measures a map: its size and extent in meters, how much of it is
-// free, occupied and unknown, and the extent of the obstacles.
+// free, occupied and unknown, and the extent of the obstacles. Extents are
+// in the map frame, so a rotated map's are the boxes around its turned cells.
 func mapInfo(m *navMap, img image.Image) AssetInfo {
 	b := img.Bounds()
 	w, h := b.Dx(), b.Dy()
 	r := m.Resolution
 	ox, oy, yaw := m.Origin[0], m.Origin[1], m.Origin[2]
+	f := newMapFrame(m, h)
 	occ, free := 0.65, 0.196
 	if m.OccupiedThresh != nil {
 		occ = *m.OccupiedThresh
@@ -157,8 +198,8 @@ func mapInfo(m *navMap, img image.Image) AssetInfo {
 		free = *m.FreeThresh
 	}
 	var nOcc, nFree int
-	minC, minR, maxC, maxR := w, h, -1, -1
-	kc0, kr0, kc1, kr1 := w, h, -1, -1 // the known (free or occupied) cells
+	obstacles, known := emptyBounds(), emptyBounds() // cell centers
+	kc0, kr0, kc1, kr1 := w, h, -1, -1               // the known (free or occupied) cells
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
 			g := color8(img, b.Min.X+x, b.Min.Y+y)
@@ -167,22 +208,25 @@ func mapInfo(m *navMap, img image.Image) AssetInfo {
 			if m.Negate != 0 {
 				p = float64(g) / 255
 			}
+			cx, cy := f.world(float64(x)+0.5, float64(y)+0.5)
 			switch {
 			case p > occ:
 				nOcc++
-				minC, maxC = min(minC, x), max(maxC, x)
-				minR, maxR = min(minR, y), max(maxR, y)
+				obstacles.add(cx, cy)
 			case p < free:
 				nFree++
 			default:
 				continue
 			}
+			known.add(cx, cy)
 			kc0, kc1, kr0, kr1 = min(kc0, x), max(kc1, x), min(kr0, y), max(kr1, y)
 		}
 	}
 	round := func(v float64) float64 { return math.Round(v*1000) / 1000 }
-	world := func(c, row float64) []float64 { // cell center; row 0 is the top (max y)
-		return []float64{round(ox + (c+0.5)*r), round(oy + (float64(h)-row-0.5)*r)}
+	pair := func(x, y float64) []float64 { return []float64{round(x), round(y)} }
+	extent := emptyBounds()
+	for _, c := range [][2]float64{{0, 0}, {float64(w), 0}, {0, float64(h)}, {float64(w), float64(h)}} {
+		extent.add(f.world(c[0], c[1]))
 	}
 	total := float64(w * h)
 	info := AssetInfo{
@@ -190,7 +234,7 @@ func mapInfo(m *navMap, img image.Image) AssetInfo {
 		"resolution": r,
 		"origin":     []float64{ox, oy, yaw},
 		"size_m":     []float64{round(float64(w) * r), round(float64(h) * r)},
-		"extent":     map[string]any{"min": []float64{round(ox), round(oy)}, "max": []float64{round(ox + float64(w)*r), round(oy + float64(h)*r)}},
+		"extent":     map[string]any{"min": pair(extent.x0, extent.y0), "max": pair(extent.x1, extent.y1)},
 		"occupied":   round(float64(nOcc) / total),
 		"free":       round(float64(nFree) / total),
 		"unknown":    round(1 - float64(nOcc+nFree)/total),
@@ -201,26 +245,74 @@ func mapInfo(m *navMap, img image.Image) AssetInfo {
 			"y = origin_y + (height − r − 0.5)·resolution, in meters in the map frame. The picture shows " +
 			"view_extent, the mapped part.",
 	}
-	if maxC >= 0 {
-		lo, hi := world(float64(minC), float64(maxR)), world(float64(maxC), float64(minR))
-		info["obstacle_extent"] = map[string]any{"min": lo, "max": hi}
+	if !obstacles.empty() {
+		info["obstacle_extent"] = map[string]any{"min": pair(obstacles.x0, obstacles.y0),
+			"max": pair(obstacles.x1, obstacles.y1)}
 	}
 	// The picture shows the mapped part, a little margin around it.
-	view := image.Rect(0, 0, w, h)
+	margin := 4
 	if kc1 >= 0 {
-		m := max(4, (kc1-kc0+kr1-kr0)/50)
-		view = image.Rect(max(0, kc0-m), max(0, kr0-m), min(w, kc1+1+m), min(h, kr1+1+m))
+		margin = max(4, (kc1-kc0+kr1-kr0)/50)
 	}
-	info["view_px"] = []int{view.Min.X, view.Min.Y, view.Max.X, view.Max.Y}
-	info["view_extent"] = map[string]any{
-		"min": []float64{round(ox + float64(view.Min.X)*r), round(oy + float64(h-view.Max.Y)*r)},
-		"max": []float64{round(ox + float64(view.Max.X)*r), round(oy + float64(h-view.Min.Y)*r)},
+	if yaw == 0 {
+		view := image.Rect(0, 0, w, h)
+		if kc1 >= 0 {
+			view = image.Rect(max(0, kc0-margin), max(0, kr0-margin), min(w, kc1+1+margin), min(h, kr1+1+margin))
+		}
+		info["view_px"] = []int{view.Min.X, view.Min.Y, view.Max.X, view.Max.Y}
+		info["view_extent"] = map[string]any{
+			"min": pair(ox+float64(view.Min.X)*r, oy+float64(h-view.Max.Y)*r),
+			"max": pair(ox+float64(view.Max.X)*r, oy+float64(h-view.Min.Y)*r),
+		}
+		return info
 	}
-	if yaw != 0 {
-		info["reading"] = info["reading"].(string) + fmt.Sprintf(" The map is rotated by yaw %g rad about its "+
-			"origin; the extent and the grid's labels ignore that rotation.", yaw)
+	// A rotated map's picture is turned to line up with the map frame. It
+	// shows the box around the known cells, or the whole map if none is known.
+	view := extent
+	if !known.empty() {
+		pad := (float64(margin) + 1) * r // the margin, plus the cells' own size
+		view = bounds{known.x0 - pad, known.y0 - pad, known.x1 + pad, known.y1 + pad}
+		view = bounds{max(view.x0, extent.x0), max(view.y0, extent.y0), min(view.x1, extent.x1), min(view.y1, extent.y1)}
 	}
+	info["view_extent"] = map[string]any{"min": pair(view.x0, view.y0), "max": pair(view.x1, view.y1)}
+	info["reading"] = fmt.Sprintf("Dark cells are obstacles (walls, racks), light cells free floor, grey unknown. "+
+		"The map image is rotated by yaw %g rad about its origin, its lower-left corner. The cell in column c, "+
+		"row r (row 0 at the top of the image) is at u = (c + 0.5)·resolution, v = (height − r − 0.5)·resolution "+
+		"along the image, so x = origin_x + u·cos(yaw) − v·sin(yaw), y = origin_y + u·sin(yaw) + v·cos(yaw), "+
+		"in meters in the map frame. The picture is turned so its edges run along the map frame's x and y "+
+		"axes, and shows view_extent, the mapped part. The extents are boxes in the map frame.", yaw)
 	return info
+}
+
+// maxTurnedMap caps the long side of a rotated map's turned picture.
+const maxTurnedMap = 4096
+
+// turnMap draws the part of a rotated map between lo and hi (map-frame
+// meters) lined up with the map frame, a cell per pixel up to maxTurnedMap.
+// Points off the map are unknown: Nav2's grey 205, or 50 when negated.
+func turnMap(m *navMap, img image.Image, lo, hi []float64) image.Image {
+	unknown := uint8(205)
+	if m.Negate != 0 {
+		unknown = 50
+	}
+	b := img.Bounds()
+	f := newMapFrame(m, b.Dy())
+	px := max(m.Resolution, max(hi[0]-lo[0], hi[1]-lo[1])/maxTurnedMap)
+	w := max(1, int(math.Ceil((hi[0]-lo[0])/px)))
+	h := max(1, int(math.Ceil((hi[1]-lo[1])/px)))
+	out := image.NewGray(image.Rect(0, 0, w, h))
+	for j := 0; j < h; j++ {
+		for i := 0; i < w; i++ {
+			c, row := f.cell(lo[0]+(float64(i)+0.5)*px, hi[1]-(float64(j)+0.5)*px)
+			x, y := int(math.Floor(c)), int(math.Floor(row))
+			v := unknown
+			if x >= 0 && y >= 0 && x < b.Dx() && y < b.Dy() {
+				v = color8(img, b.Min.X+x, b.Min.Y+y)
+			}
+			out.Pix[j*out.Stride+i] = v
+		}
+	}
+	return out
 }
 
 // color8 is a pixel's gray level, 0-255.
