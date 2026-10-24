@@ -29,11 +29,11 @@ func (t *tools) registerModels(reg *mcp.Registry) {
 		Spec: mcp.ToolSpec{
 			Name: "model_create",
 			Description: "Create a custom model in the project as models/<name>/ (model.config and " +
-				"model.sdf): one link with a primitive visual, a matching collision and, unless " +
-				"static, exact inertia. Include it in the world with <include><uri>model://<name>" +
-				"</uri><pose>...</pose></include>, then edit models/<name>/model.sdf to add links, " +
-				"joints, sensors or materials. Check project_list_models first; include an existing " +
-				"model again rather than creating a copy.",
+				"model.sdf). Give sdf, the whole model.sdf, to write a model with several links, joints, " +
+				"sensors or plugins in this one call; without it the model is one link with a primitive " +
+				"visual, a matching collision and, unless static, exact inertia, to edit later. Include " +
+				"it in the world with <include><uri>model://<name></uri><pose>...</pose></include>. " +
+				"Check project_list_models first; include an existing model again rather than creating a copy.",
 			InputSchema: schema([]string{"name"}, map[string]any{
 				"name":        str("Project name"),
 				"model":       str("Model name: letters, digits, '_' or '-'; also its folder name"),
@@ -43,10 +43,12 @@ func (t *tools) registerModels(reg *mcp.Registry) {
 					"description": "Primitive for the starting link (default box)"},
 				"size": map[string]any{"type": "array", "items": map[string]any{"type": "number"},
 					"minItems": 3, "maxItems": 3, "description": "box: x y z size; ellipsoid: radii (m). Default 1 1 1"},
-				"radius":   map[string]any{"type": "number", "description": "cylinder, sphere, capsule radius (m)"},
-				"length":   map[string]any{"type": "number", "description": "cylinder or capsule length (m)"},
-				"mass":     map[string]any{"type": "number", "description": "kg (dynamic models; or give density)"},
-				"density":  map[string]any{"type": "number", "description": "kg/m³ (default 500)"},
+				"radius":  map[string]any{"type": "number", "description": "cylinder, sphere, capsule radius (m)"},
+				"length":  map[string]any{"type": "number", "description": "cylinder or capsule length (m)"},
+				"mass":    map[string]any{"type": "number", "description": "kg (dynamic models; or give density)"},
+				"density": map[string]any{"type": "number", "description": "kg/m³ (default 500)"},
+				"sdf": str("Optional: the whole model.sdf, written as is instead of the one-link " +
+					"starter (shape, size, mass and the rest are then ignored)"),
 				"base_rev": str("Optional: fail if the model's files changed since this revision"),
 			}),
 		},
@@ -284,52 +286,14 @@ func (t *tools) modelCreate(tc *mcp.ToolContext, args map[string]any) (mcp.CallT
 		sdfVersion = *p.SDFVersion
 	}
 
-	f := func(k string) float64 { x, _ := args[k].(float64); return x }
-	shape := sdf.Shape{Kind: argOr(args, "shape", "box"), Size: [3]float64{1, 1, 1}, Radius: f("radius"), Length: f("length")}
-	if size, ok := args["size"].([]any); ok {
-		if len(size) != 3 {
-			return mcp.ErrorResult("size needs 3 numbers"), nil
-		}
-		for i, x := range size {
-			shape.Size[i], _ = x.(float64)
-		}
-	}
-	static, _ := args["static"].(bool)
-	geometry, err := geometryXML(shape)
-	if err != nil {
-		return mcp.ErrorResult(err.Error()), nil
-	}
-	inertial := ""
-	if !static {
-		mass, density := f("mass"), f("density")
-		if mass == 0 && density == 0 {
-			density = 500
-		}
-		in, err := sdf.PrimitiveInertial(shape, mass, density)
-		if err != nil {
-			return mcp.ErrorResult(err.Error()), nil
-		}
-		inertial = indent(in.XML(""), "      ") + "\n"
-	}
 	desc := argString(args, "description")
-	modelSDF := fmt.Sprintf(`<?xml version="1.0"?>
-<sdf version="%s">
-  <model name="%s">
-    <static>%t</static>
-    <link name="link">
-%s      <collision name="collision">
-        <geometry>%s</geometry>
-      </collision>
-      <visual name="visual">
-        <geometry>%s</geometry>
-        <material>
-          <diffuse>0.7 0.7 0.7 1</diffuse>
-        </material>
-      </visual>
-    </link>
-  </model>
-</sdf>
-`, sdfVersion, xmlEscape(model), static, inertial, geometry, geometry)
+	modelSDF := argString(args, "sdf")
+	if modelSDF == "" {
+		var errRes *mcp.CallToolResult
+		if modelSDF, errRes = starterModelSDF(args, model, sdfVersion); errRes != nil {
+			return *errRes, nil
+		}
+	}
 	config := fmt.Sprintf(`<?xml version="1.0"?>
 <model>
   <name>%s</name>
@@ -358,6 +322,60 @@ func (t *tools) modelCreate(tc *mcp.ToolContext, args map[string]any) (mcp.CallT
 		"rev": res.Rev, "version": res.Version, "validation": report,
 		"include": fmt.Sprintf("<include>\n  <uri>model://%s</uri>\n  <name>%s</name>\n  <pose>0 0 0 0 0 0</pose>\n</include>", model, model),
 	})
+}
+
+// starterModelSDF is model_create's model without an sdf argument: one
+// link with a primitive visual, a matching collision and, unless static,
+// exact inertia.
+func starterModelSDF(args map[string]any, model, sdfVersion string) (string, *mcp.CallToolResult) {
+	f := func(k string) float64 { x, _ := args[k].(float64); return x }
+	shape := sdf.Shape{Kind: argOr(args, "shape", "box"), Size: [3]float64{1, 1, 1}, Radius: f("radius"), Length: f("length")}
+	if size, ok := args["size"].([]any); ok {
+		if len(size) != 3 {
+			r := mcp.ErrorResult("size needs 3 numbers")
+			return "", &r
+		}
+		for i, x := range size {
+			shape.Size[i], _ = x.(float64)
+		}
+	}
+	static, _ := args["static"].(bool)
+	geometry, err := geometryXML(shape)
+	if err != nil {
+		r := mcp.ErrorResult(err.Error())
+		return "", &r
+	}
+	inertial := ""
+	if !static {
+		mass, density := f("mass"), f("density")
+		if mass == 0 && density == 0 {
+			density = 500
+		}
+		in, err := sdf.PrimitiveInertial(shape, mass, density)
+		if err != nil {
+			r := mcp.ErrorResult(err.Error())
+			return "", &r
+		}
+		inertial = indent(in.XML(""), "      ") + "\n"
+	}
+	return fmt.Sprintf(`<?xml version="1.0"?>
+<sdf version="%s">
+  <model name="%s">
+    <static>%t</static>
+    <link name="link">
+%s      <collision name="collision">
+        <geometry>%s</geometry>
+      </collision>
+      <visual name="visual">
+        <geometry>%s</geometry>
+        <material>
+          <diffuse>0.7 0.7 0.7 1</diffuse>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
+`, sdfVersion, xmlEscape(model), static, inertial, geometry, geometry), nil
 }
 
 // geometryXML renders a primitive's <geometry> contents.

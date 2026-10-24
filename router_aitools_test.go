@@ -359,6 +359,21 @@ func TestAIToolsProjectModels(t *testing.T) {
 	_, isErr = mcpCall(t, jwt, "model_create", map[string]any{"name": name, "model": "crate"})
 	assert.True(t, isErr, "duplicate model")
 
+	// A whole model in one call: its sdf is written as given.
+	cart := `<?xml version="1.0"?>
+<sdf version="1.9"><model name="cart"><static>true</static>
+  <link name="base"><visual name="v"><geometry><box><size>1 0.6 0.2</size></box></geometry></visual></link>
+  <link name="mast"><pose>0 0 0.6 0 0 0</pose>
+    <visual name="v"><geometry><cylinder><radius>0.05</radius><length>1</length></cylinder></geometry></visual></link>
+</model></sdf>`
+	other := name + "-cart"
+	mcpJSON(t, jwt, "project_create", map[string]any{"name": other})
+	created = mcpJSON(t, jwt, "model_create", map[string]any{"name": other, "model": "cart", "sdf": cart,
+		"size": []any{1.0}}) // starter arguments are ignored
+	assert.Equal(t, true, created["validation"].(map[string]any)["valid"], created)
+	got := mcpJSON(t, jwt, "project_read_file", map[string]any{"name": other, "path": "models/cart/model.sdf"})
+	assert.Equal(t, cart, got["content"])
+
 	world := `<?xml version="1.0"?>
 <sdf version="1.9"><world name="w">
   <include><uri>model://crate</uri><name>crate_1</name><pose>0 0 0.2 0 0 0</pose></include>
