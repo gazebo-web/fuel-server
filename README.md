@@ -426,6 +426,36 @@ Notes:
 * Each EC2 instance started by EBS mounts an NFS filesystem, via Elastic
   Filesystem, on `/fuel`. This filesystem store all the resources repositories.
 
+## Running as a non-root user
+
+The Docker image runs the server as UID and GID `10001`, not as root. Every
+file and folder under `/fuel` must be owned by that UID, otherwise uploads
+fail, and git refuses to read a repository whose folder is owned by another
+user.
+
+Files written by older images are owned by root. Before deploying the first
+image that runs as `10001` to an environment, change their owner from a host
+that mounts that environment's EFS filesystem:
+
+1. Change the owner of everything. This can take a long time on a large
+   filesystem, so run it while the old version is still serving:
+
+    ```
+    sudo chown -R -h 10001:10001 /fuel
+    ```
+
+1. Deploy the new version.
+
+1. Right after the deployment finishes, change the owner of anything the old
+   version created during step 1:
+
+    ```
+    sudo find /fuel ! -uid 10001 -exec chown -h 10001:10001 {} +
+    ```
+
+EFS stores numeric owners: the mount script stops `rpc.idmapd`, so the UID
+does not need to exist on the host.
+
 ## AWS RDS
 
 There are two MySQL databases hosted on AWS RDS.

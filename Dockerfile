@@ -1,17 +1,37 @@
-# Idea taken from here:
-# https://github.com/docker-library/docs/blob/6b6b3f34023ab90821453ed1e88e7e9165c6b0d1/.template-helpers/variant-onbuild.md
+FROM golang:1.27-trixie AS build
 
-FROM golang:1.27
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
 
-RUN apt-get update && apt-get install -y nano vim &&  \
-  git config --global user.name "gz-fuelserver"  &&  \
-  git config --global user.email "gz-fuelserver@test.org"
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -o /out/fuel-server .
 
-COPY . /root/gz-fuelserver
-WORKDIR /root/gz-fuelserver
+# The server runs git commands for every repository on disk, so the runtime
+# image keeps the git CLI.
+FROM debian:trixie-slim
 
-# Build app
-RUN go build
-CMD ["./fuel-server"]
+# The server runs as this fixed UID, which must own everything in
+# IGN_FUEL_RESOURCE_DIR (/fuel on Elastic Beanstalk). See "Running as a
+# non-root user" in the README.
+ARG FUEL_UID=10001
+
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends ca-certificates git && \
+  rm -rf /var/lib/apt/lists/* && \
+  git config --system user.name "gz-fuelserver" && \
+  git config --system user.email "gz-fuelserver@test.org" && \
+  groupadd --gid ${FUEL_UID} fuel && \
+  useradd --uid ${FUEL_UID} --gid fuel --home-dir /nonexistent --no-create-home \
+    --shell /usr/sbin/nologin fuel
+
+WORKDIR /app
+COPY --from=build /out/fuel-server ./
+COPY swagger.json validators_owners_blacklist.json ./
+COPY templates ./templates
+COPY permissions/policy.conf ./permissions/
+
+USER ${FUEL_UID}:${FUEL_UID}
 
 EXPOSE 8000
+CMD ["./fuel-server"]
