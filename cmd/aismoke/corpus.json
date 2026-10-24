@@ -133,5 +133,54 @@
     "id": "storage-bins",
     "prompt": "Build a storage area with metal shelving units holding plastic storage bins, and a few bins stacked on the floor.",
     "min_entities": 6
+  },
+  {
+    "id": "floor-plan",
+    "prompt": "Build the apartment in the attached floor plan as a world: its walls at the plan's real size and layout, with door openings where the plan has them, and a floor.",
+    "min_entities": 4,
+    "files": [
+      "floorplan.png"
+    ],
+    "want_size": [
+      6,
+      4
+    ]
+  },
+  {
+    "id": "mug-photo",
+    "prompt": "Make a model of the mug in the attached photo, 10 cm tall, and put it on a small table.",
+    "min_entities": 2,
+    "files": [
+      "mug.png"
+    ],
+    "want_generated": 1
+  },
+  {
+    "id": "import-chair",
+    "prompt": "Import the attached chair as a model named chair, 0.9 m tall, and place four of them around a dining table.",
+    "min_entities": 5,
+    "files": [
+      "chair.obj"
+    ],
+    "want_calls": {
+      "model_import": 1
+    },
+    "want_import": {
+      "chair": 0.9
+    }
+  },
+  {
+    "id": "slam-map",
+    "prompt": "Build the warehouse in the attached SLAM map for a robot that navigates with it: walls and storage racks where the map shows them, in the map's frame so they line up with it.",
+    "min_entities": 5,
+    "files": [
+      "warehouse-map.zip"
+    ],
+    "want_bounds": [
+      -5,
+      -3,
+      15,
+      9
+    ]
   }
 ]

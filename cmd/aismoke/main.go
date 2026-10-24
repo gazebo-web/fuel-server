@@ -24,10 +24,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,6 +58,18 @@ type Case struct {
 	// WantTopics are kinds of data ("scan", "image", "imu", "odometry")
 	// some topic must publish when the world runs in Gazebo (with -gazebo).
 	WantTopics []string `json:"want_topics,omitempty"`
+	// Files are uploaded to the project and attached to the first prompt:
+	// fixtures (fixtures.go) by name, else paths.
+	Files []string `json:"files,omitempty"`
+	// WantSize is the size (x, y) in meters of the box around the world's
+	// tall shapes (extent.go), within 15%, either way round.
+	WantSize []float64 `json:"want_size,omitempty"`
+	// WantBounds is that box in the world frame, [min x, min y, max x,
+	// max y], each side within 0.75 m.
+	WantBounds []float64 `json:"want_bounds,omitempty"`
+	// WantImport is the height (m) of models model_import must make, by
+	// name, within 2%.
+	WantImport map[string]float64 `json:"want_import,omitempty"`
 }
 
 // Result is the outcome of one case.
@@ -76,6 +92,11 @@ type Result struct {
 	Reply     string         `json:"reply,omitempty"`
 	Judged    []Judgement    `json:"judged,omitempty"`
 	Topics    []string       `json:"topics,omitempty"`
+	// Bounds is the box around the world's tall shapes, [min x, min y,
+	// max x, max y], for cases that check it.
+	Bounds []float64 `json:"bounds,omitempty"`
+	// Imported is the size of each model model_import made.
+	Imported map[string][]float64 `json:"imported,omitempty"`
 }
 
 type runner struct {
@@ -105,7 +126,21 @@ func main() {
 	flag.IntVar(&r.judgeMin, "judge-min", 0, "fail a case whose generated model scores below this (1-5); 0 only reports")
 	flag.StringVar(&r.gzcheck, "gazebo", "", "gzcheck.sh: run worlds of cases with want_topics in Gazebo (Docker)")
 	flag.StringVar(&r.gazeboDir, "gazebo-dir", filepath.Join(os.Getenv("HOME"), ".cache", "aismoke"), "where -gazebo downloads projects")
+	fixtureDir := flag.String("fixtures", "", "write the cases' generated files to this folder, to look at, and exit")
 	flag.Parse()
+
+	if *fixtureDir != "" {
+		for name, fixture := range fixtures {
+			b, err := fixture()
+			if err == nil {
+				err = os.WriteFile(filepath.Join(*fixtureDir, name), b, 0644)
+			}
+			if err != nil {
+				log.Fatalf("%s: %v", name, err)
+			}
+		}
+		return
+	}
 
 	if *judgeKey != "" {
 		key, err := os.ReadFile(*judgeKey)
@@ -202,14 +237,26 @@ func (r *runner) run(c Case) Result {
 		}()
 	}
 
-	t := tally{calls: map[string]int{}}
+	var attach []string
+	for _, f := range c.Files {
+		id, err := r.upload(ctx, name, f)
+		if err != nil {
+			res.Failures = append(res.Failures, "upload "+f+": "+err.Error())
+			return res
+		}
+		attach = append(attach, id)
+	}
+
+	t := tally{calls: map[string]int{}, imported: map[string][]float64{}}
 	for i, prompt := range append([]string{c.Prompt}, c.Then...) {
 		if i > 0 {
 			t.reply.Reset()
 		}
-		stream, err := r.open(ctx, r.agent+"/1.0/ai-builder/projects/"+url.PathEscape(name)+"/chat", map[string]string{
-			"message": prompt, "provider": r.provider, "model": r.model,
-		})
+		body := map[string]any{"message": prompt, "provider": r.provider, "model": r.model}
+		if i == 0 && len(attach) > 0 {
+			body["attachments"] = attach
+		}
+		stream, err := r.open(ctx, r.agent+"/1.0/ai-builder/projects/"+url.PathEscape(name)+"/chat", body)
 		if err != nil {
 			res.Failures = append(res.Failures, "chat: "+err.Error())
 			return res
@@ -230,6 +277,18 @@ func (r *runner) run(c Case) Result {
 	for tool, n := range c.WantCalls {
 		if t.calls[tool] < n {
 			res.Failures = append(res.Failures, fmt.Sprintf("%d %s calls, want >= %d", t.calls[tool], tool, n))
+		}
+	}
+	if len(t.imported) > 0 {
+		res.Imported = t.imported
+	}
+	for model, height := range c.WantImport {
+		size, ok := t.imported[model]
+		switch {
+		case !ok:
+			res.Failures = append(res.Failures, "model_import didn't make "+model)
+		case math.Abs(size[2]-height) > 0.02*height:
+			res.Failures = append(res.Failures, fmt.Sprintf("%s is %.3f m tall, want %.3f", model, size[2], height))
 		}
 	}
 	if c.WantGenerated > 0 {
@@ -274,11 +333,100 @@ func (r *runner) run(c Case) Result {
 		return string(b), true
 	}
 	score(c, string(world), load, &res)
+	checkFootprint(c, worldFootprint(string(world), load), &res)
 	if len(c.WantTopics) > 0 && r.gzcheck != "" {
 		r.gazeboCheck(ctx, name, c.WantTopics, &res)
 		res.Passed = len(res.Failures) == 0
 	}
 	return res
+}
+
+// checkFootprint compares the box around the world's tall shapes with the
+// case's wanted size and place.
+func checkFootprint(c Case, f footprint, res *Result) {
+	if len(c.WantSize) != 2 && len(c.WantBounds) != 4 {
+		return
+	}
+	if f.shapes == 0 {
+		res.Failures = append(res.Failures, "no walls or other tall shapes (boxes, cylinders) to measure")
+		res.Passed = false
+		return
+	}
+	round := func(v float64) float64 { return math.Round(v*100) / 100 }
+	res.Bounds = []float64{round(f.min[0]), round(f.min[1]), round(f.max[0]), round(f.max[1])}
+	if len(c.WantSize) == 2 {
+		got, want := f.size(), c.WantSize
+		near := func(a, b float64) bool { return math.Abs(a-b) <= 0.15*b }
+		if !(near(got[0], want[0]) && near(got[1], want[1])) && !(near(got[0], want[1]) && near(got[1], want[0])) {
+			res.Failures = append(res.Failures, fmt.Sprintf("walls span %.2f × %.2f m, want %g × %g", got[0], got[1],
+				want[0], want[1]))
+		}
+	}
+	if len(c.WantBounds) == 4 {
+		for i, got := range res.Bounds {
+			if math.Abs(got-c.WantBounds[i]) > 0.75 {
+				res.Failures = append(res.Failures, fmt.Sprintf("walls span %v in the map frame, want %v", res.Bounds,
+					c.WantBounds))
+				break
+			}
+		}
+	}
+	res.Passed = len(res.Failures) == 0
+}
+
+// upload adds a case's file to the project and returns its id.
+func (r *runner) upload(ctx context.Context, project, file string) (string, error) {
+	var data []byte
+	var err error
+	if fixture, ok := fixtures[file]; ok {
+		data, err = fixture()
+	} else {
+		data, err = os.ReadFile(file)
+	}
+	if err != nil {
+		return "", err
+	}
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, err := mw.CreateFormFile("file", filepath.Base(file))
+	if err != nil {
+		return "", err
+	}
+	if _, err := fw.Write(data); err != nil {
+		return "", err
+	}
+	if err := mw.Close(); err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", r.fuel+"/1.0/projects/"+url.PathEscape(project)+"/assets", &body)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+r.token)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := r.http.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode >= 300 {
+		return "", fmt.Errorf("%d %s", resp.StatusCode, strings.TrimSpace(string(b)))
+	}
+	var added struct {
+		Assets []struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+			Error  string `json:"error"`
+		} `json:"assets"`
+	}
+	if err := json.Unmarshal(b, &added); err != nil || len(added.Assets) != 1 {
+		return "", fmt.Errorf("unexpected reply: %s", truncate(string(b), 200))
+	}
+	if a := added.Assets[0]; a.Status != "ready" {
+		return "", fmt.Errorf("%s: %s", a.Status, a.Error)
+	}
+	return added.Assets[0].ID, nil
 }
 
 // modelLoader returns the model.sdf of a project model (models/<name>/),
@@ -374,14 +522,47 @@ type tally struct {
 	reply             strings.Builder
 	err               string
 	usage             Usage
+	imported          map[string][]float64 // model_import's models and their sizes
+}
+
+// A model_import result: its model, its size, and the import settings it
+// applied (only imports report these).
+var (
+	importModelRe = regexp.MustCompile(`"model":\s*"([^"]+)"`)
+	importSizeRe  = regexp.MustCompile(`"bounding_box_m":\s*\[\s*([-0-9.e]+)\s*,\s*([-0-9.e]+)\s*,\s*([-0-9.e]+)`)
+)
+
+// noteImport records the model an import made. The result is JSON in a
+// string, maybe inside content blocks, so every string in it is searched;
+// a slow import's result comes from a later status call.
+func (t *tally) noteImport(result any) {
+	switch v := result.(type) {
+	case string:
+		m, size := importModelRe.FindStringSubmatch(v), importSizeRe.FindStringSubmatch(v)
+		if m != nil && size != nil && strings.Contains(v, `"import"`) && t.imported != nil {
+			x, _ := strconv.ParseFloat(size[1], 64)
+			y, _ := strconv.ParseFloat(size[2], 64)
+			z, _ := strconv.ParseFloat(size[3], 64)
+			t.imported[m[1]] = []float64{x, y, z}
+		}
+	case []any:
+		for _, e := range v {
+			t.noteImport(e)
+		}
+	case map[string]any:
+		for _, e := range v {
+			t.noteImport(e)
+		}
+	}
 }
 
 func (t *tally) add(event string, data []byte) {
 	var ev struct {
-		Text  string `json:"text"`
-		Error string `json:"error"`
-		Tool  string `json:"tool"`
-		Usage *struct {
+		Text   string `json:"text"`
+		Error  string `json:"error"`
+		Tool   string `json:"tool"`
+		Result any    `json:"result"`
+		Usage  *struct {
 			Input      int `json:"input_tokens"`
 			CacheWrite int `json:"cache_write_tokens"`
 			CacheRead  int `json:"cache_read_tokens"`
@@ -407,6 +588,8 @@ func (t *tally) add(event string, data []byte) {
 		if t.calls != nil {
 			t.calls[ev.Tool]++
 		}
+	case "tool_result":
+		t.noteImport(ev.Result)
 	case "project_changed":
 		t.writes++
 	case "error":

@@ -1,8 +1,13 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
+	"image/png"
+	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -128,5 +133,100 @@ func TestJudge(t *testing.T) {
 	j.key = "wrong"
 	if _, err := j.score(context.Background(), "x", "y", nil); err == nil {
 		t.Fatal("want an error for a rejected key")
+	}
+}
+
+func TestFixtures(t *testing.T) {
+	for name, fixture := range fixtures {
+		b, err := fixture()
+		if err != nil || len(b) == 0 {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if strings.HasSuffix(name, ".png") {
+			if _, err := png.Decode(bytes.NewReader(b)); err != nil {
+				t.Errorf("%s: %v", name, err)
+			}
+		}
+	}
+	// The chair is 900 mm tall along Y.
+	obj, _ := chairOBJ()
+	top := 0.0
+	for _, line := range strings.Split(string(obj), "\n") {
+		if v := floats(strings.TrimPrefix(line, "v ")); strings.HasPrefix(line, "v ") && len(v) == 3 {
+			top = math.Max(top, v[1])
+		}
+	}
+	if top != 900 {
+		t.Errorf("chair top %g mm", top)
+	}
+	// The map's walls are where its comment says: the cell just inside
+	// (-5, -3) is a wall, and so is the one just inside (15, 9).
+	data, _ := warehouseMap()
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil || len(zr.File) != 2 {
+		t.Fatalf("map zip: %v", err)
+	}
+	f, _ := zr.File[1].Open()
+	pgm, _ := io.ReadAll(f)
+	pix := pgm[len("P5\n440 280\n255\n"):]
+	cell := func(x, y float64) byte { // the cell holding (x, y)
+		c, r := int((x+6)/0.05), 280-1-int((y+4)/0.05)
+		return pix[r*440+c]
+	}
+	if cell(-4.99, -2.99) != 0 || cell(14.99, 8.99) != 0 || cell(-5.01, 0) != 205 || cell(0, 1.5) != 254 ||
+		cell(5, 0) != 0 || cell(-1, -2.9) != 254 {
+		t.Errorf("map cells: %d %d %d %d %d %d", cell(-4.99, -2.99), cell(14.99, 8.99), cell(-5.01, 0),
+			cell(0, 1.5), cell(5, 0), cell(-1, -2.9))
+	}
+}
+
+func TestFootprint(t *testing.T) {
+	world := `<sdf version="1.9"><world name="w">
+	  <model name="ground"><static>true</static><link name="l"><visual name="v">
+	    <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry></visual>
+	    <visual name="floor"><pose>0 0 -0.05 0 0 0</pose><geometry><box><size>50 50 0.1</size></box></geometry></visual>
+	  </link></model>
+	  <model name="walls"><pose>1 2 0 0 0 0</pose><link name="l">
+	    <visual name="a"><pose>3 0 1.25 0 0 0</pose><geometry><box><size>6 0.2 2.5</size></box></geometry></visual>
+	    <visual name="b"><pose>0 2 1.25 0 0 1.5707963</pose><geometry><box><size>4 0.2 2.5</size></box></geometry></visual>
+	  </link></model>
+	  <include><uri>model://rack</uri><pose>5 5 0 0 0 0</pose></include>
+	</world></sdf>`
+	rack := `<sdf version="1.9"><model name="rack"><link name="l"><visual name="v"><pose>0 0 1 0 0 0</pose>
+	  <geometry><cylinder><radius>0.5</radius><length>2</length></cylinder></geometry></visual></link></model></sdf>`
+	load := func(name string) (string, bool) { return rack, name == "rack" }
+	f := worldFootprint(world, load)
+	// Wall a: x 1..7, y 1.9..2.1; wall b (turned): x 0.9..1.1, y 2..6;
+	// the rack: x 4.5..5.5, y 4.5..5.5. The ground and floor are too low.
+	near := func(a, b float64) bool { return math.Abs(a-b) < 1e-6 }
+	if f.shapes != 3 || !near(f.min[0], 0.9) || !near(f.min[1], 1.9) || !near(f.max[0], 7) || !near(f.max[1], 6) {
+		t.Fatalf("footprint %+v", f)
+	}
+
+	res := Result{}
+	checkFootprint(Case{WantSize: []float64{4, 6}, WantBounds: []float64{1, 2, 7, 6}}, f, &res)
+	if !res.Passed {
+		t.Errorf("want pass: %v", res.Failures)
+	}
+	res = Result{}
+	checkFootprint(Case{WantSize: []float64{6, 4}, WantBounds: []float64{0, 0, 7, 6}}, footprint{}, &res)
+	if res.Passed || !strings.Contains(res.Failures[0], "no walls") {
+		t.Errorf("want fail: %v", res.Failures)
+	}
+	res = Result{}
+	checkFootprint(Case{WantSize: []float64{3, 3}, WantBounds: []float64{-2, 2, 7, 6}}, f, &res)
+	if len(res.Failures) != 2 {
+		t.Errorf("want two failures: %v", res.Failures)
+	}
+}
+
+func TestNoteImport(t *testing.T) {
+	tl := tally{imported: map[string][]float64{}}
+	tl.add("tool_result", []byte(`{"tool":"mesh_job_status","result":[{"type":"text","text":`+
+		`"{\n  \"bounding_box_m\": [0.45, 0.45, 0.9],\n  \"import\": {\"up_axis\": \"y\"},\n  \"model\": \"chair\"\n}"},`+
+		`{"type":"image","data":"..."}]}`))
+	tl.add("tool_result", []byte(`{"tool":"model_generate","result":"{\"bounding_box_m\": [1, 1, 1], \"model\": \"mug\"}"}`))
+	if got := tl.imported["chair"]; len(got) != 3 || got[2] != 0.9 || len(tl.imported) != 1 {
+		t.Fatalf("imported %v", tl.imported)
 	}
 }
