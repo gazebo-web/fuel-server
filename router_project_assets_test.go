@@ -275,7 +275,9 @@ func TestProjectAssetsBundle(t *testing.T) {
 	defer func(f projects.AssetInspector) { projects.InspectAsset = f }(projects.InspectAsset)
 	projects.InspectAsset = func(_ context.Context, _, kind, _, _ string, _ []byte) (projects.AssetInfo, map[string][]byte, error) {
 		if kind == projects.AssetModel {
-			return projects.AssetInfo{"size": []float64{1, 0.5, 2}}, nil, nil
+			// The worker's drawing of the model.
+			return projects.AssetInfo{"size": []float64{1, 0.5, 2}},
+				map[string][]byte{"ai.jpg": []byte("drawn"), "thumb.jpg": []byte("drawn")}, nil
 		}
 		return nil, nil, nil
 	}
@@ -283,14 +285,14 @@ func TestProjectAssetsBundle(t *testing.T) {
 	shelf := `<?xml version="1.0"?><sdf version="1.9"><model name="shelf"><static>true</static><link name="l">` +
 		`<visual name="v"><geometry><box><size>1 0.5 2</size></box></geometry></visual></link></model></sdf>`
 	zip := zipFiles(t, map[string][]byte{
-		"site/models/Shelf_01/model.config":    []byte(`<model><name>Shelf</name><sdf version="1.9">model.sdf</sdf></model>`),
-		"site/models/Shelf_01/model.sdf":       []byte(shelf),
+		"site/models/Shelf_01/model.config":     []byte(`<model><name>Shelf</name><sdf version="1.9">model.sdf</sdf></model>`),
+		"site/models/Shelf_01/model.sdf":        []byte(shelf),
 		"site/models/Shelf_01/thumbnails/1.png": assetTestPNG(t, 16, 16),
-		"site/props/chair.obj":                 []byte("mtllib chair.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n"),
-		"site/props/chair.mtl":                 []byte("newmtl wood\nmap_Kd wood.png\n"),
-		"site/props/wood.png":                  assetTestPNG(t, 8, 8),
-		"site/plan.png":                        assetTestPNG(t, 100, 50),
-		"site/README.md":                       []byte("hello"),
+		"site/props/chair.obj":                  []byte("mtllib chair.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n"),
+		"site/props/chair.mtl":                  []byte("newmtl wood\nmap_Kd wood.png\n"),
+		"site/props/wood.png":                   assetTestPNG(t, 8, 8),
+		"site/plan.png":                         assetTestPNG(t, 100, 50),
+		"site/README.md":                        []byte("hello"),
 	})
 	rec := uploadAssets(t, jwt, name, map[string][]byte{"site.zip": zip}, "")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -313,6 +315,8 @@ func TestProjectAssetsBundle(t *testing.T) {
 	content := mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "Shelf_01"})
 	require.Len(t, content, 2, "with its thumbnail")
 	assert.Contains(t, content[0]["text"], `"errors": 0`)
+	assert.NotEqual(t, base64.StdEncoding.EncodeToString([]byte("drawn")), content[1]["data"],
+		"its own thumbnail, not the drawing")
 
 	// A world can include it; validation finds it in the project.
 	world := `<?xml version="1.0"?><sdf version="1.9"><world name="w"><include><uri>model://Shelf_01</uri>` +
@@ -343,5 +347,9 @@ func TestProjectAssetsBundle(t *testing.T) {
 		"Shelf_01/model.sdf":    []byte(shelf), "Shelf_01/notes/plan.pdf": []byte("%PDF-1.4")})}, "")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), `"model":"Shelf_01_2"`)
+	// Without a thumbnail, its picture is the worker's drawing.
+	content = mcpContent(t, jwt, "asset_view", map[string]any{"name": name, "asset": "Shelf_01_2"})
+	require.Len(t, content, 2)
+	assert.Equal(t, base64.StdEncoding.EncodeToString([]byte("drawn")), content[1]["data"])
 
 }

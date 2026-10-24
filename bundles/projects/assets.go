@@ -480,12 +480,13 @@ func (s *Service) AddAssets(ctx context.Context, tx *gorm.DB, name string, jwtUs
 				return nil, em
 			}
 			info := merge(modelInfo(mname, m), AssetInfo{"from_zip": modelFrom[i], "path": m.dir})
+			// The worker measures the model and draws it. Its own thumbnail,
+			// if it has one, is the better picture.
+			drawn, info, status, errMsg := inspect(ctx, *jwtUser.Username, AssetModel, "application/zip", info, zipData)
 			views := modelThumbnail(m)
-			status, errMsg := AssetReady, ""
-			// The worker measures the model; its pictures are the model's own
-			// thumbnails, if it has any.
-			_, measured, st, msg := inspect(ctx, *jwtUser.Username, AssetModel, "application/zip", info, zipData)
-			info, status, errMsg = measured, st, msg
+			if views == nil {
+				views = drawn
+			}
 			fname := uniqueFoldedName(mname, taken)
 			taken[strings.ToLower(fname)] = true
 			out = append(out, prepared{newAsset(p, fname, AssetModel, "application/zip", zipData, info, views, status,
@@ -610,8 +611,8 @@ func (s *Service) RetryAsset(ctx context.Context, tx *gorm.DB, name, ref string,
 		return nil, em
 	}
 	views, info, status, errMsg := inspect(ctx, *jwtUser.Username, a.Kind, a.Mime, a.Info, data)
-	if views == nil {
-		// Measuring a model makes no pictures: keep its thumbnail.
+	if views == nil || (a.Kind == AssetModel && a.Views != "") {
+		// Keep a model's pictures: its own thumbnail is better than a drawing.
 		views = map[string][]byte{}
 		for _, v := range splitViews(a.Views) {
 			if b, err := os.ReadFile(filepath.Join(assetDir(p, a.ID), v)); err == nil {

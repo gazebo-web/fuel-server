@@ -186,3 +186,119 @@ def test_texture_set_ignores_mac_leftovers(tmp_path):
     code, report, _ = run(tmp_path, "texture", "input")
     assert code == 0, report
     assert report["info"]["maps"] == {"color": "wood_color.jpg"}
+
+
+MODEL_SDF = """<?xml version="1.0"?>
+<sdf version="1.9"><model name="cart">
+  <link name="base"><pose>0 0 0.25 0 0 0</pose>
+    <visual name="body"><geometry><box><size>1 0.6 0.5</size></box></geometry>
+      <material><diffuse>0.9 0.1 0.1 1</diffuse></material></visual>
+    <visual name="handle"><pose>0.5 0 0.5 0 0 0</pose>
+      <geometry><mesh><uri>model://cart/meshes/tri.dae</uri><scale>2 2 2</scale></mesh></geometry></visual>
+    <visual name="lost"><geometry><mesh><uri>model://other/meshes/x.dae</uri></mesh></geometry></visual>
+  </link>
+</model></sdf>"""
+
+
+def model_folder(tmp_path, sdf=MODEL_SDF):
+    from test_measure import DAE
+
+    root = tmp_path / "input" / "cart"
+    (root / "meshes").mkdir(parents=True)
+    (root / "model.config").write_text("<model><name>cart</name><sdf version='1.9'>model.sdf</sdf></model>")
+    (root / "model.sdf").write_text(sdf)
+    (root / "meshes" / "tri.dae").write_text(DAE)
+    return root
+
+
+def test_model(tmp_path):
+    model_folder(tmp_path)
+    code, report, out = run(tmp_path, "model", "input")
+    assert code == 0, report
+    info = report["info"]
+    assert info["sdf"] == "model.sdf" and info["drawn_from"] == "visual" and info["drawn"] == 2
+    assert any("model://other" in w for w in info["preview_warnings"])
+    assert {"preview.png", "ai.jpg", "thumb.jpg"} <= set(report["views"])
+    # The body's red shows in the views.
+    px = np.asarray(Image.open(out / "preview.png").convert("RGB")).reshape(-1, 3).astype(int)
+    assert ((px[:, 0] > 150) & (px[:, 1] < 80) & (px[:, 2] < 80)).sum() > 1000
+
+
+def test_model_collada_units_and_pose(tmp_path):
+    from gzmesh import measure
+
+    root, _, model = measure.load_model(str(model_folder(tmp_path).parent))
+    shapes = {where.rsplit("/", 1)[1]: (el, t) for el, t, where in measure.shapes(model, "visual", [])}
+    el, t = shapes["handle"]
+    got = inspect.shape_meshes(el.find("geometry"), root, inspect.GREY, t, {}, [], "handle")
+    # The triangle in meters (0,0,0.1) (2,0,0.1) (0,1,0.6), scaled by 2,
+    # moved up 0.25 (link) and by (0.5, 0, 0.5) (visual).
+    assert len(got) == 1
+    assert np.allclose(got[0].bounds, [[0.5, 0, 0.95], [4.5, 2, 1.95]])
+
+
+def test_model_collisions_when_no_visuals(tmp_path):
+    sdf = ("<sdf version='1.9'><model name='cart'><link name='l'><collision name='c'>"
+           "<geometry><cylinder><radius>0.2</radius><length>1</length></cylinder></geometry>"
+           "</collision></link></model></sdf>")
+    model_folder(tmp_path, sdf)
+    code, report, _ = run(tmp_path, "model", "input")
+    assert code == 0, report
+    assert report["info"]["drawn_from"] == "collision"
+
+
+def test_model_with_nothing_to_draw(tmp_path):
+    sdf = ("<sdf version='1.9'><model name='cart'><link name='l'><visual name='v'>"
+           "<geometry><mesh><uri>model://gone/m.dae</uri></mesh></geometry></visual></link></model></sdf>")
+    model_folder(tmp_path, sdf)
+    code, report, _ = run(tmp_path, "model", "input")
+    assert code == 2 and "nothing that can be drawn" in report["error"]
+
+
+# A textured triangle whose material points straight at its image, as
+# 3ds Max writes Collada.
+DIRECT_TEXTURE_DAE = """<?xml version="1.0"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset><unit meter="1"/><up_axis>Z_UP</up_axis></asset>
+  <library_images><image id="Map #1-image"><init_from>../materials/textures/red.png</init_from></image></library_images>
+  <library_materials><material id="m"><instance_effect url="#fx"/></material></library_materials>
+  <library_effects><effect id="fx"><profile_COMMON><technique sid="common"><phong>
+    <diffuse><texture texture="Map #1-image" texcoord="CHANNEL0"/></diffuse>
+  </phong></technique></profile_COMMON></effect></library_effects>
+  <library_geometries><geometry id="g"><mesh>
+    <source id="p"><float_array id="pa" count="9">0 0 0 1 0 0 0 1 0</float_array>
+      <technique_common><accessor source="#pa" count="3" stride="3">
+        <param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/>
+      </accessor></technique_common></source>
+    <source id="uv"><float_array id="uva" count="6">0 0 1 0 0 1</float_array>
+      <technique_common><accessor source="#uva" count="3" stride="2">
+        <param name="S" type="float"/><param name="T" type="float"/>
+      </accessor></technique_common></source>
+    <vertices id="v"><input semantic="POSITION" source="#p"/></vertices>
+    <triangles count="1" material="mat"><input semantic="VERTEX" source="#v" offset="0"/>
+      <input semantic="TEXCOORD" source="#uv" offset="0" set="0"/><p>0 1 2</p></triangles>
+  </mesh></geometry></library_geometries>
+  <library_visual_scenes><visual_scene id="s"><node id="n"><instance_geometry url="#g"><bind_material>
+    <technique_common><instance_material symbol="mat" target="#m">
+      <bind_vertex_input semantic="CHANNEL0" input_semantic="TEXCOORD" input_set="0"/>
+    </instance_material></technique_common></bind_material></instance_geometry></node></visual_scene>
+  </library_visual_scenes>
+  <scene><instance_visual_scene url="#s"/></scene>
+</COLLADA>"""
+
+
+def test_model_collada_texture_without_sampler(tmp_path):
+    root = tmp_path / "cart"
+    (root / "meshes").mkdir(parents=True)
+    (root / "materials" / "textures").mkdir(parents=True)
+    (root / "meshes" / "tri.dae").write_text(DIRECT_TEXTURE_DAE)
+    Image.new("RGB", (4, 4), (220, 20, 20)).save(root / "materials" / "textures" / "red.png")
+    geom = inspect.ET.fromstring("<geometry><mesh><uri>model://cart/meshes/tri.dae</uri></mesh></geometry>")
+    got = inspect.shape_meshes(geom, str(root), inspect.GREY, np.eye(4), {}, [], "v")
+    assert len(got) == 1
+    tex = got[0].visual.material.baseColorTexture.convert("RGB")
+    assert tex.getpixel((0, 0)) == (220, 20, 20)
+    # Files outside the model stay out of reach.
+    (tmp_path / "secret.png").write_bytes(b"x")
+    with pytest.raises(ValueError):
+        inspect.model_resolver(str(root / "meshes" / "tri.dae"), str(root)).get("../../secret.png")

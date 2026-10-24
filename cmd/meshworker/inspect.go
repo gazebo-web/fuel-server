@@ -18,12 +18,13 @@ import (
 
 // Inspect jobs: pictures and details of a file a user uploaded to a
 // project (fuel-server's project files), so the AI can see it: PDF pages,
-// drawings, mesh previews, texture swatches. The worker runs
+// drawings, mesh previews, texture swatches, and pictures of Gazebo models
+// that come without a thumbnail. The worker runs
 // gzmesh.inspect in the same jail as model code, since uploads are
 // untrusted input to the parsers.
 //
-//	POST /v1/inspect?kind=document|drawing|mesh|texture&file=NAME[&main=PATH]&wait=90
-//	  the file, or a zip (a mesh with its files, a texture set)
+//	POST /v1/inspect?kind=document|drawing|mesh|texture|model&file=NAME[&main=PATH]&wait=90
+//	  the file, or a zip (a mesh with its files, a texture set, a model folder)
 //	  -> 200 tarball (report.json and the views it lists) | 202 | 400 | 413 | 429
 //
 // file names the upload (its extension picks the parser); main is the
@@ -31,9 +32,9 @@ import (
 
 // inspectVersion is part of the inspect cache key; bump it with
 // gzmesh/inspect.py VERSION.
-const inspectVersion = "1"
+const inspectVersion = "2"
 
-var inspectKinds = map[string]bool{"document": true, "drawing": true, "mesh": true, "texture": true}
+var inspectKinds = map[string]bool{"document": true, "drawing": true, "mesh": true, "texture": true, "model": true}
 
 var uploadNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 
@@ -45,7 +46,7 @@ func (w *worker) handleInspect(rw http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	kind, file, main := q.Get("kind"), q.Get("file"), q.Get("main")
 	if !inspectKinds[kind] {
-		httpError(rw, http.StatusBadRequest, "kind must be document, drawing, mesh or texture")
+		httpError(rw, http.StatusBadRequest, "kind must be document, drawing, mesh, texture or model")
 		return
 	}
 	if !uploadNameRE.MatchString(file) {

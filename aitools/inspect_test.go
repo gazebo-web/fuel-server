@@ -2,6 +2,7 @@ package aitools
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -72,5 +73,41 @@ func TestInspectClient(t *testing.T) {
 	srv.Close()
 	if _, _, err := m.inspect(ctx, "document", "original.pdf", "", nil); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Errorf("down: %v", err)
+	}
+}
+
+func TestInspectModel(t *testing.T) {
+	var draw atomic.Bool
+	draw.Store(true)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/measure":
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"ok":true,"bbox":{"min":[0,0,0],"max":[1,1,2]},"size":[1,1,2]}`))
+		case r.URL.Query().Get("kind") == "model" && draw.Load():
+			w.Header().Set("Content-Type", "application/x-tar")
+			w.Write(makeTar(t, "report.json", `{"ok":true,"info":{"drawn":3,"size":"not this one"}}`,
+				"ai.jpg", "A", "thumb.jpg", "T"))
+		default:
+			w.WriteHeader(http.StatusTooManyRequests)
+		}
+	}))
+	defer srv.Close()
+	inspect := newMeshClient(Config{MeshWorkerURL: srv.URL}).inspector()
+
+	// Measured, and drawn; the measured size wins.
+	info, views, err := inspect(context.Background(), "u", "model", "original.zip", "", []byte("PK"))
+	if err != nil || info["drawn"] != float64(3) || len(views) != 2 || string(views["ai.jpg"]) != "A" {
+		t.Fatalf("drawn: %v %v %v", info, views, err)
+	}
+	if size, _ := info["size"].([]float64); len(size) != 3 || size[2] != 2 {
+		t.Errorf("size: %v", info["size"])
+	}
+
+	// A drawing that fails leaves the measured model usable.
+	draw.Store(false)
+	info, views, err = inspect(context.Background(), "u", "model", "original.zip", "", []byte("PK2"))
+	if err != nil || views != nil || !strings.Contains(fmt.Sprint(info["preview_error"]), "busy") {
+		t.Fatalf("not drawn: %v %v %v", info, views, err)
 	}
 }

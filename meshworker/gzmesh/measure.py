@@ -299,7 +299,8 @@ def collada_vertices(path):
 
 # -- the model tree ------------------------------------------------------------
 
-def measure(top):
+def load_model(top):
+    """The model folder, its SDF file's name and its <model> element."""
     root = model_root(top)
     name = sdf_file(root)
     try:
@@ -309,36 +310,48 @@ def measure(top):
     model = doc.find("model") if doc.tag == "sdf" else (doc if doc.tag == "model" else None)
     if model is None:
         raise MeasureError(f"{name} has no <model>")
+    return root, name, model
+
+
+def shapes(model, kind, warnings):
+    """Every <visual> (or <collision>, by kind) of the model and its nested
+    models: (element, its transform in the model frame, its path). Pose
+    problems of the elements themselves are warned about for visuals only."""
+    # A nested model's own pose places it in its parent; the root model's
+    # pose is where a world puts it, so it isn't applied.
+    stack = [(model, np.eye(4), model.get("name", "model"))]
+    while stack:
+        m, frame, path = stack.pop()
+        for nested in m.findall("model"):
+            stack.append((nested, frame @ pose_matrix(nested, warnings, path), path + "/" + nested.get("name", "")))
+        for inc in m.findall("include"):
+            warn(warnings, f"{path}: included model {inc.findtext('uri', '').strip()!r} isn't measured")
+        for link in m.findall("link"):
+            lf = frame @ pose_matrix(link, warnings, path + "/" + link.get("name", ""))
+            for el in link.findall(kind):
+                where = f"{path}/{link.get('name', '')}/{el.get('name', '')}"
+                yield el, lf @ pose_matrix(el, warnings if kind == "visual" else [], where), where
+
+
+def measure(top):
+    root, name, model = load_model(top)
 
     warnings, mesh_cache = [], {}
     counts = {"visual": [0, 0], "collision": [0, 0]}
     found = {}
     for kind in ("visual", "collision"):
         lo, hi = np.full(3, np.inf), np.full(3, -np.inf)
-        # A nested model's own pose places it in its parent; the root
-        # model's pose is where a world puts it, so it isn't applied.
-        stack = [(model, np.eye(4), model.get("name", "model"))]
-        while stack:
-            m, frame, path = stack.pop()
-            for nested in m.findall("model"):
-                stack.append((nested, frame @ pose_matrix(nested, warnings, path), path + "/" + nested.get("name", "")))
-            for inc in m.findall("include"):
-                warn(warnings, f"{path}: included model {inc.findtext('uri', '').strip()!r} isn't measured")
-            for link in m.findall("link"):
-                lf = frame @ pose_matrix(link, warnings, path + "/" + link.get("name", ""))
-                for el in link.findall(kind):
-                    where = f"{path}/{link.get('name', '')}/{el.get('name', '')}"
-                    counts[kind][0] += 1
-                    geom = el.find("geometry")
-                    if geom is None:
-                        continue
-                    pts = shape_points(geom, root, mesh_cache, warnings if kind == "visual" else [], where)
-                    if pts is None or not len(pts):
-                        continue
-                    t = lf @ pose_matrix(el, warnings if kind == "visual" else [], where)
-                    world = pts @ t[:3, :3].T + t[:3, 3]
-                    lo, hi = np.minimum(lo, world.min(axis=0)), np.maximum(hi, world.max(axis=0))
-                    counts[kind][1] += 1
+        for el, t, where in shapes(model, kind, warnings):
+            counts[kind][0] += 1
+            geom = el.find("geometry")
+            if geom is None:
+                continue
+            pts = shape_points(geom, root, mesh_cache, warnings if kind == "visual" else [], where)
+            if pts is None or not len(pts):
+                continue
+            world = pts @ t[:3, :3].T + t[:3, 3]
+            lo, hi = np.minimum(lo, world.min(axis=0)), np.maximum(hi, world.max(axis=0))
+            counts[kind][1] += 1
         if counts[kind][1]:
             found[kind] = (lo, hi)
         if kind == "visual" and found:

@@ -2,7 +2,7 @@
 
     python -m gzmesh.inspect JOB.json OUT_DIR
 
-JOB.json: {"kind": "document" | "drawing" | "mesh" | "texture",
+JOB.json: {"kind": "document" | "drawing" | "mesh" | "texture" | "model",
 "path": the file, relative to the job folder (for a zip, its main file
 or its folder)}.
 
@@ -18,7 +18,9 @@ views it lists:
 - mesh: preview.png, four views; its size, triangle count, and guesses at
   its units and up axis;
 - texture (a zip of maps): a swatch of the color map, and which file is
-  which map.
+  which map;
+- model (a Gazebo model folder): preview.png, four views of its visuals
+  at their poses, for models that come without a thumbnail.
 
 Exit status 0 means the file was read; 2 means it couldn't be (damaged,
 password-protected, unsupported), and report.json says why; 1 is an
@@ -41,9 +43,10 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from PIL import Image
 
+from .measure import warn
 from .simplify import main_color, simplify
 
-VERSION = "1"
+VERSION = "2"
 AI_SIZE = 1568
 THUMB_SIZE = 256
 MAX_PAGES = 20
@@ -317,14 +320,6 @@ def missing_textures(root: str) -> list:
     return sorted(set(missing))[:20]
 
 
-def load_scene(path: str):
-    import trimesh
-    try:
-        return trimesh.load(path, force="scene")
-    except Exception as e:  # noqa: BLE001 - every parser raises its own
-        raise InspectError(f"the mesh can't be read: {type(e).__name__}: {e}")
-
-
 def preview_meshes(scene, transform: np.ndarray) -> list:
     """The scene's meshes, Z up, each with a base color texture for the
     preview renderer (a 1-pixel one of its color when it has none)."""
@@ -354,12 +349,12 @@ def preview_meshes(scene, transform: np.ndarray) -> list:
     return out
 
 
-def inspect_mesh(path: str, out: str) -> tuple[dict, list]:
+def inspect_mesh(path: str, out: str, root: str) -> tuple[dict, list]:
     import trimesh
 
     from . import preview
 
-    scene = load_scene(path)
+    scene = load_model_mesh(path, root)
     tris = sum(len(g.faces) for g in scene.geometry.values() if isinstance(g, trimesh.Trimesh))
     if tris == 0 or scene.bounds is None:
         raise InspectError("the mesh has no triangles")
@@ -390,6 +385,213 @@ def inspect_mesh(path: str, out: str) -> tuple[dict, list]:
     sheet.save(os.path.join(out, "preview.png"))
     views = ["preview.png"]
     save_views(out, sheet, views)
+    return info, views
+
+
+# -- Gazebo models -------------------------------------------------------------
+
+MAX_MODEL_SHAPES = 500
+GREY = (178, 178, 178)
+
+
+def collada_meter(path: str) -> float:
+    """A Collada file's <unit meter>, which trimesh ignores and Gazebo applies."""
+    with open(path, "rb") as f:
+        head = f.read(64 << 10).decode("utf-8", "replace")
+    m = re.search(r"<unit\b[^>]*\bmeter\s*=\s*[\"']([0-9.eE+-]+)", head)
+    try:
+        return float(m.group(1)) if m else 1.0
+    except ValueError:
+        return 1.0
+
+
+def collada_samplers(data: bytes):
+    """Collada whose materials point straight at an <image>, as 3ds Max
+    writes it (AWS's models among them), with the surface and sampler that
+    pycollada needs added, else None. Gazebo accepts either."""
+    root = ET.fromstring(data)
+    ns = root.tag[1:].split("}")[0] if root.tag.startswith("{") else ""
+    q = (lambda t: f"{{{ns}}}{t}") if ns else (lambda t: t)
+    if ns:
+        ET.register_namespace("", ns)
+    images = {im.get("id") for im in root.iter(q("image")) if im.get("id")}
+    changed = False
+    for n, profile in enumerate(root.iter(q("profile_COMMON"))):
+        sids = {p.get("sid") for p in profile.findall(q("newparam"))}
+        for m, tex in enumerate(profile.iter(q("texture"))):
+            ref = tex.get("texture")
+            if ref in sids or ref not in images:
+                continue
+            surface, sampler = f"gzp{n}_{m}_surface", f"gzp{n}_{m}_sampler"
+            p1 = ET.Element(q("newparam"), sid=surface)
+            ET.SubElement(ET.SubElement(p1, q("surface"), type="2D"), q("init_from")).text = ref
+            p2 = ET.Element(q("newparam"), sid=sampler)
+            ET.SubElement(ET.SubElement(p2, q("sampler2D")), q("source")).text = surface
+            profile.insert(0, p2)
+            profile.insert(0, p1)
+            tex.set("texture", sampler)
+            changed = True
+    return ET.tostring(root) if changed else None
+
+
+def model_resolver(mesh_path: str, root: str):
+    """A trimesh resolver for a mesh's files (textures, materials) anywhere
+    in its model folder. trimesh's own refuses ../, which model meshes use
+    to reach materials/textures/."""
+    import trimesh
+
+    class ModelFiles(trimesh.resolvers.FilePathResolver):
+        def get(self, name):
+            full = os.path.realpath(os.path.join(self.parent, name.replace("\\", "/")))
+            if not full.startswith(os.path.realpath(root) + os.sep):
+                raise ValueError(f"{name} is outside the model")
+            with open(full, "rb") as f:
+                return f.read()
+
+    return ModelFiles(mesh_path)
+
+
+def load_model_mesh(path: str, root: str):
+    """A mesh file as a scene, its textures found as Gazebo finds them,
+    anywhere under root."""
+    import io
+
+    import trimesh
+
+    data, kind = path, None
+    if path.lower().endswith(".dae"):
+        with open(path, "rb") as f:
+            raw = f.read()
+        try:
+            patched = collada_samplers(raw)
+        except ET.ParseError as e:
+            raise InspectError(f"the mesh can't be read: {e}")
+        if patched is not None:
+            data, kind = io.BytesIO(patched), "dae"
+    try:
+        return trimesh.load(data, file_type=kind, force="scene", resolver=model_resolver(path, root))
+    except Exception as e:  # noqa: BLE001 - every parser raises its own
+        raise InspectError(f"the mesh can't be read: {type(e).__name__}: {e}")
+
+
+def sdf_color(el) -> tuple:
+    """A visual's <material> diffuse (else ambient) color, 0-255 RGB."""
+    from .measure import floats
+
+    for tag in ("diffuse", "ambient"):
+        c = floats(el.findtext(f"material/{tag}"), 4, None) or floats(el.findtext(f"material/{tag}"), 3, None)
+        if c:
+            return tuple(int(max(0.0, min(1.0, v)) * 255) for v in c[:3])
+    return GREY
+
+
+def colored(mesh, color: tuple):
+    """mesh with a one-color texture, as the preview renderer wants."""
+    from trimesh.visual.material import PBRMaterial
+    from trimesh.visual.texture import TextureVisuals
+
+    mesh.visual = TextureVisuals(uv=np.zeros((len(mesh.vertices), 2)),
+                                 material=PBRMaterial(baseColorTexture=Image.new("RGB", (1, 1), color)))
+    return mesh
+
+
+def shape_meshes(geom, root, color, transform, cache, warnings, where) -> list:
+    """A <geometry>'s triangles for the preview, placed by transform."""
+    import trimesh
+
+    from .measure import align_z, floats, resolve_mesh
+
+    for child in geom:
+        tag, made = child.tag, None
+        if tag == "box":
+            made = trimesh.creation.box(extents=floats(child.findtext("size"), 3, [1, 1, 1]))
+        elif tag == "cylinder":
+            made = trimesh.creation.cylinder(radius=floats(child.findtext("radius"), 1, [0.5])[0],
+                                             height=floats(child.findtext("length"), 1, [1])[0], sections=32)
+        elif tag == "sphere":
+            made = trimesh.creation.icosphere(2, radius=floats(child.findtext("radius"), 1, [0.5])[0])
+        elif tag == "capsule":
+            made = trimesh.creation.capsule(height=floats(child.findtext("length"), 1, [1])[0],
+                                            radius=floats(child.findtext("radius"), 1, [0.5])[0], count=[16, 16])
+        elif tag == "ellipsoid":
+            made = trimesh.creation.icosphere(2)
+            made.apply_scale(floats(child.findtext("radii"), 3, [1, 1, 1]))
+        elif tag == "plane":
+            sx, sy = floats(child.findtext("size"), 2, [1, 1])
+            made = trimesh.creation.box(extents=[sx, sy, 0.002])
+            rot = np.eye(4)
+            rot[:3, :3] = align_z(np.array(floats(child.findtext("normal"), 3, [0, 0, 1]), dtype=float))
+            made.apply_transform(rot)
+        elif tag == "mesh":
+            uri = (child.findtext("uri") or "").strip()
+            path = resolve_mesh(root, uri)
+            if path is None:
+                warn(warnings, f"{where}: mesh {uri!r} isn't in this model; not drawn")
+                return []
+            if path not in cache:
+                try:
+                    scene = load_model_mesh(path, root)
+                    unit = np.eye(4)
+                    if path.lower().endswith(".dae"):
+                        unit[:3, :3] *= collada_meter(path)
+                    cache[path] = preview_meshes(scene, unit)
+                except Exception as e:  # noqa: BLE001 - any loader failure is a warning
+                    warn(warnings, f"{where}: couldn't read {os.path.relpath(path, root)}: {e}")
+                    cache[path] = []
+            scale = np.eye(4)
+            scale[:3, :3] = np.diag(floats(child.findtext("scale"), 3, [1, 1, 1]))
+            out = []
+            for m in cache[path]:
+                m = m.copy()
+                m.apply_transform(transform @ scale)
+                out.append(m)
+            return out
+        else:
+            continue
+        made.apply_transform(transform)
+        return [colored(made, color)]
+    return []
+
+
+def inspect_model(path: str, out: str) -> tuple[dict, list]:
+    """Four views of a Gazebo model's visuals (its collisions when it has
+    none), with each mesh's own colors and textures and each shape's
+    material color."""
+    from . import measure, preview
+
+    try:
+        root, name, model = measure.load_model(path)
+    except measure.MeasureError as e:
+        raise InspectError(str(e))
+    warnings, cache = [], {}
+    for kind in ("visual", "collision"):
+        meshes, count = [], 0
+        for el, t, where in measure.shapes(model, kind, warnings):
+            count += 1
+            if count > MAX_MODEL_SHAPES:
+                warn(warnings, f"only the first {MAX_MODEL_SHAPES} {kind}s are drawn")
+                break
+            geom = el.find("geometry")
+            if geom is not None:
+                meshes += shape_meshes(geom, root, sdf_color(el), t, cache, warnings, where)
+        meshes = [m for m in meshes if len(m.faces)]
+        if meshes:
+            break
+    if not meshes:
+        raise InspectError("the model has nothing that can be drawn" +
+                           (": " + "; ".join(warnings[:3]) if warnings else ""))
+    faces = sum(len(m.faces) for m in meshes)
+    if faces > MAX_PREVIEW_FACES:
+        # Coarser copies for the preview only.
+        ratio = 1 - MAX_PREVIEW_FACES / faces
+        meshes = [simplify(m, ratio) if len(m.faces) > 50 else m for m in meshes]
+    sheet = preview.sheet(meshes)
+    sheet.save(os.path.join(out, "preview.png"))
+    views = ["preview.png"]
+    save_views(out, sheet, views)
+    info = {"sdf": name, "drawn_from": kind, "drawn": len(meshes), "triangles": int(faces)}
+    if warnings:
+        info["preview_warnings"] = warnings
     return info, views
 
 
@@ -469,7 +671,9 @@ def inspect(job: dict, base: str, out: str) -> dict:
     elif kind == "drawing":
         info, views = inspect_svg(path, out)
     elif kind == "mesh":
-        info, views = inspect_mesh(path, out)
+        info, views = inspect_mesh(path, out, os.path.normpath(base))
+    elif kind == "model":
+        info, views = inspect_model(path, out)
     elif kind == "texture":
         info, views = inspect_texture(path if os.path.isdir(path) else os.path.dirname(path), out)
     else:

@@ -44,7 +44,23 @@ func (m *meshClient) inspector() projects.AssetInspector {
 				"try again in %s", inspectPerMinute, inspectPerDay, wait.Round(time.Second))}
 		}
 		if kind == projects.AssetModel {
-			return m.measureModel(ctx, data)
+			info, err := m.measureModel(ctx, data)
+			if err != nil {
+				return nil, nil, err
+			}
+			// A picture of the model, for one without a thumbnail. Without
+			// it the model is still usable, so a failure is only noted.
+			more, views, err := m.inspect(ctx, kind, "model.zip", "", data)
+			if err != nil {
+				info["preview_error"] = err.Error()
+				return info, nil, nil
+			}
+			for k, v := range more {
+				if _, taken := info[k]; !taken {
+					info[k] = v
+				}
+			}
+			return info, views, nil
 		}
 		return m.inspect(ctx, kind, file, main, data)
 	}
@@ -52,23 +68,23 @@ func (m *meshClient) inspector() projects.AssetInspector {
 
 // measureModel measures an uploaded Gazebo model (a zip of its folder) as
 // the worker measures Fuel models: its size as Gazebo shows it.
-func (m *meshClient) measureModel(ctx context.Context, zip []byte) (projects.AssetInfo, map[string][]byte, error) {
+func (m *meshClient) measureModel(ctx context.Context, zip []byte) (projects.AssetInfo, error) {
 	body, err := m.measure(ctx, zip)
 	if err != nil {
-		return nil, nil, projects.RetryableError{Err: fmt.Errorf("the model couldn't be measured: %v", err)}
+		return nil, projects.RetryableError{Err: fmt.Errorf("the model couldn't be measured: %v", err)}
 	}
 	var r measureReport
 	if err := json.Unmarshal(body, &r); err != nil {
-		return nil, nil, projects.RetryableError{Err: fmt.Errorf("mesh worker: bad report: %v", err)}
+		return nil, projects.RetryableError{Err: fmt.Errorf("mesh worker: bad report: %v", err)}
 	}
 	if !r.OK {
-		return nil, nil, fmt.Errorf("the model couldn't be measured: %s", r.Error)
+		return nil, fmt.Errorf("the model couldn't be measured: %s", r.Error)
 	}
 	info := projects.AssetInfo{"size": r.Size[:], "bbox": map[string]any{"min": r.BBox.Min[:], "max": r.BBox.Max[:]}}
 	if len(r.Warnings) > 0 {
 		info["measure_warnings"] = r.Warnings
 	}
-	return info, nil, nil
+	return info, nil
 }
 
 // inspect posts an upload to the worker and returns its info and views.
