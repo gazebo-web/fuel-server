@@ -170,8 +170,37 @@ func (r *Registry) Get(version, name string) (*Element, bool) {
 	if !ok {
 		return nil, false
 	}
-	e, ok := v[name]
-	return e, ok
+	if e, ok := v[name]; ok {
+		return e, true
+	}
+	// Elements without a schema file of their own (include, uri, size...)
+	// are defined inside their parents: take the first, by parent name.
+	parents := make([]string, 0, len(v))
+	for n := range v {
+		parents = append(parents, n)
+	}
+	sort.Strings(parents)
+	for _, n := range parents {
+		if e := nestedElement(v[n].Elements, name); e != nil {
+			return e, true
+		}
+	}
+	return nil, false
+}
+
+// nestedElement finds name among elems and their children, nearest first.
+func nestedElement(elems []Element, name string) *Element {
+	for i := range elems {
+		if elems[i].Name == name {
+			return &elems[i]
+		}
+	}
+	for i := range elems {
+		if e := nestedElement(elems[i].Elements, name); e != nil {
+			return e
+		}
+	}
+	return nil
 }
 
 // ListElements returns all known element names for a version, sorted.

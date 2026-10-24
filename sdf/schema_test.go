@@ -63,3 +63,19 @@ func TestGetPrefersCanonicalFile(t *testing.T) {
 		}
 	}
 }
+
+func TestNestedElements(t *testing.T) {
+	r := MustDefault()
+	// include has no schema file; world and model define it inline.
+	e, ok := r.Get("1.9", "include")
+	if !ok || e.Name != "include" {
+		t.Fatalf("include: %v %v", e, ok)
+	}
+	children := strings.Join(r.ChildNames("1.9", "include"), ",")
+	if !strings.Contains(children, "uri") || !strings.Contains(children, "pose") {
+		t.Errorf("include's children: %s", children)
+	}
+	if _, ok := r.Get("1.9", "no_such_element"); ok {
+		t.Error("unknown element found")
+	}
+}
