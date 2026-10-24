@@ -99,7 +99,7 @@ func (t *tools) registerMesh(reg *mcp.Registry) {
 				"tri_budget":   num("Max triangles: small prop 5000, furniture 15000 (default), vehicle 50000"),
 				"texture_size": num("Atlas size in px: 512, 1024 (default) or 2048"),
 				"collision": map[string]any{"type": "string", "enum": []string{"auto", "primitive", "convex"},
-					"description": "auto (default): a primitive when it fits, else one hull, else a convex decomposition"},
+					"description": "auto (default): a primitive when it fits, else one hull, else a convex decomposition. primitive: a box, cylinder or sphere per solid piece, for open frames and racks"},
 				"base_rev": str("Optional: fail if the project changed since this revision"),
 			}),
 		},

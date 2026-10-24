@@ -2,9 +2,12 @@
 
 auto: the best-fitting primitive when the solid fills at least
 PRIMITIVE_FILL of it; else one convex hull when the solid fills at least
-HULL_FILL of that; else a convex decomposition (CoACD). primitive and
-convex force the first or last. Every hull has at most MAX_HULL_VERTICES
-vertices, and a decomposition at most MAX_HULLS hulls.
+HULL_FILL of that; else a convex decomposition (CoACD). convex forces the
+decomposition. primitive fits a primitive to each solid piece the code
+made (each leg and rail of a table), not one around the whole link, and
+decomposes a piece that's hollow (a tray with a rim) rather than filling
+it. Every hull has at most MAX_HULL_VERTICES vertices, and a
+decomposition at most MAX_HULLS hulls.
 """
 
 import math
@@ -18,6 +21,10 @@ from trimesh.transformations import euler_from_matrix
 
 PRIMITIVE_FILL = 0.9
 HULL_FILL = 0.85
+# primitive mode: a piece filling less of its best primitive is hollow, and
+# is decomposed; more pieces than MAX_PIECES are fitted as one solid.
+HOLLOW_FILL = 0.5
+MAX_PIECES = 64
 MAX_HULLS = 16
 MAX_HULL_VERTICES = 255
 MODES = ("auto", "primitive", "convex")
@@ -90,6 +97,23 @@ def decompose(mesh: trimesh.Trimesh) -> list[Shape]:
                             real_metric=True, seed=0)
     hulls = [limit_vertices(trimesh.convex.convex_hull(np.asarray(v))) for v, _ in parts]
     return [Shape("mesh", mesh=h) for h in hulls]
+
+
+def per_piece(pieces: list[tuple[trimesh.Trimesh, float]]) -> tuple[list[Shape], dict]:
+    """primitive mode: the best primitive for each solid piece (its mesh and
+    exact volume), or a decomposition of a hollow one."""
+    shapes, hollow = [], 0
+    for mesh, volume in pieces:
+        best = max(primitives(mesh), key=lambda s: volume / s.volume())
+        if volume / best.volume() >= HOLLOW_FILL:
+            shapes.append(best)
+        else:
+            shapes += decompose(mesh)
+            hollow += 1
+    report = {"mode": "primitive", "pieces": len(pieces)}
+    if hollow:
+        report["hollow_pieces_decomposed"] = hollow
+    return shapes, report
 
 
 def build(solid: trimesh.Trimesh, solid_volume: float, mode: str = "auto") -> tuple[list[Shape], dict]:

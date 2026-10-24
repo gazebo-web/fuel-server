@@ -287,6 +287,71 @@ def build():
     assert code == 2 and error in r["error"], r
 
 
+ELEVATOR = """
+from build123d import *
+import gzmesh as gz
+
+def build():
+    # A lift shaft anchored in place, and a 2 x 2 m car that rises 3 m.
+    shaft = [Pos(x, y, 2) * Box(0.1, 0.1, 4) for x in (-1.1, 1.1) for y in (-1.1, 1.1)]
+    car = Pos(0, 0, 0.05) * Box(2, 2, 0.1)
+    return gz.model(
+        links=[gz.link("shaft", gz.part(Compound(shaft), "posts", gz.brushed_metal())),
+               gz.link("car", gz.part(car, "floor", gz.brushed_metal()))],
+        joints=[gz.fixed("anchor", "world", "shaft"),
+                gz.prismatic("lift", "shaft", "car", origin=(0, 0, 0), axis=(0, 0, 1), lower=0, upper=3)])
+"""
+
+
+def test_anchor_and_lift_effort(build):
+    # 2 x 2 x 0.1 m of steel is about 3,100 kg: the default 100 N can't lift it.
+    code, r, out = build(ELEVATOR)
+    assert code == 0, r
+    joints = {j.get("name"): j for j in sdf(out, "thing").findall("model/joint")}
+    assert joints["anchor"].find("parent").text == "world" and joints["anchor"].find("child").text == "shaft"
+    assert any("joint 'lift': effort 100 N can't lift" in w for w in r["warnings"]), r["warnings"]
+    code, r, _ = build(ELEVATOR.replace("upper=3)", "upper=3, effort=60000)"))
+    assert code == 0 and not any("can't lift" in w for w in r["warnings"]), r["warnings"]
+
+
+@pytest.mark.parametrize("joints, error", [
+    ('[gz.revolute("j", "world", "a", (0, 0, 0), (0, 0, 1), 0, 1), gz.fixed("k", "a", "b")]',
+     "only gz.fixed can attach a link to 'world'"),
+    ('[gz.fixed("anchor", "world", "b"), gz.fixed("k", "a", "b")]', "anchor the root link 'a'"),
+])
+def test_anchor_errors(build, joints, error):
+    code, r, _ = build(f"""
+from build123d import *
+import gzmesh as gz
+
+def build():
+    a, b = gz.link("a", Box(1, 1, 1)), gz.link("b", Pos(2, 0, 0) * Box(1, 1, 1))
+    return gz.model(links=[a, b], joints={joints})
+""")
+    assert code == 2 and error in r["error"], r
+
+
+def test_primitive_collision_fits_each_piece(build):
+    # An open-frame table (four legs and two rails in one part) and a tray
+    # with a rim: one box around either would block what goes under or in.
+    code, r, out = build("""
+from build123d import *
+import gzmesh as gz
+
+def build():
+    legs = [Pos(x, y, 0.15) * Box(0.08, 0.08, 0.3) for x in (-0.5, 0.5) for y in (-0.5, 0.5)]
+    rails = [Pos(0, y, 0.32) * Box(1.1, 0.1, 0.04) for y in (-0.5, 0.5)]
+    tray = Pos(0, 0, 0.4) * Box(0.9, 0.9, 0.1)
+    tray = offset(tray, amount=-0.01, openings=tray.faces().sort_by(Axis.Z)[-1])
+    return [gz.part(Compound(legs + rails), "frame", gz.brushed_metal()), gz.part(tray, "tray", gz.plastic("blue"))]
+""", collision="primitive", static=True)
+    assert code == 0, r
+    coll = r["collision"]
+    assert coll["mode"] == "primitive" and coll["pieces"] == 7 and coll["hollow_pieces_decomposed"] == 1, coll
+    boxes = [c for c in sdf(out, "thing").findall("model/link/collision") if c.find("geometry/box") is not None]
+    assert len(boxes) == 6  # the legs and rails; the tray is hulls
+
+
 def test_far_joint_origin_warns(build):
     code, r, _ = build(LEVER.replace("origin=(0.1, 0, 0.95)", "origin=(100, 0, 950)"))
     assert code == 0 and any("far from links" in w for w in r["warnings"]), r["warnings"]

@@ -141,8 +141,14 @@ def continuous(name: str, parent: str, child: str, origin, axis, damping: float 
                   damping=damping, friction=friction, effort=effort, velocity=velocity)
 
 
+# WORLD as a fixed joint's parent anchors the model's root link in place.
+WORLD = "world"
+
+
 def fixed(name: str, parent: str, child: str) -> Joint:
-    """Two links welded together (rarely needed: put the parts in one link)."""
+    """Two links welded together (rarely needed: put the parts in one link).
+    With parent "world" it anchors the root link where the model is placed,
+    while its other joints still move: a lift shaft, a robot arm's base."""
     return Joint(name, "fixed", parent, child)
 
 
@@ -326,13 +332,24 @@ def _check(asm: Assembly):
     jnames = [j.name for j in asm.joints]
     if len(set(jnames)) != len(jnames):
         raise ValueError(f"joint names must be unique: {jnames}")
-    parent_of = {}
+    if WORLD in names:
+        raise ValueError(f"a link can't be named {WORLD!r}: it means the world in gz.fixed")
+    parent_of, anchored = {}, None
     for j in asm.joints:
         if not isinstance(j, Joint):
             raise TypeError(f"model() joints must come from gz.revolute/prismatic/continuous/fixed, "
                             f"got {type(j).__name__}")
         if not NAME_RE.match(j.name):
             raise ValueError(f"joint name {j.name!r}: lowercase letters, digits and '_', starting with a letter")
+        if j.parent == WORLD:
+            if j.kind != "fixed":
+                raise ValueError(f"joint {j.name!r}: only gz.fixed can attach a link to {WORLD!r}")
+            if anchored is not None:
+                raise ValueError(f"joint {j.name!r}: the model is already anchored to {WORLD!r}")
+            if j.child not in names:
+                raise ValueError(f"joint {j.name!r}: no link named {j.child!r} (links: {', '.join(names)})")
+            anchored = j.child
+            continue
         for end in (j.parent, j.child):
             if end not in names:
                 raise ValueError(f"joint {j.name!r}: no link named {end!r} (links: {', '.join(names)})")
@@ -350,6 +367,8 @@ def _check(asm: Assembly):
     roots = [n for n in names if n not in parent_of]
     if len(roots) != 1:
         raise ValueError(f"the links must form one tree joined by joints; unconnected roots: {roots}")
+    if anchored is not None and anchored != roots[0]:
+        raise ValueError(f"anchor the root link {roots[0]!r} to {WORLD!r}, not {anchored!r}")
     for n in names:  # every chain of parents must reach the root without a loop
         seen_chain = set()
         while n in parent_of:

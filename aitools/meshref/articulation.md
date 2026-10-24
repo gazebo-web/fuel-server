@@ -7,12 +7,15 @@ For doors, drawers, lids, wheels and arms, return `gz.model(links=[...], joints=
   - `gz.prismatic(name, parent, child, origin, axis, lower, upper)` is a slider. The child moves along `axis`, between `lower` and `upper` meters.
   - `gz.continuous(name, parent, child, origin, axis)` is an unlimited rotation, for wheels.
   - `gz.fixed(name, parent, child)` welds two links. It's rarely needed: put the parts in one link instead.
+  - `gz.fixed(name, "world", root)` anchors the model where it's placed while its joints still move: a lift shaft, a crane, a robot arm's base. Don't make such a model `static`: that freezes its joints too.
 
 Build every part where it sits in the closed or rest pose, and give joint origins and axes in that same model frame. Joint position 0 is the pose as built.
 
 **Picking the hinge direction:** the positive direction follows the right-hand rule about `axis`. A door hinged at its +Y edge, with its face toward +X, opens outward for positive angles about +Z.
 
 Joints have damping by default (revolute 0.5, prismatic 2.0), so doors and drawers don't swing freely. Pass `damping=` to change it.
+
+**Effort** is the most force (N) or torque (N·m) a joint can apply, 100 by default. Gazebo caps the joint at it, so a lift or elevator needs `effort=` above the weight of everything it carries, payload included: a 300 kg car with a 600 kg load needs about 9 × 9.81 × 1.5 ≈ 13,000 N. A warning flags a vertical slider whose effort can't lift its own links.
 
 ```python
 from build123d import *
@@ -70,6 +73,7 @@ def build():
 **Checks:**
 - The report lists each link's mass and collision, and each joint.
 - A warning flags a joint origin far from both its links. That usually means the wrong frame, or millimeters where meters were meant.
+- A warning flags a vertical slider whose effort can't lift the links it carries.
 - The preview shows the rest pose.
 
 For sensors and drive controllers, see topic "robots".

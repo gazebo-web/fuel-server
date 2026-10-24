@@ -3,7 +3,7 @@
 Write Python that defines `build()`. It returns one build123d solid, a part from `gz.part(shape, name, material)`, or a list of parts. Units are meters, and Z is up. The pipeline does everything else:
 - triangles within `tri_budget`;
 - one baked PBR texture;
-- collision: a primitive, one hull, or a convex decomposition;
+- collision: `auto` picks a primitive, one hull, or a convex decomposition for each link; `primitive` fits a box, cylinder or sphere to each solid piece (each leg and rail), so open frames stay open, and breaks up hollow pieces like trays;
 - exact inertia from the solids;
 - the GLB, `model.sdf` and `model.config`;
 - a preview image with four views: three-quarter from the front (+X -Y), three-quarter from the back (-X +Y), front (+X) and top. For a model with joints, the front view is replaced by the front three-quarter view with every joint moved, to check that doors, drawers and wheels move the right way.

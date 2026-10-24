@@ -32,7 +32,7 @@ import trimesh
 
 from . import atlas, collision, export, inertia, materials, parts, preview, tessellate
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 ALLOWED_IMPORTS = {"build123d", "gzmesh", "math", "numpy", "random", "itertools", "functools", "typing",
                    "dataclasses", "collections", "copy"}
@@ -131,6 +131,25 @@ def watertight(ps: list[parts.Part], tolerance: float) -> tuple[trimesh.Trimesh,
     return mesh, vol, warnings
 
 
+def solid_pieces(ps: list[parts.Part], tolerance: float, offset) -> list:
+    """Each solid of each part, meshed and moved by offset, with its exact
+    volume: what primitive collision fits one by one. None when there are
+    more than collision.MAX_PIECES, or a piece can't be meshed."""
+    solids = [s for p in ps for s in (p.shape.solids() or [p.shape])]
+    if len(solids) > collision.MAX_PIECES:
+        return None
+    out = []
+    try:
+        for s in solids:
+            mesh = tessellate.tessellate_shape(s, tolerance, 0.3)
+            mesh.merge_vertices()
+            mesh.apply_translation(offset)
+            out.append((mesh, float(s.volume)))
+    except Exception:  # noqa: BLE001 - fall back to fitting the link as one solid
+        return None
+    return out
+
+
 def link_texture_size(area: float, total: float, size: int) -> int:
     """Texture size for a link with `area` of the model's `total` surface:
     the same texel density as one atlas of `size` for the whole model,
@@ -178,7 +197,12 @@ def build_model(job: dict, out: str) -> dict:
         warnings += w
         solid.apply_translation(offset)
         solids[lk.name] = solid
-        shapes, coll = collision.build(solid, solid_volume, j["collision"])
+        pieces = solid_pieces(lk.parts, max(tess["tolerance_m"], 1e-4), offset) \
+            if j["collision"] == "primitive" else None
+        if pieces:
+            shapes, coll = collision.per_piece(pieces)
+        else:
+            shapes, coll = collision.build(solid, solid_volume, j["collision"])
         timings["collision_s"] += time.monotonic() - t
 
         inert.center = inert.center + offset
@@ -407,15 +431,34 @@ def moved_links(asm, links, offset) -> list:
     return out
 
 
+# A lifting joint's effort must hold its load with this much to spare.
+LIFT_MARGIN = 1.5
+
+
 def joint_warnings(asm, links, offset) -> list[str]:
     """A joint whose origin is far from both links it connects is almost
     always a mistake (an origin in the wrong frame, or millimeters for
-    meters)."""
+    meters). A slider that lifts (a lift, an elevator car) whose effort
+    can't hold the links it carries won't move: Gazebo caps the joint's
+    force at its effort."""
     out = []
     boxes = {lk.name: lk.visual.bounds for lk in links}
+    mass = {lk.name: lk.inertial.mass for lk in links}
+    children = {}
+    for jt in asm.joints:
+        children.setdefault(jt.parent, []).append(jt.child)
+
+    def carried(name):  # the mass of a link and everything it carries
+        return mass[name] + sum(carried(c) for c in children.get(name, []))
+
     for jt in asm.joints:
         if jt.kind == "fixed":
             continue
+        if jt.kind == "prismatic" and abs(jt.axis[2]) > 0.5:
+            need = carried(jt.child) * 9.81 * abs(jt.axis[2]) * LIFT_MARGIN
+            if jt.effort < need:
+                out.append(f"joint {jt.name!r}: effort {jt.effort:g} N can't lift the {carried(jt.child):.4g} kg "
+                           f"it carries; set effort to at least {need:.0f} N, plus any payload's weight")
         o = jt.origin + offset
         lo = np.minimum(boxes[jt.parent][0], boxes[jt.child][0])
         hi = np.maximum(boxes[jt.parent][1], boxes[jt.child][1])
