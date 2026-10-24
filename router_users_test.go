@@ -782,3 +782,86 @@ func TestPersonalAccessToken(t *testing.T) {
 	// now try to remove the 2nd user
 	removeUserWithJWT(username2, jwt2, t)
 }
+
+// TestAccessTokenRefusedOnAccountRoutes checks that a personal access token
+// can't manage access tokens, accounts or organization membership, while it
+// still works on other routes.
+func TestAccessTokenRefusedOnAccountRoutes(t *testing.T) {
+	setup()
+
+	myJWT := os.Getenv("IGN_TEST_JWT")
+	username := createUser(t)
+	defer removeUser(username, t)
+	org := createOrganization(t)
+	defer removeOrganization(org, t)
+
+	body := new(bytes.Buffer)
+	assert.NoError(t, json.NewEncoder(body).Encode(map[string]string{"name": "myName"}))
+	response, _ := gztest.AssertRouteMultipleArgs("POST", "/1.0/users/"+username+"/access-tokens", body,
+		http.StatusOK, &myJWT, ctJSON, t)
+	var newToken gz.AccessTokenCreateResponse
+	require.NoError(t, json.Unmarshal(*response, &newToken))
+	token := newToken.Prefix + "." + newToken.Key
+
+	routes := []struct {
+		method string
+		route  string
+	}{
+		{"GET", "/1.0/users/" + username + "/access-tokens"},
+		{"POST", "/1.0/users/" + username + "/access-tokens"},
+		{"POST", "/1.0/users/" + username + "/access-tokens/revoke"},
+		{"PATCH", "/1.0/users/" + username},
+		{"DELETE", "/1.0/users/" + username},
+		{"PATCH", "/1.0/organizations/" + org},
+		{"DELETE", "/1.0/organizations/" + org},
+		{"POST", "/1.0/organizations/" + org + "/users"},
+		{"DELETE", "/1.0/organizations/" + org + "/users/" + username},
+		{"POST", "/1.0/organizations/" + org + "/teams"},
+		{"PATCH", "/1.0/organizations/" + org + "/teams/myteam"},
+		{"DELETE", "/1.0/organizations/" + org + "/teams/myteam"},
+	}
+	for _, r := range routes {
+		t.Run(r.method+" "+r.route, func(t *testing.T) {
+			// The token is refused on its own, and alongside a JWT.
+			for _, jwt := range []*string{nil, &myJWT} {
+				resp := gztest.AssertRouteMultipleArgsStruct(gztest.RequestArgs{
+					Method:      r.method,
+					Route:       r.route,
+					Body:        bytes.NewBufferString("{}"),
+					SignedToken: jwt,
+					Headers:     map[string]string{"Private-Token": token},
+				}, http.StatusUnauthorized, ctTextPlain, t)
+				var errMsg gz.ErrMsg
+				require.NoError(t, json.Unmarshal(*resp.BodyAsBytes, &errMsg))
+				assert.Equal(t, gz.ErrorUnauthorized, errMsg.ErrCode)
+				assert.Contains(t, errMsg.Extra, "Personal access tokens can't be used for this request. Log in instead.")
+			}
+		})
+	}
+
+	// The account, its organization and its token are untouched.
+	response, _ = gztest.AssertRouteMultipleArgs("GET", "/1.0/users/"+username+"/access-tokens", nil,
+		http.StatusOK, &myJWT, ctJSON, t)
+	var tokens gz.AccessTokens
+	require.NoError(t, json.Unmarshal(*response, &tokens))
+	assert.Len(t, tokens, 1)
+	_, em := users.ByOrganizationName(globals.Server.Db, org, false)
+	assert.Nil(t, em)
+
+	// The token still works on routes that don't manage the account.
+	gztest.AssertRouteMultipleArgsStruct(gztest.RequestArgs{
+		Method:  "GET",
+		Route:   "/1.0/users/" + username,
+		Headers: map[string]string{"Private-Token": token},
+	}, http.StatusOK, ctJSON, t)
+	org2 := gz.RandomString(8)
+	b := new(bytes.Buffer)
+	assert.NoError(t, json.NewEncoder(b).Encode(map[string]string{"name": org2}))
+	gztest.AssertRouteMultipleArgsStruct(gztest.RequestArgs{
+		Method:  "POST",
+		Route:   "/1.0/organizations",
+		Body:    b,
+		Headers: map[string]string{"Private-Token": token},
+	}, http.StatusOK, ctJSON, t)
+	removeOrganization(org2, t)
+}

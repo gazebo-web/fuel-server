@@ -1732,7 +1732,7 @@ var routes = gz.Routes{
 				Description: "Remove a user",
 				// Format handlers
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("username", true, UserRemove))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("username", true, UserRemove)))},
 				},
 			},
 
@@ -1755,7 +1755,7 @@ var routes = gz.Routes{
 				Description: "Update a user",
 				// Format handlers
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("username", true, UserUpdate))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("username", true, UserUpdate)))},
 				},
 			},
 		},
@@ -1784,7 +1784,7 @@ var routes = gz.Routes{
 				Description: "Get a user's access tokens",
 				// Format handlers
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(PaginationHandlerWithUser(AccessTokenList, true))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(PaginationHandlerWithUser(AccessTokenList, true)))},
 				},
 			},
 
@@ -1804,7 +1804,7 @@ var routes = gz.Routes{
 				Description: "Create an access token",
 				// Format handlers
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("username", true, AccessTokenCreate))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("username", true, AccessTokenCreate)))},
 				},
 			},
 		},
@@ -1833,7 +1833,7 @@ var routes = gz.Routes{
 				Description: "Delete a user's access token",
 				// Format handlers
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("username", true, AccessTokenDelete))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("username", true, AccessTokenDelete)))},
 				},
 			},
 		},
@@ -2108,7 +2108,7 @@ var routes = gz.Routes{
 				Description: "Remove an organization",
 				// Format handlers
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationRemove))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("name", true, OrganizationRemove)))},
 				},
 			},
 			// swagger:route PATCH /organizations/{name} organizations organizationUpdate
@@ -2133,7 +2133,7 @@ var routes = gz.Routes{
 				Description: "Edit an organization",
 				// Format handlers
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationUpdate))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("name", true, OrganizationUpdate)))},
 				},
 			},
 		},
@@ -2191,7 +2191,7 @@ var routes = gz.Routes{
 				Type:        "POST",
 				Description: "Adds a user to an Organization",
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationUserCreate))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("name", true, OrganizationUserCreate)))},
 				},
 			},
 		},
@@ -2223,7 +2223,7 @@ var routes = gz.Routes{
 				Description: "Removes a user from an organization",
 				// Format handlers
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationUserRemove))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("name", true, OrganizationUserRemove)))},
 				},
 			},
 		},
@@ -2281,7 +2281,7 @@ var routes = gz.Routes{
 				Type:        "POST",
 				Description: "Adds a team to an Organization",
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationTeamCreate))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("name", true, OrganizationTeamCreate)))},
 				},
 			},
 		},
@@ -2336,7 +2336,7 @@ var routes = gz.Routes{
 				Description: "Updates a team",
 				// Format handlers
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationTeamUpdate))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("name", true, OrganizationTeamUpdate)))},
 				},
 			},
 			// swagger:route DELETE /organizations/{name}/teams/{teamname} organizations orgTeamDelete
@@ -2358,7 +2358,7 @@ var routes = gz.Routes{
 				Description: "Removes a team",
 				// Format handlers
 				Handlers: gz.FormatHandlers{
-					gz.FormatHandler{Handler: gz.JSONResult(NameHandler("name", true, OrganizationTeamRemove))},
+					gz.FormatHandler{Handler: gz.JSONResult(LoginRequired(NameHandler("name", true, OrganizationTeamRemove)))},
 				},
 			},
 		},

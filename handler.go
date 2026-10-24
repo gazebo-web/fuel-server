@@ -30,6 +30,21 @@ func NoResult(handler gz.HandlerWithResult) gz.Handler {
 	}
 }
 
+// LoginRequired is a middleware that refuses requests that carry a personal
+// access token. Wrap the handlers of routes that manage access tokens,
+// accounts and organization membership with it, so that a leaked access token
+// can't mint new tokens or change who can access what. These routes need a
+// login (JWT) instead.
+func LoginRequired(handler gz.HandlerWithResult) gz.HandlerWithResult {
+	return func(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
+		if r.Header.Get("Private-Token") != "" {
+			return nil, gz.NewErrorMessageWithArgs(gz.ErrorUnauthorized, nil,
+				[]string{"Personal access tokens can't be used for this request. Log in instead."})
+		}
+		return handler(tx, w, r)
+	}
+}
+
 // searchFnHandler defines the signature for handlers that accept
 // search arguments and return paginated results.
 // Arguments:
