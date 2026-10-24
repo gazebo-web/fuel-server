@@ -6,7 +6,7 @@
 
 # Install
 
-1. [Go version 1.19](https://golang.org/dl/) or above.
+1. [Go version 1.27](https://golang.org/dl/) or above.
 
    Make sure to set the following environment variables:
 
@@ -51,7 +51,7 @@
     ```
 
     ```
-    wget https://raw.githubusercontent.com/golang/go/release-branch.go1.19/src/crypto/tls/generate_cert.go
+    wget https://raw.githubusercontent.com/golang/go/release-branch.go1.27/src/crypto/tls/generate_cert.go
     ```
 
     ```
@@ -355,26 +355,13 @@ In general we will try to follow Go naming conventions. In addition, these are o
 
 # Linter
 
-1. Get the linter
-
-    ```
-    go get -u golang.org/x/lint/golint
-    ```
-
-1. Run the linter
-
-    ```
-    $GOPATH/bin/golint $(go list github.com/gazebo-web/fuel-server/...) | grep -v .pb.go
-    ```
-
-Note you can create this bash script:
+CI runs [golangci-lint](https://golangci-lint.run/) v2 with the settings in
+`.golangci.yml`. To run the same version locally:
 
 ```
-#!/bin/bash
-go get -u golang.org/x/lint/golint
-$GOPATH/bin/golint $(go list github.com/gazebo-web/fuel-server/...) | grep -v .pb.go
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+golangci-lint run ./...
 ```
-
 
 # Proto
 
