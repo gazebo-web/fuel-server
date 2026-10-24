@@ -237,12 +237,12 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 	cmd.Dir = g.Path
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		err = gz.WithStack(err)
 		gz.LoggerFromContext(ctx).Info("Error while Tagging repo: " + g.Path + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		return err
 	}
-	return err
+	return nil
 }
 
 // doLocalClone - makes a local clone of source into target

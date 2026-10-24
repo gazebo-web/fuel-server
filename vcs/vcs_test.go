@@ -85,3 +85,15 @@ func TestGitTag(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 }
+
+// TestGitTagError checks that a failed tag is reported to the caller.
+func TestGitTagError(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "model.config"), []byte("<model/>"), 0644))
+
+	ctx := context.Background()
+	repo := GitVCS{}.NewRepo(dir)
+	require.NoError(t, repo.InitRepo(ctx))
+	require.NoError(t, repo.Tag(ctx, "my-uuid"))
+	assert.Error(t, repo.Tag(ctx, "my-uuid"))
+}

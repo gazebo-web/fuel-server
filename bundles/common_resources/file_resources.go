@@ -16,6 +16,7 @@ import (
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -222,7 +223,11 @@ func UpdateZip(ctx context.Context, repo vcs.VCS, s storage.Storage, res Resourc
 		gz.LoggerFromContext(ctx).Info("Error getting the latest resource version", err)
 		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
-	zipPath := getOrCreateZipLocation(res, subfolder, version)
+	zipPath, err := getOrCreateZipLocation(res, subfolder, version)
+	if err != nil {
+		gz.LoggerFromContext(ctx).Info("Error getting the zip location", err)
+		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+	}
 
 	// Zip the model and compute its size
 	_, err = repo.Zip(ctx, "", zipPath)
@@ -251,13 +256,24 @@ func UpdateZip(ctx context.Context, repo vcs.VCS, s storage.Storage, res Resourc
 // getOrCreateZipLocation either returns the path to an existing resource's zip
 // file or creates a new '.zips' folder for the user and return the zip path.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
-func getOrCreateZipLocation(res Resource, subfolder string, version int) string {
+// Returns an error if the resource doesn't have a valid UUID.
+func getOrCreateZipLocation(res Resource, subfolder string, version int) (string, error) {
+	// The UUID is part of the zip's file name, so only accept the canonical
+	// form that the server generates.
+	resUUID := res.GetUUID()
+	if resUUID == nil {
+		return "", errors.New("resource has no UUID")
+	}
+	if parsed, err := uuid.FromString(*resUUID); err != nil || parsed.String() != *resUUID {
+		return "", errors.Errorf("resource has an invalid UUID: %q", *resUUID)
+	}
+
 	zipsFolder := filepath.Join(globals.ResourceDir, *res.GetOwner(), subfolder, ".zips")
 	_ = os.Mkdir(zipsFolder, 0711)
 
 	// path to this model's zip
-	zipName := strings.ReplaceAll(*res.GetUUID(), " ", "_") + "v" + strconv.Itoa(version) + ".zip"
-	return filepath.Join(zipsFolder, zipName)
+	zipName := *resUUID + "v" + strconv.Itoa(version) + ".zip"
+	return filepath.Join(zipsFolder, zipName), nil
 }
 
 // GetZip returns a path to the existing resource zip for the given version.
@@ -270,7 +286,10 @@ func GetZip(ctx context.Context, res Resource, subfolder string, version string)
 		return nil, 0, em
 	}
 
-	path := getOrCreateZipLocation(res, subfolder, resolvedVersion)
+	path, err := getOrCreateZipLocation(res, subfolder, resolvedVersion)
+	if err != nil {
+		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
+	}
 	zipPath := &path
 
 	if _, err := os.Stat(path); err != nil {
