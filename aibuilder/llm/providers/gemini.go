@@ -279,7 +279,9 @@ func (g *Gemini) ChatStream(ctx context.Context, req llm.Request) (<-chan llm.Ch
 	}
 	model := req.Model
 	if model == "" {
-		model = "gemini-2.0-flash"
+		// An alias for Google's newest Flash model, so the default isn't
+		// retired from under us (gemini-2.0-flash was).
+		model = "gemini-flash-latest"
 	}
 	// Send the key via the x-goog-api-key header rather than ?key= in the
 	// query string. Both authenticate, but the header is Google's recommended
