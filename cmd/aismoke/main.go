@@ -67,6 +67,9 @@ type Case struct {
 	// WantBounds is that box in the world frame, [min x, min y, max x,
 	// max y], each side within 0.75 m.
 	WantBounds []float64 `json:"want_bounds,omitempty"`
+	// WantCovered are points (x, y) in the world frame where some tall
+	// shape must stand, e.g. a map's racks.
+	WantCovered [][2]float64 `json:"want_covered,omitempty"`
 	// WantImport is the height (m) of models model_import must make, by
 	// name, within 2%.
 	WantImport map[string]float64 `json:"want_import,omitempty"`
@@ -344,7 +347,7 @@ func (r *runner) run(c Case) Result {
 // checkFootprint compares the box around the world's tall shapes with the
 // case's wanted size and place.
 func checkFootprint(c Case, f footprint, res *Result) {
-	if len(c.WantSize) != 2 && len(c.WantBounds) != 4 {
+	if len(c.WantSize) != 2 && len(c.WantBounds) != 4 && len(c.WantCovered) == 0 {
 		return
 	}
 	if f.shapes == 0 {
@@ -370,6 +373,15 @@ func checkFootprint(c Case, f footprint, res *Result) {
 				break
 			}
 		}
+	}
+	var bare [][2]float64
+	for _, p := range c.WantCovered {
+		if !f.covers(p[0], p[1]) {
+			bare = append(bare, p)
+		}
+	}
+	if len(bare) > 0 {
+		res.Failures = append(res.Failures, fmt.Sprintf("nothing tall stands at %v", bare))
 	}
 	res.Passed = len(res.Failures) == 0
 }
@@ -532,9 +544,9 @@ var (
 	importSizeRe  = regexp.MustCompile(`"bounding_box_m":\s*\[\s*([-0-9.e]+)\s*,\s*([-0-9.e]+)\s*,\s*([-0-9.e]+)`)
 )
 
-// noteImport records the model an import made. The result is JSON in a
-// string, maybe inside content blocks, so every string in it is searched;
-// a slow import's result comes from a later status call.
+// noteImport records the model an import made. The result is a JSON
+// object, or JSON in a string, maybe inside content blocks, so both are
+// searched; a slow import's result comes from a later status call.
 func (t *tally) noteImport(result any) {
 	switch v := result.(type) {
 	case string:
@@ -550,6 +562,17 @@ func (t *tally) noteImport(result any) {
 			t.noteImport(e)
 		}
 	case map[string]any:
+		model, _ := v["model"].(string)
+		size, _ := v["bounding_box_m"].([]any)
+		if _, imported := v["import"]; imported && model != "" && len(size) == 3 && t.imported != nil {
+			var xyz []float64
+			for _, e := range size {
+				f, _ := e.(float64)
+				xyz = append(xyz, f)
+			}
+			t.imported[model] = xyz
+			return
+		}
 		for _, e := range v {
 			t.noteImport(e)
 		}

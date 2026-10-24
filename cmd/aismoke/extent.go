@@ -117,10 +117,12 @@ func floats(s string) []float64 {
 	return out
 }
 
-// footprint is the box, from above, around a world's tall shapes.
+// footprint is the box, from above, around a world's tall shapes, and
+// each shape's own box.
 type footprint struct {
 	min, max [2]float64
 	shapes   int
+	boxes    [][4]float64 // min x, min y, max x, max y
 }
 
 func (f *footprint) add(lo, hi [3]float64) {
@@ -134,6 +136,17 @@ func (f *footprint) add(lo, hi [3]float64) {
 		f.min[i], f.max[i] = math.Min(f.min[i], lo[i]), math.Max(f.max[i], hi[i])
 	}
 	f.shapes++
+	f.boxes = append(f.boxes, [4]float64{lo[0], lo[1], hi[0], hi[1]})
+}
+
+// covers reports whether a tall shape stands on the point (x, y).
+func (f footprint) covers(x, y float64) bool {
+	for _, b := range f.boxes {
+		if x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3] {
+			return true
+		}
+	}
+	return false
 }
 
 func (f footprint) size() [2]float64 { return [2]float64{f.max[0] - f.min[0], f.max[1] - f.min[1]} }

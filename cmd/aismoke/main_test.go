@@ -209,6 +209,11 @@ func TestFootprint(t *testing.T) {
 		t.Errorf("want pass: %v", res.Failures)
 	}
 	res = Result{}
+	checkFootprint(Case{WantCovered: [][2]float64{{5, 5}, {4, 2}, {3, 3}}}, f, &res)
+	if res.Passed || len(res.Failures) != 1 || !strings.Contains(res.Failures[0], "[[3 3]]") {
+		t.Errorf("want (3, 3) bare: %v", res.Failures)
+	}
+	res = Result{}
 	checkFootprint(Case{WantSize: []float64{6, 4}, WantBounds: []float64{0, 0, 7, 6}}, footprint{}, &res)
 	if res.Passed || !strings.Contains(res.Failures[0], "no walls") {
 		t.Errorf("want fail: %v", res.Failures)
@@ -226,7 +231,13 @@ func TestNoteImport(t *testing.T) {
 		`"{\n  \"bounding_box_m\": [0.45, 0.45, 0.9],\n  \"import\": {\"up_axis\": \"y\"},\n  \"model\": \"chair\"\n}"},`+
 		`{"type":"image","data":"..."}]}`))
 	tl.add("tool_result", []byte(`{"tool":"model_generate","result":"{\"bounding_box_m\": [1, 1, 1], \"model\": \"mug\"}"}`))
-	if got := tl.imported["chair"]; len(got) != 3 || got[2] != 0.9 || len(tl.imported) != 1 {
+	// As the agent streams it: the result is an object.
+	tl.add("tool_result", []byte(`{"tool":"model_import","result":{"bounding_box_m":[0.4,0.5,1.2],`+
+		`"import":{"up_axis":"y"},"model":"stool"}}`))
+	if got := tl.imported["stool"]; len(got) != 3 || got[2] != 1.2 {
+		t.Errorf("stool %v", tl.imported)
+	}
+	if got := tl.imported["chair"]; len(got) != 3 || got[2] != 0.9 || len(tl.imported) != 2 {
 		t.Fatalf("imported %v", tl.imported)
 	}
 }
