@@ -121,6 +121,14 @@ func init() {
 		logger.Info("Missing AUTH0_RSA256_PUBLIC_KEY env variable. Authentication will not work.")
 	}
 
+	// gz-go enables its own test mode when the binary's path contains "test":
+	// it uses the "_test" database and trusts TEST_RSA256_PUBLIC_KEY instead
+	// of the Auth0 key. Refuse to start a server binary named like that, before
+	// gz.Init connects to (and creates) that database.
+	if !isGoTest && strings.Contains(strings.ToLower(os.Args[0]), "test") {
+		log.Fatalf("The server binary's path (%s) must not contain \"test\": gz-go would run it in test mode.", os.Args[0])
+	}
+
 	globals.Server, err = gz.Init(auth0RsaPublickey, "", nil)
 	if err != nil {
 		log.Fatal("Failed to initialize web server:", err)

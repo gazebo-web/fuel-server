@@ -7,7 +7,7 @@
 #   TEST_RSA256_PUBLIC_KEY              validates them
 #   IGN_TEST_JWT                        a token for the "test-user-identity" user
 #
-# Usage, from anywhere in the repository:
+# Usage, from the repository root:
 #
 #   eval "$(scripts/test-keys.sh)"
 #
