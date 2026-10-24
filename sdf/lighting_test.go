@@ -37,3 +37,22 @@ func TestLightingWarnings(t *testing.T) {
 		t.Errorf("default lighting warned: %s", w)
 	}
 }
+
+func TestDimCeilingLights(t *testing.T) {
+	// A covered floor lit by a grid of dim lights is fine; too many warn.
+	grid := func(n int) string {
+		var b strings.Builder
+		for i := 0; i < n; i++ {
+			b.WriteString(`<light type="point" name="ceiling_` + strings.Repeat("x", i+1) + `">` +
+				`<diffuse>0.3 0.3 0.3 1</diffuse><cast_shadows>false</cast_shadows>` +
+				`<attenuation><range>12</range><constant>1</constant><linear>0.05</linear></attenuation></light>`)
+		}
+		return `<sdf version="1.12"><world name="w">` + b.String() + `</world></sdf>`
+	}
+	if w := messages(Validate(grid(16)).Warnings); strings.Contains(w, "light") {
+		t.Errorf("16 dim lights warned: %s", w)
+	}
+	if w := messages(Validate(grid(33)).Warnings); !strings.Contains(w, "33 dim point and spot lights") {
+		t.Errorf("33 dim lights: %s", w)
+	}
+}

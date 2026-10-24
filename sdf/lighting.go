@@ -14,9 +14,14 @@ import (
 
 const (
 	maxAmbient = 0.5 // per channel; Gazebo's default is 0.4
-	// maxLocalLights is how many point and spot lights a world may have
-	// before the warning: lamps the user asked for, not one per room.
+	// maxLocalLights is how many bright point and spot lights a world may
+	// have before the warning: lamps the user asked for, not one per room.
 	maxLocalLights = 4
+	// Dim lights (diffuse at most dimDiffuse) light covered spaces the sun
+	// can't reach, a floor under another floor, as a grid under the
+	// ceiling; up to maxDimLights of them.
+	dimDiffuse   = 0.35
+	maxDimLights = 32
 	// minConstant: below it a light is brighter than full strength next to
 	// it (0.4 is 2.5 times).
 	minConstant = 0.5
@@ -42,7 +47,7 @@ func (v *validator) checkWorldLighting(w *node) {
 			}
 		}
 	}
-	var suns, local []*node
+	var suns, local, dim []*node
 	walk(w, func(n *node) bool {
 		if n.name != "light" {
 			return true
@@ -51,7 +56,11 @@ func (v *validator) checkWorldLighting(w *node) {
 		case "directional":
 			suns = append(suns, n)
 		case "point", "spot":
-			local = append(local, n)
+			if d := n.child("diffuse"); d != nil && isDim(d.text) {
+				dim = append(dim, n)
+			} else {
+				local = append(local, n)
+			}
 		}
 		v.checkLight(n)
 		return false
@@ -61,9 +70,14 @@ func (v *validator) checkWorldLighting(w *node) {
 			"enough (remove the others, or make them dim fill lights with diffuse 0.2 or less)", len(suns))
 	}
 	if len(local) > maxLocalLights {
-		v.warnAt(local[maxLocalLights], 0, "%d point and spot lights: together with the sun and ambient light "+
-			"they overexpose the scene; keep only the lamps the user asked for (at most %d), or none",
-			len(local), maxLocalLights)
+		v.warnAt(local[maxLocalLights], 0, "%d point and spot lights brighter than diffuse %g: together with "+
+			"the sun and ambient light they overexpose the scene; keep only the lamps the user asked for (at "+
+			"most %d), and light covered spaces with dim ceiling lights (diffuse %g or less)",
+			len(local), dimDiffuse, maxLocalLights, dimDiffuse)
+	}
+	if len(dim) > maxDimLights {
+		v.warnAt(dim[maxDimLights], 0, "%d dim point and spot lights: space them further apart (at most %d)",
+			len(dim), maxDimLights)
 	}
 }
 
@@ -118,4 +132,10 @@ func maxFloat(a, b float64) float64 {
 		return a
 	}
 	return b
+}
+
+// isDim reports whether a light's diffuse color is a dim ceiling light's.
+func isDim(diffuse string) bool {
+	c, ok := floats(diffuse)
+	return ok && len(c) >= 3 && maxOf(c[:3]) <= dimDiffuse
 }
