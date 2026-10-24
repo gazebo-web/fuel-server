@@ -7,7 +7,7 @@
 //
 // Usage:
 //
-//	AISMOKE_TOKEN=<fuel JWT or access token> go run ./cmd/aismoke \
+//	AISMOKE_TOKEN=<fuel JWT or personal access token> go run ./cmd/aismoke \
 //	  -fuel http://localhost:8000 -agent http://localhost:8010 \
 //	  -provider anthropic -report smoke.json
 //
@@ -402,7 +402,7 @@ func (r *runner) upload(ctx context.Context, project, file string) (string, erro
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Authorization", "Bearer "+r.token)
+	r.authorize(req)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	resp, err := r.http.Do(req)
 	if err != nil {
@@ -624,6 +624,17 @@ func readSSE(r io.Reader, fn func(event string, data []byte)) error {
 	return sc.Err()
 }
 
+// authorize signs a request in: a JWT as a bearer token, a personal
+// access token ("prefix.key") as Private-Token, as fuel-server's routes
+// want it.
+func (r *runner) authorize(req *http.Request) {
+	if strings.Count(r.token, ".") == 1 {
+		req.Header.Set("Private-Token", r.token)
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+r.token)
+}
+
 func (r *runner) request(ctx context.Context, method, u string, body any) (*http.Response, error) {
 	var rd io.Reader
 	if body != nil {
@@ -634,7 +645,7 @@ func (r *runner) request(ctx context.Context, method, u string, body any) (*http
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+r.token)
+	r.authorize(req)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := r.http.Do(req)
 	if err != nil {
