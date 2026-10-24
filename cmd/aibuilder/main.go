@@ -11,6 +11,7 @@
 //	AI_BUILDER_KEY_ENCRYPTION_KEY   32 bytes, hex: encrypts users' LLM keys. Only this binary has it.
 //	AI_BUILDER_ALLOWED_ORIGIN       the web app's origin for CORS (http://localhost:3001)
 //	AI_BUILDER_EFFORT               reasoning effort on models that support it (high)
+//	AI_BUILDER_MAX_TOOL_ROUNDS      tool-call rounds per chat turn (50)
 package main
 
 import (
@@ -18,6 +19,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -63,6 +65,11 @@ func main() {
 		return providers.NewOllama(apiKey, endpoint)
 	})
 
+	rounds, err := strconv.Atoi(env("AI_BUILDER_MAX_TOOL_ROUNDS", strconv.Itoa(aibuilder.DefaultMaxToolIters)))
+	if err != nil || rounds < 1 {
+		log.Fatalf("AI_BUILDER_MAX_TOOL_ROUNDS must be a positive number")
+	}
+
 	toolCfg := aitools.ConfigFromEnv()
 	toolCfg.SweepSizes = false // fuel-server sweeps
 	db := globals.Server.Db
@@ -72,6 +79,7 @@ func main() {
 		Tools:         aitools.NewRegistry(toolCfg),
 		Auth:          aibuilder.Authenticate(db, bootstrap.Verifier()),
 		Effort:        env("AI_BUILDER_EFFORT", "high"),
+		MaxToolIters:  rounds,
 		AllowedOrigin: env("AI_BUILDER_ALLOWED_ORIGIN", "http://localhost:3001"),
 	})
 	if err != nil {

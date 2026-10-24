@@ -46,6 +46,9 @@ type Config struct {
 	Auth func(http.Handler) http.Handler
 	// Effort is the reasoning effort on models that support it.
 	Effort string
+	// MaxToolIters is the budget of tool-call rounds per turn; 0 is
+	// DefaultMaxToolIters.
+	MaxToolIters int
 	// AllowedOrigin is the web app's origin, for CORS ("" echoes the
 	// request's origin).
 	AllowedOrigin string
@@ -186,6 +189,9 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	cfg.SDFVersion = str(p.SDFVersion)
 	cfg.Model = body.Model
 	cfg.Effort = s.cfg.Effort
+	if s.cfg.MaxToolIters > 0 {
+		cfg.MaxToolIters = s.cfg.MaxToolIters
+	}
 	engine := NewEngine(provider, &userTools{reg: s.cfg.Tools, db: s.db, user: userFrom(r)}, cfg)
 	s.turns.start(turn, func(ctx context.Context, out chan<- Event) {
 		engine.Run(ctx, history, in, cs.ID, out, s.store.AppendMessage)

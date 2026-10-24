@@ -7,6 +7,7 @@ package aibuilder
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -69,14 +70,27 @@ type EngineConfig struct {
 	MaxToolIters int    // max tool-call rounds per user turn
 }
 
+// DefaultMaxToolIters is the default budget of tool-call rounds per turn.
+// A building with robots, elevators and racks took more than 20.
+const DefaultMaxToolIters = 50
+
 // DefaultEngineConfig returns sensible defaults. Edit-validate loops take more
 // rounds than whole-document generation, hence the larger budget.
 func DefaultEngineConfig() EngineConfig {
 	return EngineConfig{
-		MaxToolIters: 20,
+		MaxToolIters: DefaultMaxToolIters,
 		SDFVersion:   "1.12",
 	}
 }
+
+// limitNote asks the model to wrap up a turn that used all its tool rounds.
+const limitNote = "You have used all %d tool-call rounds this turn, so tool calls are off now. Without calling " +
+	"tools, tell the user briefly what is built so far, what is left to do, and that saying \"continue\" " +
+	"carries on from here."
+
+// limitFallback is the reply when the model gives none after the limit.
+const limitFallback = "I stopped after %d rounds of tool calls, before finishing. Say \"continue\" and I'll " +
+	"carry on from here."
 
 // BuildSystemPrompt returns the AI Builder system prompt for one project.
 func BuildSystemPrompt(project, gazebo, sdfVersion, ros2 string) string {
@@ -430,6 +444,12 @@ func (e *Engine) Run(
 		// Loop again with the LLM consuming tool results.
 	}
 
+	// Out of rounds with tool results unanswered: ask the model, once and
+	// without acting, to tell the user where things stand.
+	if n := len(messages); n > 0 && len(messages[n-1].ToolResults) > 0 {
+		messages = append(messages, e.wrapUp(ctx, messages, tools, out))
+	}
+
 	// Persist final assistant text (if not already persisted above — the
 	// last no-tool round has not been persisted yet).
 	finalText := lastAssistantText(messages)
@@ -443,6 +463,41 @@ func (e *Engine) Run(
 	}
 
 	out <- Event{Type: EventDone}
+}
+
+// wrapUp is the reply to a turn that used all its tool rounds: the model,
+// told it's out of rounds, sums up; tool calls it makes anyway are not run.
+// The tools stay in the request, since providers want them declared when
+// the history has tool calls. Without a usable reply, a fixed one says so.
+func (e *Engine) wrapUp(ctx context.Context, messages []llm.Message, tools []llm.Tool, out chan<- Event) llm.Message {
+	reply := llm.Message{Role: "assistant"}
+	req := llm.Request{
+		Model:        e.cfg.Model,
+		CachedPrefix: e.cfg.SystemPrompt,
+		Messages: append(withoutImages(messages), llm.Message{Role: "user",
+			Content: fmt.Sprintf(limitNote, e.cfg.MaxToolIters)}),
+		Tools:  tools,
+		Effort: e.cfg.Effort,
+	}
+	var text strings.Builder
+	if stream, err := e.provider.ChatStream(ctx, req); err == nil {
+		for chunk := range stream {
+			switch chunk.Type {
+			case llm.ChunkText:
+				text.WriteString(chunk.Text)
+				out <- Event{Type: EventText, Text: chunk.Text}
+			case llm.ChunkUsage:
+				out <- Event{Type: EventUsage, Usage: chunk.Usage}
+			}
+		}
+	}
+	if strings.TrimSpace(text.String()) == "" {
+		text.Reset()
+		text.WriteString(fmt.Sprintf(limitFallback, e.cfg.MaxToolIters))
+		out <- Event{Type: EventText, Text: text.String()}
+	}
+	reply.Content = text.String()
+	return reply
 }
 
 // buildLLMHistory replays earlier turns as their user and assistant text

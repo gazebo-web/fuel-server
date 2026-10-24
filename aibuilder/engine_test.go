@@ -338,3 +338,76 @@ func TestEngineDropsImagesForTextOnlyModels(t *testing.T) {
 	assert.Contains(t, last[0].Content, "can't take images")
 	assert.False(t, hasImages(last))
 }
+
+// toolRound is a provider round that only calls the echo tool.
+func toolRound(id string) []llm.Chunk {
+	return []llm.Chunk{{Type: llm.ChunkToolCall, ToolCall: &llm.ToolCall{ID: id, Name: "fake.echo",
+		Input: map[string]interface{}{"text": id}}}}
+}
+
+func TestEngineWrapsUpAtTheRoundLimit(t *testing.T) {
+	// Two rounds allowed, both spent on tools; the wrap-up call answers
+	// with text (and a tool call, which isn't run).
+	p := &scriptedProvider{rounds: [][]llm.Chunk{
+		toolRound("t1"), toolRound("t2"),
+		append(toolRound("t3"), llm.Chunk{Type: llm.ChunkText, Text: "Walls are up; racks are left. Say continue."}),
+	}}
+	reg := &testTools{}
+	reg.Add(fakeMCP{})
+	cfg := DefaultEngineConfig()
+	cfg.MaxToolIters = 2
+	e := NewEngine(p, reg, cfg)
+
+	out := make(chan Event, 64)
+	var stored []ChatMessage
+	appender := func(m *ChatMessage) error { stored = append(stored, *m); return nil }
+	go e.Run(context.Background(), nil, UserInput{Text: "build"}, "sess", out, appender)
+	events := drainEvents(t, out)
+
+	results, text := 0, ""
+	for _, ev := range events {
+		switch ev.Type {
+		case EventToolResult:
+			results++
+		case EventText:
+			text += ev.Text
+		}
+	}
+	assert.Equal(t, 2, results, "the wrap-up's tool call isn't run")
+	assert.Equal(t, "Walls are up; racks are left. Say continue.", text)
+	assert.Equal(t, EventDone, events[len(events)-1].Type)
+
+	// The wrap-up request tells the model it's out of rounds, after the
+	// tool results; the note isn't stored in the chat.
+	require.Len(t, p.reqs, 3)
+	last := p.reqs[2].Messages
+	assert.Contains(t, last[len(last)-1].Content, "used all 2 tool-call rounds")
+	assert.NotEmpty(t, last[len(last)-2].ToolResults)
+	assert.NotEmpty(t, p.reqs[2].Tools, "tools stay declared")
+	require.NotEmpty(t, stored)
+	assert.Equal(t, "assistant", stored[len(stored)-1].Role)
+	assert.Equal(t, text, stored[len(stored)-1].Content)
+	for _, m := range stored {
+		assert.NotContains(t, m.Content, "tool-call rounds")
+	}
+}
+
+func TestEngineWrapUpFallback(t *testing.T) {
+	// The model says nothing after the limit: a fixed reply says so.
+	p := &scriptedProvider{rounds: [][]llm.Chunk{toolRound("t1")}}
+	reg := &testTools{}
+	reg.Add(fakeMCP{})
+	cfg := DefaultEngineConfig()
+	cfg.MaxToolIters = 1
+	e := NewEngine(p, reg, cfg)
+
+	out := make(chan Event, 32)
+	go e.Run(context.Background(), nil, UserInput{Text: "build"}, "sess", out, func(*ChatMessage) error { return nil })
+	text := ""
+	for _, ev := range drainEvents(t, out) {
+		if ev.Type == EventText {
+			text += ev.Text
+		}
+	}
+	assert.Contains(t, text, "stopped after 1 rounds")
+}
