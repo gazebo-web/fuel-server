@@ -145,7 +145,7 @@ def build(job: dict, base: str, out: str) -> dict:
     if not path.startswith(os.path.normpath(base) + os.sep) or not os.path.isfile(path):
         raise ImportError_("the mesh to import is missing")
     try:
-        scene = inspect.load_scene(path)
+        scene = inspect.load_model_mesh(path, os.path.normpath(base))
     except inspect.InspectError as e:
         raise ImportError_(str(e))
     meshes = [g.copy() for g in scene.dump() if isinstance(g, trimesh.Trimesh) and len(g.faces)]
