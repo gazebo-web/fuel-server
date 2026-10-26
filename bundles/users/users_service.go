@@ -382,10 +382,14 @@ func AccessTokenList(p *gz.PaginationRequest, tx *gorm.DB,
 // means that a personal access token cannot be used to remove access token.
 func AccessTokenDelete(jwtUser *User, tx *gorm.DB, accessToken gz.AccessToken) (interface{}, *gz.ErrMsg) {
 
-	// Get the token.
+	// Get the token. It must belong to the requesting user.
 	var token gz.AccessToken
-	if err := tx.Model(jwtUser).Related(&jwtUser.AccessTokens).Where(
-		"prefix = ? AND name = ?", accessToken.Prefix, accessToken.Name).First(&token).Error; err != nil {
+	q := tx.Where("user_id = ? AND prefix = ? AND name = ?",
+		jwtUser.ID, accessToken.Prefix, accessToken.Name).First(&token)
+	if q.RecordNotFound() {
+		return nil, gz.NewErrorMessage(gz.ErrorNonExistentResource)
+	}
+	if err := q.Error; err != nil {
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorDbDelete, err)
 	}
 
