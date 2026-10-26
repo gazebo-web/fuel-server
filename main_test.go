@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/gz-go/v7"
 
@@ -25,6 +26,8 @@ func packageTearDown(ctx context.Context) {
 		ctx = gz.NewContextWithLogger(context.Background(), gz.NewLoggerNoRollbar("test", gz.VerbosityDebug))
 	}
 	cleanDBTables(ctx)
+	// The cached model list holds models from the dropped tables.
+	models.ClearListCache(ctx)
 	// Remove all created folders
 	os.RemoveAll(globals.ResourceDir)
 }

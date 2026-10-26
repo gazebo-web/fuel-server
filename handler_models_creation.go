@@ -347,9 +347,7 @@ func ModelTransfer(sourceOwner, modelName string, user *users.User, tx *gorm.DB,
 	// Only the model list is cached: worlds have nothing to clear.
 	models.ElasticSearchUpdateModel(r.Context(), tx, *model)
 	if model.Private == nil || !*model.Private {
-		if err := globals.QueryCache.DeleteAll(); err != nil {
-			gz.LoggerFromContext(r.Context()).Error("Failed to clear the memory cache.")
-		}
+		models.ClearListCache(r.Context())
 	}
 
 	return &model, nil
