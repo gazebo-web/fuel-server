@@ -585,7 +585,7 @@ func WorldTransfer(sourceOwner, worldName string, user *users.User, tx *gorm.DB,
 	w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
 	// Read the request and check permissions.
-	transferAsset, em := processTransferRequest(sourceOwner, tx, r)
+	transferAsset, em := processTransferRequest(sourceOwner, user, tx, r)
 	if em != nil {
 		return nil, em
 	}

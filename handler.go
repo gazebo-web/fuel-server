@@ -63,7 +63,7 @@ func SearchHandler(handler searchFnHandler) gz.HandlerWithResult {
 		// it is ok for user to be nil
 		user, ok, em2 := getUserFromJWT(tx, r)
 		if !ok && (em2.ErrCode != gz.ErrorAuthJWTInvalid &&
-			errMsg.ErrCode != gz.ErrorAuthNoUser) {
+			em2.ErrCode != gz.ErrorAuthNoUser) {
 			return nil, &em2
 		}
 
@@ -372,6 +372,16 @@ func getValidationErrorsExtraInfo(err error) []string {
 		extra = append(extra, fmt.Sprintf("%s:%v", fe.StructField(), fe.Value()))
 	}
 	return extra
+}
+
+// ensureSystemAdmin returns an error unless the user of the request is a
+// system admin.
+func ensureSystemAdmin(tx *gorm.DB, r *http.Request) *gz.ErrMsg {
+	user, ok, _ := getUserFromJWT(tx, r)
+	if !ok || !globals.Permissions.IsSystemAdmin(*user.Username) {
+		return gz.NewErrorMessage(gz.ErrorUnauthorized)
+	}
+	return nil
 }
 
 // getUserFromJWT returns the User associated to the http request's JWT token.
