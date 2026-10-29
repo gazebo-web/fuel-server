@@ -510,6 +510,13 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 	if !ok {
 		return nil, err
 	}
+	// Only Owners and Admins can update the privacy setting. Check this before
+	// any change is made, since file changes are not rolled back on error.
+	if private != nil {
+		if ok, em := users.CanPerformWithRole(tx, *world.Owner, *user.Username, permissions.Admin); !ok {
+			return nil, em
+		}
+	}
 
 	// Edit the description, if present.
 	if desc != nil {
@@ -560,11 +567,6 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 
 	// Update privacy, if present.
 	if private != nil {
-		// check if JWT user has permission to update the privacy setting.
-		// Only Owners and Admins can do that.
-		if ok, em := users.CanPerformWithRole(tx, *world.Owner, *user.Username, permissions.Admin); !ok {
-			return nil, em
-		}
 		tx.Model(&world).Update("Private", *private)
 	}
 
@@ -575,25 +577,10 @@ func (ws *Service) UpdateWorld(ctx context.Context, tx *gorm.DB, owner,
 // updateZip creates a new zip file for the given world and also
 // updates its Filesize field in DB.
 func (ws *Service) updateZip(ctx context.Context, repo vcs.VCS, world *World) *gz.ErrMsg {
-	zSize, path, em := res.ZipResourceTip(ctx, repo, world, worlds)
+	zSize, em := res.UpdateZip(ctx, repo, ws.Storage, world, worlds)
 	if em != nil {
 		return em
 	}
-	f, err := os.Open(path)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-
-	v, err := res.GetLatestVersion(ctx, world)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-
-	err = ws.Storage.UploadZip(ctx, res.CastResourceToStorageResource(world, uint64(v)), f)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-
 	world.Filesize = int(zSize)
 	return nil
 }

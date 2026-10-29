@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/users"
@@ -12,7 +13,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"gopkg.in/go-playground/validator.v9"
 	"io"
-	"log"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -21,6 +21,22 @@ import (
 	"strconv"
 	"strings"
 )
+
+// limitRequestBody is a middleware that rejects requests whose body is larger
+// than globals.MaxUploadBytes. Bodies without a declared length are cut off
+// when they reach the limit, which makes reading them fail.
+func limitRequestBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if globals.MaxUploadBytes > 0 {
+			if r.ContentLength > globals.MaxUploadBytes {
+				http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+				return
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, globals.MaxUploadBytes)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 // NoResult is a middleware that adapts a gz.HandlerWithResult into a gz.Handler.
 func NoResult(handler gz.HandlerWithResult) gz.Handler {
@@ -476,15 +492,8 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 		if len(fn) == 0 {
 			continue
 		}
-		file, err := fh.Open()
-		defer func(file multipart.File) {
-			err := file.Close()
-			if err != nil {
-				log.Println("Failed to close file:", err)
-			}
-		}(file)
-		if err != nil {
-			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+		if err := validateUploadPath(fn); err != nil {
+			return "", gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, err, []string{fn})
 		}
 		// If file path includes any of the items from the list of invalid names,
 		// then error
@@ -498,30 +507,59 @@ func populateTmpDir(r *http.Request, rmDir bool, dirpath string) (string, *gz.Er
 		// Create the destination file in target dirpath folder
 		// This assumes given file name can have slashes (subfolders)
 		fileFullPath := filepath.Join(dirpath, fn)
+		// Defense in depth: the destination must remain inside dirpath
+		if rel, err := filepath.Rel(dirpath, fileFullPath); err != nil ||
+			rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "", gz.NewErrorMessageWithArgs(gz.ErrorFormInvalidValue, err, []string{fn})
+		}
 		// Sanity check: check for duplicate file entries
 		if _, err := os.Stat(fileFullPath); err == nil {
 			return "", gz.NewErrorMessageWithArgs(gz.ErrorFormDuplicateFile, err, []string{fileFullPath})
 		}
-		if err := os.MkdirAll(filepath.Dir(fileFullPath), 0711); err != nil {
-			return "", gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
-		}
-		dest, err := os.Create(fileFullPath)
-		defer func(dest *os.File) {
-			err := dest.Close()
-			if err != nil {
-				log.Println("Failed to close file:", err)
-			}
-		}(dest)
-		if err != nil {
-			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
-		}
-		// Now copy contents
-		if _, err := io.Copy(dest, file); err != nil {
-			return "", gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+		if em := writeUploadedFile(fh, fileFullPath); em != nil {
+			return "", em
 		}
 	}
 
 	return dirpath, nil
+}
+
+// writeUploadedFile copies the contents of an uploaded multipart file into a
+// new file at fileFullPath, creating any missing parent folders.
+func writeUploadedFile(fh *multipart.FileHeader, fileFullPath string) *gz.ErrMsg {
+	file, err := fh.Open()
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+	}
+	defer gz.Close(file)
+	if err := os.MkdirAll(filepath.Dir(fileFullPath), 0711); err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
+	}
+	dest, err := os.Create(fileFullPath)
+	if err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+	}
+	defer gz.Close(dest)
+	// Now copy contents
+	if _, err := io.Copy(dest, file); err != nil {
+		return gz.NewErrorMessageWithBase(gz.ErrorForm, err)
+	}
+	return nil
+}
+
+// validateUploadPath returns an error if an uploaded file path could resolve
+// to a location outside of the folder it is uploaded into. Paths are relative
+// to that folder, and may optionally start with a slash.
+func validateUploadPath(fn string) error {
+	if strings.ContainsRune(fn, 0) {
+		return errors.New("file path contains a NUL character")
+	}
+	for _, segment := range strings.Split(fn, "/") {
+		if segment == ".." {
+			return errors.New("file path contains a '..' segment")
+		}
+	}
+	return nil
 }
 
 // extractFilepath extracts the full filename from the Content-Disposition header.
