@@ -29,6 +29,7 @@ type modelElastic struct {
 	Categories  string `json:"categories"`
 	Creator     string `json:"creator"`
 	Collections string `json:"collections"`
+	Private     bool   `json:"private"`
 }
 
 // ElasticSearchRemoveModel removes a model from elastic search
@@ -99,6 +100,7 @@ func ElasticSearchUpdateModel(ctx context.Context, tx *gorm.DB, model Model) {
 		Tags:        tags,
 		Categories:  categories,
 		Collections: collectionBuilder.String(),
+		Private:     model.Private != nil && *model.Private,
 	}
 
 	// Add in metadata
