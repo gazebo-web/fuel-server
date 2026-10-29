@@ -18,6 +18,7 @@ import (
 	"github.com/gazebo-web/gz-go/v7/storage"
 	"github.com/jinzhu/gorm"
 	"google.golang.org/protobuf/proto"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -503,10 +504,10 @@ func (ms *Service) increaseDownloadCounter(tx *gorm.DB, model *Model, delta uint
 	return ms.applyExpression(tx, model, "downloads", gorm.Expr("downloads + ?", delta))
 }
 
-// GetFile returns the contents (bytes) of a model file. Model version is considered.
-// Returns the file's bytes and the resolved version of the model.
+// GetFile returns the contents of a model file. Model version is considered.
+// Returns the file's contents, which the caller must close, and the resolved version of the model.
 func (ms *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
-	version string, user *users.User) (*[]byte, int, *gz.ErrMsg) {
+	version string, user *users.User) (io.ReadSeekCloser, int, *gz.ErrMsg) {
 
 	model, em := ms.GetModel(tx, owner, name, user)
 	if em != nil {

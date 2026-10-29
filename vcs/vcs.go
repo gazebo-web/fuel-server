@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/pkg/errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,7 +25,7 @@ const DefaultBranch = "main"
 // VCS - Version Control System basic interface.
 type VCS interface {
 	CloneTo(ctx context.Context, target string) error
-	GetFile(ctx context.Context, rev string, pathFromRoot string) (*[]byte, error)
+	GetFile(ctx context.Context, rev string, pathFromRoot string) (io.ReadSeekCloser, error)
 	InitRepo(ctx context.Context) error
 	ReplaceFiles(ctx context.Context, folder, owner string) error
 	RevisionCount(ctx context.Context, rev string) (int, error)
@@ -105,7 +106,8 @@ func (g *GitVCS) Init(ctx context.Context) error {
 }
 
 // GetFile - Gets a single file with a given revision from the repo.
-func (g *GitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (*[]byte, error) {
+// The caller must close the returned content.
+func (g *GitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (io.ReadSeekCloser, error) {
 	gz.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")
 	if err := ensureFolderExists(g.Path); err != nil {
 		return nil, err
@@ -120,8 +122,19 @@ func (g *GitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (
 	if err != nil {
 		err = gz.WithStack(err)
 		gz.LoggerFromContext(ctx).Info("Error while running process. Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		return nil, err
 	}
-	return &bs, err
+	return bytesContent{bytes.NewReader(bs)}, nil
+}
+
+// bytesContent is a file content held in memory.
+type bytesContent struct {
+	*bytes.Reader
+}
+
+// Close implements io.Closer.
+func (bytesContent) Close() error {
+	return nil
 }
 
 // Walk - given a revision, Walk func iterates over the repository and invokes the

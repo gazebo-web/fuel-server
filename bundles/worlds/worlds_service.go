@@ -430,10 +430,10 @@ func (ws *Service) increaseDownloadCounter(tx *gorm.DB, world *World, delta uint
 	return ws.applyExpression(tx, world, "downloads", gorm.Expr("downloads + ?", delta))
 }
 
-// GetFile returns the contents (bytes) of a world file. World version is considered.
-// Returns the file's bytes and the resolved version of the world.
+// GetFile returns the contents of a world file. World version is considered.
+// Returns the file's contents, which the caller must close, and the resolved version of the world.
 func (ws *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
-	version string, user *users.User) (*[]byte, int, *gz.ErrMsg) {
+	version string, user *users.User) (io.ReadSeekCloser, int, *gz.ErrMsg) {
 
 	world, em := ws.GetWorld(tx, owner, name, user)
 	if em != nil {
