@@ -115,9 +115,8 @@ bar : `chrome://flags/#allow-insecure-localhost`
         eval "$(scripts/test-keys.sh)"
 
     This sets `TOKEN_GENERATOR_PRIVATE_RSA256_KEY`, `TEST_RSA256_PUBLIC_KEY` and
-    `IGN_TEST_JWT`. The keys are new on every run, so generate them once and
-    keep them in your `.env` if you want to reuse them. Never use them outside
-    of tests.
+    `IGN_TEST_JWT`. Each run makes new keys; to reuse them, save the output in
+    your `.env`. Never use them outside of tests.
 
     Long version:
 

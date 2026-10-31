@@ -7,8 +7,8 @@ on:
 permissions:
   contents: read
 
-# These jobs replace gazebo-web/.github's format-go.yaml, which runs
-# golangci-lint v1. v1 can't lint code for Go 1.25 and later.
+# These jobs run here instead of in gazebo-web/.github's format-go.yaml, whose
+# golangci-lint v1 can't lint code for Go 1.25 or later.
 jobs:
   fmt:
     name: go / fmt

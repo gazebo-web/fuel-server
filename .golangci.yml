@@ -1,9 +1,6 @@
 version: "2"
 
-# Keep the checks that golangci-lint v1 ran by default. v2 also reports
-# unchecked Close/RemoveAll errors and staticcheck's style and quickfix
-# suggestions, and drops v1's other default exclusions, which the presets
-# below restore.
+# The checks and exclusions that golangci-lint v1 uses by default.
 linters:
   default: standard
   settings:
