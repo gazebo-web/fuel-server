@@ -1077,9 +1077,12 @@ func TestTeamsPagination(t *testing.T) {
 
 	uri := orgTeamsRoute(testOrg)
 	uri2 := orgTeamsRoute(testOrg2)
+	// a valid JWT for an identity without an account
+	noAccountJWT := createValidJWTForIdentity("no-account-user", t)
 
 	teamListTestsData := []teamListTest{
 		{uriTest{"unauthorized", uri, nil, gz.NewErrorMessage(gz.ErrorUnauthorized), true}, "", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
+		{uriTest{"unauthorized for a JWT without an account", uri, newJWT(noAccountJWT), gz.NewErrorMessage(gz.ErrorUnauthorized), false}, "", nil},
 		{uriTest{"org owner can see all teams", uri, jwtDef, nil, false}, "", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
 		{uriTest{"org admin can see all teams", uri, newJWT(jwt3), nil, false}, "", users.TeamResponses{t1Resp, t2Resp, t3Resp}},
 		{uriTest{"org member can only see visible teams or ones he is part of", uri, newJWT(jwt2), nil, false}, "", users.TeamResponses{t2Resp, t3Resp}},
