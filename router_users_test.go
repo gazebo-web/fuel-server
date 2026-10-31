@@ -410,9 +410,9 @@ func TestUserIndex(t *testing.T) {
 	}
 }
 
-// TestUserIndexOrgs tests that GET /users/{username} only lists the
-// organizations the requestor is a member of, and only includes private data
-// for the same user and system admins.
+// TestUserIndexOrgs checks which of a user's organizations GET /users/{username}
+// lists for each kind of requester, and that only the user and system admins
+// get the user's private data.
 func TestUserIndexOrgs(t *testing.T) {
 	setup()
 	myJWT := os.Getenv("IGN_TEST_JWT")
@@ -428,7 +428,7 @@ func TestUserIndexOrgs(t *testing.T) {
 	username2 := createUserWithJWT(jwt2, t)
 	defer removeUserWithJWT(username2, jwt2, t)
 	addUserToOrg(username2, "member", org1, t)
-	// An admin of org1 that is a member of org2
+	// An admin of org1 and member of org2
 	jwt4 := createValidJWTForIdentity("another-user-4", t)
 	username4 := createUserWithJWT(jwt4, t)
 	defer removeUserWithJWT(username4, jwt4, t)
@@ -450,7 +450,7 @@ func TestUserIndexOrgs(t *testing.T) {
 		jwt      *string
 		expOrgs  []string
 		expRoles map[string]string
-		// should the returned user data contain private data?
+		// whether the response includes the user's email and ID
 		expPrivate bool
 	}{
 		{"same user sees all orgs", &myJWT, []string{org1, org2}, allRoles, true},

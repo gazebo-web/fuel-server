@@ -171,8 +171,7 @@ func CreateUserResponse(tx *gorm.DB, user, requestor *User) UserResponse {
 			response.ID = user.ID
 			response.OrgRoles = orgs
 		} else {
-			// If the requestor has write access to some of the user's orgs, then
-			// include the user's roles in those orgs.
+			// Other requestors only get the user's roles in the orgs they can write.
 			roles := make(map[string]string)
 			for o, r := range orgs {
 				if r != "" {
