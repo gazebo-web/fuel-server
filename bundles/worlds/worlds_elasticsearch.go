@@ -101,6 +101,7 @@ func ElasticSearchUpdateWorld(ctx context.Context, world World) {
 	add, err := req.Do(context.Background(), globals.ElasticSearch)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Critical("Error getting response:", err)
+		return
 	}
 	defer add.Body.Close()
 

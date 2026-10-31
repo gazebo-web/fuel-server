@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
-	res "github.com/gazebo-web/fuel-server/bundles/common_resources"
+	commonres "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
@@ -447,6 +447,7 @@ func createIndex(ctx context.Context, indexName string) {
 	res, err := mappingReq.Do(context.Background(), globals.ElasticSearch)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Error("Error creating the index with response:", err)
+		return
 	}
 	defer res.Body.Close()
 
@@ -471,6 +472,7 @@ func createIndices(ctx context.Context) {
 		res, err := indexExistsReq.Do(context.Background(), globals.ElasticSearch)
 		if err != nil {
 			gz.LoggerFromContext(ctx).Error("Error getting the indices with response:", err)
+			continue
 		}
 
 		// If the status code is not 200, then we need to create the index,
@@ -686,7 +688,7 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 
 	// Only search the resources that the requestor can see, so that the total
 	// hit count does not include private resources.
-	query = addElasticVisibilityFilter(query, res.VisibleOwners(user))
+	query = addElasticVisibilityFilter(query, commonres.VisibleOwners(user))
 
 	// Encode the search request.
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
@@ -777,8 +779,8 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 
 // addElasticVisibilityFilter restricts an ElasticSearch query to public
 // resources and to the private resources owned by any of the given owners.
-// Resources indexed without a "private" field are treated as public, which
-// matches how they were searched before the field was indexed.
+// Documents without a "private" field are treated as public; reindex with
+// /admin/search/rebuild to add the field.
 func addElasticVisibilityFilter(query map[string]interface{}, owners []string) map[string]interface{} {
 	visibility := []interface{}{
 		map[string]interface{}{

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/gazebo-web/fuel-server/bundles/worlds"
 	"github.com/gazebo-web/fuel-server/globals"
 	fuel "github.com/gazebo-web/fuel-server/proto"
 	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
@@ -57,6 +58,36 @@ func TestElasticErrorReason(t *testing.T) {
 
 	assert.Equal(t, "unknown error", elasticErrorReason(map[string]interface{}{}))
 	assert.Equal(t, "unknown error", elasticErrorReason(map[string]interface{}{"error": map[string]interface{}{}}))
+}
+
+// TestElasticSearchUnreachable checks that requests succeed when the
+// ElasticSearch server can't be reached.
+func TestElasticSearchUnreachable(t *testing.T) {
+	setup()
+
+	jwt := os.Getenv("IGN_TEST_JWT")
+	username := createUser(t)
+	defer removeUser(username, t)
+	testOrg := createOrganization(t)
+	defer removeOrganization(testOrg, t)
+	createThreeTestModels(t, &jwt)
+
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{"http://127.0.0.1:1"}, DisableRetry: true})
+	require.NoError(t, err)
+	globals.ElasticSearch = client
+	defer func() { globals.ElasticSearch = nil }()
+
+	ctx := context.Background()
+	createIndices(ctx)
+	worlds.ElasticSearchUpdateWorld(ctx, worlds.World{Name: sptr("w"), Owner: sptr("o"),
+		Creator: sptr("c"), Description: sptr("d")})
+
+	b := new(bytes.Buffer)
+	require.NoError(t, json.NewEncoder(b).Encode(map[string]string{"destOwner": testOrg}))
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/"+username+"/models/model1/transfer", b,
+		http.StatusOK, &jwt, ctJSON, t)
+	getOwnerModelFromDb(t, testOrg, "model1")
 }
 
 // TestElasticSearchVisibility runs model searches against an ElasticSearch
