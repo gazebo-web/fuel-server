@@ -422,45 +422,53 @@ Notes:
 
 ## Running as a non-root user
 
-The Docker image runs the server as UID and GID `10001`, not as root. Every
-file and folder under `/fuel` must be owned by that UID, otherwise uploads
-fail, and git refuses to read a repository whose folder is owned by another
-user.
+The Docker image runs the server as UID and GID `10001`. The server needs
+write access to everything under `/fuel`: uploads, updates, clones and zip
+downloads fail for a repository it can't write. The image sets git's
+`safe.directory` to `*`, so git reads repositories whatever their owner.
 
-Files written by older images are owned by root. Before deploying the first
-image that runs as `10001` to an environment, change their owner from a host
-that mounts that environment's EFS filesystem:
+Files written by root-based images are owned by root. To change their owner
+without downtime, from a host that mounts the environment's EFS filesystem:
 
-1. Change the owner of everything. This can take a long time on a large
-   filesystem, so run it while the old version is still serving:
+1. Deploy a release that still runs as root and sets `safe.directory` to `*`
+   in its Dockerfile:
+
+    ```
+    git config --global --add safe.directory '*'
+    ```
+
+    Without it, the root image's git refuses every repository whose owner
+    step 2 has changed.
+
+1. Change the owner of everything while that release serves. Root can still
+   read and write every file, so nothing fails. On a large filesystem this
+   takes a long time:
 
     ```
     sudo chown -R -h 10001:10001 /fuel
     ```
 
-1. Find out how long the last step will take. The old version keeps creating
-   root-owned files during step 1, and this lists them without changing
-   anything:
+1. Time the final pass. This lists what root created during step 2, without
+   changing anything:
 
     ```
     time sudo find /fuel ! -uid 10001 | wc -l
     ```
 
-1. Deploy the new version. If step 2 took long, deploy when traffic is low.
+1. Deploy the non-root image. If step 3 took long, deploy when traffic is low.
 
-1. Right after the deployment finishes, change the owner of what the old
-   version created since step 1 started:
+1. Right after the deployment finishes, change the owner of what root created
+   since step 2 started:
 
     ```
     sudo find /fuel ! -uid 10001 -exec chown -h 10001:10001 {} +
     ```
 
-    This reads every file's metadata again, so it takes about as long as step 2.
-    Until it finishes, uploads, clones and zip downloads can fail for models
-    and worlds that were created or updated during step 1. Everything else
-    works.
+    This takes about as long as step 3. Until it finishes, uploads, updates,
+    clones and zip downloads can fail for models and worlds created or updated
+    during step 2. Everything else works.
 
-EFS keeps owners as numeric IDs, so UID `10001` does not need to exist on the
+EFS keeps owners as numeric IDs, so UID `10001` doesn't need to exist on the
 host.
 
 ## AWS RDS

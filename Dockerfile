@@ -7,8 +7,9 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -o /out/fuel-server .
 
-# The server runs git commands for every repository on disk, so the runtime
-# image keeps the git CLI.
+# The server shells out to git (init, add, commit, tag, show, archive, clone and
+# rev-list), so the runtime image keeps the git CLI. media-types provides
+# /etc/mime.types, which sets the Content-Type of file downloads.
 FROM debian:trixie-slim
 
 # The server runs as this fixed UID, which must own everything in
@@ -17,10 +18,11 @@ FROM debian:trixie-slim
 ARG FUEL_UID=10001
 
 RUN apt-get update && \
-  apt-get install -y --no-install-recommends ca-certificates git && \
+  apt-get install -y --no-install-recommends ca-certificates git media-types && \
   rm -rf /var/lib/apt/lists/* && \
   git config --system user.name "gz-fuelserver" && \
   git config --system user.email "gz-fuelserver@test.org" && \
+  git config --system --add safe.directory '*' && \
   groupadd --gid ${FUEL_UID} fuel && \
   useradd --uid ${FUEL_UID} --gid fuel --home-dir /nonexistent --no-create-home \
     --shell /usr/sbin/nologin fuel
