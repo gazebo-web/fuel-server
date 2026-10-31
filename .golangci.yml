@@ -1,0 +1,14 @@
+version: "2"
+
+# The checks and exclusions that golangci-lint v1 uses by default.
+linters:
+  default: standard
+  settings:
+    staticcheck:
+      checks:
+        - "SA*"
+        - "S1*"
+  exclusions:
+    presets:
+      - std-error-handling
+      - legacy

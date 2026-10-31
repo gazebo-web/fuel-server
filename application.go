@@ -56,6 +56,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"testing"
 )
 
 // Impl note: we move this as a constant as it is used by tests.
@@ -87,7 +88,16 @@ func init() {
 	logger := gz.NewLogger("init", logStd, verbosity)
 	logCtx := gz.NewContextWithLogger(context.Background(), logger)
 
-	isGoTest = strings.Contains(strings.ToLower(os.Args[0]), "test")
+	// Test mode replaces the system admin, the resource directory and S3, so
+	// only enable it in binaries built by go test, whatever their name.
+	isGoTest = testing.Testing()
+
+	// gz-go enables its own test mode when the binary's path contains "test":
+	// it uses the "_test" database and trusts TEST_RSA256_PUBLIC_KEY instead
+	// of the Auth0 key. Refuse to start unless both test modes agree.
+	if isGoTest != strings.Contains(strings.ToLower(os.Args[0]), "test") {
+		log.Fatalf("The binary's path (%s) must contain \"test\" if and only if it was built by go test: gz-go picks its test mode from the path.", os.Args[0])
+	}
 
 	if memcacheAddr, err = gz.ReadEnvVar("GZ_FUEL_MEMCACHED_ADDR"); err != nil && !isGoTest {
 		logger.Info("Missing GZ_FUEL_MEMCACHED_ADDR env variable. Memcached will not be available.")
