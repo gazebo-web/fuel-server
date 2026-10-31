@@ -95,8 +95,8 @@ func init() {
 	}
 
 	globals.QueryCache = memcache.New(memcacheAddr)
-	// Clear the cache when starting, in case this version caches different
-	// results. The cache will be re-populated when queries arrive.
+	// Clear the list cache at startup, in case this version caches different
+	// data.
 	models.ClearListCache(logCtx)
 
 	// Get the root resource directory.

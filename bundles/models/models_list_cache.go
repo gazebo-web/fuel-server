@@ -15,17 +15,15 @@ import (
 )
 
 // The model list that anonymous users get is cached in memcache (see
-// isbasicModelListQuery). The cache keys include a generation number, which
-// is stored under listCacheGenerationKey. ClearListCache moves to a new
-// generation: the old entries are never read again, and memcached evicts
-// them. Unlike DeleteAll, this leaves the rest of the memcached server alone.
-// It's a variable so that tests can use their own generation.
+// isbasicModelListQuery). Its keys include a generation number, stored under
+// listCacheGenerationKey. ClearListCache moves to a new generation, so the old
+// entries are never read again and memcached evicts them. Other keys on the
+// server are left alone. It's a variable so that tests can use their own key.
 var listCacheGenerationKey = "models_list_generation"
 
-// listCacheExpiration is how long, in seconds, a cached list is kept. It
-// bounds how long a stale list can be served. A list can be cached stale when
-// it's read while a model is being changed, because the change clears the
-// cache before its database transaction commits.
+// listCacheExpiration is how long, in seconds, a cached page is kept. It limits
+// how long a stale page is served: a page read while a model change commits
+// can be cached stale, because the change clears the cache before it commits.
 const listCacheExpiration = int32(10 * time.Minute / time.Second)
 
 // listCacheGeneration returns the current generation of the model list cache.
@@ -41,9 +39,8 @@ func listCacheGeneration() (string, error) {
 }
 
 // newListCacheGeneration starts a generation when there's none, for example
-// after memcached restarted or evicted the generation key. The number comes
-// from the clock, so it doesn't reuse a generation whose entries could still
-// be cached.
+// after memcached restarts or evicts the generation key. The number comes from
+// the clock, so it can't match a generation whose entries are still cached.
 func newListCacheGeneration() (string, error) {
 	gen := strconv.FormatInt(time.Now().UnixNano(), 10)
 	err := globals.QueryCache.Add(&memcache.Item{Key: listCacheGenerationKey, Value: []byte(gen)})
@@ -61,8 +58,8 @@ func newListCacheGeneration() (string, error) {
 	return gen, nil
 }
 
-// ClearListCache stops the cached model lists from being used. Call it after
-// any change that shows in a public model's entry in the list.
+// ClearListCache stops the cached model list from being used. Call it after
+// creating, changing or deleting a public model.
 func ClearListCache(ctx context.Context) {
 	_, err := globals.QueryCache.Increment(listCacheGenerationKey, 1)
 	// Without a generation, the next read starts a new one, which can't
