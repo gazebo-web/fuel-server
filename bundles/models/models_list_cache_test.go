@@ -24,9 +24,12 @@ func useTestMemcache(t *testing.T) {
 		t.Skip("GZ_FUEL_MEMCACHED_ADDR isn't set")
 	}
 	origCache, origKey := globals.QueryCache, listCacheGenerationKey
-	t.Cleanup(func() { globals.QueryCache, listCacheGenerationKey = origCache, origKey })
 	globals.QueryCache = memcache.New(addr)
 	listCacheGenerationKey = "test_generation_" + gz.RandomString(8)
+	t.Cleanup(func() {
+		_ = globals.QueryCache.Delete(listCacheGenerationKey)
+		globals.QueryCache, listCacheGenerationKey = origCache, origKey
+	})
 }
 
 // cachePage caches a one-model page of the list in the current generation.
@@ -60,8 +63,9 @@ func TestClearListCache(t *testing.T) {
 	page2 := &gz.PaginationRequest{PageRequested: true, Page: 2, PerPage: 20}
 	cachePage(t, unpaged, "first")
 	cachePage(t, page2, "second")
-	other := &memcache.Item{Key: "not_the_model_list", Value: []byte("kept")}
+	other := &memcache.Item{Key: "not_the_model_list_" + gz.RandomString(8), Value: []byte("kept")}
 	require.NoError(t, globals.QueryCache.Set(other))
+	t.Cleanup(func() { _ = globals.QueryCache.Delete(other.Key) })
 
 	name, ok := cachedPage(t, unpaged)
 	assert.True(t, ok)
@@ -108,4 +112,17 @@ func TestListCacheGenerationLost(t *testing.T) {
 	assert.NotEqual(t, before, after)
 	_, ok := cachedPage(t, p)
 	assert.False(t, ok)
+}
+
+// TestListCacheKeysPerPage checks that pages of different sizes are cached
+// separately.
+func TestListCacheKeysPerPage(t *testing.T) {
+	useTestMemcache(t)
+
+	cachePage(t, &gz.PaginationRequest{PerPage: 1}, "one")
+	_, ok := cachedPage(t, &gz.PaginationRequest{PerPage: 20})
+	assert.False(t, ok)
+	name, ok := cachedPage(t, &gz.PaginationRequest{PerPage: 1})
+	assert.True(t, ok)
+	assert.Equal(t, "one", name)
 }

@@ -71,7 +71,7 @@ func ClearListCache(ctx context.Context) {
 
 // listCacheKeys returns the keys of a page of the model list in a generation.
 func listCacheKeys(gen string, p *gz.PaginationRequest) (modelsKey, paginationKey string) {
-	suffix := gen
+	suffix := gen + "_" + strconv.FormatInt(p.PerPage, 10)
 	if p.PageRequested {
 		suffix += "_" + strconv.FormatInt(p.Page, 10)
 	}
