@@ -23,6 +23,10 @@ jobs:
           MYSQL_DATABASE: "${{env.IGN_DB_NAME}}_test"
           MYSQL_RANDOM_ROOT_PASSWORD: true
         options: --health-cmd="mysqladmin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+      memcached:
+        image: memcached:1.6-alpine
+        ports:
+          - 11211
 
     steps:
       - name: Checkout
@@ -60,6 +64,7 @@ jobs:
           S3_BUCKET: "gz-fuel-srv"
 
           IGN_DB_ADDRESS: "127.0.0.1:${{ job.services.mysql.ports[3306] }}"
+          GZ_FUEL_MEMCACHED_ADDR: "127.0.0.1:${{ job.services.memcached.ports[11211] }}"
           IGN_FUEL_RESOURCE_DIR: "./tmp/fuel"
           IGN_TEST_JWT: ${{ secrets.IGN_TEST_JWT }}
           IGN_FUEL_MIGRATE_UNIQUEOWNERS_TABLE: "false"

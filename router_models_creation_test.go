@@ -224,6 +224,26 @@ func anonymousListOwner(t *testing.T, name string) string {
 	return ""
 }
 
+// TestModelCloneInCachedList checks that a public clone shows in the model
+// list that anonymous users get, which can be cached.
+func TestModelCloneInCachedList(t *testing.T) {
+	setup()
+
+	jwt := createValidJWTForIdentity("another-user", t)
+	testUser := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(testUser, jwt, t)
+	createThreeTestModels(t, &jwt)
+
+	// Get the list, which caches it.
+	assert.Equal(t, "", anonymousListOwner(t, "cachedclone"))
+
+	uri := "/1.0/" + testUser + "/models/model1/clone"
+	code, bslice, _ := gztest.SendMultipartPOST(t.Name(), t, uri, &jwt,
+		map[string]string{"name": "cachedclone"}, []gztest.FileDesc{})
+	require.Equal(t, http.StatusOK, code, string(*bslice))
+	assert.Equal(t, testUser, anonymousListOwner(t, "cachedclone"))
+}
+
 // TestModelClone tests cloning a model
 func TestModelClone(t *testing.T) {
 	// General test setup
