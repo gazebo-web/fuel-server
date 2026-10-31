@@ -123,6 +123,7 @@ func ElasticSearchUpdateModel(ctx context.Context, tx *gorm.DB, model Model) {
 	add, err := req.Do(context.Background(), globals.ElasticSearch)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Critical("Error getting response:", err)
+		return
 	}
 	defer add.Body.Close()
 

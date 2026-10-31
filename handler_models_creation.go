@@ -342,9 +342,8 @@ func ModelTransfer(sourceOwner, modelName string, user *users.User, tx *gorm.DB,
 	}
 	tx.Save(&model)
 
-	// The search index includes the owner, and so does the cached model list.
-	// That list is what anonymous users see, so it only holds public models.
-	// Only the model list is cached: worlds have nothing to clear.
+	// The search index and the cached model list include the owner. The cached
+	// list only holds public models.
 	models.ElasticSearchUpdateModel(r.Context(), tx, *model)
 	if model.Private == nil || !*model.Private {
 		if err := globals.QueryCache.DeleteAll(); err != nil {
