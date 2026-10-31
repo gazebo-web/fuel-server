@@ -410,9 +410,9 @@ func TestUserIndex(t *testing.T) {
 	}
 }
 
-// TestUserIndexOrgs tests that GET /users/{username} only lists the
-// organizations the requestor is a member of, and only includes private data
-// for the same user and system admins.
+// TestUserIndexOrgs checks which of a user's organizations GET /users/{username}
+// lists for each kind of requester, and that only the user and system admins
+// get the user's private data.
 func TestUserIndexOrgs(t *testing.T) {
 	setup()
 	myJWT := os.Getenv("IGN_TEST_JWT")
