@@ -410,8 +410,8 @@ func TestUserIndex(t *testing.T) {
 	}
 }
 
-// TestUserIndexOrgs tests that GET /users/{username} only lists the
-// organizations the requestor is a member of.
+// TestUserIndexOrgs checks which of a user's organizations GET /users/{username}
+// lists for each kind of requester.
 func TestUserIndexOrgs(t *testing.T) {
 	setup()
 	myJWT := os.Getenv("IGN_TEST_JWT")

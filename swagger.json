@@ -905,7 +905,7 @@
     },
     "/organizations/{name}/users": {
       "get": {
-        "description": "Return the list of users of an organization. Only members of the\norganization can list its users.",
+        "description": "Return the users of an organization. Only its members and system\nadmins can list them.",
         "produces": [
           "application/json"
         ],
