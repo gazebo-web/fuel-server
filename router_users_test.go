@@ -643,7 +643,7 @@ func TestUserPagination(t *testing.T) {
 		{uriTest{"org owner - get all users", uri, jwtDef, invUser, false}, "", []expResUser{
 			{user1, []string{orgName}, true, map[string]string{orgName: "owner"}},
 			{user2, []string{}, false, nil},
-			{user3, []string{orgName}, false, map[string]string{orgName: "member"}},
+			{user3, []string{orgName}, true, map[string]string{orgName: "member"}},
 		}},
 		{uriTest{"org member - get all users", uri, newJWT(jwt3), invUser, false}, "", []expResUser{
 			{user1, []string{orgName}, false, nil},

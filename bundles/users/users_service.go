@@ -128,10 +128,9 @@ func GetUserByIdentity(tx *gorm.DB, identity string) (*UserResponse, *gz.ErrMsg)
 	return &ur, nil
 }
 
-// CreateUserResponse creates a new UserResponse struct based on the given
-// User object.
-// The returned UserResponse will also include user private fields if the
-// requestor can access those
+// CreateUserResponse creates the UserResponse that requestor gets for user.
+// Only the user and system admins get the private fields: email, ID and
+// experimental features.
 func CreateUserResponse(tx *gorm.DB, user, requestor *User) UserResponse {
 	var response UserResponse
 
@@ -162,7 +161,6 @@ func CreateUserResponse(tx *gorm.DB, user, requestor *User) UserResponse {
 			response.SysAdmin = true
 		}
 
-		// only is system admin or self
 		if isSystemAdmin || isSameUser {
 			if user.ExpFeatures != nil {
 				response.ExpFeatures = *user.ExpFeatures
