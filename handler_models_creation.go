@@ -342,5 +342,14 @@ func ModelTransfer(sourceOwner, modelName string, user *users.User, tx *gorm.DB,
 	}
 	tx.Save(&model)
 
+	// The search index and the cached model list include the owner. The cached
+	// list only holds public models.
+	models.ElasticSearchUpdateModel(r.Context(), tx, *model)
+	if model.Private == nil || !*model.Private {
+		if err := globals.QueryCache.DeleteAll(); err != nil {
+			gz.LoggerFromContext(r.Context()).Error("Failed to clear the memory cache.")
+		}
+	}
+
 	return &model, nil
 }

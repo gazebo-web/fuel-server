@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
+	commonres "github.com/gazebo-web/fuel-server/bundles/common_resources"
 	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/users"
 	"github.com/gazebo-web/fuel-server/bundles/worlds"
@@ -411,6 +412,9 @@ func createIndex(ctx context.Context, indexName string) {
             }
           }
         },
+        "private": {
+          "type": "boolean"
+        },
         "tags": {
           "type": "text",
           "fields": {
@@ -443,6 +447,7 @@ func createIndex(ctx context.Context, indexName string) {
 	res, err := mappingReq.Do(context.Background(), globals.ElasticSearch)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Error("Error creating the index with response:", err)
+		return
 	}
 	defer res.Body.Close()
 
@@ -467,6 +472,7 @@ func createIndices(ctx context.Context) {
 		res, err := indexExistsReq.Do(context.Background(), globals.ElasticSearch)
 		if err != nil {
 			gz.LoggerFromContext(ctx).Error("Error getting the indices with response:", err)
+			continue
 		}
 
 		// If the status code is not 200, then we need to create the index,
@@ -680,6 +686,10 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 		}
 	}
 
+	// Only search the resources that the requestor can see, so that the total
+	// hit count does not include private resources.
+	query = addElasticVisibilityFilter(query, commonres.VisibleOwners(user))
+
 	// Encode the search request.
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		return nil, nil, gz.NewErrorMessageWithArgs(gz.ErrorUnexpected, err,
@@ -718,8 +728,7 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 				[]string{"Error parsing the search response error body"})
 		}
 		return nil, nil, gz.NewErrorMessageWithArgs(gz.ErrorUnexpected, err,
-			[]string{"Search error ",
-				errResult["error"].(map[string]string)["reason"]})
+			[]string{"Search error ", elasticErrorReason(errResult)})
 	}
 
 	var elasticResult map[string]interface{}
@@ -766,6 +775,53 @@ func elasticSearch(index string, pr *gz.PaginationRequest, owner *string, order,
 	// Debug
 	// fmt.Printf("--- End of ElasticSearch ---\n")
 	return result, &page, nil
+}
+
+// addElasticVisibilityFilter restricts an ElasticSearch query to public
+// resources and to the private resources owned by any of the given owners.
+// Documents without a "private" field are treated as public; reindex with
+// /admin/search/rebuild to add the field.
+func addElasticVisibilityFilter(query map[string]interface{}, owners []string) map[string]interface{} {
+	visibility := []interface{}{
+		map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must_not": map[string]interface{}{
+					"term": map[string]interface{}{"private": true},
+				},
+			},
+		},
+	}
+	if len(owners) > 0 {
+		visibility = append(visibility, map[string]interface{}{
+			"terms": map[string]interface{}{"owner.keyword": owners},
+		})
+	}
+	return map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": query["query"],
+				"filter": map[string]interface{}{
+					"bool": map[string]interface{}{
+						"should":               visibility,
+						"minimum_should_match": 1,
+					},
+				},
+			},
+		},
+	}
+}
+
+// elasticErrorReason returns the reason of an ElasticSearch error response.
+func elasticErrorReason(errResult map[string]interface{}) string {
+	switch e := errResult["error"].(type) {
+	case map[string]interface{}:
+		if reason, ok := e["reason"].(string); ok {
+			return reason
+		}
+	case string:
+		return e
+	}
+	return "unknown error"
 }
 
 func createWorldResults(ctx context.Context, user *users.User, tx *gorm.DB, elasticResult map[string]interface{}) (interface{}, int64) {

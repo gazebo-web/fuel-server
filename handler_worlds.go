@@ -603,5 +603,8 @@ func WorldTransfer(sourceOwner, worldName string, user *users.User, tx *gorm.DB,
 	}
 	tx.Save(&world)
 
+	// The search index includes the owner.
+	worlds.ElasticSearchUpdateWorld(r.Context(), *world)
+
 	return &world, nil
 }
