@@ -281,3 +281,36 @@ func TestTeamPermissionGroupConflicts(t *testing.T) {
 	assert.NoError(t, json.NewEncoder(b).Encode(users.CreateTeamForm{Name: "b_t_d", Visible: &notVisible}))
 	gztest.AssertRouteMultipleArgs("POST", "/1.0/organizations/"+orgA+"/teams", b, http.StatusConflict, &jwt, ctTextPlain, t)
 }
+
+// TestOrgTeamPermissionGroupConflicts checks that an organization and a team
+// cannot share a permissions group name. Org "<a>_t_b" would use the same group
+// as team "b" of org "<a>", and the owner of either one would get access to the
+// members of the other.
+func TestOrgTeamPermissionGroupConflicts(t *testing.T) {
+	setup()
+	jwt := os.Getenv("IGN_TEST_JWT")
+	username := createUser(t)
+	defer removeUser(username, t)
+	jwt2 := createValidJWTForIdentity("another-user", t)
+	username2 := createUserWithJWT(jwt2, t)
+	defer removeUserWithJWT(username2, jwt2, t)
+	notVisible := false
+
+	// An organization cannot be named like the group of an existing team.
+	orgA := gz.RandomString(8)
+	createOrganizationWithName(t, orgA)
+	defer removeOrganization(orgA, t)
+	addTeamToOrg(orgA, jwt, users.CreateTeamForm{Name: "b", Visible: &notVisible}, t)
+	b := new(bytes.Buffer)
+	assert.NoError(t, json.NewEncoder(b).Encode(users.CreateOrganization{Name: orgA + "_t_b"}))
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/organizations", b, http.StatusConflict, &jwt2, ctTextPlain, t)
+
+	// A team cannot use the group of an existing organization.
+	orgC := gz.RandomString(8)
+	createOrganizationWithName(t, orgC+"_t_d")
+	defer removeOrganization(orgC+"_t_d", t)
+	defer createOrganizationWithJWT(t, orgC, jwt2)()
+	b = new(bytes.Buffer)
+	assert.NoError(t, json.NewEncoder(b).Encode(users.CreateTeamForm{Name: "d", Visible: &notVisible}))
+	gztest.AssertRouteMultipleArgs("POST", "/1.0/organizations/"+orgC+"/teams", b, http.StatusConflict, &jwt2, ctTextPlain, t)
+}
