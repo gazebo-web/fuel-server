@@ -178,6 +178,9 @@ func TestModelTransfer(t *testing.T) {
 	// Run tests under different users
 	testResourcePOST(t, transferTestsAnotherUser, false, nil)
 
+	// The anonymous model list, which can be cached, shows the current owner.
+	assert.Equal(t, username, anonymousListOwner(t, *model.Name))
+
 	transferTestsMainUser := []postTest{
 		{"TestTransferToUser", uri, &jwtDef,
 			map[string]string{"destOwner": testUser}, nil,
@@ -202,6 +205,43 @@ func TestModelTransfer(t *testing.T) {
 			}
 		})
 	}
+
+	// The list shows the new owner, not a cached copy with the old one.
+	assert.Equal(t, testOrg, anonymousListOwner(t, *model.Name))
+}
+
+// anonymousListOwner returns the owner of the named model in the model list
+// that anonymous users get.
+func anonymousListOwner(t *testing.T, name string) string {
+	bslice, _ := gztest.AssertRouteMultipleArgs("GET", "/1.0/models", nil, http.StatusOK, nil, ctJSON, t)
+	var list []*fuel.Model
+	require.NoError(t, json.Unmarshal(*bslice, &list))
+	for _, m := range list {
+		if *m.Name == name {
+			return *m.Owner
+		}
+	}
+	return ""
+}
+
+// TestModelCloneInCachedList checks that a public clone shows in the model
+// list that anonymous users get, which can be cached.
+func TestModelCloneInCachedList(t *testing.T) {
+	setup()
+
+	jwt := createValidJWTForIdentity("another-user", t)
+	testUser := createUserWithJWT(jwt, t)
+	defer removeUserWithJWT(testUser, jwt, t)
+	createThreeTestModels(t, &jwt)
+
+	// Get the list, which caches it.
+	assert.Equal(t, "", anonymousListOwner(t, "cachedclone"))
+
+	uri := "/1.0/" + testUser + "/models/model1/clone"
+	code, bslice, _ := gztest.SendMultipartPOST(t.Name(), t, uri, &jwt,
+		map[string]string{"name": "cachedclone"}, []gztest.FileDesc{})
+	require.Equal(t, http.StatusOK, code, string(*bslice))
+	assert.Equal(t, testUser, anonymousListOwner(t, "cachedclone"))
 }
 
 // TestModelClone tests cloning a model

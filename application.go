@@ -39,6 +39,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/gazebo-web/fuel-server/bundles/models"
 	"github.com/gazebo-web/fuel-server/bundles/subt"
 	"github.com/gazebo-web/fuel-server/globals"
 	"github.com/gazebo-web/fuel-server/migrate"
@@ -94,11 +95,9 @@ func init() {
 	}
 
 	globals.QueryCache = memcache.New(memcacheAddr)
-	// Delete the cache when starting. The cache will be re-populated when
-	// queries arrive
-	if err := globals.QueryCache.DeleteAll(); err != nil {
-		logger.Error("Failed to clear the memory cache.")
-	}
+	// Clear the list cache at startup, in case this version caches different
+	// data.
+	models.ClearListCache(logCtx)
 
 	// Get the root resource directory.
 	if globals.ResourceDir, err = gz.ReadEnvVar("IGN_FUEL_RESOURCE_DIR"); err != nil && !isGoTest {
