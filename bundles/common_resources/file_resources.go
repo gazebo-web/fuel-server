@@ -16,6 +16,7 @@ import (
 	"github.com/gazebo-web/fuel-server/vcs"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -102,7 +103,7 @@ func GetLatestVersion(ctx context.Context, res Resource) (int, error) {
 	repo := globals.VCSRepoFactory(ctx, *res.GetLocation())
 
 	// get the total number of revisions of this file
-	totalRevCount, err := repo.RevisionCount(ctx, "master")
+	totalRevCount, err := repo.RevisionCount(ctx, "HEAD")
 	if err != nil {
 		return -1, err
 	}
@@ -213,48 +214,66 @@ func Remove(tx *gorm.DB, res Resource, user string) *gz.ErrMsg {
 	return nil
 }
 
-// ZipResourceTip creates a new zip file for the given resource. Returns the zip
-// Filesize and the path to the given zip file or an error.
+// UpdateZip creates the zip file for the latest version of the given
+// resource and uploads it to storage. Returns the zip Filesize or an error.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
-func ZipResourceTip(ctx context.Context, repo vcs.VCS, res Resource, subfolder string) (int64, string, *gz.ErrMsg) {
-	zipPath := getOrCreateZipLocation(res, subfolder, "")
-
-	// If the zippath doesn't exist, then this is the first version. Recompute
-	// the zippath.
-	if _, err := os.Stat(zipPath); err != nil {
-		zipPath = getOrCreateZipLocation(res, subfolder, "1")
+func UpdateZip(ctx context.Context, repo vcs.VCS, s storage.Storage, res Resource, subfolder string) (int64, *gz.ErrMsg) {
+	version, err := GetLatestVersion(ctx, res)
+	if err != nil {
+		gz.LoggerFromContext(ctx).Info("Error getting the latest resource version", err)
+		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+	}
+	zipPath, err := getOrCreateZipLocation(res, subfolder, version)
+	if err != nil {
+		gz.LoggerFromContext(ctx).Info("Error getting the zip location", err)
+		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
 
 	// Zip the model and compute its size
-	_, err := repo.Zip(ctx, "", zipPath)
+	_, err = repo.Zip(ctx, "", zipPath)
 	if err != nil {
 		gz.LoggerFromContext(ctx).Info("Error trying to zip resource", err)
-		return -1, "", gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
-	fInfo, err := os.Stat(zipPath)
+	f, err := os.Open(zipPath)
+	if err != nil {
+		gz.LoggerFromContext(ctx).Info("Error opening zip file", err)
+		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+	}
+	defer gz.Close(f)
+	fInfo, err := f.Stat()
 	if err != nil {
 		gz.LoggerFromContext(ctx).Info("Error getting zip file info / stat", err)
-		return -1, "", gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
+		return -1, gz.NewErrorMessageWithBase(gz.ErrorCreatingFile, err)
 	}
-	return fInfo.Size(), zipPath, nil
+
+	if err := s.UploadZip(ctx, CastResourceToStorageResource(res, uint64(version)), f); err != nil {
+		return -1, gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
+	}
+	return fInfo.Size(), nil
 }
 
 // getOrCreateZipLocation either returns the path to an existing resource's zip
 // file or creates a new '.zips' folder for the user and return the zip path.
 // subfolder arg is the resource type folder for the user (eg. models, worlds)
-func getOrCreateZipLocation(res Resource, subfolder, version string) string {
+// Returns an error if the resource doesn't have a valid UUID.
+func getOrCreateZipLocation(res Resource, subfolder string, version int) (string, error) {
+	// The UUID is part of the zip's file name, so only accept the canonical
+	// form that the server generates.
+	resUUID := res.GetUUID()
+	if resUUID == nil {
+		return "", errors.New("resource has no UUID")
+	}
+	if parsed, err := uuid.FromString(*resUUID); err != nil || parsed.String() != *resUUID {
+		return "", errors.Errorf("resource has an invalid UUID: %q", *resUUID)
+	}
+
 	zipsFolder := filepath.Join(globals.ResourceDir, *res.GetOwner(), subfolder, ".zips")
 	_ = os.Mkdir(zipsFolder, 0711)
 
-	if version == "" || version == "tip" {
-		version = ""
-	} else {
-		version = "v" + version
-	}
-
 	// path to this model's zip
-	zipPath := filepath.Join(zipsFolder, strings.ReplaceAll(*res.GetUUID(), " ", "_")+version+".zip")
-	return zipPath
+	zipName := *resUUID + "v" + strconv.Itoa(version) + ".zip"
+	return filepath.Join(zipsFolder, zipName), nil
 }
 
 // GetZip returns a path to the existing resource zip for the given version.
@@ -267,7 +286,10 @@ func GetZip(ctx context.Context, res Resource, subfolder string, version string)
 		return nil, 0, em
 	}
 
-	path := getOrCreateZipLocation(res, subfolder, version)
+	path, err := getOrCreateZipLocation(res, subfolder, resolvedVersion)
+	if err != nil {
+		return nil, 0, gz.NewErrorMessageWithBase(gz.ErrorZipNotAvailable, err)
+	}
 	zipPath := &path
 
 	if _, err := os.Stat(path); err != nil {
@@ -303,6 +325,9 @@ func CloneResourceRepo(ctx context.Context, res, clone Resource) (vcs.VCS, *gz.E
 	// Open the VCS repo of the source world and clone it
 	repo := globals.VCSRepoFactory(ctx, *res.GetLocation())
 	if err := repo.CloneTo(ctx, *clone.GetLocation()); err != nil {
+		if err := os.RemoveAll(*clone.GetLocation()); err != nil {
+			gz.LoggerFromContext(ctx).Error("Unable to remove directory: ", *clone.GetLocation())
+		}
 		return nil, gz.NewErrorMessageWithBase(gz.ErrorCreatingDir, err)
 	}
 

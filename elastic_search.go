@@ -81,15 +81,8 @@ type AdminSearchResponse struct {
 // curl -k -X DELETE http://localhost:8000/1.0/admin/search/{config_id} --header "Private-token: YOUR_TOKEN"
 func DeleteElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	user, ok, errMsg := getUserFromJWT(tx, r)
-
-	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != gz.ErrorAuthNoUser) {
-		return nil, &errMsg
-	}
-
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	if em := ensureSystemAdmin(tx, r); em != nil {
+		return nil, em
 	}
 
 	// Get the config id
@@ -119,15 +112,8 @@ func DeleteElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 // curl -k -H "Content-Type: application/json" -X PATCH http://localhost:8000/1.0/admin/search/{config_id} -d '{"address":"http://localhost:9200", "primary":true, "username":"my_username", "password":"my_password"}' --header "Private-token: YOUR_TOKEN"
 func ModifyElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	user, ok, errMsg := getUserFromJWT(tx, r)
-
-	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != gz.ErrorAuthNoUser) {
-		return nil, &errMsg
-	}
-
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	if em := ensureSystemAdmin(tx, r); em != nil {
+		return nil, em
 	}
 
 	// Get the config id
@@ -171,15 +157,8 @@ func ModifyElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 // curl -k -H "Content-Type: application/json" -X POST http://localhost:8000/1.0/admin/search -d '{"address":"http://localhost:9200", "primary":true}' --header "Private-token: YOUR_TOKEN"
 func CreateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	user, ok, errMsg := getUserFromJWT(tx, r)
-
-	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != gz.ErrorAuthNoUser) {
-		return nil, &errMsg
-	}
-
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	if em := ensureSystemAdmin(tx, r); em != nil {
+		return nil, em
 	}
 
 	// Parse the request
@@ -212,15 +191,8 @@ func CreateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Requ
 // curl -k -X GET http://localhost:8000/1.0/admin/search --header "Private-token: YOUR_TOKEN"
 func ListElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	user, ok, errMsg := getUserFromJWT(tx, r)
-
-	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != gz.ErrorAuthNoUser) {
-		return nil, &errMsg
-	}
-
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	if em := ensureSystemAdmin(tx, r); em != nil {
+		return nil, em
 	}
 
 	var dbConfigs ElasticSearchConfigs
@@ -235,15 +207,8 @@ func ListElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Reques
 // curl -k -X GET http://localhost:8000/1.0/admin/search/reconnect --header "Private-token: YOUR_TOKEN"
 func ReconnectElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	user, ok, errMsg := getUserFromJWT(tx, r)
-
-	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != gz.ErrorAuthNoUser) {
-		return nil, &errMsg
-	}
-
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	if em := ensureSystemAdmin(tx, r); em != nil {
+		return nil, em
 	}
 
 	if err := connectToElasticSearch(r.Context()); err != nil {
@@ -259,15 +224,8 @@ func ReconnectElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.R
 // curl -k -X GET http://localhost:8000/1.0/admin/search/rebuild --header "Private-token: YOUR_TOKEN"
 func RebuildElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	user, ok, errMsg := getUserFromJWT(tx, r)
-
-	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != gz.ErrorAuthNoUser) {
-		return nil, &errMsg
-	}
-
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	if em := ensureSystemAdmin(tx, r); em != nil {
+		return nil, em
 	}
 
 	deleteIndices(r.Context())
@@ -285,15 +243,8 @@ func RebuildElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Req
 // curl -k -X GET http://localhost:8000/1.0/admin/search/update --header "Private-token: YOUR_TOKEN"
 func UpdateElasticSearchHandler(tx *gorm.DB, w http.ResponseWriter, r *http.Request) (interface{}, *gz.ErrMsg) {
 
-	user, ok, errMsg := getUserFromJWT(tx, r)
-
-	if !ok && (errMsg.ErrCode != gz.ErrorAuthJWTInvalid &&
-		errMsg.ErrCode != gz.ErrorAuthNoUser) {
-		return nil, &errMsg
-	}
-
-	if !globals.Permissions.IsSystemAdmin(*user.Username) {
-		return nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	if em := ensureSystemAdmin(tx, r); em != nil {
+		return nil, em
 	}
 
 	models.ElasticSearchUpdateAll(r.Context(), tx)

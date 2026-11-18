@@ -13,6 +13,11 @@ import (
 	"strings"
 )
 
+// DefaultBranch is the branch of new resource repositories. Repositories
+// created before it was set use "master", so the latest version of a
+// repository is always read from its HEAD.
+const DefaultBranch = "main"
+
 // TODO: consider having a repo.Rollback() to checkout and return to
 // last working version.
 
@@ -50,11 +55,11 @@ func ensureFolderExists(dir string) error {
 }
 
 // make sure the revision is valid. If "tip" or an empty revision
-// is given as argument, then this func returns "master"
+// is given as argument, then this func returns "HEAD"
 func ensureRev(rev string) string {
 	rev = strings.TrimSpace(rev)
 	if rev == "" || rev == "tip" {
-		return "master"
+		return "HEAD"
 	}
 	return rev
 }
@@ -86,8 +91,9 @@ func (g *GitVCS) Init(ctx context.Context) error {
 	if err := ensureFolderExists(g.Path); err != nil {
 		return err
 	}
-	// Init the mercurial repository
-	cmd := exec.Command("git", "init", g.Path)
+	// Init the git repository on the DefaultBranch, regardless of the git
+	// default branch configuration.
+	cmd := exec.Command("git", "-c", "init.defaultBranch="+DefaultBranch, "init", g.Path)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err := cmd.Run()
@@ -122,7 +128,7 @@ func (g *GitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (
 // WalkFn on each leaf file. If includeFolders argument is true then WalkFn
 // will be invoked with folder nodes too. The function returns error if any
 // WalkFn invocation ended with error.
-// Revision argument can be an empty string; in that case "master" will be used.
+// Revision argument can be an empty string; in that case "HEAD" will be used.
 func (g *GitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn WalkFn) error {
 	// TODO: implement
 	return errors.New("GitVCS's Walk function is not implemented yet")
@@ -159,7 +165,7 @@ func (g *GitVCS) Commit(ctx context.Context, message string) error {
 }
 
 // Zip - creates a zip with the repository files, at a given revision.
-// If revision is empty or "tip", last commit from "master" branch will be used.
+// If revision is empty or "tip", last commit from "HEAD" will be used.
 // If output is empty, then a zip file in the tmp folder will be created.
 // Returns a string path pointing to the created zip file.
 func (g *GitVCS) Zip(ctx context.Context, rev, output string) (*string, error) {
@@ -228,12 +234,13 @@ func (g *GitVCS) Tag(ctx context.Context, tag string) error {
 		return err
 	}
 	cmd := exec.Command("git", "tag", "-a", tag, "-m", "ign-fuelserver created tag after cloning")
+	cmd.Dir = g.Path
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		err = gz.WithStack(err)
 		gz.LoggerFromContext(ctx).Info("Error while Tagging repo: " + g.Path + ". Err: " + fmt.Sprint(err) + ". Stderr: " + stderr.String())
+		return err
 	}
 	return nil
 }
@@ -252,7 +259,7 @@ func doLocalClone(ctx context.Context, source, target string) error {
 }
 
 // RevisionCount - get the number of revisions up to a specific revision
-// If revision is empty, last commit from "master" branch will be used.
+// If revision is empty, last commit from "HEAD" will be used.
 // Returns the number of revisions.
 func (g *GitVCS) RevisionCount(ctx context.Context, rev string) (int, error) {
 	gz.LoggerFromContext(ctx).Info("WARNING: ideally, we should not use the plain GitVCS implementation. Try to use GoGitVCS")

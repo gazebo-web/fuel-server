@@ -87,13 +87,13 @@ func (ms *Service) GetModelProto(ctx context.Context, tx *gorm.DB, owner,
 func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string,
 	order, search string, likedBy *users.User, user *users.User, categories *category.Categories, ignoreMemcache bool) (*fuel.Models, *gz.PaginationResult, *gz.ErrMsg) {
 
-	basicQuery := isbasicModelListQuery(p, owner, order, search, likedBy, ignoreMemcache)
+	basicQuery := isbasicModelListQuery(p, owner, order, search, likedBy, user, categories, ignoreMemcache)
 
 	paginationCacheKey := "models_list_pagination"
 	modelsCacheKey := "models_list_models"
 	if p != nil && p.PageRequested && p.PerPage == 20 {
 		paginationCacheKey = fmt.Sprintf("%s%d", paginationCacheKey, p.Page)
-		modelsCacheKey += fmt.Sprintf("%s%d", modelsCacheKey, p.Page)
+		modelsCacheKey = fmt.Sprintf("%s%d", modelsCacheKey, p.Page)
 	}
 
 	// Try the memory cache first
@@ -130,6 +130,8 @@ func (ms *Service) ModelList(p *gz.PaginationRequest, tx *gorm.DB, owner *string
 	// Check if we should return the list of liked models instead.
 	if likedBy != nil {
 		q = q.Joins("JOIN model_likes ON models.id = model_likes.model_id").Where("user_id = ?", &likedBy.ID)
+		// Only list the liked resources that the requestor can see.
+		q = res.QueryForResourceVisibility(tx, q, nil, user)
 	} else {
 
 		// filter resources based on privacy setting
@@ -574,6 +576,13 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 	if !ok {
 		return nil, err
 	}
+	// Only Owners and Admins can update the privacy setting. Check this before
+	// any change is made, since file changes are not rolled back on error.
+	if private != nil {
+		if ok, em := users.CanPerformWithRole(tx, *model.Owner, *user.Username, permissions.Admin); !ok {
+			return nil, em
+		}
+	}
 
 	// Edit the model description, if present.
 	if desc != nil {
@@ -643,11 +652,6 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 
 	// update model privacy if present
 	if private != nil {
-		// check if JWT user has permission to update the privacy setting.
-		// Only Owners and Admins can do that.
-		if ok, em := users.CanPerformWithRole(tx, *model.Owner, *user.Username, permissions.Admin); !ok {
-			return nil, em
-		}
 		tx.Model(&model).Update("Private", *private)
 	}
 
@@ -663,25 +667,10 @@ func (ms *Service) UpdateModel(ctx context.Context, tx *gorm.DB, owner,
 // updates its Filesize field in DB.
 func (ms *Service) updateModelZip(ctx context.Context, repo vcs.VCS, model *Model) *gz.ErrMsg {
 
-	zSize, path, em := res.ZipResourceTip(ctx, repo, model, "models")
+	zSize, em := res.UpdateZip(ctx, repo, ms.Storage, model, "models")
 	if em != nil {
 		return em
 	}
-	f, err := os.Open(path)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-
-	v, err := res.GetLatestVersion(ctx, model)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-
-	err = ms.Storage.UploadZip(ctx, res.CastResourceToStorageResource(model, uint64(v)), f)
-	if err != nil {
-		return gz.NewErrorMessageWithBase(gz.ErrorUnexpected, err)
-	}
-
 	model.Filesize = int(zSize)
 	return nil
 }
@@ -900,10 +889,16 @@ func (ms *Service) createUniqueModelName(tx *gorm.DB, name, owner string) (strin
 // isbasicModelListQuery returns a boolean that indicates if this a basic `GET /models` or `GET /models?page=N` query.
 // In this case, we can ideally use the memdory cache to reduce the
 // DB burden.
+// The cached result is shared by all requests, so only anonymous queries
+// without category filters are cached. Results for a logged in user include
+// the private models that user can see.
 // Note: the PerPage default value is 20.
 func isbasicModelListQuery(p *gz.PaginationRequest, owner *string,
-	order, search string, likedBy *users.User, ignoreMemcache bool) bool {
-	return !ignoreMemcache && owner == nil && order == "" && search == "" && likedBy == nil && p != nil && (!p.PageRequested || (p.PageRequested && p.PerPage == 20))
+	order, search string, likedBy *users.User, user *users.User,
+	categories *category.Categories, ignoreMemcache bool) bool {
+	return !ignoreMemcache && owner == nil && order == "" && search == "" && likedBy == nil &&
+		user == nil && (categories == nil || len(*categories) == 0) &&
+		p != nil && (!p.PageRequested || p.PerPage == 20)
 }
 
 // getModelListCache attempts to get a query result from memcache.
