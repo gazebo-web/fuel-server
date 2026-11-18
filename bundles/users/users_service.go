@@ -128,10 +128,9 @@ func GetUserByIdentity(tx *gorm.DB, identity string) (*UserResponse, *gz.ErrMsg)
 	return &ur, nil
 }
 
-// CreateUserResponse creates a new UserResponse struct based on the given
-// User object.
-// The returned UserResponse will also include user private fields if the
-// requestor can access those
+// CreateUserResponse creates the UserResponse that requestor gets for user.
+// Only the user and system admins get the private fields: email, ID and
+// experimental features.
 func CreateUserResponse(tx *gorm.DB, user, requestor *User) UserResponse {
 	var response UserResponse
 
@@ -153,8 +152,6 @@ func CreateUserResponse(tx *gorm.DB, user, requestor *User) UserResponse {
 	// Private data should be included if the user is the same as the requestor or
 	// if the requestor is a sysAdmin.
 	if requestor != nil {
-		privateAccess := false
-
 		// Checks for System Admin and Same User.
 		isSystemAdmin := globals.Permissions.IsSystemAdmin(*requestor.Username)
 		isSameUser := *user.Identity == *requestor.Identity
@@ -164,27 +161,24 @@ func CreateUserResponse(tx *gorm.DB, user, requestor *User) UserResponse {
 			response.SysAdmin = true
 		}
 
-		// only is system admin or self
 		if isSystemAdmin || isSameUser {
-			privateAccess = true
 			if user.ExpFeatures != nil {
 				response.ExpFeatures = *user.ExpFeatures
 			}
-		} else {
-			// If the requestor has write access to any user's org, then
-			// we can include private data.
-			for _, r := range orgs {
-				if r != "" {
-					privateAccess = true
-					break
-				}
-			}
-		}
-
-		if privateAccess {
 			response.Email = *user.Email
 			response.ID = user.ID
 			response.OrgRoles = orgs
+		} else {
+			// Other requestors only get the user's roles in the orgs they can write.
+			roles := make(map[string]string)
+			for o, r := range orgs {
+				if r != "" {
+					roles[o] = r
+				}
+			}
+			if len(roles) > 0 {
+				response.OrgRoles = roles
+			}
 		}
 	}
 
