@@ -137,6 +137,12 @@ func (ms *OrganizationService) CreateOrganization(ctx context.Context, tx *gorm.
 	if ownerName != nil {
 		return nil, gz.NewErrorMessage(gz.ErrorResourceExists)
 	}
+	// Sanity check: teams use the same permissions namespace, so the name must
+	// not be the group of a team, including deleted ones (eg. org "a_t_b" and
+	// team "b" of org "a").
+	if teamGroupNameInUse(tx, co.Name) {
+		return nil, gz.NewErrorMessage(gz.ErrorResourceExists)
+	}
 
 	// Create the organization in the permissions DB as a 'group' and set the
 	// creator as the 'owner'.
@@ -357,6 +363,15 @@ func (ms *OrganizationService) CreateTeam(ctx context.Context, tx *gorm.DB,
 	// produce the same group name (eg. org "a" with team "b_t_c", and org
 	// "a_t_b" with team "c").
 	if teamGroupNameInUse(tx, getCasbinNameForTeam(*org.Name, t.Name)) {
+		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists, nil, []string{t.Name})
+	}
+	// Nor can the group be the name of an organization or user, including
+	// deleted ones (eg. team "b" of org "a" and org "a_t_b").
+	owner, em := OwnerByName(tx, getCasbinNameForTeam(*org.Name, t.Name), true)
+	if em != nil && em.ErrCode != gz.ErrorUserUnknown {
+		return nil, em
+	}
+	if owner != nil {
 		return nil, gz.NewErrorMessageWithArgs(gz.ErrorResourceExists, nil, []string{t.Name})
 	}
 
