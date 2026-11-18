@@ -301,15 +301,22 @@ func (ms *OrganizationService) RemoveUserFromOrg(ctx context.Context, tx *gorm.D
 	return &response, nil
 }
 
-// GetOrgUsers returns the list of users of an Organization.
-// The result will be paginated.
-// user argument is the user requesting the operation.
+// GetOrgUsers returns a page of an organization's users. user is the
+// requester: only the organization's members and system admins can list them.
 func (ms *OrganizationService) GetOrgUsers(p *gz.PaginationRequest, tx *gorm.DB,
 	orgName string, user *User) (*UserResponses, *gz.PaginationResult, *gz.ErrMsg) {
 
 	// Sanity check: make sure the org exist
 	_, em := ByOrganizationName(tx, orgName, false)
 	if em != nil {
+		return nil, nil, em
+	}
+
+	// Membership is private.
+	if user == nil {
+		return nil, nil, gz.NewErrorMessage(gz.ErrorUnauthorized)
+	}
+	if ok, em := globals.Permissions.IsAuthorized(*user.Username, orgName, permissions.Read); !ok {
 		return nil, nil, em
 	}
 
@@ -402,18 +409,15 @@ func (ms *OrganizationService) RemoveTeam(ctx context.Context, tx *gorm.DB,
 	return &response, nil
 }
 
-// GetOrganizationsAndRolesForUser returns a map with the Organizations
-// and associated roles of a user. It only returns non-deleted organizations.
-// If the requestor is the same user then it will include all details. Otherwise
-// the returned organizations will include only those that the requestor can
-// Read or are Public. Roles will be included for those that requestor can Write.
+// GetOrganizationsAndRolesForUser maps a user's non-deleted organizations to
+// the user's role in each. If requestor is the user, it returns all of them.
+// Otherwise it returns the ones requestor can read, with the role only where
+// requestor can write. A nil requestor gets none.
 func GetOrganizationsAndRolesForUser(tx *gorm.DB, user,
 	requestor *User) (map[string]string, *gz.ErrMsg) {
 
 	orgNames := make([]string, 0)
 	orgsWithRole := globals.Permissions.GetGroupsAndRolesForUser(*user.Username)
-	// TODO should only include names of public orgs or those that the requestor
-	// can read.
 	for g := range orgsWithRole {
 		orgNames = append(orgNames, g)
 	}
@@ -438,8 +442,8 @@ func GetOrganizationsAndRolesForUser(tx *gorm.DB, user,
 			}
 			if hasAccess {
 				result[orgName] = orgsWithRole[orgName]
-			} else {
-				// Currently all orgs are public so no need to check Read access.
+			} else if canRead, _ := globals.Permissions.IsAuthorized(reqName, orgName, permissions.Read); canRead {
+				// The requestor can read this org but not write it: no role.
 				result[orgName] = ""
 			}
 		}
