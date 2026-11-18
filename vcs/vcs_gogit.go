@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/gazebo-web/gz-go/v7"
+	"github.com/go-git/go-billy/v5/osfs"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/pkg/errors"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"io"
 	"log"
 	"os"
@@ -19,6 +23,12 @@ import (
 const (
 	gitName  = "ign-fuelserver"
 	gitEmail = "ign-fuelserver@test.org"
+	// largeObjectThreshold is the size, in bytes, of the largest git object
+	// that go-git loads in memory. Larger objects are read from disk as they
+	// are used, eg. when a file is downloaded. The exception are the objects
+	// stored as deltas in a pack: go-git v5 loads the base of the delta in
+	// memory.
+	largeObjectThreshold = 1 << 20
 )
 
 // GoGitVCS represents a local Git repo.
@@ -30,11 +40,32 @@ type GoGitVCS struct {
 // NewRepo creates a new GoGitVCS repository object.
 func (g GoGitVCS) NewRepo(dirpath string) VCS {
 	repo := GoGitVCS{Path: dirpath}
-	r, err := git.PlainOpen(dirpath)
+	r, err := plainOpen(dirpath)
 	if err == nil {
 		repo.r = r
 	}
 	return &repo
+}
+
+// plainOpen opens the git repository at dirpath, like git.PlainOpen, with
+// largeObjectThreshold set.
+func plainOpen(dirpath string) (*git.Repository, error) {
+	dirpath, err := filepath.Abs(dirpath)
+	if err != nil {
+		return nil, err
+	}
+	wt := osfs.New(dirpath)
+	if fi, err := wt.Stat(git.GitDirName); err != nil || !fi.IsDir() {
+		// Not a repository with a .git folder: let git.PlainOpen handle it.
+		return git.PlainOpen(dirpath)
+	}
+	dot, err := wt.Chroot(git.GitDirName)
+	if err != nil {
+		return nil, err
+	}
+	s := filesystem.NewStorageWithOptions(dot, cache.NewObjectLRUDefault(),
+		filesystem.Options{LargeObjectThreshold: largeObjectThreshold})
+	return git.Open(s, wt)
 }
 
 // InitRepo - Inits the version control repository and commits all
@@ -57,7 +88,7 @@ func (g *GoGitVCS) InitRepo(ctx context.Context) error {
 		return err
 	}
 	// Go-Git'Open the repo
-	gogitRepo, err := git.PlainOpen(g.Path)
+	gogitRepo, err := plainOpen(g.Path)
 	if err == nil {
 		g.r = gogitRepo
 	}
@@ -102,7 +133,9 @@ func (g *GoGitVCS) getCommit(ctx context.Context, rev string) (*object.Commit, e
 }
 
 // GetFile - Gets a single file with a given revision from the repo.
-func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (*[]byte, error) {
+// The content of files larger than largeObjectThreshold is read from the
+// repository as it is used. The caller must close the content.
+func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (io.ReadSeekCloser, error) {
 	if err := g.assertValidRepo(); err != nil {
 		return nil, err
 	}
@@ -118,18 +151,13 @@ func (g *GoGitVCS) GetFile(ctx context.Context, rev string, pathFromRoot string)
 		gz.LoggerFromContext(ctx).Info("Error while getting File. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
 		return nil, err
 	}
-	reader, err := f.Reader()
+	content, err := newBlobReader(&f.Blob, gz.LoggerFromContext(ctx))
 	if err != nil {
 		err = gz.WithStack(err)
 		gz.LoggerFromContext(ctx).Info("Error while getting file Reader. Err: " + fmt.Sprint(err) + ". Repo: " + g.Path)
 		return nil, err
 	}
-	var bs []byte
-	bs, err = io.ReadAll(reader)
-	if err != nil {
-		err = gz.WithStack(err)
-	}
-	return &bs, err
+	return content, nil
 }
 
 // Walk - given a revision, Walk func iterates over the repository and invokes the
@@ -147,23 +175,22 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 	if err != nil {
 		return err
 	}
-	// Get the files iterator
-	iter, err := commit.Files()
+	tree, err := commit.Tree()
 	if err != nil {
 		return gz.WithStack(err)
 	}
 
 	visitedFolders := make(map[string]bool)
-	_ = iter.ForEach(func(f *object.File) error {
+	_ = forEachFile(tree, func(name string) error {
 		// Skip ".git" folder and its contents
-		if strings.HasPrefix(f.Name, ".git") {
+		if strings.HasPrefix(name, ".git") {
 			return nil
 		}
 		// backward compatibility: exclude ".hg" folder too.
-		if strings.HasPrefix(f.Name, ".hg") {
+		if strings.HasPrefix(name, ".hg") {
 			return nil
 		}
-		parentPath := filepath.Clean(filepath.Dir(f.Name))
+		parentPath := filepath.Clean(filepath.Dir(name))
 		// Visit folders?
 		if includeFolders {
 			folders := strings.Split(parentPath, "/")
@@ -185,13 +212,37 @@ func (g *GoGitVCS) Walk(ctx context.Context, rev string, includeFolders bool, fn
 			}
 		}
 		// Need to prefix all paths with "/" as client code is expecting that.
-		err := fn(filepath.Join("/", f.Name), filepath.Join("/", parentPath), false)
+		err := fn(filepath.Join("/", name), filepath.Join("/", parentPath), false)
 		if err != nil {
 			return gz.WithStack(err)
 		}
 		return nil
 	})
 	return nil
+}
+
+// forEachFile calls fn with the path of each file of the given tree, in the
+// same order as tree.Files(), until fn returns an error. Unlike tree.Files(),
+// it does not load the files smaller than largeObjectThreshold in memory.
+func forEachFile(tree *object.Tree, fn func(name string) error) error {
+	walker := object.NewTreeWalker(tree, true, nil)
+	defer walker.Close()
+	for {
+		name, entry, err := walker.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		// Like tree.Files(), skip folders and submodules.
+		if entry.Mode == filemode.Dir || entry.Mode == filemode.Submodule {
+			continue
+		}
+		if err := fn(name); err != nil {
+			return err
+		}
+	}
 }
 
 // Zip - creates a zip with the repository files, at a given revision.
@@ -266,6 +317,8 @@ func (g *GoGitVCS) ReplaceFiles(ctx context.Context, folder, owner string) error
 	}
 
 	_, err = w.Commit("ReplaceFiles - new version", &git.CommitOptions{
+		// go-git v4 always created the commit, even with no changes.
+		AllowEmptyCommits: true,
 		Author: &object.Signature{
 			Name:  gitUser,
 			Email: gitEmail,

@@ -16,6 +16,7 @@ import (
 	gztest "github.com/gazebo-web/gz-go/v7/testhelpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io"
 
 	"log"
 	"net/http"
@@ -212,7 +213,7 @@ type FailingVCS struct{}
 func (g *FailingVCS) CloneTo(ctx context.Context, target string) error {
 	return errors.New("error")
 }
-func (g *FailingVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (*[]byte, error) {
+func (g *FailingVCS) GetFile(ctx context.Context, rev string, pathFromRoot string) (io.ReadSeekCloser, error) {
 	return nil, errors.New("error")
 }
 func (g *FailingVCS) InitRepo(ctx context.Context) error {

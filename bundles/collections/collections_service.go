@@ -11,6 +11,7 @@ import (
 	"github.com/gazebo-web/fuel-server/permissions"
 	"github.com/gazebo-web/gz-go/v7"
 	"github.com/jinzhu/gorm"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -470,11 +471,11 @@ func (s *Service) GetAssociatedCollections(p *gz.PaginationRequest, tx *gorm.DB,
 	return s.CollectionList(p, q, nil, "", "", false, user)
 }
 
-// GetFile returns the contents (bytes) of a collection file. Version is considered.
-// Returns the file's bytes and the resolved version.
+// GetFile returns the contents of a collection file. Version is considered.
+// Returns the file's contents, which the caller must close, and the resolved version.
 // The user argument is the user requesting the operation.
 func (s *Service) GetFile(ctx context.Context, tx *gorm.DB, owner, name, path,
-	version string, user *users.User) (*[]byte, int, *gz.ErrMsg) {
+	version string, user *users.User) (io.ReadSeekCloser, int, *gz.ErrMsg) {
 
 	col, em := s.internalGetCollection(tx, owner, name, user)
 	if em != nil {
