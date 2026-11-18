@@ -222,13 +222,13 @@ func uploadResource(ctx context.Context, storage storage.Storage, kind, versions
 	defer gz.Close(f)
 	if err != nil {
 		log.Printf("Failed to open zip file for %s: %s\n", kind, err)
-		log.Printf("Name: %s | Owner: %s | versions: %d | Path: %d\n", *r.GetName(), *r.GetOwner(), ver, path)
+		log.Printf("Name: %s | Owner: %s | versions: %d | Path: %s\n", *r.GetName(), *r.GetOwner(), ver, *path)
 		return 0, err
 	}
 	err = storage.UploadZip(ctx, res.CastResourceToStorageResource(r, uint64(ver)), f)
 	if err != nil {
 		log.Printf("Failed to upload zip file for %s: %s\n", kind, err)
-		log.Printf("Name: %s | Owner: %s | versions: %d | Path: %d\n", *r.GetName(), *r.GetOwner(), ver, path)
+		log.Printf("Name: %s | Owner: %s | versions: %d | Path: %s\n", *r.GetName(), *r.GetOwner(), ver, *path)
 		return 0, err
 	}
 	return ver, nil
