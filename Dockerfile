@@ -3,9 +3,12 @@
 
 FROM golang:1.19
 
+# safe.directory lets git open repositories owned by another user, such as the
+# non-root user that later images run as.
 RUN apt-get update && apt-get install -y nano vim &&  \
   git config --global user.name "gz-fuelserver"  &&  \
-  git config --global user.email "gz-fuelserver@test.org"
+  git config --global user.email "gz-fuelserver@test.org"  &&  \
+  git config --global --add safe.directory '*'
 
 COPY . /root/gz-fuelserver
 WORKDIR /root/gz-fuelserver
